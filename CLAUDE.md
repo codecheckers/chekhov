@@ -273,6 +273,7 @@ exists; read the issues for what does not.
 | #13 check by certificate identifier | Resolves through `register.csv` to a repository spec, which `FromRepository` already reads |
 | #14 webhook, #15 reply path | Implemented and covered offline by recorded deliveries and a stubbed GitHub |
 | #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
+| #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #17 one bundle source | The seam `Context.BundleDir` plus `RepositorySpec` is missing; bundle rules skip for remote targets |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 

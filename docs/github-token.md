@@ -61,6 +61,38 @@ It is not worth regenerating a narrower token now and a wider one in a month.
 What matters is that it is still one repository: the production register is out
 of reach either way.
 
+## One token, or two
+
+One. The dangerous capability is "can act as `@chekhovbot` on a register", and
+it lives in the write token however many read-only tokens sit beside it. Adding
+organisation *Members: read* - which reading the `editors` team needs - widens
+that token to knowing who is in which team, a small increment on a credential
+that can already post as the bot.
+
+A second, read-only token isolates nothing while both secrets sit in the same
+container: whoever can read one can read the other. It earns its keep only when
+the reader runs somewhere else - a CI job validating configurations, or a
+codechecker running `chekhov check --online` on their own machine. That token
+belongs to them, not to the deployment.
+
+It buys no rate-limit headroom either: personal access token limits are
+accounted per account rather than per token.
+
+Split when a real boundary appears:
+
+- the bot gains write beyond issues - the `register.csv` pull request,
+  organisation invitations - and the credential that opens a PR is worth
+  separating;
+- checks run outside the bot, which then gets its own public-read token;
+- a production deployment exists, which gets its own token regardless: a
+  testing deployment must never hold a credential that reaches the real
+  register.
+
+The long-term answer is a **GitHub App** rather than more tokens: short-lived
+installation tokens, permissions declared once, and an identity of its own
+rather than a user account whose personal reach is the ceiling. Worth doing
+when the bot outgrows commenting.
+
 ## Account prerequisites
 
 - `chekhovbot` is an active member of the `codecheckers` organisation.

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -51,7 +52,10 @@ type Config struct {
 	HasPaper    bool
 	Summary     string
 	Certificate string
-	Repository  []string
+	// CheckTime is the check_time node: when the CODECHECK was performed. It
+	// dates a configuration that names no specification version.
+	CheckTime  string
+	Repository []string
 
 	// Strings holds every string value in the file, for the rules that ask
 	// about values wherever they appear.
@@ -71,6 +75,11 @@ type Context struct {
 	ParseError error
 	Label      string
 	Services   *Services
+	// Modified is when the configuration was last changed at its source, when
+	// that is known: the last commit touching the file, or the publication of
+	// the record it came from. It dates a file that names no specification
+	// version, see SpecVersion.
+	Modified time.Time
 
 	// RepositorySpec is set when the configuration was fetched from a
 	// repository rather than read from disk, see source.go.
@@ -122,6 +131,7 @@ func FromBytes(raw []byte) Context {
 		Report      string         `yaml:"report"`
 		Summary     string         `yaml:"summary"`
 		Certificate string         `yaml:"certificate"`
+		CheckTime   string         `yaml:"check_time"`
 		Paper       struct {
 			Title     string   `yaml:"title"`
 			Authors   []Person `yaml:"authors"`
@@ -140,6 +150,7 @@ func FromBytes(raw []byte) Context {
 		Report:      parsed.Report,
 		Summary:     parsed.Summary,
 		Certificate: parsed.Certificate,
+		CheckTime:   parsed.CheckTime,
 		Strings:     stringValues(root),
 	}
 	config.HasManifest = hasKey(root, "manifest")
@@ -165,11 +176,30 @@ func FromBytes(raw []byte) Context {
 	return context
 }
 
-// SpecVersionFromURL returns the specification version a version node names,
-// or "" if it names none. A trailing slash is tolerated, as is http.
+// SpecVersionFromURL returns the specification version a **published** version
+// URL names, or "" if it names none. A trailing slash is tolerated, as is
+// http. This is what CC-CFG-015 asks about.
 func SpecVersionFromURL(version string) string {
+	return specVersionNamed(version, `spec/config/`)
+}
+
+// SpecVersionNamed returns the version a version node names, including the
+// historical form https://codecheck.org.uk/spec/1.0, which certificates from
+// 2020 use and which was never redirected to the published page.
+//
+// It decides only which rules to apply. CC-CFG-015 still reports the
+// historical URL as unpublished, because a reader following it gets a 404.
+// See "Choosing the specification version" in the register's RULES.md.
+func SpecVersionNamed(version string) string {
+	if published := SpecVersionFromURL(version); published != "" {
+		return published
+	}
+	return specVersionNamed(version, `spec/`)
+}
+
+func specVersionNamed(version, prefix string) string {
 	for _, candidate := range specVersions {
-		pattern := regexp.MustCompile(`spec/config/` + regexp.QuoteMeta(candidate) + `/?$`)
+		pattern := regexp.MustCompile(prefix + regexp.QuoteMeta(candidate) + `/?$`)
 		if pattern.MatchString(strings.TrimSpace(version)) {
 			return candidate
 		}

@@ -26,7 +26,14 @@ func Symbol(outcome Outcome) string { return symbol[outcome] }
 // skipped or is unchecked stays short, so a clean run does not fill a screen.
 func (r Report) Text() string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "CODECHECK rules %s%s: %s\n\n", r.SpecVersion, r.partSuffix(), r.Label)
+	fmt.Fprintf(&out, "CODECHECK rules %s%s: %s\n", r.SpecVersion, r.partSuffix(), r.Label)
+	if r.SpecVersionReason != "" {
+		fmt.Fprintf(&out, "specification %s %s\n", r.SpecVersion, r.SpecVersionReason)
+	}
+	if r.Source != "" {
+		fmt.Fprintf(&out, "read from %s\n", r.Source)
+	}
+	out.WriteString("\n")
 	for _, result := range r.Results {
 		line := result.Line()
 		if reported(result.Outcome) {
@@ -75,6 +82,7 @@ func (r Report) Markdown() string {
 			Symbol(OutcomeError), r.SpecVersion, r.partSuffix())
 	}
 	fmt.Fprintf(&out, "\n%s\n", r.Summary())
+	out.WriteString(r.provenance())
 
 	var reportable []RuleResult
 	for _, result := range r.Results {
@@ -93,8 +101,32 @@ func (r Report) Markdown() string {
 		}
 	}
 
+	out.WriteString(r.provenance())
 	out.WriteString("\nThe rules are the CODECHECK validation rules, kept in the register: " +
 		"https://github.com/codecheckers/register/blob/master/RULES.md\n")
+	return out.String()
+}
+
+// provenance says what was checked and against which requirements: the
+// repository the file came from, as a link the reader can follow, and how the
+// specification version was chosen. "Checked against 1.0" should not leave a
+// codechecker guessing whether that was declared or assumed.
+func (r Report) provenance() string {
+	var out strings.Builder
+	if r.Source != "" {
+		fmt.Fprintf(&out, "\nRead from [`%s`](%s).", r.Label, r.Source)
+	}
+	if r.SpecVersionReason != "" {
+		if out.Len() == 0 {
+			out.WriteString("\n")
+		} else {
+			out.WriteString(" ")
+		}
+		fmt.Fprintf(&out, "Checked against specification %s, %s.", r.SpecVersion, r.SpecVersionReason)
+	}
+	if out.Len() > 0 {
+		out.WriteString("\n")
+	}
 	return out.String()
 }
 

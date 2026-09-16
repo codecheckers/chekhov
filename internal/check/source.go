@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 )
 
 // Where a codecheck.yml comes from.
@@ -80,7 +81,56 @@ func FromRepository(spec string, services *Services) (Context, error) {
 	context.Label = spec
 	context.Services = services
 	context.RepositorySpec = parsed
+
+	// Only a file that says nothing about its version needs dating, and dating
+	// it costs a request - so ask only then.
+	if SpecVersionNamed(context.Config.Version) == "" && context.Config.CheckTime == "" {
+		context.Modified = lastModified(parsed, services)
+	}
 	return context, nil
+}
+
+// lastModified is when the configuration was last changed at its source, zero
+// when that cannot be established. See SpecVersion.
+func lastModified(spec RepositorySpec, services *Services) time.Time {
+	switch spec.Type {
+	case "github":
+		var commits []struct {
+			Commit struct {
+				Committer struct {
+					Date time.Time `json:"date"`
+				} `json:"committer"`
+			} `json:"commit"`
+		}
+		path := "codecheck.yml"
+		if spec.SubPath != "" {
+			path = spec.SubPath + "/codecheck.yml"
+		}
+		url := fmt.Sprintf("%s/repos/%s/commits?path=%s&per_page=1", services.GitHub, spec.Path, path)
+		if err := services.github(url, &commits); err != nil || len(commits) == 0 {
+			return time.Time{}
+		}
+		return commits[0].Commit.Committer.Date
+	case "zenodo", "zenodo-sandbox":
+		api := services.Zenodo
+		if spec.Type == "zenodo-sandbox" {
+			api = services.ZenodoSandbox
+		}
+		var record struct {
+			Created   time.Time `json:"created"`
+			Published string    `json:"publication_date"`
+		}
+		if err := services.getJSON(fmt.Sprintf("%s/records/%s", api, spec.Path), nil, &record); err != nil {
+			return time.Time{}
+		}
+		if when, err := time.Parse(time.DateOnly, record.Published); err == nil {
+			return when
+		}
+		return record.Created
+	default:
+		// GitLab and OSF can say too, but nothing in the register needs it yet.
+		return time.Time{}
+	}
 }
 
 func fetchConfiguration(spec RepositorySpec, services *Services) ([]byte, error) {
@@ -171,3 +221,35 @@ func fetchZenodoConfiguration(spec RepositorySpec, services *Services) ([]byte, 
 	}
 	return nil, fmt.Errorf("no codecheck.yml in Zenodo record %s", spec.Path)
 }
+
+// URL is where a human can see this repository. The register names a
+// repository in a form nobody can click; a report that says which repository
+// was read should let the reader open it.
+func (r RepositorySpec) URL() string {
+	switch r.Type {
+	case "github":
+		url := "https://github.com/" + r.Path
+		if r.SubPath != "" {
+			url += "/tree/HEAD/" + r.SubPath
+		}
+		return url
+	case "gitlab":
+		url := "https://gitlab.com/" + r.Path
+		if r.SubPath != "" {
+			url += "/-/tree/HEAD/" + r.SubPath
+		}
+		return url
+	case "osf":
+		return "https://osf.io/" + r.Path + "/"
+	case "zenodo":
+		return "https://zenodo.org/records/" + r.Path
+	case "zenodo-sandbox":
+		return "https://sandbox.zenodo.org/records/" + r.Path
+	default:
+		return ""
+	}
+}
+
+// SourceURL is where the configuration under check came from, empty for a file
+// on disk.
+func (c Context) SourceURL() string { return c.RepositorySpec.URL() }

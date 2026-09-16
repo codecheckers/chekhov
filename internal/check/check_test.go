@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/rules"
 )
@@ -163,10 +164,49 @@ func TestSpecVersionFromTheFile(t *testing.T) {
 		}
 	}
 
-	// A file that names no version is validated against the newest, which is
-	// what the specification asks tools to assume.
-	if got := SpecVersion(Config{}); got != rules.Newest() {
-		t.Errorf("a file without a version node: %q, want %q", got, rules.Newest())
+	// A file that names no version and cannot be dated is validated against
+	// the newest, which is what the specification asks tools to assume.
+	if got, why := SpecVersion(Context{}); got != rules.Newest() {
+		t.Errorf("a file without a version node: %q (%s), want %q", got, why, rules.Newest())
+	}
+}
+
+// The historical version URL names a version even though the page behind it
+// was never published: certificates from 2020 carry it, and checking them
+// against the 2026 requirements reports failures their authors could not have
+// known about.
+func TestTheHistoricalVersionURLIsUnderstood(t *testing.T) {
+	context := FromBytes([]byte("---\nversion: https://codecheck.org.uk/spec/1.0\n"))
+
+	version, why := SpecVersion(context)
+	if version != "1.0" {
+		t.Errorf("version = %q (%s), want 1.0", version, why)
+	}
+	// It is still not a published URL, and CC-CFG-015 still says so.
+	if SpecVersionFromURL("https://codecheck.org.uk/spec/1.0") != "" {
+		t.Error("the historical URL must not count as published")
+	}
+}
+
+// A file with no version node is judged by the requirements that were current
+// when it was checked.
+func TestAnUndatedVersionIsTakenFromTheCheckTime(t *testing.T) {
+	cases := map[string]string{
+		"2019-02-14 10:00:00": "1.0",
+		"2026-09-30":          "2.0",
+	}
+	for checkTime, want := range cases {
+		context := FromBytes([]byte("---\ncheck_time: \"" + checkTime + "\"\n"))
+		if got, why := SpecVersion(context); got != want {
+			t.Errorf("check_time %s: version %q (%s), want %q", checkTime, got, why, want)
+		}
+	}
+
+	// And by when it was last changed, when the file itself says nothing.
+	context := FromBytes([]byte("---\ncertificate: 2020-001\n"))
+	context.Modified = time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
+	if got, why := SpecVersion(context); got != "1.0" {
+		t.Errorf("version = %q (%s), want 1.0", got, why)
 	}
 }
 

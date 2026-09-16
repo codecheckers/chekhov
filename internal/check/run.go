@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/rules"
 )
@@ -59,21 +60,69 @@ func (r RuleResult) Line() string {
 type Report struct {
 	Label       string
 	SpecVersion string
-	Strict      bool
+	// SpecVersionReason says how that version was chosen: declared by the
+	// file, dated, or assumed. A codechecker reading "checked against 1.0"
+	// should not have to guess which.
+	SpecVersionReason string
+	// Source is where the configuration was read from, as a link when there is
+	// one.
+	Source string
+	Strict bool
 	// Part is the piece of the catalogue this report covers, empty for all of
 	// it, see Report.Subset.
 	Part    string
 	Results []RuleResult
 }
 
-// SpecVersion returns the specification version a configuration declares, or
-// the newest one when it declares none, which is what the specification asks
-// tools to assume.
-func SpecVersion(config Config) string {
-	if version := SpecVersionFromURL(config.Version); version != "" {
-		return version
+// SpecVersion returns the specification version to check a configuration
+// against, and why.
+//
+// The specification asks tools to assume the newest version when a file names
+// none. Taken literally that judges a configuration written in 2020 against
+// requirements published in 2026, and reports failures its author could not
+// have known about - so a file that names no version is dated instead, and
+// only an undatable one falls back to the newest. See "Choosing the
+// specification version" in the register's RULES.md.
+func SpecVersion(context Context) (version, why string) {
+	if declared := SpecVersionNamed(context.Config.Version); declared != "" {
+		return declared, "declared by the file"
 	}
-	return rules.Newest()
+
+	if when, source := configurationDate(context); !when.IsZero() {
+		if dated := rules.AsOf(when); dated != "" {
+			return dated, fmt.Sprintf("current when the file was %s (%s)",
+				source, when.Format(time.DateOnly))
+		}
+	}
+	return rules.Newest(), "assumed: the file names no version and could not be dated"
+}
+
+// configurationDate is the best evidence of when a configuration was written:
+// what the file itself says, then what its source says.
+func configurationDate(context Context) (time.Time, string) {
+	if when, ok := parseCheckTime(context.Config.CheckTime); ok {
+		return when, "checked"
+	}
+	if !context.Modified.IsZero() {
+		return context.Modified, "last changed"
+	}
+	return time.Time{}, ""
+}
+
+// parseCheckTime reads the check_time node, which the specification writes as
+// "2019-02-14 10:00:00" but which files in the wild also carry as a date or an
+// RFC 3339 timestamp.
+func parseCheckTime(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{"2006-01-02 15:04:05", time.DateOnly, time.RFC3339, "2006-01-02 15:04"} {
+		if when, err := time.Parse(layout, value); err == nil {
+			return when, true
+		}
+	}
+	return time.Time{}, false
 }
 
 // Run applies the rules of one specification version to a codecheck.yml.
@@ -91,8 +140,9 @@ func Run(context Context, specVersion string, strict bool) (Report, error) {
 // not cost a Crossref lookup and a Zenodo record, and on a bad day must not
 // fail because one of them is down.
 func RunPart(context Context, specVersion string, strict bool, part string) (Report, error) {
+	why := "asked for"
 	if specVersion == "" {
-		specVersion = SpecVersion(context.Config)
+		specVersion, why = SpecVersion(context)
 	}
 	if !IsPart(part) {
 		return Report{}, fmt.Errorf("no such check %q; try one of %s, or leave it off for all of them",
@@ -103,7 +153,8 @@ func RunPart(context Context, specVersion string, strict bool, part string) (Rep
 		return Report{}, err
 	}
 
-	report := Report{Label: context.Label, SpecVersion: specVersion, Strict: strict}
+	report := Report{Label: context.Label, SpecVersion: specVersion,
+		SpecVersionReason: why, Source: context.SourceURL(), Strict: strict}
 	if part != "all" {
 		report.Part = part
 	}

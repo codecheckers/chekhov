@@ -53,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cassettes (go-vcr) replay what Crossref, ORCID, Zenodo, GitHub and the
   register answered, and stubbed servers cover the failure paths, so the fast
   suite exercises every rule.
+- The report says where the configuration was read from, as a link the reader
+  can follow, and how the specification version was chosen: declared, dated or
+  assumed.
 - `chekhov check --online` runs the checks that need external services from the
   command line.
 - A `codecheck.yml` can be read from a repository the way `register.csv` names

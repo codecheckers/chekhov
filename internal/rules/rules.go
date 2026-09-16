@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -48,6 +49,7 @@ func (r Rule) Active() bool { return r.Status == "active" }
 type catalogue struct {
 	Version     int    `yaml:"version"`
 	SpecVersion string `yaml:"spec_version"`
+	SpecDate    string `yaml:"spec_date"`
 	Updated     string `yaml:"updated"`
 	Rules       []Rule `yaml:"rules"`
 }
@@ -66,24 +68,89 @@ var provenanceJSON []byte
 // validated against, as the specification asks tools to assume.
 func SpecVersions() []string { return []string{"2.0", "1.0"} }
 
-// Newest is the specification version assumed when a file names none.
+// Newest is the specification version assumed when a file names none and
+// cannot be dated.
 func Newest() string { return SpecVersions()[0] }
+
+// SpecDate is the publication date of a specification version, as the rule
+// file records it.
+func SpecDate(specVersion string) (time.Time, error) {
+	parsed, err := parse(specVersion)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if parsed.SpecDate == "" {
+		return time.Time{}, fmt.Errorf("rules-%s.yml carries no spec_date", specVersion)
+	}
+	return time.Parse(time.DateOnly, parsed.SpecDate)
+}
+
+// AsOf returns the specification version that was current on a date: the
+// newest one published on or before it.
+//
+// This is what dates a configuration that names no version. Judging a file
+// written in 2020 against requirements published in 2026 reports failures its
+// author could not have known about; see "Choosing the specification version"
+// in the register's RULES.md.
+func AsOf(when time.Time) string {
+	for _, version := range SpecVersions() { // newest first
+		published, err := SpecDate(version)
+		if err != nil {
+			continue
+		}
+		if !published.After(when) {
+			return version
+		}
+	}
+	// Older than every specification: CODECHECK was done before the
+	// configuration file was specified at all, and the oldest requirements are
+	// the only ones its author could have followed.
+	if versions := SpecVersions(); len(versions) > 0 {
+		return versions[len(versions)-1]
+	}
+	return ""
+}
 
 var raw = map[string][]byte{"1.0": rules10, "2.0": rules20}
 
-// For returns the rules of one specification version, in file order.
-func For(specVersion string) ([]Rule, error) {
+// parsed caches the bundled rule files: they are compiled in and cannot change
+// while the process runs, and the rules are read for every check.
+var parsed sync.Map // spec version -> catalogue
+
+// parse reads one bundled rule file.
+func parse(specVersion string) (catalogue, error) {
+	if cached, ok := parsed.Load(specVersion); ok {
+		return cached.(catalogue), nil
+	}
+	read, err := readCatalogue(specVersion)
+	if err != nil {
+		return catalogue{}, err
+	}
+	parsed.Store(specVersion, read)
+	return read, nil
+}
+
+func readCatalogue(specVersion string) (catalogue, error) {
 	data, ok := raw[specVersion]
 	if !ok {
-		return nil, fmt.Errorf("no rules for specification version %q", specVersion)
+		return catalogue{}, fmt.Errorf("no rules for specification version %q", specVersion)
 	}
-	var parsed catalogue
-	if err := yaml.Unmarshal(data, &parsed); err != nil {
-		return nil, fmt.Errorf("rules-%s.yml: %w", specVersion, err)
+	var read catalogue
+	if err := yaml.Unmarshal(data, &read); err != nil {
+		return catalogue{}, fmt.Errorf("rules-%s.yml: %w", specVersion, err)
 	}
-	if parsed.SpecVersion != specVersion {
-		return nil, fmt.Errorf("rules-%s.yml declares spec_version %q",
-			specVersion, parsed.SpecVersion)
+	if read.SpecVersion != specVersion {
+		return catalogue{}, fmt.Errorf("rules-%s.yml declares spec_version %q",
+			specVersion, read.SpecVersion)
+	}
+	return read, nil
+}
+
+// For returns the rules of one specification version, in file order.
+func For(specVersion string) ([]Rule, error) {
+	parsed, err := parse(specVersion)
+	if err != nil {
+		return nil, err
 	}
 	return parsed.Rules, nil
 }
