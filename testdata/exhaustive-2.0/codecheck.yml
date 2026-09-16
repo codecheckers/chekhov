@@ -1,0 +1,49 @@
+---
+# A deliberately maximal codecheck.yml: every node that any rule of
+# specification 2.0 looks at is present and filled in, so that every check this
+# bot implements reaches a verdict instead of skipping for want of input. It is
+# a test fixture, not a model configuration - a real file would use a DOI as
+# the reference, see the note below.
+version: https://codecheck.org.uk/spec/config/2.0/
+
+manifest:
+  - file: figure1.png
+    comment: manuscript Figure 1
+  - file: figure2.png
+    comment: manuscript Figure 2
+  - file: results/table1.csv
+    comment: manuscript Table 1, produced by analysis.R
+  - file: results/model-summary.txt
+    comment: model summary quoted in section 4
+
+paper:
+  title: "Reproducing the seasonal cycle of an imaginary lake"
+  authors:
+    - name: Josiah Carberry
+      ORCID: 0000-0002-1825-0097
+    - name: Ada Lovelace
+      ORCID: 0000-0002-1825-0098
+  # Deliberately shaped so that every rule about the reference reaches a
+  # verdict at once: it is a bare URL (CC-CFG-027), it carries a DOI
+  # (CC-CFG-028 and the Crossref rules), it is a PDF link (CC-CFG-031 only
+  # applies to one), and it is archived, which is what the specification asks
+  # for when a PDF link is all there is (CC-CFG-022). A real certificate would
+  # simply name the DOI.
+  reference: https://web.archive.org/web/20200401120000/https://doi.org/10.5555/lake-cycle.pdf
+  reference-other:
+    - https://doi.org/10.5555/version-of-record
+    - https://arxiv.org/abs/2001.10641
+
+codechecker:
+  - name: Stephen J. Eglen
+    ORCID: 0000-0001-8607-8025
+  - name: Daniel Nuest
+    ORCID: 0000-0002-0024-5046
+
+report: https://doi.org/10.5281/zenodo.1234567
+summary: |
+  All four output files were reproduced from the provided code and data in a
+  single run of analysis.R, on a machine with 8 GB of memory and R 4.6.1.
+repository: https://github.com/codecheckers/FAKE-lake-cycle
+check_time: "1970-01-01 10:00:00"
+certificate: 1970-002

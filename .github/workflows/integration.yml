@@ -1,0 +1,59 @@
+# The integration suite: the checks that need external services.
+#
+# Crossref, ORCID, Zenodo, the GitHub API and the register are all read here,
+# against real published CODECHECKs. Nothing is written anywhere. It runs on a
+# schedule and on request rather than on every push, because a failure here is
+# usually news about a service or about a certificate, not about a change.
+name: Integration tests
+
+on:
+  schedule:
+    - cron: '0 5 * * 1' # 05:00 UTC every Monday
+  workflow_dispatch:
+    inputs:
+      register:
+        description: 'Register to read (owner/repo)'
+        required: false
+        default: 'codecheckers/register'
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: External services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Test against the external services
+        env:
+          CHEKHOV_INTEGRATION: '1'
+          # Lifts the GitHub API rate limit; the endpoints used are public.
+          CHEKHOV_GH_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The register-wide rules need a register that holds the fixture's
+          # certificate. Read-only: the suite never writes.
+          CHEKHOV_TARGET_REPO: ${{ inputs.register || 'codecheckers/register' }}
+        run: go test -v -timeout 10m -run Integration ./internal/check/
+
+      # Drift check: re-record the cassettes from the live services and run the
+      # offline tests against them. If Zenodo renames a field or Crossref
+      # changes a shape, this fails here rather than the fast suite quietly
+      # passing on a stale recording. The re-recorded cassettes are not
+      # committed; the failure is the signal to re-record deliberately.
+      - name: Cassettes still match what the services answer
+        env:
+          CHEKHOV_INTEGRATION: '1'
+          CHEKHOV_RECORD: '1'
+          CHEKHOV_GH_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          go test -timeout 10m -run Cassette ./internal/check/
+          git diff --stat -- testdata/cassettes/ || true
+
+      - name: Replay the fresh recordings
+        run: go test -timeout 5m -run 'Cassette|Stub|Offline' ./internal/check/

@@ -1,0 +1,2097 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: doi.org
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://doi.org/10.5281/zenodo.18890103
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |-
+            <html><head><title>Handle Redirect</title></head>
+            <body><a href="https://zenodo.org/doi/10.5281/zenodo.18890103">https://zenodo.org/doi/10.5281/zenodo.18890103</a></body></html>
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=86400
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f343f6bb44a-TXL
+            Content-Type:
+                - text/html;charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:03 GMT
+            Expires:
+                - Wed, 16 Sep 2026 11:23:08 GMT
+            Location:
+                - https://zenodo.org/doi/10.5281/zenodo.18890103
+            Nel:
+                - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+            Permissions-Policy:
+                - interest-cohort=(),browsing-topics=()
+            Report-To:
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=typyAjLtDX7oyPHsUFkZQxDTa%2FHBb9j%2B9h9QdSYW%2FGoHaWbHK8ZJhzYP7J%2F4JiBf2O2v2hYfEMhB2mNOLhlJjQaVm62uhwN5oRs5gIrceRqxoBitBg29qjg%3D"}]}'
+            Server:
+                - cloudflare
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Origin
+                - Accept
+        status: 302 Found
+        code: 302
+        duration: 58.732312ms
+    - id: 1
+      request:
+        proto: ""
+        proto_major: 0
+        proto_minor: 0
+        content_length: 0
+        host: ""
+        headers:
+            Referer:
+                - https://doi.org/10.5281/zenodo.18890103
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/doi/10.5281/zenodo.18890103
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 257
+        body: |
+            <!doctype html>
+            <html lang=en>
+            <title>Redirecting...</title>
+            <h1>Redirecting...</h1>
+            <p>You should be redirected automatically to the target URL: <a href="https://zenodo.org/records/18890103">https://zenodo.org/records/18890103</a>. If not, click the link.
+        headers:
+            Content-Length:
+                - "257"
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:03 GMT
+            Location:
+                - https://zenodo.org/records/18890103
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "18"
+            Server:
+                - nginx
+            Set-Cookie:
+                - session=4dd037dbdb897dbe_6aaa7c17.o6OGxCKo6UaUnrsHRrfK3IrnUSg; Expires=Mon, 21 Sep 2026 11:23:03 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "119"
+            X-Ratelimit-Reset:
+                - "1789557802"
+            X-Source:
+                - ui
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 302 FOUND
+        code: 302
+        duration: 152.190716ms
+    - id: 2
+      request:
+        proto: ""
+        proto_major: 0
+        proto_minor: 0
+        content_length: 0
+        host: ""
+        headers:
+            Referer:
+                - https://zenodo.org/doi/10.5281/zenodo.18890103
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/records/18890103
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 53
+        uncompressed: true
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:04 GMT
+            Link:
+                - <https://orcid.org/0009-0003-3725-9454> ; rel="author" , <https://orcid.org/0009-0005-9240-7370> ; rel="author" , <https://doi.org/10.5281/zenodo.18890103> ; rel="cite-as" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/dcat+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" ; profile="https://datapackage.org/profiles/2.0/datapackage.json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/marcxml+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.citationstyles.csl+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.geo+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.full+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.simple+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-bibtex" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-dc+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="text/x-bibliography" , <https://zenodo.org/records/18890103/files/CODECHECK_certificate_2026-001.pdf> ; rel="item" ; type="application/pdf" , <https://creativecommons.org/licenses/by/4.0/legalcode> ; rel="license" , <https://schema.org/ScholarlyArticle> ; rel="type" , <https://schema.org/AboutPage> ; rel="type" , <https://zenodo.org/api/records/18890103> ; rel="linkset" ; type="application/linkset+json"
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "17"
+            Server:
+                - nginx
+            Set-Cookie:
+                - session=c28c38a547f0d7e0_6aaa7c18._L7DX6O1-8im5YX8rJ8vMfxdZ3k; Expires=Mon, 21 Sep 2026 11:23:04 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "118"
+            X-Ratelimit-Reset:
+                - "1789557802"
+            X-Source:
+                - ui
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 447.906205ms
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: pub.orcid.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://pub.orcid.org/v3.0/0000-0003-3164-5648/person
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"last-modified-date":{"value":1674295710314},"name":{"created-date":{"value":1657618979696},"last-modified-date":{"value":1657709583175},"given-names":{"value":"Jelle Agatho Wilhelm"},"family-name":{"value":"Poland"},"credit-name":{"value":"J.A.W.Poland"},"source":null,"visibility":"public","path":"0000-0003-3164-5648"},"other-names":{"last-modified-date":null,"other-name":[],"path":"/0000-0003-3164-5648/other-names"},"biography":null,"researcher-urls":{"last-modified-date":{"value":1668746464741},"researcher-url":[{"created-date":{"value":1668746464741},"last-modified-date":{"value":1668746464741},"source":{"source-orcid":null,"source-client-id":{"uri":"https://orcid.org/client/APP-K1RFUENXTHHY2XLK","path":"APP-K1RFUENXTHHY2XLK","host":"orcid.org"},"source-name":{"value":"Delft University of Technology"},"assertion-origin-orcid":null,"assertion-origin-client-id":null,"assertion-origin-name":null},"url-name":"Delft University of Technology profile page","url":{"value":"https://research.tudelft.nl/en/persons/c115aaaf-d737-4e21-a12e-4516efd89203"},"visibility":"public","path":"/0000-0003-3164-5648/researcher-urls/3494966","put-code":3494966,"display-index":0}],"path":"/0000-0003-3164-5648/researcher-urls"},"emails":{"last-modified-date":null,"email":[],"path":"/0000-0003-3164-5648/email"},"addresses":{"last-modified-date":null,"address":[],"path":"/0000-0003-3164-5648/address"},"keywords":{"last-modified-date":null,"keyword":[],"path":"/0000-0003-3164-5648/keywords"},"external-identifiers":{"last-modified-date":{"value":1674295710314},"external-identifier":[{"created-date":{"value":1674295710314},"last-modified-date":{"value":1674295710314},"source":{"source-orcid":null,"source-client-id":{"uri":"https://orcid.org/client/APP-WRQOUAK78G5F7GMD","path":"APP-WRQOUAK78G5F7GMD","host":"orcid.org"},"source-name":{"value":"Multidisciplinary Digital Publishing Institute"},"assertion-origin-orcid":null,"assertion-origin-client-id":null,"assertion-origin-name":null},"external-id-type":"SciProfiles","external-id-value":"2728943","external-id-url":{"value":"https://sciprofiles.com/profile/2728943"},"external-id-relationship":"self","visibility":"public","path":"/0000-0003-3164-5648/external-identifiers/2859062","put-code":2859062,"display-index":0}],"path":"/0000-0003-3164-5648/external-identifiers"},"path":"/0000-0003-3164-5648/person"}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - no-cache, no-store, max-age=0, must-revalidate
+            Cf-Apo-Via:
+                - origin,host
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f3cc990e507-TXL
+            Content-Type:
+                - application/json;charset=UTF-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:05 GMT
+            Expires:
+                - "0"
+            Pragma:
+                - no-cache
+            Server:
+                - cloudflare
+            Set-Cookie:
+                - __cf_bm=JXzQ4GEeyyspvy7xUSa42WGxbQK4Qae1a071cKgQecw-1789557785.0884583-1.0.1.1-sPBFU1FnJPSN3q2y.6YN2NzVLWKmgrd.QlVmjLtqu_UX.rAJi_q7q2GJpCABC.4qmjL5IOUTRkVo8OHLGyqlTxYcjBrWGukc3GaU.lDffGV95lTFYGpsBFpj1eg7Pm17; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:05 GMT
+            Strict-Transport-Security:
+                - max-age=31536000 ; includeSubDomains
+            Vary:
+                - accept-encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - DENY
+            X-Target:
+                - reg-prod-papi-use2-a1
+            X-Via:
+                - b2-newvpc
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 153.390176ms
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: pub.orcid.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://pub.orcid.org/v3.0/0009-0003-3725-9454/person
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"last-modified-date":null,"name":{"created-date":{"value":1748356974915},"last-modified-date":{"value":1748356974915},"given-names":{"value":"Josip"},"family-name":{"value":"Grguric"},"credit-name":null,"source":null,"visibility":"public","path":"0009-0003-3725-9454"},"other-names":{"last-modified-date":null,"other-name":[],"path":"/0009-0003-3725-9454/other-names"},"biography":null,"researcher-urls":{"last-modified-date":null,"researcher-url":[],"path":"/0009-0003-3725-9454/researcher-urls"},"emails":{"last-modified-date":null,"email":[],"path":"/0009-0003-3725-9454/email"},"addresses":{"last-modified-date":null,"address":[],"path":"/0009-0003-3725-9454/address"},"keywords":{"last-modified-date":null,"keyword":[],"path":"/0009-0003-3725-9454/keywords"},"external-identifiers":{"last-modified-date":null,"external-identifier":[],"path":"/0009-0003-3725-9454/external-identifiers"},"path":"/0009-0003-3725-9454/person"}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - no-cache, no-store, max-age=0, must-revalidate
+            Cf-Apo-Via:
+                - origin,host
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f3eb9fae507-TXL
+            Content-Type:
+                - application/json;charset=UTF-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:05 GMT
+            Expires:
+                - "0"
+            Pragma:
+                - no-cache
+            Server:
+                - cloudflare
+            Set-Cookie:
+                - __cf_bm=PgTOysSUmDWq_NWGnE4jVwXSuToSFCmiw7y9.raEHFY-1789557785.3977408-1.0.1.1-zCQMJ64bTUtuM0sIg9WEWdVihzdSxb74z0UsG4mrPNtTs9kIGDm6bvtQEI97cy.7ShT6YTCaL55gARbYS5XfSqv2UiM__oB8kC_.qBQQmiMeqO73sUutM870yu2hV.Lu; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:05 GMT
+            Strict-Transport-Security:
+                - max-age=31536000 ; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - DENY
+            X-Target:
+                - reg-prod-papi-use2-a1
+            X-Via:
+                - b2-newvpc
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 149.627277ms
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: doi.org
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://doi.org/10.5194/wes-2025-217
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |-
+            <html><head><title>Handle Redirect</title></head>
+            <body><a href="https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html">https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html</a></body></html>
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=86400
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f409e3cb44a-TXL
+            Content-Type:
+                - text/html;charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:05 GMT
+            Expires:
+                - Wed, 16 Sep 2026 12:23:02 GMT
+            Location:
+                - https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html
+            Nel:
+                - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+            Permissions-Policy:
+                - interest-cohort=(),browsing-topics=()
+            Report-To:
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=NwnB67q3CP2azH7CDpD81TqqKGHSaFG%2FETaD0oNtcPq4rsbbS1Lz52HNKMwwv42ZKwscA0I0%2BQ72RcOnKYYW0o4FGzAq9oVT4LTrMIrkrC5Sb6N0V2aijz4%3D"}]}'
+            Server:
+                - cloudflare
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Origin
+                - Accept
+        status: 302 Found
+        code: 302
+        duration: 184.297414ms
+    - id: 6
+      request:
+        proto: ""
+        proto_major: 0
+        proto_minor: 0
+        content_length: 0
+        host: ""
+        headers:
+            Referer:
+                - https://doi.org/10.5194/wes-2025-217
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 53
+        uncompressed: true
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - max-age=0
+            Content-Type:
+                - text/html
+            Date:
+                - Wed, 16 Sep 2026 11:23:06 GMT
+            Expires:
+                - Wed, 16 Sep 2026 11:23:06 GMT
+            Server:
+                - Apache/2.4.52 (Ubuntu)
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Accept-Encoding
+        status: 200 OK
+        code: 200
+        duration: 124.598602ms
+    - id: 7
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.crossref.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://api.crossref.org/works/10.5194/wes-2025-217
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"status":"ok","message-type":"work","message-version":"1.0.0","message":{"indexed":{"date-parts":[[2026,9,12]],"date-time":"2026-09-12T22:49:08Z","timestamp":1789253348044,"version":"build-2803163510"},"posted":{"date-parts":[[2025,10,30]]},"group-title":"Wind technologies\/Airborne technology","reference-count":0,"publisher":"Copernicus GmbH","license":[{"start":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T00:00:00Z","timestamp":1761782400000},"content-version":"vor","delay-in-days":0,"URL":"https:\/\/creativecommons.org\/licenses\/by\/4.0\/"}],"funder":[{"DOI":"10.13039\/100010661","name":"Horizon 2020 Framework Programme","doi-asserted-by":"publisher","award":["101084216"],"award-info":[{"award-number":["101084216"]}],"id":[{"id":"10.13039\/100010661","id-type":"DOI","asserted-by":"publisher"}]},{"DOI":"10.13039\/501100003246","name":"Nederlandse Organisatie voor Wetenschappelijk Onderzoek","doi-asserted-by":"publisher","award":["17628"],"award-info":[{"award-number":["17628"]}],"id":[{"id":"10.13039\/501100003246","id-type":"DOI","asserted-by":"publisher"}]}],"content-domain":{"domain":[],"crossmark-restriction":false},"short-container-title":[],"abstract":"<jats:p>Abstract. Leading-edge inflatable (LEI) kites are characterized by a pronounced downward curvature of the wing and flow recirculation zones on the pressure side. This study presents novel stereoscopic particle image velocimetry (PIV) measurements of a 1:6.5 rigid scale model of the TU Delft V3 LEI kite. The flow-field measurements were conducted in the Open Jet Facility of Delft University of Technology for two angles of attack and seven chordwise measurement planes positioned between mid-span and tip, and were compared with results from Reynolds-averaged Navier\u2013Stokes (RANS) simulations. The double-curved anhedral wing geometry presented several challenges, such as surface reflections that required careful data processing and the use of a lateral velocity filter. The circulation distribution was analyzed, using both elliptical and rectangular boundary curves, showing good agreement in trends between the vortex-step method (VSM), RANS, and PIV data. The lift and drag coefficients of each chordwise measurement plane were estimated using the Kutta\u2013Joukowski theorem, surface pressure integration of RANS CFD data, and Noca''s method \u2013 an inherently three-dimensional reformulation of the momentum conservation equations expressed solely as surface integrals over the control-volume boundary \u2013 applied here in two dimensions. While the mid-span to tip variation of lift coefficients was in accordance with the anhedral shape and tip-vortex effects, the drag measurements and predictions deviated from the expected behavior by exhibiting negative values. Especially near the tip region, significant discrepancies were observed, attributed to increased measurement uncertainty. The surface pressure integration revealed discrepancies at the strut junction, likely due to local three-dimensional strut-induced flow effects and increased airfoil thickness. This study provides comprehensive validation data for CFD simulations of LEI kites while highlighting the challenges in PIV measurements of double-curved anhedral wings and characterizing local aerodynamic phenomena.<\/jats:p>","DOI":"10.5194\/wes-2025-217","type":"posted-content","created":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T12:41:37Z","timestamp":1761828097000},"source":"Crossref","is-referenced-by-count":1,"title":["Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"],"prefix":"10.5194","author":[{"ORCID":"https:\/\/orcid.org\/0000-0003-3164-5648","authenticated-orcid":false,"given":"Jelle Agatho Wilhelm","family":"Poland","sequence":"first","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0003-1486-3643","authenticated-orcid":false,"given":"Erik","family":"Fritz","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0002-4112-841X","authenticated-orcid":false,"given":"Roland","family":"Schmehl","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]}],"member":"3145","container-title":[],"original-title":[],"deposited":{"date-parts":[[2026,5,26]],"date-time":"2026-05-26T10:07:33Z","timestamp":1779790053000},"score":1,"resource":{"primary":{"URL":"https:\/\/wes.copernicus.org\/articles\/11\/1461\/2026\/wes-11-1461-2026-discussion.html"}},"subtitle":[],"short-title":[],"issued":{"date-parts":[[2025,10,30]]},"references-count":0,"URL":"https:\/\/doi.org\/10.5194\/wes-2025-217","relation":{"has-comment":[{"id-type":"doi","id":"10.5194\/wes-2025-217-AC2","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-AC1","asserted-by":"subject"}],"has-review":[{"id-type":"doi","id":"10.5194\/wes-2025-217-RC1","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-RC2","asserted-by":"subject"}],"is-preprint-of":[{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"object"}]},"subject":[],"published":{"date-parts":[[2025,10,30]]},"subtype":"preprint"}}'
+        headers:
+            Access-Control-Allow-Headers:
+                - X-Requested-With, Accept, Accept-Encoding, Accept-Charset, Accept-Language, Accept-Ranges, Cache-Control
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - Link
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 16 Sep 2026 11:23:06 GMT
+            Permissions-Policy:
+                - interest-cohort=()
+            Server:
+                - Jetty(9.4.40.v20210413)
+            Vary:
+                - Accept-Encoding
+            X-Api-Pool:
+                - public-single
+            X-Concurrency-Limit:
+                - "1"
+            X-Rate-Limit-Interval:
+                - 1s
+            X-Rate-Limit-Limit:
+                - "5"
+        status: 200 OK
+        code: 200
+        duration: 140.913033ms
+    - id: 8
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: arxiv.org
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://arxiv.org/abs/2001.10641
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 53
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Age:
+                - "638489"
+            Cache-Control:
+                - max-age=3600
+            Content-Security-Policy:
+                - frame-ancestors 'none'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:06 GMT
+            Last-Modified:
+                - Mon, 24 Aug 2026 20:27:50 GMT
+            Server:
+                - Google Frontend
+            Via:
+                - 1.1 google, 1.1 varnish, 1.1 varnish, 1.1 varnish
+            X-Cache:
+                - MISS, HIT, HIT
+            X-Cloud-Trace-Context:
+                - 0e41f2dd690cad8d0131cfc0e7a05a8b
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Served-By:
+                - cache-lga21992-LGA, cache-lga21992-LGA, cache-lga21964-LGA, cache-ber1080044-BER
+            X-Timer:
+                - S1789557787.697593,VS0,VE1
+        status: 200 OK
+        code: 200
+        duration: 78.358791ms
+    - id: 9
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: raw.githubusercontent.com
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig04_plane_location.pdf
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 14
+        body: '404: Not Found'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Content-Length:
+                - "14"
+            Content-Security-Policy:
+                - default-src 'none'; style-src 'unsafe-inline'; sandbox
+            Content-Type:
+                - text/plain; charset=utf-8
+            Cross-Origin-Resource-Policy:
+                - cross-origin
+            Date:
+                - Wed, 16 Sep 2026 11:23:06 GMT
+            Expires:
+                - Wed, 16 Sep 2026 11:28:06 GMT
+            Source-Age:
+                - "50"
+            Strict-Transport-Security:
+                - max-age=31536000
+            Vary:
+                - Authorization,Accept-Encoding
+            Via:
+                - 1.1 varnish
+            X-Cache:
+                - HIT
+            X-Cache-Hits:
+                - "2"
+            X-Content-Type-Options:
+                - nosniff
+            X-Fastly-Request-Id:
+                - 9bd3e3fd336211b619290d3c8ee92390f2a8c00f
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - 9BAC:29C1DE:FFD5D4:11E500A:6AAA7BE8
+            X-Served-By:
+                - cache-ber1080026-BER
+            X-Timer:
+                - S1789557787.819246,VS0,VE0
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 404 Not Found
+        code: 404
+        duration: 21.759858ms
+    - id: 10
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: github.com
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://github.com/codecheckers/kite_piv_analysis
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 53
+        uncompressed: true
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - max-age=0, private, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''none''; base-uri ''self''; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src ''self'' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com; font-src github.githubassets.com; form-action ''self'' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors ''none''; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src ''self'' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src ''self''; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com ''sha256-tSjmyPUky1KbRZ0fw9VUil3wFEbeM82rtbJDygGJAXw=''; style-src ''unsafe-inline'' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:22:58 GMT
+            Etag:
+                - W/"1f4ce0aebb7d3c5a8206680451ed783e"
+            Referrer-Policy:
+                - no-referrer-when-downgrade
+            Server:
+                - github.com
+            Set-Cookie:
+                - _gh_sess=VnlgkwNBz7lDXEDHvyFQtkfH90KeYgscFe3mCGPXLrQsU%2BObgGcHx%2FmpEQ23c1wX2D50aSMhefw2EJNjrxos0Engn%2FtxwNdeL1C1QcWHalYuqp%2BeHZt5xlM0OxLKauS0vnIEEi7wFVOPJ%2F0ZCEN7Yl0SyrS6T85dAofdEAIP7dgTxXBbtlMNUoJ7x1n0YDBSsDR5ferWDbM9HT%2FhXhXS7rzbQLF4uN7b9ErqKzgeNoNRwtAAbyjNYj8WD0Z%2FfeKCXGVs6YYPfz5FJ1UkAA6SYA%3D%3D--b538NftiFyjRgKZX--DDl9fbdOlwdSuRinH%2B2bJw%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
+                - _octo=GH1.1.985617198.1789557786; expires=Thu, 16 Sep 2027 11:23:06 GMT; domain=.github.com; path=/; secure; SameSite=Lax
+                - logged_in=no; expires=Thu, 16 Sep 2027 11:23:06 GMT; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubdomains; preload
+            Vary:
+                - X-PJAX, X-PJAX-Container, Turbo-Visit, Turbo-Frame, X-Requested-With, X-GitHub-Client-Version, Sec-Fetch-Site,Accept-Encoding, Accept, X-Requested-With
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - D3C0:32F50:B77D736:A7995EC:6AAA7C17
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 29.022369ms
+    - id: 11
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: zenodo.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/api/records/18890103
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: -1
+        uncompressed: true
+        body: '{"created": "2026-03-09T13:07:42.277005+00:00", "modified": "2026-03-09T13:07:42.659900+00:00", "id": 18890103, "conceptrecid": "18890102", "doi": "10.5281/zenodo.18890103", "conceptdoi": "10.5281/zenodo.18890102", "doi_url": "https://doi.org/10.5281/zenodo.18890103", "metadata": {"title": "CODECHECK Certificate 2026-001", "doi": "10.5281/zenodo.18890103", "publication_date": "2026-03-06", "description": "<p>CODECHECK certificate for publication <a href=\"https://doi.org/10.5194/wes-2025-217\"><span lang=\"EN-US\">Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry</span></a>.</p>\n<p><span lang=\"EN-US\">This codecheck resulted in a partial reproduction of the figures presented in the publication. The authors provided a GitHub repository containing all the necessary code and instructions for reproducing the figures. </span></p>\n<p><span lang=\"EN-US\">Given the runtime of the program is approximately 21 hours, the code was executed on an HPC cluster. Two minor changes were made to the code: 1) the NumPy function &ldquo;trapz&rdquo; was renamed &ldquo;trapezoid&rdquo;, and 2) LaTeX rendering was disabled, as suggested by the author, since it was not available on the HPC system used.</span></p>", "access_right": "open", "creators": [{"name": "Grguric, Josip", "affiliation": "Delft University of Technology", "orcid": "0009-0003-3725-9454"}, {"name": "Quintero, Yasel", "affiliation": "Delft University of Technology", "orcid": "0009-0005-9240-7370"}], "related_identifiers": [{"identifier": "10.5194/wes-2025-217", "relation": "reviews", "resource_type": "publication", "scheme": "doi"}, {"identifier": "https://github.com/codecheckers/kite_piv_analysis", "relation": "isDerivedFrom", "resource_type": "software", "scheme": "url"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2026-001"}, {"identifier": "cdchck.science/register/certs/2026-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "18890102"}}]}}, "title": "CODECHECK Certificate 2026-001", "links": {"self": "https://zenodo.org/api/records/18890103", "self_html": "https://zenodo.org/records/18890103", "preview_html": "https://zenodo.org/records/18890103?preview=1", "doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890103", "reserve_doi": "https://zenodo.org/api/records/18890103/draft/pids/doi", "parent": "https://zenodo.org/api/records/18890102", "parent_html": "https://zenodo.org/records/18890102", "parent_doi": "https://doi.org/10.5281/zenodo.18890102", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890102", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:18890103/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:18890103/sequence/default", "files": "https://zenodo.org/api/records/18890103/files", "media_files": "https://zenodo.org/api/records/18890103/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/18890103/files-archive", "archive_media": "https://zenodo.org/api/records/18890103/media-files-archive", "latest": "https://zenodo.org/api/records/18890103/versions/latest", "latest_html": "https://zenodo.org/records/18890103/latest", "versions": "https://zenodo.org/api/records/18890103/versions", "draft": "https://zenodo.org/api/records/18890103/draft", "access_links": "https://zenodo.org/api/records/18890103/access/links", "access_grants": "https://zenodo.org/api/records/18890103/access/grants", "access_users": "https://zenodo.org/api/records/18890103/access/users", "access_request": "https://zenodo.org/api/records/18890103/access/request", "access": "https://zenodo.org/api/records/18890103/access", "communities": "https://zenodo.org/api/records/18890103/communities", "communities-suggestions": "https://zenodo.org/api/records/18890103/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/18890103/request-deletion", "file_modification": "https://zenodo.org/api/records/18890103/file-modification", "quota_increase": "https://zenodo.org/api/records/18890103/quota-increase", "requests": "https://zenodo.org/api/records/18890103/requests"}, "updated": "2026-03-09T13:07:42.659900+00:00", "recid": "18890103", "revision": 4, "files": [{"id": "6249405c-8996-443e-8737-cec17241b5c1", "key": "CODECHECK_certificate_2026-001.pdf", "size": 1994144, "checksum": "md5:80f04e87ca73589adf3b466fbea1bb4a", "links": {"self": "https://zenodo.org/api/records/18890103/files/CODECHECK_certificate_2026-001.pdf/content"}}], "swh": {}, "owners": [{"id": "520116"}], "status": "published", "stats": {"downloads": 108, "unique_downloads": 99, "views": 414, "unique_views": 365, "version_downloads": 108, "version_unique_downloads": 99, "version_unique_views": 365, "version_views": 414}, "state": "done", "submitted": true}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - Content-Type, ETag, Link, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 16 Sep 2026 11:23:07 GMT
+            Etag:
+                - W/"4"
+            Link:
+                - <https://zenodo.org/api/records/18890103> ; rel="linkset" ; type="application/linkset+json"
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "14"
+            Server:
+                - nginx
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "117"
+            X-Ratelimit-Reset:
+                - "1789557802"
+            X-Source:
+                - api
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 140.364709ms
+    - id: 12
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: raw.githubusercontent.com
+        headers:
+            Accept:
+                - text/plain
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://raw.githubusercontent.com/codecheckers/register/HEAD/register.csv
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: |
+            Certificate,Repository,Type,Venue,Issue,Wikidata
+            2020-001,github::codecheckers/Piccolo-2020,journal,GigaScience,NA,Q116702174
+            2020-002,github::codecheckers/Reproduction-Hancock,community,codecheck,2,Q141269512
+            2020-003,github::codecheckers/Hopfield-1982,community,codecheck,1,Q141269513
+            2020-004,github::codecheckers/Barto-Sutton-Anderson-1983,community,codecheck,4,Q141269514
+            2020-005,github::codecheckers/Larisch-reproduction,community,codecheck,5,Q141269515
+            2020-006,github::codecheckers/Detorakis-reproduction,community,codecheck,6,Q141269516
+            2020-008,github::codecheckers/covid-uk,community,preprint,8,Q141269518
+            2020-009,github::codecheckers/2020-cov-tracing,community,preprint,9,Q141269520
+            2020-010,github::codecheckers/covid-report9,community,preprint,14,Q141269521
+            2020-011,github::codecheckers/covid19model-nature,community,in press,18,Q141269522
+            2020-012,github::codecheckers/covid19model-report23,community,preprint,19,Q141269523
+            2020-013,github::codecheckers/Spitschan2020_bioRxiv,community,preprint,20,Q141269524
+            2020-014,github::codecheckers/Sadeh-and-Clopath,community,codecheck,21,Q141269526
+            2020-015,github::codecheckers/Liou-and-Bateman,community,codecheck,22,Q141269527
+            2020-016,github::codecheckers/OpeningPractice,journal,J Geogr Syst,15,Q141269528
+            2020-017,github::codecheckers/JGSY-D-19-00087,journal,J Geogr Syst,24,Q141269529
+            2020-018,github::reproducible-agile/AGILECA,conference,AGILEGIS,25,Q141269530
+            2020-019,osf::5SVMT,conference,AGILEGIS,25,Q141269531
+            2020-020,osf::7TWR2,conference,AGILEGIS,25,Q141269532
+            2020-021,github::reproducible-agile/Spatial-nominal-entity-recognition,conference,AGILEGIS,25,Q141269533
+            2020-022,osf::7XRQG,conference,AGILEGIS,25,Q141269534
+            2020-023,github::reproducible-agile/Tracking-Hurricane-Dorian-in-GDELT-and-Twitter,conference,AGILEGIS,25,Q141269535
+            2020-024,github::codecheckers/driftage,journal,GigaScience,31,Q141269536
+            2020-025,github::codecheckers/LICD_article,journal,J Archaeol Sci,29,Q141269537
+            2021-001,github::codecheckers/causality-review,community,preprint,35,Q141269538
+            2021-002,osf::rsf4m,conference,AGILEGIS,38,Q141269539
+            2021-003,osf::dx92a,conference,AGILEGIS,38,Q141269540
+            2021-004,osf::2sc7g,conference,AGILEGIS,38,Q141269541
+            2021-005,osf::7fqtm,conference,AGILEGIS,38,Q141269542
+            2021-006,osf::4cpm3,conference,AGILEGIS,38,Q141269543
+            2021-007,osf::anv9r,conference,AGILEGIS,38,Q141269544
+            2021-008,osf::g4dcq,conference,AGILEGIS,38,Q141269545
+            2021-009,osf::rdnyu,conference,AGILEGIS,38,Q141269546
+            2021-010,osf::bdu28,conference,AGILEGIS,38,Q141269547
+            2022-001,github::codecheckers/GWR-in-educational-planning,community,codecheck,40,Q141269548
+            2022-002,osf::Z7P8K,conference,AGILEGIS,41,Q141269549
+            2022-003,osf::JDTN3,conference,AGILEGIS,41,Q141269550
+            2022-004,osf::XPG6Y,conference,AGILEGIS,41,Q141269551
+            2022-005,osf::CDFAH,conference,AGILEGIS,41,Q141269552
+            2022-006,osf::W7VPH,conference,AGILEGIS,41,Q141269553
+            2022-007,osf::3DSMV,conference,AGILEGIS,41,Q141269554
+            2022-008,osf::K78EB,conference,AGILEGIS,41,Q141269555
+            2022-009,osf::94VNX,conference,AGILEGIS,41,Q141269556
+            2022-010,osf::8B7MR,conference,AGILEGIS,41,Q141269557
+            2022-011,osf::KF8SR,conference,AGILEGIS,41,Q141269558
+            2022-012,osf::R6PSQ,conference,AGILEGIS,41,Q141269559
+            2022-013,osf::3G9S8,conference,AGILEGIS,41,Q141269560
+            2022-014,osf::6S2GP,conference,AGILEGIS,41,Q141269561
+            2022-015,osf::MVQCW,conference,AGILEGIS,41,Q141269562
+            2022-016,osf::DJFC2,conference,AGILEGIS,41,Q141269563
+            2022-017,osf::WNCSM,conference,AGILEGIS,41,Q141269565
+            2022-018,gitlab::cdchck/community-codechecks/2022-svaRetro-svaNUMT,journal,GigaByte,44,Q141269566
+            2023-001,osf::c7vx3,conference,AGILEGIS,49,Q141269567
+            2023-002,osf::rbgvk,conference,AGILEGIS,49,Q141269568
+            2023-003,osf::m5bhk,conference,AGILEGIS,49,Q141269569
+            2023-004,osf::2em7v,conference,AGILEGIS,49,Q141269570
+            2023-005,osf::27wzp,conference,AGILEGIS,49,Q141269571
+            2023-006,osf::d2shf,conference,AGILEGIS,49,Q141269572
+            2023-007,osf::eu8kw,conference,AGILEGIS,49,Q141269573
+            2023-008,osf::aqgxr,conference,AGILEGIS,49,Q141269574
+            2023-009,osf::9kp7u,conference,AGILEGIS,49,Q141269575
+            2023-010,osf::8t3bh,conference,AGILEGIS,49,Q141269576
+            2023-011,github::codecheckers/rmr-solver,community,preprint,56,Q141269577
+            2023-012,github::codecheckers/leba-manuscript,community,preprint,59,Q141269578
+            2024-001,github::codecheckers/LazarEtAl_RSocOpenSci_2024,community,preprint,60,Q141269579
+            #2024-002,github::codecheckers/domestic.wastewater.variability,community,codecheck NL,61
+            2024-003,github::codecheckers/sddtmpc,community,codecheck NL,66,Q141269580
+            2024-004,github::codecheckers/scope,institution,AUMC,96,Q141269581
+            2024-006,osf::ymc3t,conference,AGILEGIS,69,Q141269583
+            2024-007,osf::gvpd9,conference,AGILEGIS,69,Q141269584
+            2024-008,osf::3nbjw,conference,AGILEGIS,69,Q141269585
+            2024-009,osf::csb7r,conference,AGILEGIS,69,Q141269586
+            2024-010,osf::nbk57,conference,AGILEGIS,69,Q141269587
+            2024-011,osf::fmgb4,conference,AGILEGIS,69,Q141269588
+            2024-012,osf::w42ad,conference,AGILEGIS,69,Q141269589
+            2024-013,osf::txgzv,conference,AGILEGIS,69,Q141269590
+            2024-005,github::codecheckers/sample-size-codecheck,community,codecheck,100,Q141269582
+            2024-014,osf::spxt5,community,codecheck NL,124,Q141269591
+            2024-015,osf::mwbuq,community,codecheck NL,124,Q141269592
+            2024-016,osf::6ngyc,community,codecheck NL,124,Q141269593
+            2024-017,github::codecheckers/Inter_Noise2024_Codes_Acoustics_Diffusion_Equation,community,codecheck NL,133,Q141269594
+            2024-018,github::codecheckers/ZaunerEtAl_PLoS_ONE_2024,community,codecheck NL,132,Q141269595
+            2024-019,github::codecheckers/wearable-hrv,community,codecheck NL,134,Q141269596
+            2024-020,github::codecheckers/codecheck_LangtonRuiterVerlaan2022,community,codecheck NL,135,Q141269597
+            2024-021,github::codecheckers/DementiaPhysicalActivity,community,codecheck NL,136,Q141269598
+            2024-022,github::codecheckers/DEISM,community,codecheck NL,136,Q141269600
+            2024-024,github::codecheckers/iteval-sims,institution,AUMC,139,Q141269602
+            2024-023,zenodo::14900193,community,codecheck NL,138,Q141269601
+            2024-025,zenodo::15025861,community,codecheck NL,149,Q141269603
+            2025-003,github::codecheckers/certificate-2025-003,institution,TU Delft DCC,157,Q141269704
+            2025-001,github::codecheckers/mb11CalculusPilot,community,codecheck NL,148,Q141269604
+            2020-007,github::codecheckers/Hathway-Goodman-2018,community,codecheck,7,Q141269517
+            2025-004,github::codecheckers/certificate-2025-004,institution,TU Delft DCC,156,Q141269707
+            2025-005,zenodo::15323262,journal,Lifecycle Journal,158,Q141269709
+            2025-006,github::codecheckers/sarscov2-variants,institution,TU Delft DCC,159,Q141269710
+            2025-007,github::codecheckers/certificate-2025-007,institution,TU Delft DCC,164,Q141269712
+            2025-008,github::reproducible-agile/reviews-2025|reports/08,conference,AGILEGIS,147,Q141269714
+            2025-009,osf::gv2z4,conference,AGILEGIS,147,Q141269716
+            2025-010,osf::FXKWS,conference,AGILEGIS,147,Q141269718
+            2025-011,osf::GT5BW,conference,AGILEGIS,147,Q141269720
+            2025-012,osf::956a8,conference,AGILEGIS,147,Q141269722
+            2025-013,osf::BGY83,conference,AGILEGIS,147,Q141269724
+            2025-014,osf::st98a,conference,AGILEGIS,147,Q141269726
+            2025-015,osf::chx28,conference,AGILEGIS,147,Q141269728
+            2025-016,osf::28jt4,conference,AGILEGIS,147,Q141269730
+            2025-017,github::reproducible-agile/reviews-2025|reports/28,conference,AGILEGIS,147,Q141269732
+            2025-018,github::codecheckers/certificate-2025-018,institution,TU Delft DCC,167,Q141269734
+            2025-019,github::codecheckers/certificate-2025-019,institution,TU Delft DCC,169,Q141269736
+            2025-020,github::codecheckers/Exploring-Categorical-Colors,community,codecheck,170,Q141269738
+            2025-002,github::codecheckers/EvalSubtitle,community,codecheck NL,154,Q141269703
+            2025-021,github::codecheckers/certificate-2025-021,institution,TU Delft DCC,172,Q141269740
+            2025-022,github::codecheckers/certificate-2025-022,institution,TU Delft DCC,173,Q141269741
+            2025-025,github::codecheckers/absolution_codecheck,institution,AUMC,174,Q141269742
+            2025-028,github::codecheckers/surv-tcav-pbc,journal,Lifecycle Journal,178,Q141269744
+            2025-027,github::codecheckers/zonebuilder,journal,JOSIS,176,Q141269743
+            2026-001,github::codecheckers/kite_piv_analysis,institution,TU Delft DCC,187,Q141269746
+            2026-019,github::codecheckers/certificate-2026-019,community,codecheck,196,Q141269763
+            2026-018,github::codecheckers/reproducible-research-giscience-longitudinal-study,journal,JOSIS,195,Q141269762
+            2026-023,github::codecheckers/HeinrichsEtAl_JVis_2026,community,preprint,202,Q141269764
+            2026-004,github::reproducible-agile/reviews-2026|reports/007,conference,AGILEGIS,186,Q141269747
+            2026-005,github::reproducible-agile/reviews-2026|reports/008,conference,AGILEGIS,186,Q141269748
+            2026-006,osf::zpurt,conference,AGILEGIS,186,Q141269749
+            2026-007,github::reproducible-agile/reviews-2026|reports/012,conference,AGILEGIS,186,Q141269750
+            2026-008,github::reproducible-agile/reviews-2026|reports/013,conference,AGILEGIS,186,Q141269751
+            2026-009,osf::kcpze,conference,AGILEGIS,186,Q141269752
+            2026-010,github::reproducible-agile/reviews-2026|reports/016,conference,AGILEGIS,186,Q141269754
+            2026-011,github::reproducible-agile/reviews-2026|reports/017,conference,AGILEGIS,186,Q141269755
+            2026-012,osf::bv4mk,conference,AGILEGIS,186,Q141269756
+            2026-013,osf::hetv8,conference,AGILEGIS,186,Q141269757
+            2026-014,github::reproducible-agile/reviews-2026|reports/026,conference,AGILEGIS,186,Q141269758
+            2026-015,github::reproducible-agile/reviews-2026|reports/029,conference,AGILEGIS,186,Q141269759
+            2026-016,github::reproducible-agile/reviews-2026|reports/031,conference,AGILEGIS,186,Q141269760
+            2026-017,github::reproducible-agile/reviews-2026|reports/033,conference,AGILEGIS,186,Q141269761
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - max-age=300
+            Content-Security-Policy:
+                - default-src 'none'; style-src 'unsafe-inline'; sandbox
+            Content-Type:
+                - text/plain; charset=utf-8
+            Cross-Origin-Resource-Policy:
+                - cross-origin
+            Date:
+                - Wed, 16 Sep 2026 11:23:07 GMT
+            Etag:
+                - W/"4a24dc513242cf377272710a661dce0199827ccb4f8cd124aa8c2929c20d986a"
+            Expires:
+                - Wed, 16 Sep 2026 11:28:07 GMT
+            Source-Age:
+                - "180"
+            Strict-Transport-Security:
+                - max-age=31536000
+            Vary:
+                - Authorization,Accept-Encoding
+            Via:
+                - 1.1 varnish
+            X-Cache:
+                - HIT
+            X-Cache-Hits:
+                - "7"
+            X-Content-Type-Options:
+                - nosniff
+            X-Fastly-Request-Id:
+                - 391f360facececfa4f57349d10790f7c64d61a91
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - 636E:BD011:1033385:12173BB:6AAA79C2
+            X-Served-By:
+                - cache-ber1080026-BER
+            X-Timer:
+                - S1789557787.215368,VS0,VE0
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 22.697845ms
+    - id: 13
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: raw.githubusercontent.com
+        headers:
+            Accept:
+                - text/plain
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://raw.githubusercontent.com/codecheckers/register/HEAD/venues.csv
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: |
+            name,longname,label,logo_url,website_url,policy_url,publisher,contact_name,contact_email,description,identifiers,wikidata
+            GigaScience,GigaScience,journal,https://codecheck.org.uk/img/gigascience_logo.svg,https://academic.oup.com/gigascience,http://gigasciencejournal.com/blog/codecheck-certificate/,GigaScience Press,,,"GigaScience is an open-access, open-data journal published by Oxford University Press and GigaScience Press, focusing on ""big data"" research across computational biology, genomics, metagenomics and the life and biomedical sciences. Publication requires open and FAIR data, code and methods alongside the article, with reproducibility and usability as explicit review criteria. It runs an open peer-review process, supported by companion platforms such as the GigaDB dataset repository.","ISSN|fa-book|2047-217X|https://portal.issn.org/resource/ISSN/2047-217X",Q19969338
+            J Geogr Syst,Journal of Geographical Systems,journal,https://codecheck.org.uk/img/JGSY-logo.jpg,https://www.springer.com/journal/10109,https://link.springer.com/article/10.1007/s10109-021-00364-4,Springer,,,"The Journal of Geographical Systems is a quarterly peer-reviewed journal published by Springer, founded in 1999 by Manfred M. Fischer and Arthur Getis. It covers geographical information, mathematical modelling, spatial analysis, regional science, geography, environmental science, planning and decision-making. It is indexed in Scopus, Web of Science and EconLit.","ISSN (print)|fa-book|1435-5930|https://portal.issn.org/resource/ISSN/1435-5930;ISSN (online)|fa-book|1435-5949|https://portal.issn.org/resource/ISSN/1435-5949",Q15716507
+            J Archaeol Sci,Journal of Archaeological Science,journal,https://ars.els-cdn.com/content/image/X03054403.jpg,https://www.sciencedirect.com/journal/journal-of-archaeological-science,,Elsevier,,,"The Journal of Archaeological Science is a monthly peer-reviewed journal published by Elsevier, established in 1974, focused on the development and application of scientific techniques and methodologies across all areas of archaeology. It bridges scientific methods with archaeological inquiry, covering archaeometry, bioarchaeology, geoarchaeology and related computational approaches. It operates a hybrid open-access model and is indexed in Scopus and the Science Citation Index.","ISSN (print)|fa-book|0305-4403|https://portal.issn.org/resource/ISSN/0305-4403;ISSN (online)|fa-book|1095-9238|https://portal.issn.org/resource/ISSN/1095-9238",Q32246
+            GigaByte,GigaByte,journal,https://codecheck.org.uk/img/gigabyte_logo.svg,https://gigabytejournal.com/,http://gigasciencejournal.com/blog/frictionless-data-interactive-figures/,GigaScience Press,,,"GigaByte is an open-access journal from GigaScience Press covering complex, large-scale data research across the life sciences. Authors must make supporting data and source code publicly available, hosted alongside the article via the companion GigaDB database. The journal runs an open, transparent peer-review process built around the UNESCO Open Science Recommendation.","ISSN|fa-book|2709-4715|https://portal.issn.org/resource/ISSN/2709-4715",Q115250122
+            AGILEGIS,AGILE Conference on Geographic Information Science,conference,https://codecheck.org.uk/img/reproducible-AGILE-logo-square.svg,https://agile-gi.eu,https://reproducible-agile.github.io/,AGILE (Association of Geographic Information Laboratories in Europe),,,"AGILE is the Association of Geographic Information Laboratories in Europe, a membership organisation connecting geographic information researchers and educators across the continent. It runs an annual international conference on geographic information science, alongside PhD schools, research initiatives and open science programmes. AGILE places particular emphasis on reproducible research practice in GIScience.","ConfIDent|fa-calendar|AGILE-GI series|https://www.confident-conference.org/index.php/Event_Series:D4685b15-8c8f-4271-a527-6abca54205ec",Q105698413
+            codecheck,CODECHECK,community,https://codecheck.org.uk/img/codecheck_logo.svg,https://codecheck.org.uk,,,,,"CODECHECK is an initiative supporting the independent execution and verification of the code underlying scholarly research articles. Trained codecheckers rerun a paper's computations and award a certificate of executable computation when they succeed. The initiative partners with journals, conferences and institutions worldwide, including institutional programmes such as CODECHECK NL.",,Q141254550
+            codecheck NL,CODECHECK NL,check-nl,,,,,,,,,Q141254551
+            in press,In press,journal,,,,,,,,,
+            preprint,Preprint,preprint,,,,,,,,,Q580922
+            AUMC,Amsterdam UMC,institution,https://www.amsterdamumc.org/static/researchpresentation/images/logo-amsterdamumc.svg,,,,,,"Amsterdam UMC's computational reproducibility initiative documents work to understand and improve the reproducibility of computational research at the medical center. It centers on producing reproduction packages for published studies and on community engagement activities such as training and outreach. The report, led by researchers including Samuel Langton and Thomas Pronk, addresses version control, software management and replication practices, with the full report at <a href=""https://zenodo.org/records/15095022"" target=""_blank"" rel=""noopener"">https://zenodo.org/records/15095022</a>.","ROR|fa-university|05grdyy37|https://ror.org/05grdyy37",Q56682938
+            Lifecycle Journal,Lifecycle Journal,lifecycle journal,https://codecheck.org.uk/img/lifecyclejournal_logo.png,https://lifecyclejournal.org/,,,,,"Lifecycle Journal is a research-publishing pilot from the Center for Open Science that lets researchers share and publish outputs at any stage of the research lifecycle, not just the final paper. It puts publishing and peer review under community control, aiming to increase trustworthiness and reduce bias in scholarly communication. The pilot has since closed to new submissions.","ISSN|fa-book|3069-2229",Q141249936
+            TU Delft DCC,TU Delft Digital Competence Centre,institution,https://upload.wikimedia.org/wikipedia/de/b/b5/TU_Delft_Logo.svg,https://www.tudelft.nl/digital-competence-centre,,,,,"The Digital Competence Centre (DCC) is TU Delft's institutional hub supporting researchers across all disciplines with data management, research software development and computational workflows. It offers hands-on project support, office hours, training workshops and reproducibility assessments. Its FAIR4RS mentoring programme helps researchers make their software outputs findable, accessible, interoperable and reusable.","Wikidata|fa-database|Q141254549|https://www.wikidata.org/wiki/Q141254549",Q141254549
+            JOSIS,Journal of Spatial Information Science,journal,https://ram.raumplanung.tu-dortmund.de/storages/ram-raumplanung/_processed_/1/b/csm_josis_cover_2023_2_385aad9109.png,https://josis.org,,University of Maine,,,"The Journal of Spatial Information Science (JOSIS) is an international, open-access, volunteer-run journal publishing original research in spatial and geographic information science. Its scope spans theoretical foundations through to computational methods and practical applications of geospatial technology. All published articles are freely accessible at no cost to authors or readers.","ISSN|fa-book|1948-660X|https://portal.issn.org/resource/ISSN/1948-660X",Q50814880
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - max-age=300
+            Content-Security-Policy:
+                - default-src 'none'; style-src 'unsafe-inline'; sandbox
+            Content-Type:
+                - text/plain; charset=utf-8
+            Cross-Origin-Resource-Policy:
+                - cross-origin
+            Date:
+                - Wed, 16 Sep 2026 11:23:07 GMT
+            Etag:
+                - W/"c78d2bf2a231fefca67d97074a78b5b0f8db791fcee71744095201413a4982a8"
+            Expires:
+                - Wed, 16 Sep 2026 11:28:07 GMT
+            Source-Age:
+                - "179"
+            Strict-Transport-Security:
+                - max-age=31536000
+            Vary:
+                - Authorization,Accept-Encoding
+            Via:
+                - 1.1 varnish
+            X-Cache:
+                - HIT
+            X-Cache-Hits:
+                - "3"
+            X-Content-Type-Options:
+                - nosniff
+            X-Fastly-Request-Id:
+                - c5eedfd892b3e0d286411daadc2a701c72fccd4f
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - 42B4:33533:1014B93:11F8933:6AAA79C1
+            X-Served-By:
+                - cache-ber1080026-BER
+            X-Timer:
+                - S1789557787.263491,VS0,VE0
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 24.01683ms
+    - id: 14
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.github.com
+        headers:
+            Accept:
+                - application/vnd.github+json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://api.github.com/repos/codecheckers/register/issues/187
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"url":"https://api.github.com/repos/codecheckers/register/issues/187","repository_url":"https://api.github.com/repos/codecheckers/register","labels_url":"https://api.github.com/repos/codecheckers/register/issues/187/labels{/name}","comments_url":"https://api.github.com/repos/codecheckers/register/issues/187/comments","events_url":"https://api.github.com/repos/codecheckers/register/issues/187/events","html_url":"https://github.com/codecheckers/register/issues/187","id":4000723026,"node_id":"I_kwDODmS3O87udjBS","number":187,"title":"Jelle Poland, Erik Fritz and Roland Schmehl | 2026-001","user":{"login":"yiquintero","id":126678808,"node_id":"U_kgDOB4z3GA","avatar_url":"https://avatars.githubusercontent.com/u/126678808?v=4","gravatar_id":"","url":"https://api.github.com/users/yiquintero","html_url":"https://github.com/yiquintero","followers_url":"https://api.github.com/users/yiquintero/followers","following_url":"https://api.github.com/users/yiquintero/following{/other_user}","gists_url":"https://api.github.com/users/yiquintero/gists{/gist_id}","starred_url":"https://api.github.com/users/yiquintero/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/yiquintero/subscriptions","organizations_url":"https://api.github.com/users/yiquintero/orgs","repos_url":"https://api.github.com/users/yiquintero/repos","events_url":"https://api.github.com/users/yiquintero/events{/privacy}","received_events_url":"https://api.github.com/users/yiquintero/received_events","type":"User","user_view_type":"public","site_admin":false},"labels":[{"id":2104386107,"node_id":"MDU6TGFiZWwyMTA0Mzg2MTA3","url":"https://api.github.com/repos/codecheckers/register/labels/id%20assigned","name":"id assigned","color":"ba5e21","default":false,"description":"CODECHECK ID is assigned, please note when assigning new ones","archived_at":null,"archived_by":null}],"state":"closed","locked":false,"assignees":[{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false}],"milestone":null,"comments":1,"created_at":"2026-02-27T12:08:06Z","updated_at":"2026-03-09T13:21:54Z","closed_at":"2026-03-09T13:21:54Z","assignee":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"author_association":"NONE","issue_field_values":[],"type":null,"active_lock_reason":null,"sub_issues_summary":{"total":0,"completed":0,"percent_completed":0},"issue_dependencies_summary":{"blocked_by":0,"total_blocked_by":0,"blocking":0,"total_blocking":0},"body":"**Work**: https://doi.org/10.5194/wes-2025-217\n**Repository**: https://github.com/jellepoland/kite_piv_analysis\n**Data**: https://doi.org/10.5281/zenodo.17395913\n\nThis CodeCheck is part of the [TU Delft Digital Competence Centre (DCC)](https://github.com/codecheckers/register/issues/dcc.tudelft.nl) and [4TU.ResearchData](https://data.4tu.nl/) collaboration. The codecheck will be carried out by members of the DCC.","closed_by":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"reactions":{"url":"https://api.github.com/repos/codecheckers/register/issues/187/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"https://api.github.com/repos/codecheckers/register/issues/187/timeline","performed_via_github_app":null,"state_reason":"completed","pinned_comment":null}'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning
+            Cache-Control:
+                - public, max-age=60, s-maxage=60
+            Content-Security-Policy:
+                - default-src 'none'
+            Content-Type:
+                - application/json; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:00 GMT
+            Etag:
+                - '"36f9a8ac125a3f518edaac21732dd5875cbc9b496c519f7dce86c75920263974"'
+            Last-Modified:
+                - Tue, 15 Sep 2026 09:18:27 GMT
+            Referrer-Policy:
+                - origin-when-cross-origin, strict-origin-when-cross-origin
+            Server:
+                - github.com
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubdomains; preload
+            Vary:
+                - Accept,Accept-Encoding, Accept, X-Requested-With
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - deny
+            X-Github-Api-Version-Selected:
+                - "2022-11-28"
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Media-Type:
+                - github.v3; format=json
+            X-Github-Request-Id:
+                - D39A:27222D:9CCD142:98B04E4:6AAA7C17
+            X-Ratelimit-Limit:
+                - "60"
+            X-Ratelimit-Remaining:
+                - "37"
+            X-Ratelimit-Reset:
+                - "1789560507"
+            X-Ratelimit-Resource:
+                - core
+            X-Ratelimit-Used:
+                - "23"
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 25.962856ms
+    - id: 15
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: doi.org
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://doi.org/10.5281/zenodo.18890103
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |-
+            <html><head><title>Handle Redirect</title></head>
+            <body><a href="https://zenodo.org/doi/10.5281/zenodo.18890103">https://zenodo.org/doi/10.5281/zenodo.18890103</a></body></html>
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=86400
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f795e8fb44a-TXL
+            Content-Type:
+                - text/html;charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:14 GMT
+            Expires:
+                - Wed, 16 Sep 2026 12:23:09 GMT
+            Location:
+                - https://zenodo.org/doi/10.5281/zenodo.18890103
+            Nel:
+                - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+            Permissions-Policy:
+                - interest-cohort=(),browsing-topics=()
+            Report-To:
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uCttuSjV8ZFoLYbbDtarLYxLgJZRXB4ea%2FzL6k%2BvhYgsC%2Bi3k3QhObl5hrXvo%2FRk1bITvyJF%2BITyeh9KoZ66dZkQw876fPp35GN5eQgPMymqjfKEGChKVYs%3D"}]}'
+            Server:
+                - cloudflare
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Origin
+                - Accept
+        status: 302 Found
+        code: 302
+        duration: 56.208858ms
+    - id: 16
+      request:
+        proto: ""
+        proto_major: 0
+        proto_minor: 0
+        content_length: 0
+        host: ""
+        headers:
+            Referer:
+                - https://doi.org/10.5281/zenodo.18890103
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/doi/10.5281/zenodo.18890103
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 257
+        body: |
+            <!doctype html>
+            <html lang=en>
+            <title>Redirecting...</title>
+            <h1>Redirecting...</h1>
+            <p>You should be redirected automatically to the target URL: <a href="https://zenodo.org/records/18890103">https://zenodo.org/records/18890103</a>. If not, click the link.
+        headers:
+            Content-Length:
+                - "257"
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:15 GMT
+            Location:
+                - https://zenodo.org/records/18890103
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "6"
+            Server:
+                - nginx
+            Set-Cookie:
+                - session=41694abc590cb3f4_6aaa7c23.qBDJSdCTfKDY3mCfRlZWrZSggPE; Expires=Mon, 21 Sep 2026 11:23:15 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "110"
+            X-Ratelimit-Reset:
+                - "1789557802"
+            X-Source:
+                - ui
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 302 FOUND
+        code: 302
+        duration: 191.683867ms
+    - id: 17
+      request:
+        proto: ""
+        proto_major: 0
+        proto_minor: 0
+        content_length: 0
+        host: ""
+        headers:
+            Referer:
+                - https://zenodo.org/doi/10.5281/zenodo.18890103
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/records/18890103
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: 53
+        uncompressed: true
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:15 GMT
+            Link:
+                - <https://orcid.org/0009-0003-3725-9454> ; rel="author" , <https://orcid.org/0009-0005-9240-7370> ; rel="author" , <https://doi.org/10.5281/zenodo.18890103> ; rel="cite-as" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/dcat+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" ; profile="https://datapackage.org/profiles/2.0/datapackage.json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/marcxml+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.citationstyles.csl+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.geo+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.full+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.simple+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-bibtex" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-dc+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="text/x-bibliography" , <https://zenodo.org/records/18890103/files/CODECHECK_certificate_2026-001.pdf> ; rel="item" ; type="application/pdf" , <https://creativecommons.org/licenses/by/4.0/legalcode> ; rel="license" , <https://schema.org/ScholarlyArticle> ; rel="type" , <https://schema.org/AboutPage> ; rel="type" , <https://zenodo.org/api/records/18890103> ; rel="linkset" ; type="application/linkset+json"
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "6"
+            Server:
+                - nginx
+            Set-Cookie:
+                - session=a828b32139efad0b_6aaa7c23.k_yyOF6hfzGnZyj2MRDrTQixbuE; Expires=Mon, 21 Sep 2026 11:23:15 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "109"
+            X-Ratelimit-Reset:
+                - "1789557802"
+            X-Source:
+                - ui
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 389.961495ms
+    - id: 18
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: pub.orcid.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://pub.orcid.org/v3.0/0000-0003-3164-5648/person
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"last-modified-date":{"value":1674295710314},"name":{"created-date":{"value":1657618979696},"last-modified-date":{"value":1657709583175},"given-names":{"value":"Jelle Agatho Wilhelm"},"family-name":{"value":"Poland"},"credit-name":{"value":"J.A.W.Poland"},"source":null,"visibility":"public","path":"0000-0003-3164-5648"},"other-names":{"last-modified-date":null,"other-name":[],"path":"/0000-0003-3164-5648/other-names"},"biography":null,"researcher-urls":{"last-modified-date":{"value":1668746464741},"researcher-url":[{"created-date":{"value":1668746464741},"last-modified-date":{"value":1668746464741},"source":{"source-orcid":null,"source-client-id":{"uri":"https://orcid.org/client/APP-K1RFUENXTHHY2XLK","path":"APP-K1RFUENXTHHY2XLK","host":"orcid.org"},"source-name":{"value":"Delft University of Technology"},"assertion-origin-orcid":null,"assertion-origin-client-id":null,"assertion-origin-name":null},"url-name":"Delft University of Technology profile page","url":{"value":"https://research.tudelft.nl/en/persons/c115aaaf-d737-4e21-a12e-4516efd89203"},"visibility":"public","path":"/0000-0003-3164-5648/researcher-urls/3494966","put-code":3494966,"display-index":0}],"path":"/0000-0003-3164-5648/researcher-urls"},"emails":{"last-modified-date":null,"email":[],"path":"/0000-0003-3164-5648/email"},"addresses":{"last-modified-date":null,"address":[],"path":"/0000-0003-3164-5648/address"},"keywords":{"last-modified-date":null,"keyword":[],"path":"/0000-0003-3164-5648/keywords"},"external-identifiers":{"last-modified-date":{"value":1674295710314},"external-identifier":[{"created-date":{"value":1674295710314},"last-modified-date":{"value":1674295710314},"source":{"source-orcid":null,"source-client-id":{"uri":"https://orcid.org/client/APP-WRQOUAK78G5F7GMD","path":"APP-WRQOUAK78G5F7GMD","host":"orcid.org"},"source-name":{"value":"Multidisciplinary Digital Publishing Institute"},"assertion-origin-orcid":null,"assertion-origin-client-id":null,"assertion-origin-name":null},"external-id-type":"SciProfiles","external-id-value":"2728943","external-id-url":{"value":"https://sciprofiles.com/profile/2728943"},"external-id-relationship":"self","visibility":"public","path":"/0000-0003-3164-5648/external-identifiers/2859062","put-code":2859062,"display-index":0}],"path":"/0000-0003-3164-5648/external-identifiers"},"path":"/0000-0003-3164-5648/person"}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - no-cache, no-store, max-age=0, must-revalidate
+            Cf-Apo-Via:
+                - origin,host
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f81a9dbe507-TXL
+            Content-Type:
+                - application/json;charset=UTF-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:16 GMT
+            Expires:
+                - "0"
+            Pragma:
+                - no-cache
+            Server:
+                - cloudflare
+            Set-Cookie:
+                - __cf_bm=yLGFtbNjDaEeuW9E9CdOTGup5fvivlOv5QgkT9jhtsg-1789557796.1123266-1.0.1.1-2nOYUoiK4mZx734HZxTRBfStmJZKOH7wqL5KXzhxqKuMFz_HGlIwco7dwz0nJDTLA56lo3zABbF4H4HMwdML4vgGVvolNClsY5Ir3a21Zb3mDI_tPQlBgPBFrC9Ohgo7; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:16 GMT
+            Strict-Transport-Security:
+                - max-age=31536000 ; includeSubDomains
+            Vary:
+                - accept-encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - DENY
+            X-Target:
+                - reg-prod-papi-use2-a1
+            X-Via:
+                - b2-newvpc
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 155.897548ms
+    - id: 19
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: pub.orcid.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://pub.orcid.org/v3.0/0009-0003-3725-9454/person
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"last-modified-date":null,"name":{"created-date":{"value":1748356974915},"last-modified-date":{"value":1748356974915},"given-names":{"value":"Josip"},"family-name":{"value":"Grguric"},"credit-name":null,"source":null,"visibility":"public","path":"0009-0003-3725-9454"},"other-names":{"last-modified-date":null,"other-name":[],"path":"/0009-0003-3725-9454/other-names"},"biography":null,"researcher-urls":{"last-modified-date":null,"researcher-url":[],"path":"/0009-0003-3725-9454/researcher-urls"},"emails":{"last-modified-date":null,"email":[],"path":"/0009-0003-3725-9454/email"},"addresses":{"last-modified-date":null,"address":[],"path":"/0009-0003-3725-9454/address"},"keywords":{"last-modified-date":null,"keyword":[],"path":"/0009-0003-3725-9454/keywords"},"external-identifiers":{"last-modified-date":null,"external-identifier":[],"path":"/0009-0003-3725-9454/external-identifiers"},"path":"/0009-0003-3725-9454/person"}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - no-cache, no-store, max-age=0, must-revalidate
+            Cf-Apo-Via:
+                - origin,host
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f8399abe507-TXL
+            Content-Type:
+                - application/json;charset=UTF-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:16 GMT
+            Expires:
+                - "0"
+            Pragma:
+                - no-cache
+            Server:
+                - cloudflare
+            Set-Cookie:
+                - __cf_bm=m1QULEvvxqZUFfn_P3JXIFWyZO536Q2ZMKWcpmNydmQ-1789557796.4223592-1.0.1.1-I9VyppmXD3bK7PLV7QkskQYiQhIAfSNHMJwQVHZ813DnF_Biv2XyZCADjBf4VltFLUGa645iRgLvg0unyFLdpiRJAyzxobuAlch4lsVTDn4xM3O3lUHoAI7TXXRWJT2q; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:16 GMT
+            Strict-Transport-Security:
+                - max-age=31536000 ; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - DENY
+            X-Target:
+                - reg-prod-papi-use2-a1
+            X-Via:
+                - b2-newvpc
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 154.174372ms
+    - id: 20
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: doi.org
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://doi.org/10.5194/wes-2025-217
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        body: |-
+            <html><head><title>Handle Redirect</title></head>
+            <body><a href="https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html">https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html</a></body></html>
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=86400
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3bf7f859c33b44a-TXL
+            Content-Type:
+                - text/html;charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:16 GMT
+            Expires:
+                - Wed, 16 Sep 2026 12:18:50 GMT
+            Location:
+                - https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html
+            Nel:
+                - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+            Permissions-Policy:
+                - interest-cohort=(),browsing-topics=()
+            Report-To:
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=8qaS58qzdfmm9e6iTGcBJ8RHqN0C1sWnHztdGGnBmR91dZReXY8TWXawI3Wq6fPVT3ocKv06VJVv8SyePtg3rUfrA1IZcVsLWZvYIcnWUuhnqgJ9P6sf0Ag%3D"}]}'
+            Server:
+                - cloudflare
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Origin
+                - Accept
+        status: 302 Found
+        code: 302
+        duration: 58.734135ms
+    - id: 21
+      request:
+        proto: ""
+        proto_major: 0
+        proto_minor: 0
+        content_length: 0
+        host: ""
+        headers:
+            Referer:
+                - https://doi.org/10.5194/wes-2025-217
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 53
+        uncompressed: true
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - max-age=0
+            Content-Type:
+                - text/html
+            Date:
+                - Wed, 16 Sep 2026 11:23:16 GMT
+            Expires:
+                - Wed, 16 Sep 2026 11:23:16 GMT
+            Server:
+                - Apache/2.4.52 (Ubuntu)
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Accept-Encoding
+        status: 200 OK
+        code: 200
+        duration: 119.303106ms
+    - id: 22
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.crossref.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://api.crossref.org/works/10.5194/wes-2025-217
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"status":"ok","message-type":"work","message-version":"1.0.0","message":{"indexed":{"date-parts":[[2026,9,12]],"date-time":"2026-09-12T22:49:08Z","timestamp":1789253348044,"version":"build-2803163510"},"posted":{"date-parts":[[2025,10,30]]},"group-title":"Wind technologies\/Airborne technology","reference-count":0,"publisher":"Copernicus GmbH","license":[{"start":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T00:00:00Z","timestamp":1761782400000},"content-version":"vor","delay-in-days":0,"URL":"https:\/\/creativecommons.org\/licenses\/by\/4.0\/"}],"funder":[{"DOI":"10.13039\/100010661","name":"Horizon 2020 Framework Programme","doi-asserted-by":"publisher","award":["101084216"],"award-info":[{"award-number":["101084216"]}],"id":[{"id":"10.13039\/100010661","id-type":"DOI","asserted-by":"publisher"}]},{"DOI":"10.13039\/501100003246","name":"Nederlandse Organisatie voor Wetenschappelijk Onderzoek","doi-asserted-by":"publisher","award":["17628"],"award-info":[{"award-number":["17628"]}],"id":[{"id":"10.13039\/501100003246","id-type":"DOI","asserted-by":"publisher"}]}],"content-domain":{"domain":[],"crossmark-restriction":false},"short-container-title":[],"abstract":"<jats:p>Abstract. Leading-edge inflatable (LEI) kites are characterized by a pronounced downward curvature of the wing and flow recirculation zones on the pressure side. This study presents novel stereoscopic particle image velocimetry (PIV) measurements of a 1:6.5 rigid scale model of the TU Delft V3 LEI kite. The flow-field measurements were conducted in the Open Jet Facility of Delft University of Technology for two angles of attack and seven chordwise measurement planes positioned between mid-span and tip, and were compared with results from Reynolds-averaged Navier\u2013Stokes (RANS) simulations. The double-curved anhedral wing geometry presented several challenges, such as surface reflections that required careful data processing and the use of a lateral velocity filter. The circulation distribution was analyzed, using both elliptical and rectangular boundary curves, showing good agreement in trends between the vortex-step method (VSM), RANS, and PIV data. The lift and drag coefficients of each chordwise measurement plane were estimated using the Kutta\u2013Joukowski theorem, surface pressure integration of RANS CFD data, and Noca''s method \u2013 an inherently three-dimensional reformulation of the momentum conservation equations expressed solely as surface integrals over the control-volume boundary \u2013 applied here in two dimensions. While the mid-span to tip variation of lift coefficients was in accordance with the anhedral shape and tip-vortex effects, the drag measurements and predictions deviated from the expected behavior by exhibiting negative values. Especially near the tip region, significant discrepancies were observed, attributed to increased measurement uncertainty. The surface pressure integration revealed discrepancies at the strut junction, likely due to local three-dimensional strut-induced flow effects and increased airfoil thickness. This study provides comprehensive validation data for CFD simulations of LEI kites while highlighting the challenges in PIV measurements of double-curved anhedral wings and characterizing local aerodynamic phenomena.<\/jats:p>","DOI":"10.5194\/wes-2025-217","type":"posted-content","created":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T12:41:37Z","timestamp":1761828097000},"source":"Crossref","is-referenced-by-count":1,"title":["Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"],"prefix":"10.5194","author":[{"ORCID":"https:\/\/orcid.org\/0000-0003-3164-5648","authenticated-orcid":false,"given":"Jelle Agatho Wilhelm","family":"Poland","sequence":"first","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0003-1486-3643","authenticated-orcid":false,"given":"Erik","family":"Fritz","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0002-4112-841X","authenticated-orcid":false,"given":"Roland","family":"Schmehl","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]}],"member":"3145","container-title":[],"original-title":[],"deposited":{"date-parts":[[2026,5,26]],"date-time":"2026-05-26T10:07:33Z","timestamp":1779790053000},"score":1,"resource":{"primary":{"URL":"https:\/\/wes.copernicus.org\/articles\/11\/1461\/2026\/wes-11-1461-2026-discussion.html"}},"subtitle":[],"short-title":[],"issued":{"date-parts":[[2025,10,30]]},"references-count":0,"URL":"https:\/\/doi.org\/10.5194\/wes-2025-217","relation":{"has-comment":[{"id-type":"doi","id":"10.5194\/wes-2025-217-AC2","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-AC1","asserted-by":"subject"}],"has-review":[{"id-type":"doi","id":"10.5194\/wes-2025-217-RC1","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-RC2","asserted-by":"subject"}],"is-preprint-of":[{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"object"}]},"subject":[],"published":{"date-parts":[[2025,10,30]]},"subtype":"preprint"}}'
+        headers:
+            Access-Control-Allow-Headers:
+                - X-Requested-With, Accept, Accept-Encoding, Accept-Charset, Accept-Language, Accept-Ranges, Cache-Control
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - Link
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 16 Sep 2026 11:23:17 GMT
+            Permissions-Policy:
+                - interest-cohort=()
+            Server:
+                - Jetty(9.4.40.v20210413)
+            Vary:
+                - Accept-Encoding
+            X-Api-Pool:
+                - public-single
+            X-Concurrency-Limit:
+                - "1"
+            X-Rate-Limit-Interval:
+                - 1s
+            X-Rate-Limit-Limit:
+                - "5"
+        status: 200 OK
+        code: 200
+        duration: 172.711199ms
+    - id: 23
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: arxiv.org
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://arxiv.org/abs/2001.10641
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 53
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Age:
+                - "638500"
+            Cache-Control:
+                - max-age=3600
+            Content-Security-Policy:
+                - frame-ancestors 'none'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:17 GMT
+            Last-Modified:
+                - Mon, 24 Aug 2026 20:27:50 GMT
+            Server:
+                - Google Frontend
+            Via:
+                - 1.1 google, 1.1 varnish, 1.1 varnish, 1.1 varnish
+            X-Cache:
+                - MISS, HIT, HIT
+            X-Cloud-Trace-Context:
+                - 0e41f2dd690cad8d0131cfc0e7a05a8b
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Served-By:
+                - cache-lga21992-LGA, cache-lga21992-LGA, cache-lga21964-LGA, cache-ber1080044-BER
+            X-Timer:
+                - S1789557797.474077,VS0,VE0
+        status: 200 OK
+        code: 200
+        duration: 21.537349ms
+    - id: 24
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: raw.githubusercontent.com
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig04_plane_location.pdf
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 14
+        body: '404: Not Found'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Content-Length:
+                - "14"
+            Content-Security-Policy:
+                - default-src 'none'; style-src 'unsafe-inline'; sandbox
+            Content-Type:
+                - text/plain; charset=utf-8
+            Cross-Origin-Resource-Policy:
+                - cross-origin
+            Date:
+                - Wed, 16 Sep 2026 11:23:17 GMT
+            Expires:
+                - Wed, 16 Sep 2026 11:28:17 GMT
+            Source-Age:
+                - "0"
+            Strict-Transport-Security:
+                - max-age=31536000
+            Vary:
+                - Authorization,Accept-Encoding
+            Via:
+                - 1.1 varnish
+            X-Cache:
+                - MISS
+            X-Cache-Hits:
+                - "0"
+            X-Content-Type-Options:
+                - nosniff
+            X-Fastly-Request-Id:
+                - 81ad1ca73ca092a838fc051674e328f6363e0891
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - 486C:3B1406:10018D3:11E9308:6AAA7C25
+            X-Served-By:
+                - cache-ber1080026-BER
+            X-Timer:
+                - S1789557798.525750,VS0,VE170
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 404 Not Found
+        code: 404
+        duration: 193.66569ms
+    - id: 25
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: github.com
+        headers:
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://github.com/codecheckers/kite_piv_analysis
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 53
+        uncompressed: true
+        body: '(body dropped: this check reads only the status code)'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Cache-Control:
+                - max-age=0, private, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''none''; base-uri ''self''; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src ''self'' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com; font-src github.githubassets.com; form-action ''self'' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors ''none''; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src ''self'' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src ''self''; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com ''sha256-tSjmyPUky1KbRZ0fw9VUil3wFEbeM82rtbJDygGJAXw=''; style-src ''unsafe-inline'' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/'
+            Content-Type:
+                - text/html; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:11 GMT
+            Etag:
+                - W/"c3391eded357ffb85a49ced1b3dba095"
+            Referrer-Policy:
+                - no-referrer-when-downgrade
+            Server:
+                - github.com
+            Set-Cookie:
+                - _gh_sess=nJO7tYuDtkzViCPsPNB%2FLm9PPpYMtGO31rpc4HqTHMZUx87wCzEZvXj1y3hGaCPYTia%2FdEREOmmBQGSLLlaqB%2BtYM89WftSo5%2F0F3IPBuqLGDBzCZftFFmdUkc18kc6b0yGvRez7qPlIFaCmrqynnnujMGH33YmtCgbyOQ0zudS1V1gtShl%2FxAgkydteCmvLGYVWIpSXgVdr8%2B%2BEjxYrMzpSIUWKoB5oLDZkO%2BAsV5h8X8PNqbClxeBkomno31NmGTl2O30zULrMkT0pMP5v1g%3D%3D--z%2FV9TstR6TjWcaMp--1V3ork%2B5cJ8j7Ws5XdbD3A%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
+                - _octo=GH1.1.43491658.1789557797; expires=Thu, 16 Sep 2027 11:23:17 GMT; domain=.github.com; path=/; secure; SameSite=Lax
+                - logged_in=no; expires=Thu, 16 Sep 2027 11:23:17 GMT; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubdomains; preload
+            Vary:
+                - X-PJAX, X-PJAX-Container, Turbo-Visit, Turbo-Frame, X-Requested-With, X-GitHub-Client-Version, Sec-Fetch-Site,Accept-Encoding, Accept, X-Requested-With
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - D3C0:32F50:B7882BF:A7A374D:6AAA7C22
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 28.215318ms
+    - id: 26
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: zenodo.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/api/records/18890103
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: -1
+        uncompressed: true
+        body: '{"created": "2026-03-09T13:07:42.277005+00:00", "modified": "2026-03-09T13:07:42.659900+00:00", "id": 18890103, "conceptrecid": "18890102", "doi": "10.5281/zenodo.18890103", "conceptdoi": "10.5281/zenodo.18890102", "doi_url": "https://doi.org/10.5281/zenodo.18890103", "metadata": {"title": "CODECHECK Certificate 2026-001", "doi": "10.5281/zenodo.18890103", "publication_date": "2026-03-06", "description": "<p>CODECHECK certificate for publication <a href=\"https://doi.org/10.5194/wes-2025-217\"><span lang=\"EN-US\">Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry</span></a>.</p>\n<p><span lang=\"EN-US\">This codecheck resulted in a partial reproduction of the figures presented in the publication. The authors provided a GitHub repository containing all the necessary code and instructions for reproducing the figures. </span></p>\n<p><span lang=\"EN-US\">Given the runtime of the program is approximately 21 hours, the code was executed on an HPC cluster. Two minor changes were made to the code: 1) the NumPy function &ldquo;trapz&rdquo; was renamed &ldquo;trapezoid&rdquo;, and 2) LaTeX rendering was disabled, as suggested by the author, since it was not available on the HPC system used.</span></p>", "access_right": "open", "creators": [{"name": "Grguric, Josip", "affiliation": "Delft University of Technology", "orcid": "0009-0003-3725-9454"}, {"name": "Quintero, Yasel", "affiliation": "Delft University of Technology", "orcid": "0009-0005-9240-7370"}], "related_identifiers": [{"identifier": "10.5194/wes-2025-217", "relation": "reviews", "resource_type": "publication", "scheme": "doi"}, {"identifier": "https://github.com/codecheckers/kite_piv_analysis", "relation": "isDerivedFrom", "resource_type": "software", "scheme": "url"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2026-001"}, {"identifier": "cdchck.science/register/certs/2026-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "18890102"}}]}}, "title": "CODECHECK Certificate 2026-001", "links": {"self": "https://zenodo.org/api/records/18890103", "self_html": "https://zenodo.org/records/18890103", "preview_html": "https://zenodo.org/records/18890103?preview=1", "doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890103", "reserve_doi": "https://zenodo.org/api/records/18890103/draft/pids/doi", "parent": "https://zenodo.org/api/records/18890102", "parent_html": "https://zenodo.org/records/18890102", "parent_doi": "https://doi.org/10.5281/zenodo.18890102", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890102", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:18890103/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:18890103/sequence/default", "files": "https://zenodo.org/api/records/18890103/files", "media_files": "https://zenodo.org/api/records/18890103/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/18890103/files-archive", "archive_media": "https://zenodo.org/api/records/18890103/media-files-archive", "latest": "https://zenodo.org/api/records/18890103/versions/latest", "latest_html": "https://zenodo.org/records/18890103/latest", "versions": "https://zenodo.org/api/records/18890103/versions", "draft": "https://zenodo.org/api/records/18890103/draft", "access_links": "https://zenodo.org/api/records/18890103/access/links", "access_grants": "https://zenodo.org/api/records/18890103/access/grants", "access_users": "https://zenodo.org/api/records/18890103/access/users", "access_request": "https://zenodo.org/api/records/18890103/access/request", "access": "https://zenodo.org/api/records/18890103/access", "communities": "https://zenodo.org/api/records/18890103/communities", "communities-suggestions": "https://zenodo.org/api/records/18890103/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/18890103/request-deletion", "file_modification": "https://zenodo.org/api/records/18890103/file-modification", "quota_increase": "https://zenodo.org/api/records/18890103/quota-increase", "requests": "https://zenodo.org/api/records/18890103/requests"}, "updated": "2026-03-09T13:07:42.659900+00:00", "recid": "18890103", "revision": 4, "files": [{"id": "6249405c-8996-443e-8737-cec17241b5c1", "key": "CODECHECK_certificate_2026-001.pdf", "size": 1994144, "checksum": "md5:80f04e87ca73589adf3b466fbea1bb4a", "links": {"self": "https://zenodo.org/api/records/18890103/files/CODECHECK_certificate_2026-001.pdf/content"}}], "swh": {}, "owners": [{"id": "520116"}], "status": "published", "stats": {"downloads": 108, "unique_downloads": 99, "views": 414, "unique_views": 365, "version_downloads": 108, "version_unique_downloads": 99, "version_unique_views": 365, "version_views": 414}, "state": "done", "submitted": true}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - Content-Type, ETag, Link, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - application/json
+            Date:
+                - Wed, 16 Sep 2026 11:23:18 GMT
+            Etag:
+                - W/"4"
+            Link:
+                - <https://zenodo.org/api/records/18890103> ; rel="linkset" ; type="application/linkset+json"
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "3"
+            Server:
+                - nginx
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "108"
+            X-Ratelimit-Reset:
+                - "1789557802"
+            X-Source:
+                - api
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 161.540398ms
+    - id: 27
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: raw.githubusercontent.com
+        headers:
+            Accept:
+                - text/plain
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://raw.githubusercontent.com/codecheckers/register/HEAD/register.csv
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: |
+            Certificate,Repository,Type,Venue,Issue,Wikidata
+            2020-001,github::codecheckers/Piccolo-2020,journal,GigaScience,NA,Q116702174
+            2020-002,github::codecheckers/Reproduction-Hancock,community,codecheck,2,Q141269512
+            2020-003,github::codecheckers/Hopfield-1982,community,codecheck,1,Q141269513
+            2020-004,github::codecheckers/Barto-Sutton-Anderson-1983,community,codecheck,4,Q141269514
+            2020-005,github::codecheckers/Larisch-reproduction,community,codecheck,5,Q141269515
+            2020-006,github::codecheckers/Detorakis-reproduction,community,codecheck,6,Q141269516
+            2020-008,github::codecheckers/covid-uk,community,preprint,8,Q141269518
+            2020-009,github::codecheckers/2020-cov-tracing,community,preprint,9,Q141269520
+            2020-010,github::codecheckers/covid-report9,community,preprint,14,Q141269521
+            2020-011,github::codecheckers/covid19model-nature,community,in press,18,Q141269522
+            2020-012,github::codecheckers/covid19model-report23,community,preprint,19,Q141269523
+            2020-013,github::codecheckers/Spitschan2020_bioRxiv,community,preprint,20,Q141269524
+            2020-014,github::codecheckers/Sadeh-and-Clopath,community,codecheck,21,Q141269526
+            2020-015,github::codecheckers/Liou-and-Bateman,community,codecheck,22,Q141269527
+            2020-016,github::codecheckers/OpeningPractice,journal,J Geogr Syst,15,Q141269528
+            2020-017,github::codecheckers/JGSY-D-19-00087,journal,J Geogr Syst,24,Q141269529
+            2020-018,github::reproducible-agile/AGILECA,conference,AGILEGIS,25,Q141269530
+            2020-019,osf::5SVMT,conference,AGILEGIS,25,Q141269531
+            2020-020,osf::7TWR2,conference,AGILEGIS,25,Q141269532
+            2020-021,github::reproducible-agile/Spatial-nominal-entity-recognition,conference,AGILEGIS,25,Q141269533
+            2020-022,osf::7XRQG,conference,AGILEGIS,25,Q141269534
+            2020-023,github::reproducible-agile/Tracking-Hurricane-Dorian-in-GDELT-and-Twitter,conference,AGILEGIS,25,Q141269535
+            2020-024,github::codecheckers/driftage,journal,GigaScience,31,Q141269536
+            2020-025,github::codecheckers/LICD_article,journal,J Archaeol Sci,29,Q141269537
+            2021-001,github::codecheckers/causality-review,community,preprint,35,Q141269538
+            2021-002,osf::rsf4m,conference,AGILEGIS,38,Q141269539
+            2021-003,osf::dx92a,conference,AGILEGIS,38,Q141269540
+            2021-004,osf::2sc7g,conference,AGILEGIS,38,Q141269541
+            2021-005,osf::7fqtm,conference,AGILEGIS,38,Q141269542
+            2021-006,osf::4cpm3,conference,AGILEGIS,38,Q141269543
+            2021-007,osf::anv9r,conference,AGILEGIS,38,Q141269544
+            2021-008,osf::g4dcq,conference,AGILEGIS,38,Q141269545
+            2021-009,osf::rdnyu,conference,AGILEGIS,38,Q141269546
+            2021-010,osf::bdu28,conference,AGILEGIS,38,Q141269547
+            2022-001,github::codecheckers/GWR-in-educational-planning,community,codecheck,40,Q141269548
+            2022-002,osf::Z7P8K,conference,AGILEGIS,41,Q141269549
+            2022-003,osf::JDTN3,conference,AGILEGIS,41,Q141269550
+            2022-004,osf::XPG6Y,conference,AGILEGIS,41,Q141269551
+            2022-005,osf::CDFAH,conference,AGILEGIS,41,Q141269552
+            2022-006,osf::W7VPH,conference,AGILEGIS,41,Q141269553
+            2022-007,osf::3DSMV,conference,AGILEGIS,41,Q141269554
+            2022-008,osf::K78EB,conference,AGILEGIS,41,Q141269555
+            2022-009,osf::94VNX,conference,AGILEGIS,41,Q141269556
+            2022-010,osf::8B7MR,conference,AGILEGIS,41,Q141269557
+            2022-011,osf::KF8SR,conference,AGILEGIS,41,Q141269558
+            2022-012,osf::R6PSQ,conference,AGILEGIS,41,Q141269559
+            2022-013,osf::3G9S8,conference,AGILEGIS,41,Q141269560
+            2022-014,osf::6S2GP,conference,AGILEGIS,41,Q141269561
+            2022-015,osf::MVQCW,conference,AGILEGIS,41,Q141269562
+            2022-016,osf::DJFC2,conference,AGILEGIS,41,Q141269563
+            2022-017,osf::WNCSM,conference,AGILEGIS,41,Q141269565
+            2022-018,gitlab::cdchck/community-codechecks/2022-svaRetro-svaNUMT,journal,GigaByte,44,Q141269566
+            2023-001,osf::c7vx3,conference,AGILEGIS,49,Q141269567
+            2023-002,osf::rbgvk,conference,AGILEGIS,49,Q141269568
+            2023-003,osf::m5bhk,conference,AGILEGIS,49,Q141269569
+            2023-004,osf::2em7v,conference,AGILEGIS,49,Q141269570
+            2023-005,osf::27wzp,conference,AGILEGIS,49,Q141269571
+            2023-006,osf::d2shf,conference,AGILEGIS,49,Q141269572
+            2023-007,osf::eu8kw,conference,AGILEGIS,49,Q141269573
+            2023-008,osf::aqgxr,conference,AGILEGIS,49,Q141269574
+            2023-009,osf::9kp7u,conference,AGILEGIS,49,Q141269575
+            2023-010,osf::8t3bh,conference,AGILEGIS,49,Q141269576
+            2023-011,github::codecheckers/rmr-solver,community,preprint,56,Q141269577
+            2023-012,github::codecheckers/leba-manuscript,community,preprint,59,Q141269578
+            2024-001,github::codecheckers/LazarEtAl_RSocOpenSci_2024,community,preprint,60,Q141269579
+            #2024-002,github::codecheckers/domestic.wastewater.variability,community,codecheck NL,61
+            2024-003,github::codecheckers/sddtmpc,community,codecheck NL,66,Q141269580
+            2024-004,github::codecheckers/scope,institution,AUMC,96,Q141269581
+            2024-006,osf::ymc3t,conference,AGILEGIS,69,Q141269583
+            2024-007,osf::gvpd9,conference,AGILEGIS,69,Q141269584
+            2024-008,osf::3nbjw,conference,AGILEGIS,69,Q141269585
+            2024-009,osf::csb7r,conference,AGILEGIS,69,Q141269586
+            2024-010,osf::nbk57,conference,AGILEGIS,69,Q141269587
+            2024-011,osf::fmgb4,conference,AGILEGIS,69,Q141269588
+            2024-012,osf::w42ad,conference,AGILEGIS,69,Q141269589
+            2024-013,osf::txgzv,conference,AGILEGIS,69,Q141269590
+            2024-005,github::codecheckers/sample-size-codecheck,community,codecheck,100,Q141269582
+            2024-014,osf::spxt5,community,codecheck NL,124,Q141269591
+            2024-015,osf::mwbuq,community,codecheck NL,124,Q141269592
+            2024-016,osf::6ngyc,community,codecheck NL,124,Q141269593
+            2024-017,github::codecheckers/Inter_Noise2024_Codes_Acoustics_Diffusion_Equation,community,codecheck NL,133,Q141269594
+            2024-018,github::codecheckers/ZaunerEtAl_PLoS_ONE_2024,community,codecheck NL,132,Q141269595
+            2024-019,github::codecheckers/wearable-hrv,community,codecheck NL,134,Q141269596
+            2024-020,github::codecheckers/codecheck_LangtonRuiterVerlaan2022,community,codecheck NL,135,Q141269597
+            2024-021,github::codecheckers/DementiaPhysicalActivity,community,codecheck NL,136,Q141269598
+            2024-022,github::codecheckers/DEISM,community,codecheck NL,136,Q141269600
+            2024-024,github::codecheckers/iteval-sims,institution,AUMC,139,Q141269602
+            2024-023,zenodo::14900193,community,codecheck NL,138,Q141269601
+            2024-025,zenodo::15025861,community,codecheck NL,149,Q141269603
+            2025-003,github::codecheckers/certificate-2025-003,institution,TU Delft DCC,157,Q141269704
+            2025-001,github::codecheckers/mb11CalculusPilot,community,codecheck NL,148,Q141269604
+            2020-007,github::codecheckers/Hathway-Goodman-2018,community,codecheck,7,Q141269517
+            2025-004,github::codecheckers/certificate-2025-004,institution,TU Delft DCC,156,Q141269707
+            2025-005,zenodo::15323262,journal,Lifecycle Journal,158,Q141269709
+            2025-006,github::codecheckers/sarscov2-variants,institution,TU Delft DCC,159,Q141269710
+            2025-007,github::codecheckers/certificate-2025-007,institution,TU Delft DCC,164,Q141269712
+            2025-008,github::reproducible-agile/reviews-2025|reports/08,conference,AGILEGIS,147,Q141269714
+            2025-009,osf::gv2z4,conference,AGILEGIS,147,Q141269716
+            2025-010,osf::FXKWS,conference,AGILEGIS,147,Q141269718
+            2025-011,osf::GT5BW,conference,AGILEGIS,147,Q141269720
+            2025-012,osf::956a8,conference,AGILEGIS,147,Q141269722
+            2025-013,osf::BGY83,conference,AGILEGIS,147,Q141269724
+            2025-014,osf::st98a,conference,AGILEGIS,147,Q141269726
+            2025-015,osf::chx28,conference,AGILEGIS,147,Q141269728
+            2025-016,osf::28jt4,conference,AGILEGIS,147,Q141269730
+            2025-017,github::reproducible-agile/reviews-2025|reports/28,conference,AGILEGIS,147,Q141269732
+            2025-018,github::codecheckers/certificate-2025-018,institution,TU Delft DCC,167,Q141269734
+            2025-019,github::codecheckers/certificate-2025-019,institution,TU Delft DCC,169,Q141269736
+            2025-020,github::codecheckers/Exploring-Categorical-Colors,community,codecheck,170,Q141269738
+            2025-002,github::codecheckers/EvalSubtitle,community,codecheck NL,154,Q141269703
+            2025-021,github::codecheckers/certificate-2025-021,institution,TU Delft DCC,172,Q141269740
+            2025-022,github::codecheckers/certificate-2025-022,institution,TU Delft DCC,173,Q141269741
+            2025-025,github::codecheckers/absolution_codecheck,institution,AUMC,174,Q141269742
+            2025-028,github::codecheckers/surv-tcav-pbc,journal,Lifecycle Journal,178,Q141269744
+            2025-027,github::codecheckers/zonebuilder,journal,JOSIS,176,Q141269743
+            2026-001,github::codecheckers/kite_piv_analysis,institution,TU Delft DCC,187,Q141269746
+            2026-019,github::codecheckers/certificate-2026-019,community,codecheck,196,Q141269763
+            2026-018,github::codecheckers/reproducible-research-giscience-longitudinal-study,journal,JOSIS,195,Q141269762
+            2026-023,github::codecheckers/HeinrichsEtAl_JVis_2026,community,preprint,202,Q141269764
+            2026-004,github::reproducible-agile/reviews-2026|reports/007,conference,AGILEGIS,186,Q141269747
+            2026-005,github::reproducible-agile/reviews-2026|reports/008,conference,AGILEGIS,186,Q141269748
+            2026-006,osf::zpurt,conference,AGILEGIS,186,Q141269749
+            2026-007,github::reproducible-agile/reviews-2026|reports/012,conference,AGILEGIS,186,Q141269750
+            2026-008,github::reproducible-agile/reviews-2026|reports/013,conference,AGILEGIS,186,Q141269751
+            2026-009,osf::kcpze,conference,AGILEGIS,186,Q141269752
+            2026-010,github::reproducible-agile/reviews-2026|reports/016,conference,AGILEGIS,186,Q141269754
+            2026-011,github::reproducible-agile/reviews-2026|reports/017,conference,AGILEGIS,186,Q141269755
+            2026-012,osf::bv4mk,conference,AGILEGIS,186,Q141269756
+            2026-013,osf::hetv8,conference,AGILEGIS,186,Q141269757
+            2026-014,github::reproducible-agile/reviews-2026|reports/026,conference,AGILEGIS,186,Q141269758
+            2026-015,github::reproducible-agile/reviews-2026|reports/029,conference,AGILEGIS,186,Q141269759
+            2026-016,github::reproducible-agile/reviews-2026|reports/031,conference,AGILEGIS,186,Q141269760
+            2026-017,github::reproducible-agile/reviews-2026|reports/033,conference,AGILEGIS,186,Q141269761
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - max-age=300
+            Content-Security-Policy:
+                - default-src 'none'; style-src 'unsafe-inline'; sandbox
+            Content-Type:
+                - text/plain; charset=utf-8
+            Cross-Origin-Resource-Policy:
+                - cross-origin
+            Date:
+                - Wed, 16 Sep 2026 11:23:18 GMT
+            Etag:
+                - W/"4a24dc513242cf377272710a661dce0199827ccb4f8cd124aa8c2929c20d986a"
+            Expires:
+                - Wed, 16 Sep 2026 11:28:18 GMT
+            Source-Age:
+                - "191"
+            Strict-Transport-Security:
+                - max-age=31536000
+            Vary:
+                - Authorization,Accept-Encoding
+            Via:
+                - 1.1 varnish
+            X-Cache:
+                - HIT
+            X-Cache-Hits:
+                - "10"
+            X-Content-Type-Options:
+                - nosniff
+            X-Fastly-Request-Id:
+                - 9c28ebb092ed25ef8bd74672acc9ba23a1accde9
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - 636E:BD011:1033385:12173BB:6AAA79C2
+            X-Served-By:
+                - cache-ber1080026-BER
+            X-Timer:
+                - S1789557798.304208,VS0,VE0
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 20.951786ms
+    - id: 28
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: raw.githubusercontent.com
+        headers:
+            Accept:
+                - text/plain
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://raw.githubusercontent.com/codecheckers/register/HEAD/venues.csv
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: |
+            name,longname,label,logo_url,website_url,policy_url,publisher,contact_name,contact_email,description,identifiers,wikidata
+            GigaScience,GigaScience,journal,https://codecheck.org.uk/img/gigascience_logo.svg,https://academic.oup.com/gigascience,http://gigasciencejournal.com/blog/codecheck-certificate/,GigaScience Press,,,"GigaScience is an open-access, open-data journal published by Oxford University Press and GigaScience Press, focusing on ""big data"" research across computational biology, genomics, metagenomics and the life and biomedical sciences. Publication requires open and FAIR data, code and methods alongside the article, with reproducibility and usability as explicit review criteria. It runs an open peer-review process, supported by companion platforms such as the GigaDB dataset repository.","ISSN|fa-book|2047-217X|https://portal.issn.org/resource/ISSN/2047-217X",Q19969338
+            J Geogr Syst,Journal of Geographical Systems,journal,https://codecheck.org.uk/img/JGSY-logo.jpg,https://www.springer.com/journal/10109,https://link.springer.com/article/10.1007/s10109-021-00364-4,Springer,,,"The Journal of Geographical Systems is a quarterly peer-reviewed journal published by Springer, founded in 1999 by Manfred M. Fischer and Arthur Getis. It covers geographical information, mathematical modelling, spatial analysis, regional science, geography, environmental science, planning and decision-making. It is indexed in Scopus, Web of Science and EconLit.","ISSN (print)|fa-book|1435-5930|https://portal.issn.org/resource/ISSN/1435-5930;ISSN (online)|fa-book|1435-5949|https://portal.issn.org/resource/ISSN/1435-5949",Q15716507
+            J Archaeol Sci,Journal of Archaeological Science,journal,https://ars.els-cdn.com/content/image/X03054403.jpg,https://www.sciencedirect.com/journal/journal-of-archaeological-science,,Elsevier,,,"The Journal of Archaeological Science is a monthly peer-reviewed journal published by Elsevier, established in 1974, focused on the development and application of scientific techniques and methodologies across all areas of archaeology. It bridges scientific methods with archaeological inquiry, covering archaeometry, bioarchaeology, geoarchaeology and related computational approaches. It operates a hybrid open-access model and is indexed in Scopus and the Science Citation Index.","ISSN (print)|fa-book|0305-4403|https://portal.issn.org/resource/ISSN/0305-4403;ISSN (online)|fa-book|1095-9238|https://portal.issn.org/resource/ISSN/1095-9238",Q32246
+            GigaByte,GigaByte,journal,https://codecheck.org.uk/img/gigabyte_logo.svg,https://gigabytejournal.com/,http://gigasciencejournal.com/blog/frictionless-data-interactive-figures/,GigaScience Press,,,"GigaByte is an open-access journal from GigaScience Press covering complex, large-scale data research across the life sciences. Authors must make supporting data and source code publicly available, hosted alongside the article via the companion GigaDB database. The journal runs an open, transparent peer-review process built around the UNESCO Open Science Recommendation.","ISSN|fa-book|2709-4715|https://portal.issn.org/resource/ISSN/2709-4715",Q115250122
+            AGILEGIS,AGILE Conference on Geographic Information Science,conference,https://codecheck.org.uk/img/reproducible-AGILE-logo-square.svg,https://agile-gi.eu,https://reproducible-agile.github.io/,AGILE (Association of Geographic Information Laboratories in Europe),,,"AGILE is the Association of Geographic Information Laboratories in Europe, a membership organisation connecting geographic information researchers and educators across the continent. It runs an annual international conference on geographic information science, alongside PhD schools, research initiatives and open science programmes. AGILE places particular emphasis on reproducible research practice in GIScience.","ConfIDent|fa-calendar|AGILE-GI series|https://www.confident-conference.org/index.php/Event_Series:D4685b15-8c8f-4271-a527-6abca54205ec",Q105698413
+            codecheck,CODECHECK,community,https://codecheck.org.uk/img/codecheck_logo.svg,https://codecheck.org.uk,,,,,"CODECHECK is an initiative supporting the independent execution and verification of the code underlying scholarly research articles. Trained codecheckers rerun a paper's computations and award a certificate of executable computation when they succeed. The initiative partners with journals, conferences and institutions worldwide, including institutional programmes such as CODECHECK NL.",,Q141254550
+            codecheck NL,CODECHECK NL,check-nl,,,,,,,,,Q141254551
+            in press,In press,journal,,,,,,,,,
+            preprint,Preprint,preprint,,,,,,,,,Q580922
+            AUMC,Amsterdam UMC,institution,https://www.amsterdamumc.org/static/researchpresentation/images/logo-amsterdamumc.svg,,,,,,"Amsterdam UMC's computational reproducibility initiative documents work to understand and improve the reproducibility of computational research at the medical center. It centers on producing reproduction packages for published studies and on community engagement activities such as training and outreach. The report, led by researchers including Samuel Langton and Thomas Pronk, addresses version control, software management and replication practices, with the full report at <a href=""https://zenodo.org/records/15095022"" target=""_blank"" rel=""noopener"">https://zenodo.org/records/15095022</a>.","ROR|fa-university|05grdyy37|https://ror.org/05grdyy37",Q56682938
+            Lifecycle Journal,Lifecycle Journal,lifecycle journal,https://codecheck.org.uk/img/lifecyclejournal_logo.png,https://lifecyclejournal.org/,,,,,"Lifecycle Journal is a research-publishing pilot from the Center for Open Science that lets researchers share and publish outputs at any stage of the research lifecycle, not just the final paper. It puts publishing and peer review under community control, aiming to increase trustworthiness and reduce bias in scholarly communication. The pilot has since closed to new submissions.","ISSN|fa-book|3069-2229",Q141249936
+            TU Delft DCC,TU Delft Digital Competence Centre,institution,https://upload.wikimedia.org/wikipedia/de/b/b5/TU_Delft_Logo.svg,https://www.tudelft.nl/digital-competence-centre,,,,,"The Digital Competence Centre (DCC) is TU Delft's institutional hub supporting researchers across all disciplines with data management, research software development and computational workflows. It offers hands-on project support, office hours, training workshops and reproducibility assessments. Its FAIR4RS mentoring programme helps researchers make their software outputs findable, accessible, interoperable and reusable.","Wikidata|fa-database|Q141254549|https://www.wikidata.org/wiki/Q141254549",Q141254549
+            JOSIS,Journal of Spatial Information Science,journal,https://ram.raumplanung.tu-dortmund.de/storages/ram-raumplanung/_processed_/1/b/csm_josis_cover_2023_2_385aad9109.png,https://josis.org,,University of Maine,,,"The Journal of Spatial Information Science (JOSIS) is an international, open-access, volunteer-run journal publishing original research in spatial and geographic information science. Its scope spans theoretical foundations through to computational methods and practical applications of geospatial technology. All published articles are freely accessible at no cost to authors or readers.","ISSN|fa-book|1948-660X|https://portal.issn.org/resource/ISSN/1948-660X",Q50814880
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - max-age=300
+            Content-Security-Policy:
+                - default-src 'none'; style-src 'unsafe-inline'; sandbox
+            Content-Type:
+                - text/plain; charset=utf-8
+            Cross-Origin-Resource-Policy:
+                - cross-origin
+            Date:
+                - Wed, 16 Sep 2026 11:23:18 GMT
+            Etag:
+                - W/"c78d2bf2a231fefca67d97074a78b5b0f8db791fcee71744095201413a4982a8"
+            Expires:
+                - Wed, 16 Sep 2026 11:28:18 GMT
+            Source-Age:
+                - "190"
+            Strict-Transport-Security:
+                - max-age=31536000
+            Vary:
+                - Authorization,Accept-Encoding
+            Via:
+                - 1.1 varnish
+            X-Cache:
+                - HIT
+            X-Cache-Hits:
+                - "6"
+            X-Content-Type-Options:
+                - nosniff
+            X-Fastly-Request-Id:
+                - 660e762ca956e297cf9c7de44e6841a03d7a28fe
+            X-Frame-Options:
+                - deny
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Request-Id:
+                - 42B4:33533:1014B93:11F8933:6AAA79C1
+            X-Served-By:
+                - cache-ber1080026-BER
+            X-Timer:
+                - S1789557798.348248,VS0,VE0
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 21.517612ms
+    - id: 29
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.github.com
+        headers:
+            Accept:
+                - application/vnd.github+json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://api.github.com/repos/codecheckers/register/issues/187
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"url":"https://api.github.com/repos/codecheckers/register/issues/187","repository_url":"https://api.github.com/repos/codecheckers/register","labels_url":"https://api.github.com/repos/codecheckers/register/issues/187/labels{/name}","comments_url":"https://api.github.com/repos/codecheckers/register/issues/187/comments","events_url":"https://api.github.com/repos/codecheckers/register/issues/187/events","html_url":"https://github.com/codecheckers/register/issues/187","id":4000723026,"node_id":"I_kwDODmS3O87udjBS","number":187,"title":"Jelle Poland, Erik Fritz and Roland Schmehl | 2026-001","user":{"login":"yiquintero","id":126678808,"node_id":"U_kgDOB4z3GA","avatar_url":"https://avatars.githubusercontent.com/u/126678808?v=4","gravatar_id":"","url":"https://api.github.com/users/yiquintero","html_url":"https://github.com/yiquintero","followers_url":"https://api.github.com/users/yiquintero/followers","following_url":"https://api.github.com/users/yiquintero/following{/other_user}","gists_url":"https://api.github.com/users/yiquintero/gists{/gist_id}","starred_url":"https://api.github.com/users/yiquintero/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/yiquintero/subscriptions","organizations_url":"https://api.github.com/users/yiquintero/orgs","repos_url":"https://api.github.com/users/yiquintero/repos","events_url":"https://api.github.com/users/yiquintero/events{/privacy}","received_events_url":"https://api.github.com/users/yiquintero/received_events","type":"User","user_view_type":"public","site_admin":false},"labels":[{"id":2104386107,"node_id":"MDU6TGFiZWwyMTA0Mzg2MTA3","url":"https://api.github.com/repos/codecheckers/register/labels/id%20assigned","name":"id assigned","color":"ba5e21","default":false,"description":"CODECHECK ID is assigned, please note when assigning new ones","archived_at":null,"archived_by":null}],"state":"closed","locked":false,"assignees":[{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false}],"milestone":null,"comments":1,"created_at":"2026-02-27T12:08:06Z","updated_at":"2026-03-09T13:21:54Z","closed_at":"2026-03-09T13:21:54Z","assignee":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"author_association":"NONE","issue_field_values":[],"type":null,"active_lock_reason":null,"sub_issues_summary":{"total":0,"completed":0,"percent_completed":0},"issue_dependencies_summary":{"blocked_by":0,"total_blocked_by":0,"blocking":0,"total_blocking":0},"body":"**Work**: https://doi.org/10.5194/wes-2025-217\n**Repository**: https://github.com/jellepoland/kite_piv_analysis\n**Data**: https://doi.org/10.5281/zenodo.17395913\n\nThis CodeCheck is part of the [TU Delft Digital Competence Centre (DCC)](https://github.com/codecheckers/register/issues/dcc.tudelft.nl) and [4TU.ResearchData](https://data.4tu.nl/) collaboration. The codecheck will be carried out by members of the DCC.","closed_by":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"reactions":{"url":"https://api.github.com/repos/codecheckers/register/issues/187/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"https://api.github.com/repos/codecheckers/register/issues/187/timeline","performed_via_github_app":null,"state_reason":"completed","pinned_comment":null}'
+        headers:
+            Accept-Ranges:
+                - bytes
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning
+            Cache-Control:
+                - public, max-age=60, s-maxage=60
+            Content-Security-Policy:
+                - default-src 'none'
+            Content-Type:
+                - application/json; charset=utf-8
+            Date:
+                - Wed, 16 Sep 2026 11:23:11 GMT
+            Etag:
+                - '"36f9a8ac125a3f518edaac21732dd5875cbc9b496c519f7dce86c75920263974"'
+            Last-Modified:
+                - Tue, 15 Sep 2026 09:18:27 GMT
+            Referrer-Policy:
+                - origin-when-cross-origin, strict-origin-when-cross-origin
+            Server:
+                - github.com
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubdomains; preload
+            Vary:
+                - Accept,Accept-Encoding, Accept, X-Requested-With
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - deny
+            X-Github-Api-Version-Selected:
+                - "2022-11-28"
+            X-Github-Edge-Region:
+                - fra
+            X-Github-Media-Type:
+                - github.v3; format=json
+            X-Github-Request-Id:
+                - D39A:27222D:9CD6AAC:98B9A28:6AAA7C22
+            X-Ratelimit-Limit:
+                - "60"
+            X-Ratelimit-Remaining:
+                - "34"
+            X-Ratelimit-Reset:
+                - "1789560507"
+            X-Ratelimit-Resource:
+                - core
+            X-Ratelimit-Used:
+                - "26"
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 29.93643ms

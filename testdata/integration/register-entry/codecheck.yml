@@ -1,0 +1,37 @@
+---
+version: https://codecheck.org.uk/spec/config/1.0
+
+paper:
+  title: "Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"
+  authors:
+    - name: Jelle Poland
+      ORCID: 0000-0003-3164-5648
+    - name: Erik Fritz
+      ORCID: 0000-0003-1486-3643
+    - name:  Roland Schmehl
+      ORCID: 0000-0002-4112-841X
+  reference: https://doi.org/10.5194/wes-2025-217
+
+manifest:
+  - file: fig04_plane_location.pdf
+    comment: manuscript Figure 4
+  - file: fig06_qualitative_comparison_CFD_PIV.pdf
+    comment: manuscript Figure 6
+  - file: fig07_bounds_CFD_PIV_single_row.pdf
+    comment: manuscript Figure 7
+  - file: fig08_gamma_distribution_std.pdf
+    comment: manuscript Figure 8
+
+
+codechecker:
+  - name: Josip Grguric
+    ORCID: 0009-0003-3725-9454
+  - name: Yasel Quintero
+    ORCID: 0009-0005-9240-7370
+
+summary: >
+  Partial reproduction of figures in the publication 
+repository: https://github.com/codecheckers/kite_piv_analysis
+check_time: "2026-03-03 14:00:00"
+certificate: 2026-001
+report: https://doi.org/10.5281/zenodo.18890103

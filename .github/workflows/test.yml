@@ -1,0 +1,53 @@
+# The fast suite: no network, runs on every push and pull request.
+#
+# The checks that need Crossref, ORCID, Zenodo, GitHub or the register are
+# skipped here by design - they live in integration.yml, because a third-party
+# API being slow or rate-limited must never turn a pull request red.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt-ed:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -race ./...
+
+      # The checks that need Crossref, ORCID, Zenodo, the GitHub API or the
+      # register are covered offline too: cassettes replay what those services
+      # really answered, stubs cover the answers a published CODECHECK never
+      # gives. Run them again on their own so a failure is legible here.
+      - name: Offline coverage of the external checks
+        run: go test -v -run 'Cassette|Stub|Offline' ./internal/check/
+
+      - name: Check a valid codecheck.yml end to end
+        run: go run ./cmd/chekhov check testdata/exhaustive-2.0/codecheck.yml

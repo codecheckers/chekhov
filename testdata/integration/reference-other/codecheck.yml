@@ -1,0 +1,30 @@
+---
+# A 2.0 configuration whose only purpose is the reference-other list: no real
+# certificate carries one yet, and CC-MET-009 has nothing to resolve without
+# it. Every entry is a real, stable identifier, so the check reaches a verdict
+# rather than tripping over a made-up URL.
+version: https://codecheck.org.uk/spec/config/2.0/
+
+manifest:
+  - file: fig04_plane_location.pdf
+    comment: manuscript Figure 4
+
+paper:
+  title: "Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"
+  authors:
+    - name: Jelle Poland
+      ORCID: 0000-0003-3164-5648
+  reference: https://doi.org/10.5194/wes-2025-217
+  reference-other:
+    - https://doi.org/10.5281/zenodo.18890103
+    - https://arxiv.org/abs/2001.10641
+
+codechecker:
+  - name: Josip Grguric
+    ORCID: 0009-0003-3725-9454
+
+report: https://doi.org/10.5281/zenodo.18890103
+summary: |
+  Fixture for the reference-other rules; the check itself was not conducted here.
+repository: https://github.com/codecheckers/kite_piv_analysis
+certificate: 2026-001

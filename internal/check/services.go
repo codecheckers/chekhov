@@ -1,0 +1,345 @@
+package check
+
+import (
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
+)
+
+// Services is the outside world: the APIs and files a check needs when it
+// cannot reach a verdict from the codecheck.yml alone.
+//
+// It is nil in the offline test suite, and then every check that needs it
+// skips with "external services not enabled". That is deliberate: a check that
+// silently passes when it could not run is worse than one that says it did not
+// run. Enable it with CHEKHOV_INTEGRATION=1.
+type Services struct {
+	HTTP *http.Client
+
+	// GitHubToken lifts the rate limit on the GitHub API. The public endpoints
+	// this bot uses work without one, more slowly.
+	GitHubToken string
+
+	// Register is the repository the register lives in, as owner/repo. The
+	// register-wide rules read register.csv and venues.csv from it.
+	Register string
+
+	// Base URLs of the services, so that a sandbox, a mirror or a test server
+	// can be used instead. Empty means the real one, see defaults().
+	Zenodo     string // https://zenodo.org/api
+	ORCID      string // https://pub.orcid.org/v3.0
+	Crossref   string // https://api.crossref.org
+	GitHub     string // https://api.github.com
+	RawContent string // https://raw.githubusercontent.com
+
+	once     sync.Once
+	register *registerData
+	loadErr  error
+
+	cache sync.Map // url -> *cachedResponse
+}
+
+// ServicesFromEnv builds the services from the environment, or returns nil
+// when external services are not enabled.
+//
+//	CHEKHOV_INTEGRATION=1              enable them
+//	CHEKHOV_GH_ACCESS_TOKEN=...        optional, lifts the GitHub rate limit
+//	CHEKHOV_TARGET_REPO=owner/repo     the register to read, defaults to the
+//	                                   testing register, never the real one
+func ServicesFromEnv() *Services {
+	if os.Getenv("CHEKHOV_INTEGRATION") == "" {
+		return nil
+	}
+	register := os.Getenv("CHEKHOV_TARGET_REPO")
+	if register == "" {
+		register = "codecheckers/testing-dev-register"
+	}
+	services := &Services{
+		HTTP:        &http.Client{Timeout: 30 * time.Second},
+		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
+		Register:    register,
+	}
+	services.defaults()
+	return services
+}
+
+// Online builds services that reach the real world, for a caller that has
+// decided to go online rather than reading it out of the environment - the
+// `--online` flag of the check command.
+func Online() *Services {
+	services := &Services{
+		HTTP:        &http.Client{Timeout: 30 * time.Second},
+		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
+		Register:    os.Getenv("CHEKHOV_TARGET_REPO"),
+	}
+	if services.Register == "" {
+		services.Register = "codecheckers/testing-dev-register"
+	}
+	services.defaults()
+	return services
+}
+
+// defaults fills in whatever a caller left blank, so that a hand-built
+// Services - a test pointing two of the five at a stub server, say - still
+// reaches the real ones for the rest.
+func (s *Services) defaults() {
+	for _, field := range []struct {
+		value *string
+		url   string
+	}{
+		{&s.Zenodo, "https://zenodo.org/api"},
+		{&s.ORCID, "https://pub.orcid.org/v3.0"},
+		{&s.Crossref, "https://api.crossref.org"},
+		{&s.GitHub, "https://api.github.com"},
+		{&s.RawContent, "https://raw.githubusercontent.com"},
+	} {
+		if *field.value == "" {
+			*field.value = field.url
+		}
+		*field.value = strings.TrimSuffix(*field.value, "/")
+	}
+}
+
+// reset forgets the responses seen so far. One run of the bot asks the same
+// question once; a test that reuses the services across cases has to be able
+// to ask again.
+func (s *Services) reset() {
+	s.cache = sync.Map{}
+	s.once = sync.Once{}
+	s.register = nil
+	s.loadErr = nil
+}
+
+// Enabled reports whether checks may reach out.
+func (s *Services) Enabled() bool { return s != nil && s.HTTP != nil }
+
+// needsServices is the skip every service-dependent check returns when it
+// cannot reach out, naming what it would have needed.
+func needsServices(service string) Result {
+	return skip("external services not enabled, this check needs " + service)
+}
+
+// RequiresService maps a rule to the outside thing its check needs. A rule
+// listed here skips in the offline suite and runs in the integration suite,
+// which is what the two exhaustive fixtures assert.
+var RequiresService = map[string]string{
+	"CC-CFG-012": "the report URL",
+	"CC-MET-002": "the ORCID API",
+	"CC-MET-003": "the ORCID API",
+	"CC-MET-004": "the paper reference",
+	"CC-MET-005": "Crossref",
+	"CC-MET-006": "Crossref",
+	"CC-MET-007": "Crossref",
+	"CC-MET-008": "Crossref",
+	"CC-MET-009": "the reference-other entries",
+	"CC-BUN-001": "the checked repository",
+	"CC-BUN-004": "the checked repository",
+	"CC-REP-001": "the Zenodo API",
+	"CC-REP-002": "the Zenodo API",
+	"CC-REP-003": "the Zenodo API",
+	"CC-REP-004": "the Zenodo API",
+	"CC-REP-005": "the Zenodo API",
+	"CC-REP-006": "the Zenodo API",
+	"CC-REG-001": "register.csv",
+	"CC-REG-002": "register.csv",
+	"CC-REG-003": "register.csv",
+	"CC-REG-004": "register.csv",
+	"CC-REG-005": "venues.csv",
+	"CC-REG-006": "the GitHub API",
+	"CC-REG-007": "the GitHub API",
+}
+
+type cachedResponse struct {
+	status int
+	body   []byte
+	err    error
+}
+
+// get fetches a URL once per run. A codecheck.yml names the same ORCID or the
+// same record several times, and the checks are separate functions by design,
+// so without this the bot would ask the same question repeatedly.
+func (s *Services) get(url string, header map[string]string) (int, []byte, error) {
+	if cached, ok := s.cache.Load(url); ok {
+		response := cached.(*cachedResponse)
+		return response.status, response.body, response.err
+	}
+
+	status, body, err := s.fetch(url, header)
+	s.cache.Store(url, &cachedResponse{status: status, body: body, err: err})
+	return status, body, err
+}
+
+func (s *Services) fetch(url string, header map[string]string) (int, []byte, error) {
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	request.Header.Set("User-Agent",
+		"chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)")
+	for key, value := range header {
+		request.Header.Set(key, value)
+	}
+
+	response, err := s.HTTP.Do(request)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, 8<<20))
+	return response.StatusCode, body, err
+}
+
+// getJSON fetches and decodes, and reports a non-200 as an error so that every
+// caller does not repeat the same three lines.
+func (s *Services) getJSON(url string, header map[string]string, into any) error {
+	if header == nil {
+		header = map[string]string{}
+	}
+	if _, ok := header["Accept"]; !ok {
+		header["Accept"] = "application/json"
+	}
+
+	status, body, err := s.get(url, header)
+	if err != nil {
+		return err
+	}
+	if status != http.StatusOK {
+		return fmt.Errorf("%s answered %d", url, status)
+	}
+	return json.Unmarshal(body, into)
+}
+
+func (s *Services) github(url string, into any) error {
+	header := map[string]string{"Accept": "application/vnd.github+json"}
+	if s.GitHubToken != "" {
+		header["Authorization"] = "Bearer " + s.GitHubToken
+	}
+	return s.getJSON(url, header, into)
+}
+
+// resolves reports whether a URL answers, as a check result. A connection
+// failure is a skip rather than a failure: an unreachable server says nothing
+// about the codecheck.yml.
+func (s *Services) resolves(url string) Result {
+	status, _, err := s.get(url, nil)
+	if err != nil {
+		return skip(fmt.Sprintf("could not reach '%s': %s", url, err))
+	}
+	// A publisher that blocks robots, a rate limit, or a server having a bad
+	// moment says nothing about whether the reference is right. Only "not
+	// there" is a failure.
+	switch {
+	case status == 401, status == 403, status == 405, status == 429:
+		return skip(fmt.Sprintf("'%s' answers %d, which blocks the check rather than failing it",
+			url, status))
+	case status >= 500:
+		return skip(fmt.Sprintf("'%s' answers %d, so the server could not say", url, status))
+	case status >= 400:
+		return fail(fmt.Sprintf("'%s' answers %d", url, status))
+	}
+	return pass("")
+}
+
+// --- register.csv and venues.csv -------------------------------------------
+
+type registerEntry struct {
+	Certificate string
+	Repository  string
+	Type        string
+	Venue       string
+	Issue       string
+}
+
+type registerData struct {
+	entries []registerEntry
+	venues  map[string]bool
+}
+
+// registerCSV loads the register once per run.
+func (s *Services) registerCSV() (*registerData, error) {
+	s.once.Do(func() {
+		data := &registerData{venues: map[string]bool{}}
+		base := s.RawContent + "/" + s.Register + "/HEAD/"
+
+		rows, err := s.csv(base + "register.csv")
+		if err != nil {
+			s.loadErr = err
+			return
+		}
+		for _, row := range rows {
+			data.entries = append(data.entries, registerEntry{
+				Certificate: row["Certificate"],
+				Repository:  row["Repository"],
+				Type:        row["Type"],
+				Venue:       row["Venue"],
+				Issue:       row["Issue"],
+			})
+		}
+
+		// venues.csv is optional: the testing register may not carry one, and
+		// a missing file must make the venue rule skip rather than fail.
+		if venues, err := s.csv(base + "venues.csv"); err == nil {
+			for _, row := range venues {
+				for _, key := range []string{"Venue", "name", "Name"} {
+					if value := strings.TrimSpace(row[key]); value != "" {
+						data.venues[strings.ToLower(value)] = true
+					}
+				}
+			}
+		}
+
+		s.register = data
+	})
+	return s.register, s.loadErr
+}
+
+func (s *Services) csv(url string) ([]map[string]string, error) {
+	status, body, err := s.get(url, map[string]string{"Accept": "text/plain"})
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("%s answered %d", url, status)
+	}
+
+	reader := csv.NewReader(strings.NewReader(string(body)))
+	reader.FieldsPerRecord = -1
+	reader.Comment = '#'
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", url, err)
+	}
+	if len(records) == 0 {
+		return nil, fmt.Errorf("%s is empty", url)
+	}
+
+	header := records[0]
+	var rows []map[string]string
+	for _, record := range records[1:] {
+		row := map[string]string{}
+		for i, value := range record {
+			if i < len(header) {
+				row[strings.TrimSpace(header[i])] = strings.TrimSpace(value)
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+// entryFor finds the register row of one certificate.
+func (d *registerData) entryFor(certificate string) (registerEntry, bool) {
+	for _, entry := range d.entries {
+		if entry.Certificate == certificate {
+			return entry, true
+		}
+	}
+	return registerEntry{}, false
+}

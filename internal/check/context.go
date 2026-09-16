@@ -1,0 +1,244 @@
+package check
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+// Person is an author or a codechecker.
+type Person struct {
+	Name  string `yaml:"name"`
+	ORCID string `yaml:"ORCID"`
+}
+
+// ManifestItem is one output the workflow produces.
+type ManifestItem struct {
+	File    string `yaml:"file"`
+	Comment string `yaml:"comment"`
+}
+
+// Paper is the metadata about the checked article.
+type Paper struct {
+	Title     string   `yaml:"title"`
+	Authors   []Person `yaml:"authors"`
+	Reference string   `yaml:"reference"`
+
+	// reference-other is new in specification 2.0. Whether it is present and
+	// whether it is a sequence are two different rules, so both are recorded
+	// rather than collapsed into an empty slice.
+	ReferenceOther       []string
+	HasReferenceOther    bool
+	ReferenceOtherIsList bool
+}
+
+// Config is a parsed codecheck.yml.
+//
+// Presence and emptiness are different things to several rules - an absent
+// manifest fails, an empty one does not - so the nodes whose absence a rule
+// asks about carry a Has flag.
+type Config struct {
+	Version     string
+	Manifest    []ManifestItem
+	HasManifest bool
+	Codechecker []Person
+	Report      string
+	Paper       Paper
+	HasPaper    bool
+	Summary     string
+	Certificate string
+	Repository  []string
+
+	// Strings holds every string value in the file, for the rules that ask
+	// about values wherever they appear.
+	Strings []string
+}
+
+// Context is everything the checks need about the file under validation.
+//
+// Services is the outside world, and is nil unless external services are
+// enabled; the checks that need it then skip rather than guess. See
+// services.go.
+type Context struct {
+	Config     Config
+	Raw        []byte
+	Path       string
+	BundleDir  string
+	ParseError error
+	Label      string
+	Services   *Services
+}
+
+// WithServices returns the context with the outside world attached.
+func (c Context) WithServices(services *Services) Context {
+	c.Services = services
+	return c
+}
+
+// FromFile reads a codecheck.yml from disk.
+//
+// A file that does not parse is not an error here: it is a failure of
+// CC-CFG-001, reported like any other rule, and the checks that need the
+// parsed content skip for want of it.
+func FromFile(path string) (Context, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Context{}, fmt.Errorf("no such codecheck.yml: %w", err)
+	}
+	context := FromBytes(raw)
+	context.Path = path
+	context.BundleDir = filepath.Dir(path)
+	context.Label = path
+	return context, nil
+}
+
+// FromBytes parses a codecheck.yml held in memory. The rules about the file on
+// disk skip, because there is no file to look at.
+func FromBytes(raw []byte) Context {
+	context := Context{Raw: raw, Label: "the given configuration"}
+
+	var document yaml.Node
+	if err := yaml.Unmarshal(raw, &document); err != nil {
+		context.ParseError = err
+		return context
+	}
+	root := documentRoot(&document)
+	if root == nil {
+		return context
+	}
+
+	var parsed struct {
+		Version     string         `yaml:"version"`
+		Manifest    []ManifestItem `yaml:"manifest"`
+		Codechecker []Person       `yaml:"codechecker"`
+		Report      string         `yaml:"report"`
+		Summary     string         `yaml:"summary"`
+		Certificate string         `yaml:"certificate"`
+		Paper       struct {
+			Title     string   `yaml:"title"`
+			Authors   []Person `yaml:"authors"`
+			Reference string   `yaml:"reference"`
+		} `yaml:"paper"`
+	}
+	if err := root.Decode(&parsed); err != nil {
+		context.ParseError = err
+		return context
+	}
+
+	config := Config{
+		Version:     parsed.Version,
+		Manifest:    parsed.Manifest,
+		Codechecker: parsed.Codechecker,
+		Report:      parsed.Report,
+		Summary:     parsed.Summary,
+		Certificate: parsed.Certificate,
+		Strings:     stringValues(root),
+	}
+	config.HasManifest = hasKey(root, "manifest")
+	config.Repository = scalars(childNode(root, "repository"))
+	config.HasPaper = hasKey(root, "paper")
+	config.Paper = Paper{
+		Title:     parsed.Paper.Title,
+		Authors:   parsed.Paper.Authors,
+		Reference: parsed.Paper.Reference,
+	}
+
+	if other := childNode(childNode(root, "paper"), "reference-other"); other != nil {
+		config.Paper.HasReferenceOther = true
+		if other.Kind == yaml.SequenceNode {
+			config.Paper.ReferenceOtherIsList = true
+			for _, entry := range other.Content {
+				config.Paper.ReferenceOther = append(config.Paper.ReferenceOther, entry.Value)
+			}
+		}
+	}
+
+	context.Config = config
+	return context
+}
+
+// SpecVersionFromURL returns the specification version a version node names,
+// or "" if it names none. A trailing slash is tolerated, as is http.
+func SpecVersionFromURL(version string) string {
+	for _, candidate := range specVersions {
+		pattern := regexp.MustCompile(`spec/config/` + regexp.QuoteMeta(candidate) + `/?$`)
+		if pattern.MatchString(strings.TrimSpace(version)) {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// specVersions is set from the rules package by the runner, so that the list
+// of known versions lives in one place.
+var specVersions []string
+
+func documentRoot(document *yaml.Node) *yaml.Node {
+	if document.Kind == yaml.DocumentNode && len(document.Content) > 0 {
+		return document.Content[0]
+	}
+	if document.Kind == yaml.MappingNode {
+		return document
+	}
+	return nil
+}
+
+func hasKey(mapping *yaml.Node, key string) bool {
+	return childNode(mapping, key) != nil
+}
+
+func childNode(mapping *yaml.Node, key string) *yaml.Node {
+	if mapping == nil || mapping.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		if mapping.Content[i].Value == key {
+			return mapping.Content[i+1]
+		}
+	}
+	return nil
+}
+
+// scalars returns a node's values, whether it is written as one value or as a
+// sequence: repository accepts both.
+func scalars(node *yaml.Node) []string {
+	if node == nil {
+		return nil
+	}
+	switch node.Kind {
+	case yaml.ScalarNode:
+		if strings.TrimSpace(node.Value) == "" {
+			return nil
+		}
+		return []string{node.Value}
+	case yaml.SequenceNode:
+		var values []string
+		for _, child := range node.Content {
+			values = append(values, scalars(child)...)
+		}
+		return values
+	}
+	return nil
+}
+
+// stringValues collects every scalar in the document, keys excluded.
+func stringValues(node *yaml.Node) []string {
+	var values []string
+	switch node.Kind {
+	case yaml.ScalarNode:
+		values = append(values, node.Value)
+	case yaml.SequenceNode:
+		for _, child := range node.Content {
+			values = append(values, stringValues(child)...)
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			values = append(values, stringValues(node.Content[i+1])...)
+		}
+	}
+	return values
+}

@@ -1,0 +1,44 @@
+version: https://codecheck.org.uk/spec/1.0
+
+paper:
+  title: "ShinyLearner: A containerized benchmarking tool for machine-learning classification of tabular data."
+  authors:
+    - name: Terry J Lee
+    - name: Erica Suh
+    - name: Kimball Hill
+    - name: Stephen R Piccolo    
+  reference: https://doi.org/10.1093/gigascience/giaa026
+
+manifest:
+  - file: Figures/Datasets_Basic_AUROC.pdf
+    comment: Figure 2 of manuscript
+
+  - file: Figures/Predictions_Histograms.pdf
+    comment: Figure 3 of manuscript
+
+  - file: Figures/Algorithms_ParamsImprovement_AUROC.pdf
+    comment: Figure 4 of manuscript
+
+  - file: Figures/Algorithms_FSImprovement_AUROC.pdf
+    comment: Figure 5 of manuscript
+
+  - file: Figures/FS_vs_CL.pdf
+    comment: Figure 6 of manuscript
+
+  - file: Figures/FS_NumFeatures.pdf
+    comment: Figure 7 of manuscript
+
+  - file: Tables/Basic_DiffFromMedian.tsv
+    comment: Example output table 1 (not in manuscript)
+
+  - file: Tables/ParamOpt_Improvement.tsv
+    comment: Example output table 2 (not in manuscript)
+
+codechecker:
+  - name: Stephen J. Eglen
+    ORCID: 0000-0001-8607-8025
+summary:  Only visualiation steps performed, rather than machine learning (which could take several hours/days).  The created figures match those in the article. The content of other output files was not checked.
+repository: https://github.com/codecheckers/Piccolo-2020
+check_time: "2019-02-14 10:00:00"
+certificate: 2020-001
+report: http://doi.org/10.5281/zenodo.3674056

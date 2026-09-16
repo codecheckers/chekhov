@@ -1,0 +1,39 @@
+# Chekhov — development configuration
+#
+# Everything here points at the TESTING register, never the production one:
+#   https://github.com/codecheckers/testing-dev-register
+#
+# Schema follows buffy (openjournals/buffy, config/settings-development.yml) so
+# that adopting buffy as the engine stays a configuration change rather than a
+# rewrite. If a fresh implementation wins instead, this file is still the
+# single place that names the target repository and the commands.
+chekhov:
+  env:
+    bot_github_user: <%= ENV['CHEKHOV_BOT_GH_USER'] || 'chekhovbot' %>
+    # Target repository for all development and testing. Do NOT point this at
+    # codecheckers/register.
+    target_repository: <%= ENV['CHEKHOV_TARGET_REPO'] || 'codecheckers/testing-dev-register' %>
+    # Columns of register.csv in the target repo:
+    # Certificate,Repository,Type,Venue,Issue
+    register_file: register.csv
+
+  teams:
+    # GitHub team IDs in the codecheckers org; fill in once the bot user is a
+    # member and can read them (gh api orgs/codecheckers/teams).
+    editors:
+    codecheckers:
+
+  responders:
+    help:
+    hello:
+      hidden: true
+    welcome:
+      message: "Hi! I'm @chekhovbot. If the research paper has code, it must run.\n\nType ```@chekhovbot commands``` to see how I can help."
+    assign_codechecker:
+      only: editors
+    check_config:
+      # Validate codecheck.yml early, rather than at render time
+      config_file: codecheck.yml
+    register:
+      # Open the PR adding a row to register.csv
+      only: editors

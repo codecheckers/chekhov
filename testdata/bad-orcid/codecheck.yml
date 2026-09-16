@@ -1,0 +1,26 @@
+---
+version: https://codecheck.org.uk/spec/config/2.0/
+
+manifest:
+  - file: figure1.png
+    comment: manuscript Figure 1
+  - file: results/table1.csv
+    comment: manuscript Table 1
+
+paper:
+  title: "A paper whose code runs"
+  authors:
+    - name: Josiah Carberry
+      ORCID: https://orcid.org/0000-0002-1825-0097
+  reference: https://doi.org/10.5555/preprint.1
+  reference-other:
+    - https://doi.org/10.5555/version-of-record
+
+codechecker:
+  - name: S. Eglen
+    ORCID: 0000-0001-8607-8025
+
+report: https://doi.org/10.5281/zenodo.1234567
+summary: |
+  All material was provided and the figures could be reproduced.
+certificate: 1970-001
