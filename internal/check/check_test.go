@@ -563,3 +563,38 @@ func TestReferenceRulesCoverTheRegister(t *testing.T) {
 		}
 	}
 }
+
+// The posted comment says where the file came from and how the version was
+// chosen - once. It was written twice, once after the summary and once in the
+// footer, which a reader reads as a bug in the bot.
+func TestTheProvenanceIsStatedOnce(t *testing.T) {
+	context, err := FromFile(filepath.Join("..", "..", "testdata", "valid-2.0", "codecheck.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Run(context, "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	markdown := report.Markdown()
+	if got := strings.Count(markdown, "Checked against specification"); got != 1 {
+		t.Errorf("the reply explains the version %d times:\n%s", got, markdown)
+	}
+}
+
+// A version the caller pinned needs no explanation, and "specification 2.0
+// asked for" is not a sentence.
+func TestAPinnedVersionCarriesNoReason(t *testing.T) {
+	context, err := FromFile(filepath.Join("..", "..", "testdata", "valid-2.0", "codecheck.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Run(context, "1.0", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.SpecVersionReason != "" {
+		t.Errorf("reason = %q, want none for a pinned version", report.SpecVersionReason)
+	}
+}

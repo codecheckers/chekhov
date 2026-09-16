@@ -140,7 +140,9 @@ func Run(context Context, specVersion string, strict bool) (Report, error) {
 // not cost a Crossref lookup and a Zenodo record, and on a bad day must not
 // fail because one of them is down.
 func RunPart(context Context, specVersion string, strict bool, part string) (Report, error) {
-	why := "asked for"
+	// A caller that pinned the version knows why; only a chosen one needs
+	// explaining.
+	why := ""
 	if specVersion == "" {
 		specVersion, why = SpecVersion(context)
 	}

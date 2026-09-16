@@ -3,6 +3,7 @@ package rules
 import (
 	"regexp"
 	"testing"
+	"time"
 )
 
 var wellFormedID = regexp.MustCompile(`^CC-(CFG|MET|BUN|REP|REG)-[0-9]{3}$`)
@@ -130,4 +131,33 @@ func byID(t *testing.T, version string) map[string]Rule {
 		index[rule.ID] = rule
 	}
 	return index
+}
+
+// A file older than every specification is judged by the oldest requirements:
+// CODECHECKs were done before the configuration file was specified at all.
+func TestAsOfPredatingEverySpecification(t *testing.T) {
+	when := time.Date(2019, 2, 14, 0, 0, 0, 0, time.UTC)
+	versions := SpecVersions()
+	if got := AsOf(when); got != versions[len(versions)-1] {
+		t.Errorf("AsOf(2019) = %q, want the oldest version", got)
+	}
+	if got := AsOf(time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)); got != "2.0" {
+		t.Errorf("AsOf(2026-09-30) = %q, want 2.0", got)
+	}
+}
+
+// Every bundled rule file carries the publication date the version selection
+// depends on. Without it a refresh from the register would silently date
+// nothing, and every undated file would be checked against the oldest rules.
+func TestEverySpecificationHasADate(t *testing.T) {
+	for _, version := range SpecVersions() {
+		when, err := SpecDate(version)
+		if err != nil {
+			t.Errorf("rules-%s.yml: %v", version, err)
+			continue
+		}
+		if when.IsZero() {
+			t.Errorf("rules-%s.yml has an empty spec_date", version)
+		}
+	}
 }

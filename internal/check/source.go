@@ -2,6 +2,7 @@ package check
 
 import (
 	"fmt"
+	neturl "net/url"
 	"slices"
 	"strings"
 	"time"
@@ -83,9 +84,13 @@ func FromRepository(spec string, services *Services) (Context, error) {
 	context.RepositorySpec = parsed
 
 	// Only a file that says nothing about its version needs dating, and dating
-	// it costs a request - so ask only then.
-	if SpecVersionNamed(context.Config.Version) == "" && context.Config.CheckTime == "" {
-		context.Modified = lastModified(parsed, services)
+	// it costs a request - so ask only then. The test is whether check_time
+	// can actually be read, not whether it is present: a date in a form
+	// nothing understands is no date at all.
+	if SpecVersionNamed(context.Config.Version) == "" {
+		if _, dated := parseCheckTime(context.Config.CheckTime); !dated {
+			context.Modified = lastModified(parsed, services)
+		}
 	}
 	return context, nil
 }
@@ -106,7 +111,8 @@ func lastModified(spec RepositorySpec, services *Services) time.Time {
 		if spec.SubPath != "" {
 			path = spec.SubPath + "/codecheck.yml"
 		}
-		url := fmt.Sprintf("%s/repos/%s/commits?path=%s&per_page=1", services.GitHub, spec.Path, path)
+		url := fmt.Sprintf("%s/repos/%s/commits?path=%s&per_page=1",
+			services.GitHub, spec.Path, neturl.QueryEscape(path))
 		if err := services.github(url, &commits); err != nil || len(commits) == 0 {
 			return time.Time{}
 		}

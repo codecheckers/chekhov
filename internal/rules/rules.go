@@ -93,22 +93,28 @@ func SpecDate(specVersion string) (time.Time, error) {
 // author could not have known about; see "Choosing the specification version"
 // in the register's RULES.md.
 func AsOf(when time.Time) string {
-	for _, version := range SpecVersions() { // newest first
+	versions := SpecVersions() // newest first
+	dated := false
+	for _, version := range versions {
 		published, err := SpecDate(version)
 		if err != nil {
 			continue
 		}
+		dated = true
 		if !published.After(when) {
 			return version
 		}
 	}
-	// Older than every specification: CODECHECK was done before the
+	if !dated {
+		// No rule file carries a spec_date, so nothing can be dated. Saying
+		// "1.0" here would check every modern file against the 2020
+		// requirements and call it evidence.
+		return ""
+	}
+	// Older than every specification: the CODECHECK was done before the
 	// configuration file was specified at all, and the oldest requirements are
 	// the only ones its author could have followed.
-	if versions := SpecVersions(); len(versions) > 0 {
-		return versions[len(versions)-1]
-	}
-	return ""
+	return versions[len(versions)-1]
 }
 
 var raw = map[string][]byte{"1.0": rules10, "2.0": rules20}

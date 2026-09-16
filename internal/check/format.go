@@ -82,7 +82,6 @@ func (r Report) Markdown() string {
 			Symbol(OutcomeError), r.SpecVersion, r.partSuffix())
 	}
 	fmt.Fprintf(&out, "\n%s\n", r.Summary())
-	out.WriteString(r.provenance())
 
 	var reportable []RuleResult
 	for _, result := range r.Results {
