@@ -16,10 +16,10 @@ import (
 // repository it actually read, as a link, so a wrong guess is visible in the
 // answer rather than hidden in it. See codecheckers/chekhov#19 and #13.
 
-// gitLabGroup is the CODECHECK group on GitLab. Everything else that looks
-// like `owner/repo` is read as GitHub, which is what a codechecker almost
-// always means.
-const gitLabGroup = "chchck"
+// gitLabGroup is the CODECHECK group on GitLab, as register.csv writes it in
+// every gitlab:: row. Everything else that looks like `owner/repo` is read as
+// GitHub, which is what a codechecker almost always means.
+const gitLabGroup = "cdchck"
 
 var (
 	// ownerRepo is `owner/repo`, the form both git platforms use.

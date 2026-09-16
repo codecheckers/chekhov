@@ -18,10 +18,10 @@ func TestResolveTargetReadsTheShortcuts(t *testing.T) {
 		{target: "codecheckers/Piccolo-2020", resolved: "github::codecheckers/Piccolo-2020"},
 		{target: "reproducible-agile/reviews-2025|reports/08",
 			resolved: "github::reproducible-agile/reviews-2025|reports/08"},
-		{target: "chchck/some-project", resolved: "gitlab::chchck/some-project"},
+		{target: "cdchck/some-project", resolved: "gitlab::cdchck/some-project"},
 		// The group is a name, and names are not case-sensitive here - but
 		// GitLab serves it lowercase, so that is what it resolves to.
-		{target: "ChChck/some-project", resolved: "gitlab::chchck/some-project"},
+		{target: "CdChck/some-project", resolved: "gitlab::cdchck/some-project"},
 		{target: "ab12c", resolved: "osf::ab12c"},
 		{target: "3674056", resolved: "zenodo::3674056"},
 		// A certificate identifier is neither an OSF node nor a Zenodo record,

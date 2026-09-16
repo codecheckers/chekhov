@@ -275,13 +275,20 @@ that a mistyped path is answered as a missing file.
 
 `Context.Bundle` is where the files that go with the configuration are: the
 directory it was read from, or the repository it was fetched from, behind one
-interface in `internal/check/bundle.go` (`Read`, `Exists`, `List`, `Describe`).
+interface in `internal/check/bundle.go` (`Read`, `Exists`, `List`, `Licence`,
+`Describe`).
 The configuration itself is read through it, so how to reach a GitHub, GitLab,
 OSF or Zenodo file is written once; which of the four is decided at
 construction, not at every call; and a listing is read once per directory. The
 rules about the bundle therefore reach a verdict for a repository, where they
 used to skip for want of a directory on disk. A bundle that cannot answer is
 still a skip, never a failure.
+
+A bundle is asked in its own terms: `Licence` is a `LICENSE` file in a git
+repository and the record's metadata on OSF and Zenodo, because CC-BUN-005 asks
+whether the repository under check *states* a licence, not whether it has a
+file of that name. The R package looks only for the file, deliberately: it only
+ever sees a bundle on disk.
 
 A check command can be narrowed to one part of the catalogue with
 `Report.Subset`: the rule areas, plus `references`, which crosses two areas

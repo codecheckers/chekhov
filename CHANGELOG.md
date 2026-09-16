@@ -113,6 +113,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The GitLab shortcut reads `cdchck/`, the group `register.csv` actually names;
+  `chchck/` was a typo that could never match a CODECHECK project
+  (codecheckers/chekhov#19).
+- `CC-BUN-005` asks a bundle how it states its licence rather than looking only
+  for a file: an OSF node and a Zenodo record state one in their metadata, and
+  were reported as stating none (codecheckers/chekhov#17).
+
 - A `403` from GitHub is retried only when it is a rate limit. A token without
   the right permission answers 403 too, and asking again never helped.
 - `CC-BUN-001` manifest-files-exist now looks only where the specification says

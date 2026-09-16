@@ -1,6 +1,7 @@
 package check
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -21,7 +22,13 @@ type zenodoRecord struct {
 	Published   string       `json:"publication_date"`
 	Files       []zenodoFile `json:"files"`
 	Metadata    struct {
-		Title    string `json:"title"`
+		Title string `json:"title"`
+		// License is an object with an id on the current API and a plain
+		// string on the older one, so it is read as it comes, see licence.
+		License json.RawMessage `json:"license"`
+		Rights  []struct {
+			ID string `json:"id"`
+		} `json:"rights"`
 		Creators []struct {
 			Name  string `json:"name"`
 			ORCID string `json:"orcid"`
@@ -34,6 +41,31 @@ type zenodoRecord struct {
 			} `json:"version"`
 		} `json:"relations"`
 	} `json:"metadata"`
+}
+
+// licence is the licence the record states, empty when it states none.
+//
+// Zenodo has written it three ways over the years: metadata.license as an
+// object with an id, metadata.license as a plain string, and metadata.rights
+// as a list. A record deposited in 2019 answers differently from one deposited
+// last month, and both are in the register.
+func (r zenodoRecord) licence() string {
+	var asObject struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(r.Metadata.License, &asObject); err == nil && asObject.ID != "" {
+		return asObject.ID
+	}
+	var asString string
+	if err := json.Unmarshal(r.Metadata.License, &asString); err == nil && asString != "" {
+		return asString
+	}
+	for _, right := range r.Metadata.Rights {
+		if right.ID != "" {
+			return right.ID
+		}
+	}
+	return ""
 }
 
 // zenodoFile is one file of a record. Zenodo's newer API names it `key` and

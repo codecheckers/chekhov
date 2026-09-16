@@ -135,3 +135,65 @@ func mustList(t *testing.T, bundle Bundle, dir string) []BundleEntry {
 	}
 	return entries
 }
+
+// A bundle states its licence the way its platform does: a git repository in a
+// file, an archive in its metadata, where there is no file to find.
+func TestABundleStatesItsLicenceItsOwnWay(t *testing.T) {
+	stub := newStub(t)
+	stub.json("/github/repos/codecheckers/demo/contents/", `[
+	  {"name": "LICENSE", "type": "file"},
+	  {"name": "licences", "type": "dir"}
+	]`)
+	// The current API answers an object, the older one a plain string, and a
+	// record deposited last month a rights list. All three are in the register.
+	stub.json("/zenodo/records/1", `{"metadata": {"license": {"id": "cc-by-4.0"}}}`)
+	stub.json("/zenodo/records/2", `{"metadata": {"license": "CC-BY-4.0"}}`)
+	stub.json("/zenodo/records/3", `{"metadata": {"rights": [{"id": "mit"}]}}`)
+	stub.json("/zenodo/records/4", `{"files": [{"key": "codecheck.yml"}], "metadata": {}}`)
+	stub.json("/osf/nodes/ab12c/", fmt.Sprintf(`{"data": {"relationships": {"license":
+	  {"links": {"related": {"href": %q}}}}}}`, stub.url("/osf/licenses/cc-by")))
+	stub.json("/osf/licenses/cc-by", `{"data": {"attributes": {"name": "CC-By Attribution 4.0 International"}}}`)
+	// A node that has chosen nothing carries the licence called "No license",
+	// which states nothing at all.
+	stub.json("/osf/nodes/none1/", fmt.Sprintf(`{"data": {"relationships": {"license":
+	  {"links": {"related": {"href": %q}}}}}}`, stub.url("/osf/licenses/no-license")))
+	stub.json("/osf/licenses/no-license", `{"data": {"attributes": {"name": "No license"}}}`)
+	stub.json("/osf/nodes/none1/files/osfstorage/", `{"data": [], "links": {}}`)
+
+	for _, test := range []struct {
+		spec    string
+		licence string
+	}{
+		{spec: "github::codecheckers/demo", licence: "LICENSE"},
+		{spec: "zenodo::1", licence: "cc-by-4.0"},
+		{spec: "zenodo::2", licence: "CC-BY-4.0"},
+		{spec: "zenodo::3", licence: "mit"},
+		{spec: "zenodo::4", licence: ""},
+		{spec: "osf::ab12c", licence: "CC-By Attribution 4.0 International"},
+		{spec: "osf::none1", licence: ""},
+	} {
+		spec, err := ParseRepositorySpec(test.spec)
+		if err != nil {
+			t.Fatalf("%s: %v", test.spec, err)
+		}
+		licence, err := bundleFor(spec, stub.services).Licence()
+		if err != nil {
+			t.Errorf("%s: %v", test.spec, err)
+		}
+		if licence != test.licence {
+			t.Errorf("%s states %q, want %q", test.spec, licence, test.licence)
+		}
+	}
+}
+
+// A local bundle still reads the file, which is what the codecheck R package
+// does and what a repository on disk has.
+func TestALocalBundleStatesItsLicenceInAFile(t *testing.T) {
+	licence, err := newLocalBundle("../../testdata/valid-2.0").Licence()
+	if err != nil {
+		t.Fatalf("licence: %v", err)
+	}
+	if licence != "LICENSE" {
+		t.Errorf("the licence file was found as %q", licence)
+	}
+}

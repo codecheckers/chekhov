@@ -34,6 +34,13 @@ type Bundle interface {
 	Exists(path string) (bool, error)
 	// List names what is in one directory of the bundle.
 	List(dir string) ([]BundleEntry, error)
+	// Licence is the licence the bundle states, empty when it states none.
+	//
+	// How a bundle states one depends on where it is. A git repository
+	// carries a LICENSE file; an archive says so in its metadata, where there
+	// is no file to look for. CC-BUN-005 asks whether the repository under
+	// check *states* a licence, so each bundle is asked in its own terms.
+	Licence() (string, error)
 	// Describe says where the bundle is, for a finding to name.
 	Describe() string
 }
@@ -146,6 +153,8 @@ func (b *localBundle) Exists(name string) (bool, error) {
 	return false, err
 }
 
+func (b *localBundle) Licence() (string, error) { return licenceFileIn(b) }
+
 func (b *localBundle) entries(dir string) ([]BundleEntry, error) {
 	entries, err := os.ReadDir(b.join(dir))
 	if err != nil {
@@ -231,6 +240,8 @@ func (b *githubBundle) Exists(name string) (bool, error) {
 	return rawExists(b.services, b.url(name))
 }
 
+func (b *githubBundle) Licence() (string, error) { return licenceFileIn(b) }
+
 func (b *githubBundle) tree(dir string) ([]BundleEntry, error) {
 	if err := b.available(); err != nil {
 		return nil, err
@@ -301,6 +312,8 @@ func (b *gitlabBundle) Exists(name string) (bool, error) {
 	return false, lastErr
 }
 
+func (b *gitlabBundle) Licence() (string, error) { return licenceFileIn(b) }
+
 func (b *gitlabBundle) tree(dir string) ([]BundleEntry, error) {
 	if err := b.available(); err != nil {
 		return nil, err
@@ -341,6 +354,53 @@ func (b *osfBundle) Read(name string) ([]byte, error) {
 }
 
 func (b *osfBundle) Exists(name string) (bool, error) { return existsInListing(b, name) }
+
+// Licence reads the node's licence, which OSF keeps as its own resource rather
+// than as a file. A node that has not chosen one carries the licence named
+// "No license", which states nothing.
+func (b *osfBundle) Licence() (string, error) {
+	if err := b.available(); err != nil {
+		return "", err
+	}
+	var node struct {
+		Data struct {
+			Relationships struct {
+				License struct {
+					Links struct {
+						Related struct {
+							Href string `json:"href"`
+						} `json:"related"`
+					} `json:"links"`
+				} `json:"license"`
+			} `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := b.services.getJSON(fmt.Sprintf("%s/nodes/%s/", b.services.OSF, b.spec.Path), nil, &node); err != nil {
+		return "", fmt.Errorf("could not read OSF node %s: %w", b.spec.Path, err)
+	}
+
+	href := node.Data.Relationships.License.Links.Related.Href
+	if href == "" {
+		return licenceFileIn(b)
+	}
+	var licence struct {
+		Data struct {
+			Attributes struct {
+				Name string `json:"name"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	if err := b.services.getJSON(href, nil, &licence); err != nil {
+		return "", fmt.Errorf("could not read the licence of OSF node %s: %w", b.spec.Path, err)
+	}
+	if name := licence.Data.Attributes.Name; name != "" && !strings.EqualFold(name, noOSFLicence) {
+		return name, nil
+	}
+	return licenceFileIn(b)
+}
+
+// noOSFLicence is what OSF calls a node that has chosen no licence.
+const noOSFLicence = "No license"
 
 func (b *osfBundle) tree(dir string) ([]BundleEntry, error) {
 	listing, err := b.listing(dir)
@@ -429,6 +489,23 @@ func (b *zenodoBundle) Read(name string) ([]byte, error) {
 
 func (b *zenodoBundle) Exists(name string) (bool, error) { return existsInListing(b, name) }
 
+// Licence reads the record's own licence. A deposit has no LICENSE file to
+// find unless the whole bundle was uploaded as files, so the metadata is where
+// it says so; the file is still looked for when the metadata says nothing.
+func (b *zenodoBundle) Licence() (string, error) {
+	if err := b.available(); err != nil {
+		return "", err
+	}
+	record, err := b.services.zenodoRecordOf(b.spec)
+	if err != nil {
+		return "", err
+	}
+	if licence := record.licence(); licence != "" {
+		return licence, nil
+	}
+	return licenceFileIn(b)
+}
+
 // tree lists a record's files. A record is flat, so a directory is whatever
 // prefix the file names share.
 func (b *zenodoBundle) tree(dir string) ([]BundleEntry, error) {
@@ -477,6 +554,21 @@ func entriesOf(listing []treeEntry, directory string) []BundleEntry {
 		entries = append(entries, BundleEntry{Name: item.Name, IsDir: item.Type == directory})
 	}
 	return entries
+}
+
+// licenceFileIn is how a git repository states its licence: a file at the root
+// of the bundle, named the way everyone names it.
+func licenceFileIn(bundle Bundle) (string, error) {
+	entries, err := bundle.List("")
+	if err != nil {
+		return "", err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir && licenceFile.MatchString(entry.Name) {
+			return entry.Name, nil
+		}
+	}
+	return "", nil
 }
 
 // rawExists reports whether a file is served at a URL, a HEAD where it can.

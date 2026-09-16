@@ -540,17 +540,26 @@ func reportFilePresent(c Context) Result {
 }
 
 // rule: CC-BUN-005 licence-present
+//
+// The rule asks whether the repository under check states a licence, not
+// whether it has a file called LICENSE: an OSF node and a Zenodo record state
+// one in their metadata, and have no file to find. The codecheck R package
+// looks only for the file, because it only ever sees a bundle on disk.
 func licencePresent(c Context) Result {
-	entries, problem := bundleListing(c, "")
-	if problem.Status != "" {
-		return problem
+	if c.Bundle == nil {
+		return skip("no bundle to inspect")
 	}
-	for _, entry := range entries {
-		if licenceFile.MatchString(entry.Name) {
-			return pass(entry.Name)
+	licence, err := c.Bundle.Licence()
+	if err != nil {
+		if errors.Is(err, errNoServices) {
+			return needsServices("the bundle under check")
 		}
+		return skip(fmt.Sprintf("could not read %s: %s", c.Bundle.Describe(), err))
 	}
-	return fail("the repository under check states no licence")
+	if licence == "" {
+		return fail("the repository under check states no licence")
+	}
+	return pass(licence)
 }
 
 // bundleListing reads one directory of the bundle, or says why it could not.
