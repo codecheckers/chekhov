@@ -39,6 +39,7 @@ runway app config set -a chekhov CHEKHOV_BOT_GH_USER=chekhovbot
 runway app config set -a chekhov CHEKHOV_GH_ACCESS_TOKEN=...   # see github-token.md
 runway app config set -a chekhov CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -hex 32
 runway app config set -a chekhov CHEKHOV_MASTODON_TOKEN=...    # optional, see "Announcing" below
+runway app config set -a chekhov GOMEMLIMIT=96MiB             # the free plan has 128 MB, see "Memory" below
 # CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org
 runway app deploy source -y
 ```
@@ -146,6 +147,15 @@ Where the toot comes from is in the `env:` block: `certificates`, the URL of a
 published certificate, and `codechecker_lists`. `persons.csv` and `venues.csv`
 are read from the target repository. In development all of it is the testing
 register's fake certificate `1970-001`.
+
+## Memory
+
+The free plan kills the process above 128 MB, and a restart loses the command
+in flight without a word on the issue. Building the certificate animation is
+the heavy part: each page is scaled with a float buffer of about 45 MB, one
+page at a time. Without a limit, Go lets garbage pile up past 150 MB before it
+collects; `GOMEMLIMIT=96MiB` makes it collect in time, and a local preview of
+`1970-001` then peaks at about 73 MB.
 
 ## The deployment as it stands
 

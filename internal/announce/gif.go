@@ -78,6 +78,11 @@ func GIF(services *check.Services, certificate Certificate, limit int64) (Attach
 // fetchPages reads cert_1.png to cert_4.png at the same time, and returns the
 // pages up to the first one that is missing. Each page is scaled as soon as it
 // is read, so a high-resolution scan is not kept at full size.
+//
+// Only the downloads run in parallel. Decoding and scaling take one page at a
+// time: CatmullRom keeps a float buffer of the target width by the source
+// height, about 45 MB for an A4 page, and four of those at once took the
+// deployment past its 128 MB and got it killed.
 func fetchPages(services *check.Services, certificate Certificate) ([]*image.RGBA, error) {
 	type result struct {
 		page    *image.RGBA
@@ -86,6 +91,7 @@ func fetchPages(services *check.Services, certificate Certificate) ([]*image.RGB
 	}
 	results := make([]result, maxFrames)
 	var wg sync.WaitGroup
+	var scaling sync.Mutex
 	for i := range results {
 		wg.Add(1)
 		go func() {
@@ -101,6 +107,8 @@ func fetchPages(services *check.Services, certificate Certificate) ([]*image.RGB
 				results[i].err = err
 				return
 			}
+			scaling.Lock()
+			defer scaling.Unlock()
 			page, err := png.Decode(bytes.NewReader(raw))
 			if err != nil {
 				results[i].err = fmt.Errorf("cert_%d.png is not a PNG: %w", i+1, err)
