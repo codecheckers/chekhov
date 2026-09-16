@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The bot listens: `chekhov serve` receives GitHub's `issues` and
+  `issue_comment` deliveries on `/dispatch`, verifies the signature before it
+  reads the body, answers immediately and runs the command afterwards
+  (codecheckers/chekhov#14).
+- The bot answers: one reply path posts the comment as the bot account, with
+  truncation at GitHub's limit, one retry, and a footer naming the build and
+  the register (codecheckers/chekhov#15).
+- `@chekhovbot commands`, and `help` for the same thing: the commands the asker
+  may run, grouped, generated from the command registry
+  (codecheckers/chekhov#1).
+- `@chekhovbot hello`: the liveness check, naming the build and the register it
+  works on (codecheckers/chekhov#2).
+- A comment the bot cannot read is answered rather than ignored, suggesting the
+  command it was probably meant to be (codecheckers/chekhov#3).
+- `GET /healthz` reports the version, commit, bot account, register,
+  environment, the register commit the rules came from and when the token
+  expires, so a development deployment cannot be mistaken for the real one.
+- Deployment on runway.horse against the testing register: the Go buildpack
+  builds `cmd/chekhov` with the commit baked in, and `docs/deployment.md` says
+  how to create the app, configure the webhook, read the logs and recover
+  (codecheckers/chekhov#16).
+- `docs/github-token.md` documents the bot's fine-grained GitHub token: what it
+  may do, why it is not a classic token, and how to rotate it.
 - `@chekhovbot check` validates a `codecheck.yml` against the CODECHECK
   validation rules and replies with the rules that need attention. First
   command of the bot ([register#209]).
@@ -43,8 +66,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and re-records the cassettes to catch a service changing its answers.
 - `chekhov` command line tool: `check` validates a file and exits non-zero on a
   failed rule, `comment` shows the reply to a comment, `rules` lists the rules
-  and which of them this bot checks, `version` reports the build and the
-  register commit the rules came from.
+  and which of them this bot checks, `version` reports the build, the register
+  it targets and the register commit the rules came from, and `serve` runs the
+  bot.
+
+### Changed
+
+- `config/settings-development.yml` is read by the bot rather than only
+  documenting its intent: it is the single place naming the target repository,
+  the bot account and the editors. The ERB interpolation buffy uses became
+  `${VAR:-default}`, which Go can read.
 
 ### Fixed
 

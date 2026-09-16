@@ -10,16 +10,22 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
+	"github.com/codecheckers/chekhov/config"
+	"github.com/codecheckers/chekhov/internal/bot"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
-// version is the bot's version, overridden at build time with
-// -ldflags "-X main.version=...".
-var version = "dev"
+// version and commit are the build, overridden at build time with
+// -ldflags "-X main.version=... -X main.commit=...". They are injected rather
+// than read from a file so that "@chekhovbot version" is honest about what is
+// actually running.
+var (
+	version = "dev"
+	commit  = ""
+)
 
 const usage = `chekhov - the CODECHECK register bot
 
@@ -27,6 +33,7 @@ Usage:
   chekhov check [options] <path to codecheck.yml, or a repository spec>
   chekhov check [options] [config|metadata|bundle|references|report|register] <target>
   chekhov comment <path to a comment file, or - for stdin>
+  chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
   chekhov version
 
@@ -63,6 +70,8 @@ func run(args []string, out io.Writer) error {
 		return runCheck(args[1:], out)
 	case "comment":
 		return runComment(args[1:], out)
+	case "serve":
+		return runServe(args[1:], out)
 	case "rules":
 		return runRules(args[1:], out)
 	case "version":
@@ -166,43 +175,26 @@ func runComment(args []string, out io.Writer) error {
 		return err
 	}
 
-	parsed, addressed := command.Parse(string(raw))
+	settings, err := config.Current()
+	if err != nil {
+		return err
+	}
+	deployment := command.Deployment{
+		Version:  version,
+		Commit:   commit,
+		Register: settings.TargetRepository(),
+		Bot:      settings.BotUser(),
+	}
+
+	// The same answer the deployed bot would post. The author is the local
+	// user as far as roles go, which is who is asking.
+	reply, addressed := bot.Preview(settings, deployment, nil, os.Getenv("USER"), string(raw))
 	if !addressed {
 		fmt.Fprintln(out, "not addressed to the bot, no reply")
 		return nil
 	}
-
-	switch parsed.Name {
-	case command.Check:
-		// "@chekhovbot check bundle" narrows to one part of the catalogue;
-		// "@chekhovbot check codecheck.yml" and a bare "check" do all of it.
-		target := "codecheck.yml"
-		part := ""
-		for _, argument := range parsed.Args {
-			switch {
-			case check.IsPart(argument) && argument != "":
-				part = argument
-			case strings.HasSuffix(argument, ".yml"), check.IsRepositorySpec(argument):
-				target = argument
-			}
-		}
-
-		context, err := loadTarget(target, false)
-		if err != nil {
-			return err
-		}
-		report, err := check.RunPart(context, "", false, part)
-		if err != nil {
-			fmt.Fprintln(out, err)
-			return nil
-		}
-		fmt.Fprint(out, report.Markdown())
-		return nil
-	default:
-		fmt.Fprintf(out, "I do not know the command %q. Try `%s commands`.\n",
-			parsed.Raw, command.Bot)
-		return nil
-	}
+	fmt.Fprint(out, reply)
+	return nil
 }
 
 func runRules(args []string, out io.Writer) error {
@@ -233,6 +225,14 @@ func runRules(args []string, out io.Writer) error {
 
 func runVersion(out io.Writer) error {
 	fmt.Fprintf(out, "chekhov %s\n", version)
+	if commit != "" {
+		fmt.Fprintf(out, "commit %s (https://github.com/codecheckers/chekhov/commit/%s)\n",
+			short(commit), commit)
+	}
+	if settings, err := config.Current(); err == nil {
+		fmt.Fprintf(out, "working on %s as @%s (%s)\n",
+			settings.TargetRepository(), settings.BotUser(), config.Environment())
+	}
 
 	provenance, err := rules.Provenance()
 	if err != nil {

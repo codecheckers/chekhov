@@ -1,0 +1,31 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 42,
+    "title": "CODECHECK of a fake paper (1970-001)",
+    "body": "Repository: github::testuser/FAKE-ml-classification-demo",
+    "user": {
+      "login": "aneditor"
+    },
+    "html_url": "https://github.com/codecheckers/testing-dev-register/issues/42"
+  },
+  "comment": {
+    "id": 900142,
+    "body": "@chekhovbot polish the certificate",
+    "user": {
+      "login": "acodechecker"
+    },
+    "html_url": "https://github.com/codecheckers/testing-dev-register/issues/42#issuecomment-900142"
+  },
+  "repository": {
+    "full_name": "codecheckers/testing-dev-register",
+    "name": "testing-dev-register",
+    "owner": {
+      "login": "codecheckers"
+    },
+    "private": false
+  },
+  "sender": {
+    "login": "acodechecker"
+  }
+}

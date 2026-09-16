@@ -16,6 +16,10 @@ import (
 type Name string
 
 const (
+	// Commands lists what the bot understands.
+	Commands Name = "commands"
+	// Hello is the liveness check.
+	Hello Name = "hello"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Unknown is a mention of the bot with something it does not understand.
@@ -56,14 +60,14 @@ func Parse(comment string) (Command, bool) {
 		return Command{Name: Unknown, Raw: raw}, true
 	}
 
-	switch strings.ToLower(rest[0]) {
-	case "check":
-		// "check", "check codecheck.yml" and "check config" all mean the same
-		// thing; the file name is the phrasing people will write.
-		return Command{Name: Check, Raw: raw, Args: rest[1:]}, true
-	default:
-		return Command{Name: Unknown, Raw: raw, Args: rest[1:]}, true
+	// The registry decides what is a command, so that adding one is a single
+	// entry rather than a case here and a line in the help text. "check",
+	// "check codecheck.yml" and "check config" all mean the same thing; the
+	// file name is the phrasing people will write, and is an argument.
+	if definition, found := Lookup(rest[0]); found {
+		return Command{Name: definition.Name, Raw: raw, Args: rest[1:]}, true
 	}
+	return Command{Name: Unknown, Raw: raw, Args: rest[1:]}, true
 }
 
 // firstNonEmptyLine returns the first line with anything on it, so that a

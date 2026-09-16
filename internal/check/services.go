@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/codecheckers/chekhov/config"
 )
 
 // Services is the outside world: the APIs and files a check needs when it
@@ -53,23 +55,14 @@ type Services struct {
 //
 //	CHEKHOV_INTEGRATION=1              enable them
 //	CHEKHOV_GH_ACCESS_TOKEN=...        optional, lifts the GitHub rate limit
-//	CHEKHOV_TARGET_REPO=owner/repo     the register to read, defaults to the
-//	                                   testing register, never the real one
+//	CHEKHOV_TARGET_REPO=owner/repo     the register to read; the default is in
+//	                                   config/settings-development.yml, which is
+//	                                   the one place that names it
 func ServicesFromEnv() *Services {
 	if os.Getenv("CHEKHOV_INTEGRATION") == "" {
 		return nil
 	}
-	register := os.Getenv("CHEKHOV_TARGET_REPO")
-	if register == "" {
-		register = "codecheckers/testing-dev-register"
-	}
-	services := &Services{
-		HTTP:        &http.Client{Timeout: 30 * time.Second},
-		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
-		Register:    register,
-	}
-	services.defaults()
-	return services
+	return Online()
 }
 
 // Online builds services that reach the real world, for a caller that has
@@ -79,13 +72,22 @@ func Online() *Services {
 	services := &Services{
 		HTTP:        &http.Client{Timeout: 30 * time.Second},
 		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
-		Register:    os.Getenv("CHEKHOV_TARGET_REPO"),
-	}
-	if services.Register == "" {
-		services.Register = "codecheckers/testing-dev-register"
+		Register:    targetRepository(),
 	}
 	services.defaults()
 	return services
+}
+
+// targetRepository is the register the bot works on, from the settings file,
+// which is the one place that names it. A settings file that cannot be read is
+// not a reason to guess: fall back to the testing register, never to the real
+// one.
+func targetRepository() string {
+	settings, err := config.Current()
+	if err != nil {
+		return "codecheckers/testing-dev-register"
+	}
+	return settings.TargetRepository()
 }
 
 // defaults fills in whatever a caller left blank, so that a hand-built

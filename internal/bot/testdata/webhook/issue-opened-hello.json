@@ -1,0 +1,22 @@
+{
+  "action": "opened",
+  "issue": {
+    "number": 43,
+    "title": "CODECHECK of another fake paper",
+    "body": "@chekhovbot hello\n\nplease have a look",
+    "user": {
+      "login": "acodechecker"
+    }
+  },
+  "repository": {
+    "full_name": "codecheckers/testing-dev-register",
+    "name": "testing-dev-register",
+    "owner": {
+      "login": "codecheckers"
+    },
+    "private": false
+  },
+  "sender": {
+    "login": "acodechecker"
+  }
+}

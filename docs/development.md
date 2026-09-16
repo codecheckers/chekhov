@@ -29,9 +29,13 @@ output is impossible to confuse with a real CODECHECK.
    `CHEKHOV_TARGET_REPO` defaults to `codecheckers/testing-dev-register`.
 2. Check `config/settings-development.yml` — `target_repository` is the single
    switch between testing and production. Nothing else should name a repo.
-3. Bot account: `chekhovbot` needs write access to the testing register (org
-   membership is enough once the team is set) and a PAT with
-   `public_repo, repo:invite, read:org, read:user`.
+3. Bot account: `chekhovbot` is a member of the `codecheckers` organisation and
+   needs a **fine-grained** token scoped to the testing register alone —
+   resource owner `codecheckers`, one repository, Issues read and write. See
+   [`github-token.md`](github-token.md) for how to create it, what the token
+   currently in use actually has, and how to rotate it. A classic token with
+   `public_repo` would reach the production register too, which is the reason
+   not to use one.
 
 ## Webhook on the testing register
 
@@ -39,7 +43,7 @@ Settings → Webhooks → Add webhook on `codecheckers/testing-dev-register`:
 
 - Payload URL: `<deployment-url>/dispatch`
 - Content type: `application/json`
-- Secret: the value of `CHEKHOV_GH_SECRET_TOKEN`
+- Secret: the value of `CHEKHOV_GH_SECRET_TOKEN` (`openssl rand -hex 32`)
 - Events: **Issues** and **Issue comments** only
 
 For local development the deployment URL has to be a public tunnel — smee.io or
@@ -63,4 +67,28 @@ anyone who knows the Open Journals bots.
 Layout, conventions and the rule identifiers shared with the `codecheck` R
 package are in [`CLAUDE.md`](../CLAUDE.md).
 
-Still open: the deployment platform, which has to fit a free tier.
+The deployment is on runway.horse, against the testing register; see
+[`deployment.md`](deployment.md) for how it is built, configured and watched,
+and [`github-token.md`](github-token.md) for the credential it runs with.
+
+## Running the bot locally
+
+```sh
+export CHEKHOV_GH_ACCESS_TOKEN=... CHEKHOV_GH_SECRET_TOKEN=...
+go run ./cmd/chekhov serve --addr :8099
+curl localhost:8099/healthz
+```
+
+To receive real deliveries, forward them to that port with a public tunnel:
+
+```sh
+gh webhook forward --repo=codecheckers/testing-dev-register \
+  --events=issues,issue_comment --url=http://localhost:8099/dispatch
+```
+
+Without a tunnel, `chekhov comment` renders the same answer the bot would post,
+through the same code path:
+
+```sh
+echo '@chekhovbot commands' | go run ./cmd/chekhov comment -
+```

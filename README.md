@@ -28,9 +28,17 @@ run. (Star Trek's Chekov has one `h`.)
 
 ## Status
 
-The first command, `check`, works; the bot is not deployed yet and the GitHub
-account is not live, so the command runs from the command line rather than from
-a comment. See `docs/development.md`.
+The bot answers `commands`, `hello` and an unknown command on the **testing
+register**, and validates a `codecheck.yml` when a comment names the repository
+to read it from. It runs against
+[`codecheckers/testing-dev-register`](https://github.com/codecheckers/testing-dev-register)
+only; the production register is not configured anywhere. See
+[`docs/deployment.md`](docs/deployment.md).
+
+```bash
+go run ./cmd/chekhov serve                          # the bot: /dispatch and /healthz
+echo '@chekhovbot commands' | go run ./cmd/chekhov comment -   # the same answer, offline
+```
 
 ```bash
 go build ./...

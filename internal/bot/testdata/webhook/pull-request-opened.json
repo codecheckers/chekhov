@@ -1,0 +1,18 @@
+{
+  "action": "opened",
+  "number": 12,
+  "pull_request": {
+    "number": 12,
+    "title": "Add the register entry",
+    "body": "@chekhovbot commands",
+    "user": {
+      "login": "acodechecker"
+    }
+  },
+  "repository": {
+    "full_name": "codecheckers/testing-dev-register"
+  },
+  "sender": {
+    "login": "acodechecker"
+  }
+}

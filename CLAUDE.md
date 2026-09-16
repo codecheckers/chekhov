@@ -8,13 +8,18 @@ line** of a comment, one command per comment, following the convention of the
 Open Journals bots. See `README.md` for the commands and `docs/features.md` for
 the full feature list with priorities.
 
-## Committing
+## Committing and publishing
 
 **Never commit. Stage changes with `git add` and propose a commit message; the
 user commits.** This holds even in auto-accept mode and even when the change is
 trivial or the message was agreed beforehand. The same applies to pushing and
-to anything that publishes: opening issues or pull requests, posting comments,
-deploying.
+to deploying.
+
+**Issues and comments: draft first, in the session.** Put the full text of an
+issue - title, labels, body - in the reply, not only in a scratchpad file, and
+wait for the go-ahead before `gh issue create`. The wording is reviewed before
+it is public. Write the body to a file as well, because `--body-file` is what
+`gh` reads, but what the reply shows is what is being approved.
 
 ## The testing register
 
@@ -38,6 +43,8 @@ go vet ./...
 gofmt -l .          # must print nothing
 go run ./cmd/chekhov check testdata/valid-2.0/codecheck.yml
 go run ./cmd/chekhov check --online testdata/valid-2.0/codecheck.yml  # asks the services
+echo '@chekhovbot commands' | go run ./cmd/chekhov comment -          # the bot's answer
+go run ./cmd/chekhov serve --addr :8099                               # the bot itself
 ```
 
 The fast suite runs in a second and needs no network: the rules are embedded
@@ -106,6 +113,10 @@ scheme in
   check function serves every specification version that has the rule: a
   requirement hardened in 2.0 is reported more loudly, not checked differently.
   `strict` escalates warnings to errors and never the other way round.
+- The one exception is `referenceRules` in `internal/check/run.go`, the
+  cross-area group behind `check references`. It is hand-written because the
+  rule files have no way to express it yet, guarded by a test, and it goes away
+  when codecheckers/register#216 lands. Do not add a second such list.
 
 ### One function per rule
 
@@ -149,6 +160,49 @@ are fine when deliberate, and worth a comment when they are.
 - The reply the bot posts lists **only the rules that need attention**. A table
   of every passing rule buries the few lines a codechecker has to act on.
 
+## The bot
+
+`chekhov serve` is the whole deployment: `POST /dispatch` for GitHub's
+deliveries, `GET /healthz` for everything else. No state, no database.
+
+- **Verify, then read.** The signature is checked against
+  `CHEKHOV_GH_SECRET_TOKEN` before the body is parsed, in
+  `internal/bot/webhook.go`. An unsigned delivery is not data the bot has any
+  business reading.
+- **Answer, then work.** The delivery gets a 202 and the command runs in a
+  goroutine: GitHub times out at ten seconds, and a `check` that asks Crossref
+  and Zenodo takes longer.
+- Three guards, in this order: the repository is the configured target, the
+  author is not the bot itself, the event is an opened issue or a created
+  comment. Everything else is a 204 with a log line, never an error.
+- **A deployment does not read its own disk.** `Server.LocalPaths` is off, so a
+  path in a comment is not a target; only a `github::owner/repo` spec is. The
+  command line preview turns it on, because there the path is the user's own.
+- `internal/github` is the only code that writes to GitHub, and it refuses any
+  repository but the configured one before making a request.
+- `chekhov comment` renders its answer through the same `bot.Preview` the
+  listener uses, so what you read on the command line is what would be posted.
+
+`docs/deployment.md` has the platform, the webhook settings and what to do when
+it falls over; `docs/github-token.md` has the bot's credential and its
+rotation.
+
+## Commands live in the registry
+
+`internal/command/registry.go` holds one entry per command: name, aliases,
+summary, usage, group, role, hidden. The parser resolves against it and the
+help listing is generated from it, so a command cannot be added and then
+forgotten in the documentation - which is the whole point of a registry rather
+than a `switch`.
+
+- A command someone may not run is **absent** from the listing, not shown and
+  refused.
+- Editors are handles in `config/settings-development.yml`. Reading GitHub team
+  membership would need an organisation-wide permission on a token that is
+  deliberately scoped to one repository.
+- `config/` is the single place that names the target repository, and a test
+  asserts the shipped file names the testing register.
+
 ## Reading a configuration
 
 `check.FromFile` reads a path; `check.FromRepository` reads a repository the
@@ -164,14 +218,68 @@ because the catalogue separates the form of a reference from what resolving it
 says. A narrowed report says so in its heading, so that "0 failed" cannot be
 read as "this file is fine".
 
+## Where things stand
+
+Commit `b63d81b` carries the first implementation: the rule catalogue, the
+checks, the offline and integration suites, the CLI. `02ddbfc` added reading a
+configuration out of a repository. The listener, the reply path and the first
+three conversational commands came after that. Read `CHANGELOG.md` for what
+exists; read the issues for what does not.
+
+| Issue | State |
+|---|---|
+| #7 `check codecheck.yml` | Done but for line numbers in the report |
+| #9 metadata, #10 bundle, #11 references | Commands exist; small criteria left (ORCID checksum digit, bundle size, the certificate's own references) |
+| #8 repository, #12 links | Not started |
+| #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
+| #4 version SHA and target register | `version` and `/healthz` report both; the SHA needs the `-ldflags` of a real build |
+| #5 thanks, #6 goodbye | One registry entry each, not written |
+| #13 check by certificate identifier | Resolves through `register.csv` to a repository spec, which `FromRepository` already reads |
+| #14 webhook, #15 reply path | Implemented and covered offline by recorded deliveries and a stubbed GitHub |
+| #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
+| #17 one bundle source | The seam `Context.BundleDir` plus `RepositorySpec` is missing; bundle rules skip for remote targets |
+| register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
+
+The `codecheck` R package is the sibling implementation; its own remaining work
+is written up in `docs/next-task-r-validators.md`, for a separate session.
+
+## Decisions worth keeping
+
+These came out of a review and are easy to undo by accident:
+
+- **Narrow before running.** `RunPart` skips the rules outside the part, so
+  `check bundle` costs no Crossref or Zenodo call. Filtering a finished report
+  was the first attempt and was wrong.
+- **Existence is a HEAD**, falling back to GET on any error or a 405. The
+  manifest check was downloading every figure to read a status code, and the
+  response cache was keeping them for the run.
+- **The response cache is keyed by method, URL and Accept.** The same URL
+  answers JSON or text depending on what was asked for.
+- **A 5xx is never recorded into a cassette.** A transient outage would
+  otherwise be replayed as though it were how the service answers. Recording
+  says on stderr what it discarded; re-record when the service is well.
+- **One parser for `type::path`.** `ParseRepositorySpec` is used by the fetch
+  path and by CC-REG-003, so the format cannot be defined twice.
+- **Go 1.24**, required by go-vcr v4. Both workflows pin it.
+
 ## Layout
 
 ```
-cmd/chekhov/        command line entry point
+cmd/chekhov/        command line entry point, and `serve`
+config/             the settings file, and the code that reads it
+internal/bot/       the listener: webhook, signature, dispatch, /healthz
+internal/github/    the reply path: the one place that writes to GitHub
 internal/rules/     the rule catalogue, embedded from the register
 internal/check/     one check function per rule, the runner and the formatting
-internal/command/   parsing the commands people write in a comment
+  config.go         the checks that need only the file and its bundle
+  external.go       the checks that ask Crossref, ORCID or a repository
+  zenodo.go         the certificate's archive record
+  register.go       the register-wide rules and the checks issue
+  services.go       the outside world: base URLs, cache, register.csv
+  source.go         reading a codecheck.yml from github::, gitlab::, osf::, zenodo::
+internal/command/   the command registry, the parser, and the reply bodies
 testdata/           codecheck.yml fixtures, valid and failing, one per directory
+testdata/cassettes/ recorded service responses, replayed offline
 scripts/            maintenance scripts
 ```
 
