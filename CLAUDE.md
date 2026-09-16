@@ -44,6 +44,13 @@ wait for the go-ahead before `gh issue create`. The wording is reviewed before
 it is public. Write the body to a file as well, because `--body-file` is what
 `gh` reads, but what the reply shows is what is being approved.
 
+**One live test issue per change set.** Live testing happens on a new issue in
+the testing register, named for what is being tried and listing what each
+command should answer. A single long-running issue buries the run that matters
+under a hundred earlier comments, and a reply cannot be read against what was
+expected of it. Link the chekhov issues from the test issue, and the test issue
+from the closing comment, so the proof is one click away.
+
 **The board is part of the work.** The register development board
 (<https://github.com/orgs/codecheckers/projects/2>) carries Status and Priority
 for everything. When starting on an issue, check whether it is on the board; if
