@@ -178,3 +178,19 @@ func TestProductionRepliesCarryNoFooter(t *testing.T) {
 		t.Error("a development greeting says which commit answered")
 	}
 }
+
+// Between releases the version is the short commit, and saying it twice reads
+// as a bug in the bot.
+func TestTheCommitIsNotRepeatedAfterTheVersion(t *testing.T) {
+	deployment := Deployment{Version: "55fb4038", Commit: "55fb4038aac76091bf5e83b1c73660b2010fa41d",
+		Register: "codecheckers/testing-dev-register", Bot: "chekhovbot", Environment: "development"}
+
+	if got := deployment.describeVersion(); got != "version 55fb4038" {
+		t.Errorf("describeVersion = %q", got)
+	}
+	released := deployment
+	released.Version = "0.2.0"
+	if got := released.describeVersion(); got != "version 0.2.0 (`55fb4038`)" {
+		t.Errorf("describeVersion = %q, want the release and the commit", got)
+	}
+}

@@ -124,7 +124,9 @@ func UnknownReply(parsed Command) string {
 // describeVersion names the build, with the commit when there is one. Only
 // called where the deployment may say so.
 func (d Deployment) describeVersion() string {
-	if d.Commit == "" {
+	// When there is no release to name, the version is the short commit
+	// already, and "version 55fb4038 (55fb4038)" says it twice.
+	if d.Commit == "" || d.Version == build.Shorten(d.Commit) {
 		return "version " + d.Version
 	}
 	return fmt.Sprintf("version %s (`%s`)", d.Version, build.Shorten(d.Commit))
