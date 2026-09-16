@@ -132,3 +132,28 @@ func TestIsLocalPath(t *testing.T) {
 		}
 	}
 }
+
+// A target that had to be resolved says what it came to when it cannot be
+// read: "1970-001 answered 404" names nothing a reader can go and look at.
+func TestAnUnreadableTargetNamesWhatItResolvedTo(t *testing.T) {
+	stub := newStub(t)
+	stub.register("Certificate,Repository,Type,Venue,Issue\n"+
+		"1970-001,github::testuser/FAKE-demo,journal,FAKE Journal,101\n", "")
+
+	_, err := FromRepository("1970-001", stub.services)
+	if err == nil {
+		t.Fatal("a repository that is not there was read")
+	}
+	if !strings.Contains(err.Error(), "github::testuser/FAKE-demo") {
+		t.Errorf("the error does not say which repository: %v", err)
+	}
+
+	// Nothing to add when the target was already written out in full.
+	_, err = FromRepository("github::testuser/FAKE-demo", stub.services)
+	if err == nil {
+		t.Fatal("a repository that is not there was read")
+	}
+	if strings.Contains(err.Error(), "github::testuser/FAKE-demo:") {
+		t.Errorf("the repository the caller just named is repeated back: %v", err)
+	}
+}

@@ -75,6 +75,12 @@ func FromRepository(spec string, services *Services) (Context, error) {
 
 	raw, err := fetchConfiguration(parsed, services)
 	if err != nil {
+		// A target written as a shortcut or as a certificate identifier says
+		// what it came to, because otherwise the reader cannot tell which
+		// repository it was that answered 404.
+		if resolved := parsed.String(); resolved != strings.TrimSpace(spec) {
+			return Context{}, fmt.Errorf("%s: %w", resolved, err)
+		}
 		return Context{}, err
 	}
 

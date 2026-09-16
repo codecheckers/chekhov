@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a Zenodo record, and an ambiguous target is refused with the forms spelled
   out (codecheckers/chekhov#19).
 - `check` accepts a certificate identifier, `2020-001`, and reads the
-  repository it names out of the register (codecheckers/chekhov#13).
+  repository it names out of the register (codecheckers/chekhov#13). A target
+  that could not be read says which repository it resolved to.
 - The bot listens: `chekhov serve` receives GitHub's `issues` and
   `issue_comment` deliveries on `/dispatch`, verifies the signature before it
   reads the body, answers immediately and runs the command afterwards
