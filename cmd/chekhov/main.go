@@ -13,6 +13,7 @@ import (
 
 	"github.com/codecheckers/chekhov/config"
 	"github.com/codecheckers/chekhov/internal/bot"
+	"github.com/codecheckers/chekhov/internal/build"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/rules"
@@ -53,6 +54,7 @@ not checked.
 `
 
 func main() {
+	version, commit = build.Stamp(version, commit)
 	if err := run(os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

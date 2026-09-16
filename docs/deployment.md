@@ -69,18 +69,16 @@ overrides it for local runs.
 
 ### The build stamp
 
-`@chekhovbot version` and `/healthz` report the commit they were built from,
-which is injected rather than read from a file. The value is fixed when it is
-set, so set it immediately before each deploy:
+`@chekhovbot version` and `/healthz` report the commit they are running. It is
+**not** injected: runway pins the buildpack's build flags, so
+`BP_GO_BUILD_FLAGS` and `BP_GO_BUILD_LDFLAGS` set through `runway app config`
+never reach the compiler - the build log shows `go build -buildmode pie
+-trimpath` whatever they say.
 
-```sh
-runway app config set -a chekhov \
-  BP_GO_BUILD_FLAGS="-buildmode=pie -trimpath -ldflags=\"-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)\""
-runway app deploy source -y
-```
-
-The variable is `BP_GO_BUILD_FLAGS` and it carries the **whole** flag list;
-there is no `BP_GO_BUILD_LDFLAGS`, and setting one is silently ignored.
+Instead the binary carries its own revision: Go stamps `vcs.revision` into
+every binary built from a checkout, and `internal/build` reads it at startup
+(`-ldflags` still wins, for a release built by hand). A binary built from a
+dirty tree says so: `978a0bc0+dirty`.
 
 ### SSH keys, and the snap
 

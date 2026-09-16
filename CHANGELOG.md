@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The build stamp comes from Go's own VCS information rather than `-ldflags`,
+  so `version` and `/healthz` name the commit without the deployment platform
+  having to pass anything in, and a binary built from a dirty tree says so.
 - A deployment says less in production: the comment footer naming the build and
   the register is a development thing, and `/healthz`, which is
   unauthenticated, reports the commit, the rules provenance and the token
