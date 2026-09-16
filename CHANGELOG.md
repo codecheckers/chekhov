@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The rules about the bundle work for a repository, not only for a directory on
+  disk: `codecheck/`, the certificate report and the licence are read over the
+  same service the configuration came from, and the manifest is checked for
+  GitLab, OSF and Zenodo targets as well as GitHub
+  (codecheckers/chekhov#17).
 - `check` accepts a target without its platform: `owner/repo` is read as
   GitHub, `chchck/...` as GitLab, five characters as an OSF node and digits as
   a Zenodo record, and an ambiguous target is refused with the forms spelled
@@ -84,6 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bot.
 
 ### Changed
+
+- A repository that answers 403, 429 or 5xx for a manifest file makes the check
+  skip rather than report the file as missing; only "not there" is absence
+  (codecheckers/chekhov#17).
+- `CC-BUN-001` checks the manifest against the bundle the configuration was
+  read from, which for a file on disk means the files beside it rather than a
+  repository it names - the same thing the `codecheck` R package checks, and no
+  longer a rule that needs the network (codecheckers/chekhov#17).
 
 - The build stamp is found rather than injected: `-ldflags` if a release was
   built by hand, then `CHEKHOV_COMMIT` from the deployment's configuration,

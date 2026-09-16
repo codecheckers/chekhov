@@ -146,7 +146,6 @@ var RequiresService = map[string]string{
 	"CC-MET-007": "Crossref",
 	"CC-MET-008": "Crossref",
 	"CC-MET-009": "the reference-other entries",
-	"CC-BUN-001": "the checked repository",
 	"CC-BUN-004": "the checked repository",
 	"CC-REP-001": "the Zenodo API",
 	"CC-REP-002": "the Zenodo API",

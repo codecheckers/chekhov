@@ -59,9 +59,9 @@ func IsRepositorySpec(candidate string) bool {
 // context to validate it in. The spec may be written in any form
 // ResolveTarget accepts.
 //
-// There is no bundle on disk, so the rules about the directory around the file
-// say they could not look. What can be checked remotely - the manifest files,
-// through the repository - is checked through Services.
+// The configuration is read through the repository's bundle, which then stays
+// on the context: the rules about the bundle look in the same place the file
+// came from, rather than saying they could not look.
 func FromRepository(spec string, services *Services) (Context, error) {
 	// Resolved before the services are asked for, so that a target nobody can
 	// make sense of is answered as such rather than as an outage.
@@ -73,7 +73,11 @@ func FromRepository(spec string, services *Services) (Context, error) {
 		return Context{}, fmt.Errorf("reading %s needs the external services", parsed)
 	}
 
-	raw, err := fetchConfiguration(parsed, services)
+	bundle := bundleFor(parsed, services)
+	if bundle == nil {
+		return Context{}, fmt.Errorf("unsupported repository type %q", parsed.Type)
+	}
+	raw, err := bundle.Read("codecheck.yml")
 	if err != nil {
 		// A target written as a shortcut or as a certificate identifier says
 		// what it came to, because otherwise the reader cannot tell which
@@ -86,13 +90,14 @@ func FromRepository(spec string, services *Services) (Context, error) {
 
 	context := FromBytes(raw)
 	// The file was asked for by name, so the name and location rule has its
-	// answer; the bundle rules have not, and skip.
+	// answer.
 	context.Path = "codecheck.yml"
 	// The resolved form, not what was written: a target given as a shortcut or
 	// as a certificate identifier should say which repository it came to.
 	context.Label = parsed.String()
 	context.Services = services
 	context.RepositorySpec = parsed
+	context.Bundle = bundle
 
 	// Only a file that says nothing about its version needs dating, and dating
 	// it costs a request - so ask only then. The test is whether check_time
@@ -118,26 +123,15 @@ func lastModified(spec RepositorySpec, services *Services) time.Time {
 				} `json:"committer"`
 			} `json:"commit"`
 		}
-		path := "codecheck.yml"
-		if spec.SubPath != "" {
-			path = spec.SubPath + "/codecheck.yml"
-		}
 		url := fmt.Sprintf("%s/repos/%s/commits?path=%s&per_page=1",
-			services.GitHub, spec.Path, neturl.QueryEscape(path))
+			services.GitHub, spec.Path, neturl.QueryEscape(spec.path("codecheck.yml")))
 		if err := services.github(url, &commits); err != nil || len(commits) == 0 {
 			return time.Time{}
 		}
 		return commits[0].Commit.Committer.Date
 	case "zenodo", "zenodo-sandbox":
-		api := services.Zenodo
-		if spec.Type == "zenodo-sandbox" {
-			api = services.ZenodoSandbox
-		}
-		var record struct {
-			Created   time.Time `json:"created"`
-			Published string    `json:"publication_date"`
-		}
-		if err := services.getJSON(fmt.Sprintf("%s/records/%s", api, spec.Path), nil, &record); err != nil {
+		record, err := services.zenodoRecordOf(spec)
+		if err != nil {
 			return time.Time{}
 		}
 		if when, err := time.Parse(time.DateOnly, record.Published); err == nil {
@@ -150,93 +144,108 @@ func lastModified(spec RepositorySpec, services *Services) time.Time {
 	}
 }
 
-func fetchConfiguration(spec RepositorySpec, services *Services) ([]byte, error) {
-	switch spec.Type {
-	case "github":
-		base := services.RawContent + "/" + spec.Path + "/HEAD"
-		return services.fetchFile(spec.within(base, "codecheck.yml"))
-	case "gitlab":
-		// GitLab has no HEAD alias, so the default branch has to be named.
-		// main first, then master, which is what the older projects use.
-		var lastErr error
-		for _, branch := range []string{"main", "master"} {
-			base := services.GitLab + "/" + spec.Path + "/-/raw/" + branch
-			raw, err := services.fetchFile(spec.within(base, "codecheck.yml") + "?inline=false")
-			if err == nil {
-				return raw, nil
-			}
-			lastErr = err
-		}
-		return nil, lastErr
-	case "osf":
-		return fetchOSFConfiguration(spec, services)
-	case "zenodo", "zenodo-sandbox":
-		return fetchZenodoConfiguration(spec, services)
-	default:
-		return nil, fmt.Errorf("unsupported repository type %q", spec.Type)
-	}
+// path is where a file lives inside the repository: what the manifest says,
+// under the directory the configuration sits in. The one place that knows
+// about the sub-directory, and the empty path is that directory itself.
+func (r RepositorySpec) path(file string) string {
+	return strings.Trim(r.SubPath+"/"+strings.TrimPrefix(file, "/"), "/")
 }
 
-// within puts a path where the specification says it is: relative to the
-// codecheck.yml, which for a repository whose configuration sits in a
-// sub-directory means relative to that directory.
-//
-// The one place that knows about the sub-directory, used both to fetch the
-// configuration and to look for the manifest files beside it.
+// within is r.path as a URL under a base.
 func (r RepositorySpec) within(base, file string) string {
 	// Not path.Join: these are URLs, and it would collapse the // of the
 	// scheme.
-	parts := []string{strings.TrimSuffix(base, "/")}
-	if r.SubPath != "" {
-		parts = append(parts, strings.Trim(r.SubPath, "/"))
+	base = strings.TrimSuffix(base, "/")
+	if inside := r.path(file); inside != "" {
+		return base + "/" + inside
 	}
-	return strings.Join(append(parts, strings.TrimPrefix(file, "/")), "/")
+	return base
 }
 
-type osfFiles struct {
-	Data []struct {
-		Attributes struct {
-			Name string `json:"name"`
-		} `json:"attributes"`
-		Links struct {
-			Download string `json:"download"`
-		} `json:"links"`
-	} `json:"data"`
+// rawBase is where GitHub serves the repository's files as plain files.
+func (r RepositorySpec) rawBase(s *Services) string {
+	return s.RawContent + "/" + r.Path + "/HEAD"
 }
 
-func fetchOSFConfiguration(spec RepositorySpec, services *Services) ([]byte, error) {
-	var listing osfFiles
-	url := fmt.Sprintf("%s/nodes/%s/files/osfstorage/", services.OSF, spec.Path)
-	if err := services.getJSON(url, nil, &listing); err != nil {
-		return nil, fmt.Errorf("could not list the files of OSF node %s: %w", spec.Path, err)
+// gitLabRawBase is the same for one branch of a GitLab project.
+func (r RepositorySpec) gitLabRawBase(s *Services, branch string) string {
+	return s.GitLab + "/" + r.Path + "/-/raw/" + branch
+}
+
+// gitLabBranches are the default branches to try, in order: GitLab has no HEAD
+// alias, so the branch has to be named, and the older projects are on master.
+var gitLabBranches = []string{"main", "master"}
+
+// zenodoAPI is the API of the Zenodo a record lives on, sandbox or not.
+func (r RepositorySpec) zenodoAPI(s *Services) string {
+	if r.Type == "zenodo-sandbox" {
+		return s.ZenodoSandbox
 	}
-	for _, file := range listing.Data {
-		if file.Attributes.Name == "codecheck.yml" {
-			return services.fetchFile(file.Links.Download)
+	return s.Zenodo
+}
+
+// osfRoot is the storage listing of an OSF node.
+func (r RepositorySpec) osfRoot(s *Services) string {
+	return fmt.Sprintf("%s/nodes/%s/files/osfstorage/?page[size]=%d", s.OSF, r.Path, listingPageSize)
+}
+
+// osfListing is one OSF storage listing: the files and folders of a node, or
+// of a folder inside it.
+type osfListing struct {
+	Data  []osfItem `json:"data"`
+	Links struct {
+		Next string `json:"next"`
+	} `json:"links"`
+}
+
+// osfItem is one file or folder of a listing, with where to download it and
+// where its own listing is.
+type osfItem struct {
+	Attributes struct {
+		Name string `json:"name"`
+		Kind string `json:"kind"`
+	} `json:"attributes"`
+	Links struct {
+		Download string `json:"download"`
+	} `json:"links"`
+	Relationships struct {
+		Files struct {
+			Links struct {
+				Related struct {
+					Href string `json:"href"`
+				} `json:"related"`
+			} `json:"links"`
+		} `json:"files"`
+	} `json:"relationships"`
+}
+
+// folder reports whether the item is a directory rather than a file.
+func (i osfItem) folder() bool { return i.Attributes.Kind == "folder" }
+
+// osfListing reads a listing whole. OSF answers ten entries at a time by
+// default and links to the next page; a listing read only as far as the first
+// page would report the files beyond it as missing.
+func (s *Services) osfListing(url, node string) (osfListing, error) {
+	var whole osfListing
+	for url != "" {
+		var page osfListing
+		if err := s.getJSON(url, nil, &page); err != nil {
+			return whole, fmt.Errorf("could not list the files of OSF node %s: %w", node, err)
 		}
+		whole.Data = append(whole.Data, page.Data...)
+		url = page.Links.Next
 	}
-	return nil, fmt.Errorf("no codecheck.yml in OSF node %s", spec.Path)
+	return whole, nil
 }
 
-func fetchZenodoConfiguration(spec RepositorySpec, services *Services) ([]byte, error) {
-	api := services.Zenodo
-	if spec.Type == "zenodo-sandbox" {
-		api = services.ZenodoSandbox
-	}
-
+// zenodoRecordOf reads the record a repository specification names.
+func (s *Services) zenodoRecordOf(spec RepositorySpec) (zenodoRecord, error) {
 	var record zenodoRecord
-	url := fmt.Sprintf("%s/records/%s", api, spec.Path)
-	if err := services.getJSON(url, nil, &record); err != nil {
-		return nil, fmt.Errorf("could not read Zenodo record %s: %w", spec.Path, err)
+	url := fmt.Sprintf("%s/records/%s", spec.zenodoAPI(s), spec.Path)
+	if err := s.getJSON(url, nil, &record); err != nil {
+		return record, fmt.Errorf("could not read Zenodo record %s: %w", spec.Path, err)
 	}
-	for _, file := range record.Files {
-		if file.name() == "codecheck.yml" {
-			if link := file.downloadLink(); link != "" {
-				return services.fetchFile(link)
-			}
-		}
-	}
-	return nil, fmt.Errorf("no codecheck.yml in Zenodo record %s", spec.Path)
+	return record, nil
 }
 
 // String is the `type::path` form, as register.csv writes it.

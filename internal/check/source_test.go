@@ -63,43 +63,69 @@ func TestFromRepository(t *testing.T) {
 	configuration := "---\ncertificate: 2026-001\n"
 
 	cases := []struct {
-		name  string
-		spec  string
-		route func(*stub)
+		name string
+		spec string
+		// bundle is what the rules about the bundle can say for this source
+		// now that they read it over the same service the configuration came
+		// from (chekhov#17): a verdict when it can be listed, a skip when the
+		// source cannot say.
+		bundle Outcome
+		route  func(*stub)
 	}{
 		{
-			name: "github",
-			spec: "github::codecheckers/demo",
+			name:   "github",
+			spec:   "github::codecheckers/demo",
+			bundle: OutcomeOK,
 			route: func(s *stub) {
 				s.text("/raw/codecheckers/demo/HEAD/codecheck.yml", configuration)
+				s.json("/github/repos/codecheckers/demo/contents/", `[
+				  {"name": "codecheck", "type": "dir"},
+				  {"name": "LICENSE", "type": "file"}
+				]`)
 			},
 		},
 		{
-			name: "github with the configuration in a sub-directory",
-			spec: "github::codecheckers/demo|paper/check",
+			// The bundle is the sub-directory, not the repository root: the
+			// bundle knows where it is, so no check has to remember.
+			name:   "github with the configuration in a sub-directory",
+			spec:   "github::codecheckers/demo|paper/check",
+			bundle: OutcomeOK,
 			route: func(s *stub) {
 				s.text("/raw/codecheckers/demo/HEAD/paper/check/codecheck.yml", configuration)
+				s.json("/github/repos/codecheckers/demo/contents/paper/check", `[
+				  {"name": "codecheck", "type": "dir"}
+				]`)
 			},
 		},
 		{
-			name: "gitlab on main",
-			spec: "gitlab::group/project",
+			name:   "gitlab on main",
+			spec:   "gitlab::group/project",
+			bundle: OutcomeOK,
 			route: func(s *stub) {
 				s.text("/gitlab/group/project/-/raw/main/codecheck.yml", configuration)
+				// The stub matches the decoded path; GitLab itself takes the
+				// project as one escaped segment.
+				s.json("/gitlab/api/v4/projects/group/project/repository/tree", `[
+				  {"name": "codecheck", "type": "tree"}
+				]`)
 			},
 		},
 		{
 			// GitLab has no HEAD alias, and the older projects are on master.
-			name: "gitlab falling back to master",
-			spec: "gitlab::group/project",
+			name:   "gitlab falling back to master",
+			spec:   "gitlab::group/project",
+			bundle: OutcomeSkipped,
 			route: func(s *stub) {
 				s.status("/gitlab/group/project/-/raw/main/codecheck.yml", http.StatusNotFound)
 				s.text("/gitlab/group/project/-/raw/master/codecheck.yml", configuration)
 			},
 		},
 		{
-			name: "osf",
-			spec: "osf::ab12c",
+			// A record with no codecheck/ in it is a finding, where before it
+			// was four skips.
+			name:   "osf",
+			spec:   "osf::ab12c",
+			bundle: OutcomeWarning,
 			route: func(s *stub) {
 				s.json("/osf/nodes/ab12c/files/osfstorage/", fmt.Sprintf(`{"data": [
 				  {"attributes": {"name": "README.md"}, "links": {"download": %q}},
@@ -109,8 +135,9 @@ func TestFromRepository(t *testing.T) {
 			},
 		},
 		{
-			name: "zenodo",
-			spec: "zenodo::3674056",
+			name:   "zenodo",
+			spec:   "zenodo::3674056",
+			bundle: OutcomeWarning,
 			route: func(s *stub) {
 				// The older records answer with filename and links.download,
 				// the newer ones with key and links.self.
@@ -121,8 +148,9 @@ func TestFromRepository(t *testing.T) {
 			},
 		},
 		{
-			name: "zenodo sandbox, an older record shape",
-			spec: "zenodo-sandbox::123",
+			name:   "zenodo sandbox, an older record shape",
+			spec:   "zenodo-sandbox::123",
+			bundle: OutcomeWarning,
 			route: func(s *stub) {
 				s.json("/zenodo-sandbox/records/123", fmt.Sprintf(`{"files": [
 				  {"filename": "codecheck.yml", "links": {"download": %q}}
@@ -147,8 +175,8 @@ func TestFromRepository(t *testing.T) {
 			if context.Label != testCase.spec {
 				t.Errorf("the report should be labelled with the spec, not %q", context.Label)
 			}
-			// The file was asked for by name, so that rule has its answer; the
-			// bundle around it was not fetched, so those say they could not look.
+			// The file was asked for by name, so that rule has its answer;
+			// the bundle around it is read over the same service.
 			report, err := Run(context, "2.0", false)
 			if err != nil {
 				t.Fatalf("run: %v", err)
@@ -156,8 +184,9 @@ func TestFromRepository(t *testing.T) {
 			if got := resultFor(t, report, "CC-CFG-003").Outcome; got != OutcomeOK {
 				t.Errorf("CC-CFG-003: outcome %q, want ok", got)
 			}
-			if got := resultFor(t, report, "CC-BUN-002").Outcome; got != OutcomeSkipped {
-				t.Errorf("CC-BUN-002: outcome %q, want skipped", got)
+			if got := resultFor(t, report, "CC-BUN-002").Outcome; got != testCase.bundle {
+				t.Errorf("CC-BUN-002: outcome %q, want %q (%s)", got, testCase.bundle,
+					resultFor(t, report, "CC-BUN-002").Detail)
 			}
 		})
 	}

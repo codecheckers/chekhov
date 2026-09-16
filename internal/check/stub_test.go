@@ -122,14 +122,39 @@ func (s *stub) register(registerCSV, venuesCSV string) {
 // rules whose subject is a URL taken from the file itself.
 func (s *stub) run(t *testing.T, configuration, rule string) RuleResult {
 	t.Helper()
+	return s.runFrom(t, configuration, "", rule)
+}
+
+// runFrom validates as though the configuration had been fetched from a
+// repository, so that the rules about the bundle have one to look in.
+func (s *stub) runFrom(t *testing.T, configuration, repository, rule string) RuleResult {
+	t.Helper()
 	s.services.reset()
 
-	context := FromBytes([]byte(strings.ReplaceAll(configuration, "{{server}}", s.server.URL)))
-	report, err := Run(context.WithServices(s.services), "2.0", false)
+	context := s.context(t, configuration, repository)
+	report, err := Run(context, "2.0", false)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	return resultFor(t, report, rule)
+}
+
+// context is a configuration as the checks see it, with the bundle of the
+// repository it came from when the case names one.
+func (s *stub) context(t *testing.T, configuration, repository string) Context {
+	t.Helper()
+	context := FromBytes([]byte(strings.ReplaceAll(configuration, "{{server}}", s.server.URL)))
+	context = context.WithServices(s.services)
+	if repository == "" {
+		return context
+	}
+	spec, err := ParseRepositorySpec(repository)
+	if err != nil {
+		t.Fatalf("%s: %v", repository, err)
+	}
+	context.RepositorySpec = spec
+	context.Bundle = bundleFor(spec, s.services)
+	return context
 }
 
 // --- the configurations the cases are built from ---------------------------
@@ -217,6 +242,14 @@ func (s *stub) serveEverythingWell() {
 	s.json("/crossref/works/10.5555/preprint.1", crossrefJSON)
 	s.json("/github/repos/codecheckers/testing/issues/42", issueJSON)
 	s.text("/raw/codecheckers/demo/HEAD/figure1.png", "PNG")
+	s.json("/github/repos/codecheckers/demo/contents/", `[
+	  {"name": "codecheck", "type": "dir"},
+	  {"name": "LICENSE", "type": "file"},
+	  {"name": "figure1.png", "type": "file"}
+	]`)
+	s.json("/github/repos/codecheckers/demo/contents/codecheck", `[
+	  {"name": "codecheck.pdf", "type": "file"}
+	]`)
 	s.text("/doi/10.5281/zenodo.1234567", "the certificate")
 	s.text("/doi/10.5555/preprint.1", "the paper")
 	s.text("/github.com/codecheckers/demo", "the repository")
@@ -230,9 +263,13 @@ type stubCase struct {
 	rule string
 	// configuration defaults to stubConfig when empty.
 	configuration string
-	routes        func(*stub)
-	want          Outcome
-	detail        string // a fragment the detail has to contain
+	// repository is the spec the configuration was fetched from, for the
+	// rules that look in the bundle around it. Empty means a configuration
+	// with no bundle at all.
+	repository string
+	routes     func(*stub)
+	want       Outcome
+	detail     string // a fragment the detail has to contain
 }
 
 var stubCases = []stubCase{
@@ -540,8 +577,9 @@ var stubCases = []stubCase{
 
 	// --- the repository under check ---
 	{
-		name: "a manifest file is not at the path the manifest declares",
-		rule: "CC-BUN-001",
+		name:       "a manifest file is not at the path the manifest declares",
+		rule:       "CC-BUN-001",
+		repository: "github::codecheckers/demo",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
 			s.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusNotFound)
@@ -550,8 +588,22 @@ var stubCases = []stubCase{
 		detail: "figure1.png",
 	},
 	{
-		name: "the manifest file is only archived under codecheck/outputs, which is not where it was declared",
-		rule: "CC-BUN-001",
+		// Reported as absence, a rate limit would tell a codechecker their
+		// manifest files are not committed.
+		name:       "the repository is rate-limited, which is not a missing file",
+		rule:       "CC-BUN-001",
+		repository: "github::codecheckers/demo",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusTooManyRequests)
+		},
+		want:   OutcomeSkipped,
+		detail: "429",
+	},
+	{
+		name:       "the manifest file is only archived under codecheck/outputs, which is not where it was declared",
+		rule:       "CC-BUN-001",
+		repository: "github::codecheckers/demo",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
 			s.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusNotFound)
@@ -652,7 +704,7 @@ func TestStubbedServices(t *testing.T) {
 				configuration = stubConfig
 			}
 
-			result := server.run(t, configuration, testCase.rule)
+			result := server.runFrom(t, configuration, testCase.repository, testCase.rule)
 			if result.Outcome != testCase.want {
 				t.Errorf("%s: outcome %q, want %q (%s)",
 					testCase.rule, result.Outcome, testCase.want, result.Detail)
@@ -673,8 +725,8 @@ func TestStubbedServicesInGoodOrder(t *testing.T) {
 	server.serveEverythingWell()
 	server.services.reset()
 
-	context := FromBytes([]byte(strings.ReplaceAll(stubConfig, "{{server}}", server.server.URL)))
-	report, err := Run(context.WithServices(server.services), "2.0", false)
+	context := server.context(t, stubConfig, "github::codecheckers/demo")
+	report, err := Run(context, "2.0", false)
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
@@ -692,6 +744,14 @@ func TestStubbedServicesInGoodOrder(t *testing.T) {
 		if result.Outcome != OutcomeOK {
 			t.Errorf("%s: outcome %q, want ok (%s)",
 				result.Rule.ID, result.Outcome, result.Detail)
+		}
+	}
+
+	// The rules about the bundle read the repository the configuration came
+	// from, so they have a verdict here too (chekhov#17).
+	for _, id := range []string{"CC-BUN-001", "CC-BUN-002", "CC-BUN-003", "CC-BUN-005"} {
+		if result := resultFor(t, report, id); result.Outcome != OutcomeOK {
+			t.Errorf("%s: outcome %q, want ok (%s)", id, result.Outcome, result.Detail)
 		}
 	}
 }

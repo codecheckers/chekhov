@@ -71,10 +71,15 @@ type Context struct {
 	Config     Config
 	Raw        []byte
 	Path       string
-	BundleDir  string
 	ParseError error
 	Label      string
 	Services   *Services
+
+	// Bundle is where the files that go with the configuration are: the
+	// directory it was read from, or the repository it was fetched from. Nil
+	// when there is neither, and then the rules about the bundle skip. See
+	// bundle.go.
+	Bundle Bundle
 	// Modified is when the configuration was last changed at its source, when
 	// that is known: the last commit touching the file, or the publication of
 	// the record it came from. It dates a file that names no specification
@@ -104,7 +109,7 @@ func FromFile(path string) (Context, error) {
 	}
 	context := FromBytes(raw)
 	context.Path = path
-	context.BundleDir = filepath.Dir(path)
+	context.Bundle = newLocalBundle(filepath.Dir(path))
 	context.Label = path
 	return context, nil
 }

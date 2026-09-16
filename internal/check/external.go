@@ -1,6 +1,7 @@
 package check
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -107,12 +108,8 @@ func manifestFilesExist(c Context) Result {
 	if len(c.Config.Manifest) == 0 {
 		return skip("no manifest to inspect")
 	}
-	owner, repo := gitHubRepository(c.Config.Repository)
-	if owner == "" {
-		return skip("the repository under check is not on GitHub")
-	}
-	if !c.Services.Enabled() {
-		return needsServices(RequiresService["CC-BUN-001"])
+	if c.Bundle == nil {
+		return skip("no bundle to look in")
 	}
 
 	var missing []string
@@ -120,18 +117,19 @@ func manifestFilesExist(c Context) Result {
 		if item.File == "" {
 			continue
 		}
-		base := fmt.Sprintf("%s/%s/%s/HEAD", c.Services.RawContent, owner, repo)
-		url := c.RepositorySpec.within(base, item.File)
-		status, err := c.Services.exists(url)
+		found, err := c.Bundle.Exists(item.File)
 		if err != nil {
-			return skip(fmt.Sprintf("could not reach %s: %s", url, err))
+			if errors.Is(err, errNoServices) {
+				return needsServices("the bundle under check")
+			}
+			return skip(fmt.Sprintf("could not look in %s: %s", c.Bundle.Describe(), err))
 		}
-		if status >= 400 {
+		if !found {
 			missing = append(missing, item.File)
 		}
 	}
 	if len(missing) > 0 {
-		return fail("manifest file(s) not in the repository: " + strings.Join(missing, ", "))
+		return fail("manifest file(s) not where the configuration says: " + strings.Join(missing, ", "))
 	}
 	return pass(fmt.Sprintf("%d manifest file(s) present", len(c.Config.Manifest)))
 }
@@ -396,16 +394,3 @@ func everyone(c Context) []Person {
 	}
 	return people
 }
-
-// gitHubRepository returns owner and repo of the first GitHub repository, or
-// empty strings when none of them is on GitHub.
-func gitHubRepository(repositories []string) (string, string) {
-	for _, repository := range repositories {
-		if match := gitHubURL.FindStringSubmatch(repository); match != nil {
-			return match[1], strings.TrimSuffix(match[2], ".git")
-		}
-	}
-	return "", ""
-}
-
-var gitHubURL = regexp.MustCompile(`github\.com[:/]+([^/]+)/([^/\s]+)`)

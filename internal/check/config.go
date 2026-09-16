@@ -11,8 +11,8 @@
 package check
 
 import (
+	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -502,32 +502,35 @@ func orcidFormat(c Context) Result {
 
 // rule: CC-BUN-002 codecheck-directory-present
 func codecheckDirectoryPresent(c Context) Result {
-	if c.BundleDir == "" {
-		return skip("no bundle on disk to inspect")
+	entries, problem := bundleListing(c, "")
+	if problem.Status != "" {
+		return problem
 	}
-	if dir := codecheckDir(c.BundleDir); dir != "" {
-		return pass(filepath.Base(dir))
+	if name := codecheckDir(entries); name != "" {
+		return pass(name)
 	}
 	return fail("the bundle has no codecheck/ or .codecheck/ directory")
 }
 
 // rule: CC-BUN-003 report-file-present
 func reportFilePresent(c Context) Result {
-	if c.BundleDir == "" {
-		return skip("no bundle on disk to inspect")
+	entries, problem := bundleListing(c, "")
+	if problem.Status != "" {
+		return problem
 	}
-	dir := codecheckDir(c.BundleDir)
-	if dir == "" {
+	name := codecheckDir(entries)
+	if name == "" {
 		return skip("no codecheck/ directory to look in")
 	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return skip(fmt.Sprintf("could not read %s: %s", dir, err))
+	inside, problem := bundleListing(c, name)
+	if problem.Status != "" {
+		return problem
 	}
+
 	var reports []string
-	for _, entry := range entries {
-		if strings.EqualFold(filepath.Ext(entry.Name()), ".pdf") {
-			reports = append(reports, entry.Name())
+	for _, entry := range inside {
+		if !entry.IsDir && strings.EqualFold(filepath.Ext(entry.Name), ".pdf") {
+			reports = append(reports, entry.Name)
 		}
 	}
 	if len(reports) == 0 {
@@ -538,19 +541,53 @@ func reportFilePresent(c Context) Result {
 
 // rule: CC-BUN-005 licence-present
 func licencePresent(c Context) Result {
-	if c.BundleDir == "" {
-		return skip("no bundle on disk to inspect")
-	}
-	entries, err := os.ReadDir(c.BundleDir)
-	if err != nil {
-		return skip(fmt.Sprintf("could not read %s: %s", c.BundleDir, err))
+	entries, problem := bundleListing(c, "")
+	if problem.Status != "" {
+		return problem
 	}
 	for _, entry := range entries {
-		if licenceFile.MatchString(entry.Name()) {
-			return pass(entry.Name())
+		if licenceFile.MatchString(entry.Name) {
+			return pass(entry.Name)
 		}
 	}
 	return fail("the repository under check states no licence")
+}
+
+// bundleListing reads one directory of the bundle, or says why it could not.
+//
+// A bundle that cannot be looked at is a skip, never a failure: a repository
+// the services are switched off for, an API having a bad day and a directory
+// that is not on disk all say nothing about the codecheck.yml. A zero Result
+// means there is nothing to report and the entries can be used.
+func bundleListing(c Context, dir string) ([]BundleEntry, Result) {
+	if c.Bundle == nil {
+		return nil, skip("no bundle to inspect")
+	}
+	entries, err := c.Bundle.List(dir)
+	if err != nil {
+		if errors.Is(err, errNoServices) {
+			return nil, needsServices("the bundle under check")
+		}
+		where := c.Bundle.Describe()
+		if dir != "" {
+			where += "/" + dir
+		}
+		return nil, skip(fmt.Sprintf("could not read %s: %s", where, err))
+	}
+	return entries, Result{}
+}
+
+// codecheckDir is the name of the bundle's codecheck directory, empty when it
+// has none.
+func codecheckDir(entries []BundleEntry) string {
+	for _, name := range []string{"codecheck", ".codecheck"} {
+		for _, entry := range entries {
+			if entry.IsDir && entry.Name == name {
+				return name
+			}
+		}
+	}
+	return ""
 }
 
 // --- helpers shared by several checks --------------------------------------
@@ -591,15 +628,4 @@ func everyPersonHas(people []Person, kind, field string, get func(Person) string
 	}
 	return fail(fmt.Sprintf("%s(s) without %s%s: %s", kind, article, field,
 		strings.Join(without, ", ")))
-}
-
-// codecheckDir returns the bundle's codecheck directory, or "" if it has none.
-func codecheckDir(bundleDir string) string {
-	for _, name := range []string{"codecheck", ".codecheck"} {
-		candidate := filepath.Join(bundleDir, name)
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
-		}
-	}
-	return ""
 }

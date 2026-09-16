@@ -273,9 +273,15 @@ own column with it and a missing prefix there is a finding, not a shortcut.
 `IsLocalPath` tells a file from a repository by what the target looks like, so
 that a mistyped path is answered as a missing file.
 
-A repository has no bundle on disk, so the rules about the directory around the
-file say they could not look, while the manifest files are checked through the
-repository.
+`Context.Bundle` is where the files that go with the configuration are: the
+directory it was read from, or the repository it was fetched from, behind one
+interface in `internal/check/bundle.go` (`Read`, `Exists`, `List`, `Describe`).
+The configuration itself is read through it, so how to reach a GitHub, GitLab,
+OSF or Zenodo file is written once; which of the four is decided at
+construction, not at every call; and a listing is read once per directory. The
+rules about the bundle therefore reach a verdict for a repository, where they
+used to skip for want of a directory on disk. A bundle that cannot answer is
+still a skip, never a failure.
 
 A check command can be narrowed to one part of the catalogue with
 `Report.Subset`: the rule areas, plus `references`, which crosses two areas
@@ -303,7 +309,7 @@ exists; read the issues for what does not.
 | #14 webhook, #15 reply path | Implemented and covered offline by recorded deliveries and a stubbed GitHub |
 | #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
-| #17 one bundle source | The seam `Context.BundleDir` plus `RepositorySpec` is missing; bundle rules skip for remote targets |
+| #17 one bundle source | Done: `Context.Bundle`, one interface per source |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
 The `codecheck` R package is the sibling implementation; its own remaining work
@@ -344,6 +350,7 @@ internal/check/     one check function per rule, the runner and the formatting
   register.go       the register-wide rules and the checks issue
   services.go       the outside world: base URLs, cache, register.csv
   source.go         reading a codecheck.yml from github::, gitlab::, osf::, zenodo::
+  bundle.go         the files around it, on disk or in the repository
 internal/command/   the command registry, the parser, and the reply bodies
 testdata/           codecheck.yml fixtures, valid and failing, one per directory
 testdata/cassettes/ recorded service responses, replayed offline

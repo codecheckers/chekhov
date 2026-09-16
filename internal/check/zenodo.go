@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // The certificate's archive record on Zenodo. The rules are the CODECHECK
@@ -16,6 +17,8 @@ type zenodoRecord struct {
 	ConceptDOI  string       `json:"conceptdoi"`
 	ConceptRecI int64        `json:"conceptrecid,string"`
 	Title       string       `json:"title"`
+	Created     time.Time    `json:"created"`
+	Published   string       `json:"publication_date"`
 	Files       []zenodoFile `json:"files"`
 	Metadata    struct {
 		Title    string `json:"title"`
