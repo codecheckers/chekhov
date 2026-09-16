@@ -194,3 +194,38 @@ func TestTheCommitIsNotRepeatedAfterTheVersion(t *testing.T) {
 		t.Errorf("describeVersion = %q, want the release and the commit", got)
 	}
 }
+
+// version says which build answered and which register it works on: a
+// development deployment must not be mistakable for the real one.
+func TestVersionReplyNamesBuildRegisterAndRules(t *testing.T) {
+	deployment := Deployment{Version: "0.2.0", Commit: "0123456789abcdef",
+		Register: "codecheckers/testing-dev-register", Bot: "chekhovbot",
+		Environment: "development"}
+
+	reply := deployment.VersionReply("abcdef0123456789", "2026-09-16T20:38:45+0000")
+	for _, want := range []string{
+		"0.2.0",
+		"https://github.com/codecheckers/chekhov/commit/0123456789abcdef",
+		"codecheckers/testing-dev-register",
+		"https://github.com/codecheckers/register/commit/abcdef0123456789",
+		"2026-09-16T20:38:45+0000",
+	} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not carry %q:\n%s", want, reply)
+		}
+	}
+}
+
+// Without a rules provenance record the reply still says what it knows.
+func TestVersionReplyWithoutRulesProvenance(t *testing.T) {
+	deployment := Deployment{Version: "0.2.0", Register: "codecheckers/register",
+		Bot: "chekhovbot", Environment: "production"}
+
+	reply := deployment.VersionReply("", "")
+	if !strings.Contains(reply, "codecheckers/register") {
+		t.Errorf("the reply does not name the register:\n%s", reply)
+	}
+	if strings.Contains(reply, "validation rules") {
+		t.Errorf("the reply invents a rules provenance:\n%s", reply)
+	}
+}

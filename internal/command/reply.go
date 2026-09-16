@@ -103,6 +103,33 @@ func (d Deployment) HelloReply() string {
 		"Type `%s commands` to see what I can do.\n", running, d.Register, Bot)
 }
 
+// VersionReply is the answer to "@chekhovbot version": which build is
+// answering, and - deliberately - which register it is configured against, so
+// that a development deployment cannot be mistaken for the real one.
+//
+// The rules carry their own provenance: they are maintained in the register,
+// and a certificate checked today should be traceable to the exact catalogue
+// that judged it.
+func (d Deployment) VersionReply(rulesCommit, rulesRetrieved string) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "`@%s` %s\n\n", d.Bot, d.describeVersion())
+
+	if d.Commit != "" {
+		fmt.Fprintf(&out, "- build: [`%s`](https://github.com/codecheckers/chekhov/commit/%s)\n",
+			build.Shorten(d.Commit), d.Commit)
+	}
+	fmt.Fprintf(&out, "- working on: [`%s`](https://github.com/%s)\n", d.Register, d.Register)
+	if rulesCommit != "" {
+		fmt.Fprintf(&out, "- validation rules: [`%s`](https://github.com/codecheckers/register/commit/%s)",
+			build.Shorten(rulesCommit), rulesCommit)
+		if rulesRetrieved != "" {
+			fmt.Fprintf(&out, ", retrieved %s", rulesRetrieved)
+		}
+		out.WriteString("\n")
+	}
+	return out.String()
+}
+
 // UnknownReply answers a comment addressed to the bot that it cannot read,
 // quoting back what it saw so the writer can tell a typo from a
 // misunderstanding.

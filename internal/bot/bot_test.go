@@ -272,3 +272,19 @@ func TestHealthSaysLessInProduction(t *testing.T) {
 		}
 	}
 }
+
+// version is answered from a comment, and names the register it works on.
+func TestVersionIsAnswered(t *testing.T) {
+	server, replies := testServer(t)
+
+	reply := server.answer(context.Background(),
+		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "acodechecker"},
+		command.Command{Name: command.Version})
+	if !strings.Contains(reply, "codecheckers/testing-dev-register") {
+		t.Errorf("the version reply does not name the register:\n%s", reply)
+	}
+	if !strings.Contains(reply, "validation rules") {
+		t.Errorf("the version reply does not name the rules catalogue:\n%s", reply)
+	}
+	_ = replies
+}

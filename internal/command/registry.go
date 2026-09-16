@@ -67,6 +67,13 @@ var registry = []Definition{
 		Hidden:  true,
 	},
 	{
+		Name:    Version,
+		Summary: "Report which build is running, and which register it works on",
+		Usage:   "version",
+		Group:   GroupBasics,
+		Role:    RoleAnyone,
+	},
+	{
 		Name:    Check,
 		Summary: "Validate a `codecheck.yml` against the CODECHECK rules",
 		Usage:   "check [config|metadata|bundle|references|report|register] [target]",

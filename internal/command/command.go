@@ -20,6 +20,9 @@ const (
 	Commands Name = "commands"
 	// Hello is the liveness check.
 	Hello Name = "hello"
+	// Version reports which build is answering, and which register it works
+	// on.
+	Version Name = "version"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Unknown is a mention of the bot with something it does not understand.

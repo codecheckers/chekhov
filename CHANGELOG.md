@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `@chekhovbot commands`, and `help` for the same thing: the commands the asker
   may run, grouped, generated from the command registry
   (codecheckers/chekhov#1).
+- `@chekhovbot version`: which build is answering, with a link to the commit,
+  which register it works on, and which register commit the validation rules
+  came from (codecheckers/chekhov#4).
 - `@chekhovbot hello`: the liveness check, naming the build and the register it
   works on (codecheckers/chekhov#2).
 - A comment the bot cannot read is answered rather than ignored, suggesting the

@@ -182,11 +182,22 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return command.Listing(role)
 	case command.Hello:
 		return s.Deployment.HelloReply()
+	case command.Version:
+		return s.version()
 	case command.Check:
 		return s.check(ctx, parsed)
 	default:
 		return command.UnknownReply(parsed)
 	}
+}
+
+// version says which build is answering and which catalogue it judges by.
+func (s *Server) version() string {
+	commit, retrieved := "", ""
+	if provenance, err := rules.Provenance(); err == nil {
+		commit, retrieved = provenance.Commit(), provenance.Retrieved
+	}
+	return s.Deployment.VersionReply(commit, retrieved)
 }
 
 // check validates a codecheck.yml named in the comment.
