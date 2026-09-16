@@ -15,6 +15,29 @@ user commits.** This holds even in auto-accept mode and even when the change is
 trivial or the message was agreed beforehand. The same applies to pushing and
 to deploying.
 
+**Before proposing a commit message, run `/simplify`.** The code is ready means
+the code has been read once more for reuse, duplication, waste and
+special-casing, and the findings applied. It is cheap, it runs on the diff that
+is about to be committed, and the commit message is the last honest moment to
+notice that a helper already existed.
+
+**For a change of any size, run `/code-review` as well.** The rule of thumb is
+**more than ~150 changed lines of non-test Go**, counted with
+`git diff --stat` minus `_test.go` files and `testdata/`. In Go a feature drags
+its tests behind it, so a raw diff of 400 lines is often 150 lines of behaviour;
+counting the tests would make every change "serious" and the habit would die.
+
+Below that line, review anyway when the change:
+
+- adds a package or moves a boundary between them,
+- touches anything that verifies, signs, or carries a credential - the webhook
+  signature, the token, the reply path,
+- changes what a rule decides, or how a verdict is reported,
+- is the first use of a new dependency.
+
+`/code-review ultra` (the multi-agent cloud review) is yours to trigger, not
+mine; the ordinary `/code-review` is the one that belongs in this loop.
+
 **Issues and comments: draft first, in the session.** Put the full text of an
 issue - title, labels, body - in the reply, not only in a scratchpad file, and
 wait for the go-ahead before `gh issue create`. The wording is reviewed before
