@@ -30,7 +30,7 @@ var (
 const usage = `chekhov - the CODECHECK register bot
 
 Usage:
-  chekhov check [options] <path to codecheck.yml, or a repository spec>
+  chekhov check [options] <path to codecheck.yml, a repository, or a certificate>
   chekhov check [options] [config|metadata|bundle|references|report|register] <target>
   chekhov comment <path to a comment file, or - for stdin>
   chekhov serve [--addr :8080]
@@ -41,7 +41,10 @@ Options: --spec <version>, --strict, --markdown, --online
 
 The target is a path, or a repository the way register.csv names one:
 github::org/repo, github::org/repo|sub/dir, gitlab::group/project, osf::<id>,
-zenodo::<id>. Reading a repository implies --online.
+zenodo::<id>. The platform may be left off: owner/repo is read as GitHub
+(chchck/... as GitLab), five characters as OSF, digits as Zenodo, and a
+certificate identifier like 2020-001 is looked up in the register. Reading a
+repository implies --online.
 
 Naming a part of the catalogue checks only that part, which is what the bot's
 "@chekhovbot check bundle" asks for.
@@ -116,7 +119,7 @@ func runCheck(args []string, out io.Writer) error {
 		}
 	}
 	if target == "" {
-		return fmt.Errorf("check needs a path to a codecheck.yml, or a repository spec")
+		return fmt.Errorf("check needs a path to a codecheck.yml, a repository, or a certificate identifier")
 	}
 
 	context, err := loadTarget(target, online)
@@ -140,22 +143,10 @@ func runCheck(args []string, out io.Writer) error {
 	return nil
 }
 
-// loadTarget reads a codecheck.yml from a path or from a repository.
-//
-// A repository has to be read before it can be checked, so asking for one is
-// asking to go online.
+// loadTarget reads a codecheck.yml from a path or from a repository. Which of
+// the two, and whether that needs the services, is check's to decide.
 func loadTarget(target string, online bool) (check.Context, error) {
-	if check.IsRepositorySpec(target) {
-		return check.FromRepository(target, check.Online())
-	}
-	context, err := check.FromFile(target)
-	if err != nil {
-		return context, err
-	}
-	if online {
-		context = context.WithServices(check.Online())
-	}
-	return context, nil
+	return check.Load(target, true, check.ServicesFor(target, online))
 }
 
 // runComment shows what the bot would reply to a comment, which is how the

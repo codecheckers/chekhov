@@ -44,6 +44,18 @@ wait for the go-ahead before `gh issue create`. The wording is reviewed before
 it is public. Write the body to a file as well, because `--body-file` is what
 `gh` reads, but what the reply shows is what is being approved.
 
+**The board is part of the work.** The register development board
+(<https://github.com/orgs/codecheckers/projects/2>) carries Status and Priority
+for everything. When starting on an issue, check whether it is on the board; if
+it is not, say so and offer to add it. Move it on at the steps that matter -
+picked up, implemented, done - rather than only at the end, so that someone
+looking at the board sees what is actually happening.
+
+**Ask before changing anything on an issue or the board.** A status change, a
+label, a comment, a new item: propose it, wait for the go-ahead. The same rule
+as commits, and for the same reason - it is visible to other people the moment
+it happens.
+
 ## The testing register
 
 **Development and testing run against the testing register, never the
@@ -244,9 +256,19 @@ than a `switch`.
 `check.FromFile` reads a path; `check.FromRepository` reads a repository the
 way `register.csv` names one (`github::org/repo`, with `|sub/dir` when the
 configuration is not at the root, plus `gitlab::`, `osf::` and `zenodo::`),
-mirroring `get_codecheck_yml_*` in the R package. A repository has no bundle on
-disk, so the rules about the directory around the file say they could not look,
-while the manifest files are checked through the repository.
+mirroring `get_codecheck_yml_*` in the R package. `check.Load` is the one place
+that decides which of the two a target is, and `check.ResolveTarget` the one
+place that reads what a person wrote: a platform left off is inferred
+(`owner/repo` is GitHub, `chchck/...` GitLab, five characters OSF, digits
+Zenodo) and a certificate identifier is looked up in `register.csv`.
+`ParseRepositorySpec` stays strict, because CC-REG-003 checks the register's
+own column with it and a missing prefix there is a finding, not a shortcut.
+`IsLocalPath` tells a file from a repository by what the target looks like, so
+that a mistyped path is answered as a missing file.
+
+A repository has no bundle on disk, so the rules about the directory around the
+file say they could not look, while the manifest files are checked through the
+repository.
 
 A check command can be narrowed to one part of the catalogue with
 `Report.Subset`: the rule areas, plus `references`, which crosses two areas
@@ -270,7 +292,7 @@ exists; read the issues for what does not.
 | #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
 | #4 version SHA and target register | `version` and `/healthz` report both; the SHA needs the `-ldflags` of a real build |
 | #5 thanks, #6 goodbye | One registry entry each, not written |
-| #13 check by certificate identifier | Resolves through `register.csv` to a repository spec, which `FromRepository` already reads |
+| #13 check by certificate identifier, #19 target shortcuts | Done: `check.ResolveTarget` |
 | #14 webhook, #15 reply path | Implemented and covered offline by recorded deliveries and a stubbed GitHub |
 | #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |

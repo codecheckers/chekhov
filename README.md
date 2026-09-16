@@ -45,6 +45,8 @@ go build ./...
 go run ./cmd/chekhov check path/to/codecheck.yml   # the report, non-zero on failure
 go run ./cmd/chekhov check --online path/to/codecheck.yml     # also asks Crossref, ORCID, Zenodo
 go run ./cmd/chekhov check github::codecheckers/Piccolo-2020  # read it from the repository
+go run ./cmd/chekhov check codecheckers/Piccolo-2020          # the same, platform inferred
+go run ./cmd/chekhov check 2020-001                 # the certificate, looked up in the register
 go run ./cmd/chekhov check bundle github::codecheckers/demo   # one part of the catalogue
 go run ./cmd/chekhov check --markdown path/to/codecheck.yml   # the reply the bot posts
 go run ./cmd/chekhov rules                          # the rules, and which are checked

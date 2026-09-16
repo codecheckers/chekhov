@@ -202,25 +202,33 @@ func (s *Server) version() string {
 
 // check validates a codecheck.yml named in the comment.
 //
-// Which configuration an issue is about is not yet something the bot can work
-// out on its own - that is codecheckers/chekhov#13, reading it out of
-// register.csv - so for now the comment has to say.
+// The target may be written however a person finds natural - a repository
+// spec, a shortcut, or a certificate identifier the register knows - and
+// check.ResolveTarget decides which. Working out from the issue alone which
+// configuration it is about is still to come.
 func (s *Server) check(ctx context.Context, parsed command.Command) string {
 	part, target := "", ""
 	for _, argument := range parsed.Args {
-		switch {
-		case check.IsRepositorySpec(argument):
-			target = argument
-		case check.IsPart(argument) && argument != "":
+		// A part name is never a target: the catalogue's own words come first,
+		// and everything else is what to read.
+		if argument == "" {
+			continue
+		}
+		if check.IsPart(argument) {
 			part = argument
-		case s.LocalPaths && argument != "":
+		} else if target == "" {
+			// The first target wins. A comment is prose, and "check 2020-001
+			// please" must not be read as a request to check "please".
 			target = argument
 		}
 	}
 	if target == "" {
-		return fmt.Sprintf("I need to be told what to check, as `register.csv` names it:\n\n"+
-			"    %s check github::owner/repo\n\n"+
-			"Finding it from the issue myself is codecheckers/chekhov#13.\n", command.Bot)
+		return fmt.Sprintf("I need to be told what to check:\n\n"+
+			"    %s check codecheckers/repository\n"+
+			"    %s check 2020-001\n\n"+
+			"A repository may also be named the way `register.csv` does, "+
+			"`github::owner/repo`, with `|sub/dir` when the configuration is not at the root.\n",
+			command.Bot, command.Bot)
 	}
 
 	context, err := s.read(target)
@@ -234,15 +242,11 @@ func (s *Server) check(ctx context.Context, parsed command.Command) string {
 	return report.Markdown()
 }
 
-// read loads the configuration a command names.
+// read loads the configuration a command names. A deployment does not read its
+// own disk, so there a target is always a repository; check.Load is the one
+// place that decides.
 func (s *Server) read(target string) (check.Context, error) {
-	if !check.IsRepositorySpec(target) {
-		return check.FromFile(target)
-	}
-	if !s.Services.Enabled() {
-		return check.Context{}, fmt.Errorf("external services are switched off for this deployment")
-	}
-	return check.FromRepository(target, s.Services)
+	return check.Load(target, s.LocalPaths, s.Services)
 }
 
 // health says which bot this is, in enough detail that a development

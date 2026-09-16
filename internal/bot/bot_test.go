@@ -238,6 +238,30 @@ func TestCheckWithoutATargetExplainsItself(t *testing.T) {
 	}
 }
 
+// A target written without a platform is read as the repository it can only
+// be, and the answer names what it resolved to (chekhov#19).
+func TestAShortcutTargetIsResolved(t *testing.T) {
+	server, _ := testServer(t)
+
+	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
+		command.Command{Name: command.Check, Args: []string{"config", "codecheckers/Piccolo-2020"}})
+	if !strings.Contains(reply, "github::codecheckers/Piccolo-2020") {
+		t.Errorf("the shortcut was not read as a GitHub repository: %s", reply)
+	}
+}
+
+// A comment is prose. The first target wins, so a trailing pleasantry cannot
+// displace the repository somebody asked about.
+func TestATrailingWordDoesNotBecomeTheTarget(t *testing.T) {
+	server, _ := testServer(t)
+
+	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
+		command.Command{Name: command.Check, Args: []string{"codecheckers/Piccolo-2020", "please"}})
+	if !strings.Contains(reply, "github::codecheckers/Piccolo-2020") {
+		t.Errorf("the target was displaced: %s", reply)
+	}
+}
+
 // A path in a comment is written by anyone on the internet. A deployment does
 // not read its own disk on their say-so.
 func TestADeploymentRefusesALocalPath(t *testing.T) {

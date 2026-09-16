@@ -56,18 +56,21 @@ func IsRepositorySpec(candidate string) bool {
 }
 
 // FromRepository fetches the codecheck.yml of a repository and returns the
-// context to validate it in.
+// context to validate it in. The spec may be written in any form
+// ResolveTarget accepts.
 //
 // There is no bundle on disk, so the rules about the directory around the file
 // say they could not look. What can be checked remotely - the manifest files,
 // through the repository - is checked through Services.
 func FromRepository(spec string, services *Services) (Context, error) {
-	if !services.Enabled() {
-		return Context{}, fmt.Errorf("reading %s needs the external services", spec)
-	}
-	parsed, err := ParseRepositorySpec(spec)
+	// Resolved before the services are asked for, so that a target nobody can
+	// make sense of is answered as such rather than as an outage.
+	parsed, err := ResolveTarget(spec, services)
 	if err != nil {
 		return Context{}, err
+	}
+	if !services.Enabled() {
+		return Context{}, fmt.Errorf("reading %s needs the external services", parsed)
 	}
 
 	raw, err := fetchConfiguration(parsed, services)
@@ -79,7 +82,9 @@ func FromRepository(spec string, services *Services) (Context, error) {
 	// The file was asked for by name, so the name and location rule has its
 	// answer; the bundle rules have not, and skip.
 	context.Path = "codecheck.yml"
-	context.Label = spec
+	// The resolved form, not what was written: a target given as a shortcut or
+	// as a certificate identifier should say which repository it came to.
+	context.Label = parsed.String()
 	context.Services = services
 	context.RepositorySpec = parsed
 
@@ -226,6 +231,15 @@ func fetchZenodoConfiguration(spec RepositorySpec, services *Services) ([]byte, 
 		}
 	}
 	return nil, fmt.Errorf("no codecheck.yml in Zenodo record %s", spec.Path)
+}
+
+// String is the `type::path` form, as register.csv writes it.
+func (r RepositorySpec) String() string {
+	spec := r.Type + "::" + r.Path
+	if r.SubPath != "" {
+		spec += "|" + r.SubPath
+	}
+	return spec
 }
 
 // URL is where a human can see this repository. The register names a
