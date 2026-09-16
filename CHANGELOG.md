@@ -72,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A deployment says less in production: the comment footer naming the build and
+  the register is a development thing, and `/healthz`, which is
+  unauthenticated, reports the commit, the rules provenance and the token
+  expiry only in development.
 - `config/settings-development.yml` is read by the bot rather than only
   documenting its intent: it is the single place naming the target repository,
   the bot account and the editors. The ERB interpolation buffy uses became
@@ -79,6 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `403` from GitHub is retried only when it is a rate limit. A token without
+  the right permission answers 403 too, and asking again never helped.
 - `CC-BUN-001` manifest-files-exist now looks only where the specification says
   a manifest file is, relative to the `codecheck.yml`. It used to accept a copy
   under `codecheck/outputs/`, which is where the R package archives outputs

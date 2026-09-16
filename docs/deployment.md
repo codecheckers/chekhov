@@ -75,9 +75,12 @@ set, so set it immediately before each deploy:
 
 ```sh
 runway app config set -a chekhov \
-  BP_GO_BUILD_LDFLAGS="-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)"
+  BP_GO_BUILD_FLAGS="-buildmode=pie -trimpath -ldflags=\"-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)\""
 runway app deploy source -y
 ```
+
+The variable is `BP_GO_BUILD_FLAGS` and it carries the **whole** flag list;
+there is no `BP_GO_BUILD_LDFLAGS`, and setting one is silently ignored.
 
 ### SSH keys, and the snap
 
@@ -115,17 +118,34 @@ something is wrong: it shows the request, the response, and has a **Redeliver**
 button, which is how a failed delivery is replayed without writing another
 comment.
 
+## The deployment as it stands
+
+| | |
+|---|---|
+| App | `chekhov` on runway.horse, owner `chekhovbot`, plan `free-launch`, region `ber1` |
+| URL | <https://chekhov.pqapp.dev> |
+| Webhook | `codecheckers/testing-dev-register`, hook `680342187`, `issues` and `issue_comment` |
+| Token | fine-grained, `chekhovbot`, one repository, expires 2027-09-17 |
+
+A config change does **not** rebuild: the image is built from a pushed commit,
+so a new `BP_GO_BUILD_FLAGS` only takes effect with the next deploy of new
+source.
+
 ## Checking that it works
 
 ```sh
 curl https://<app>.runway.horse/healthz
 ```
 
-It answers with the version, the commit, the bot account, the register it works
-on, the environment, whether external services are on, which register commit the
-rules came from, and — once it has posted anything — when the token expires. A
-development instance is meant to be impossible to mistake for a production one
-at a glance.
+In development it answers with the version, the commit, the bot account, the
+register it works on, the environment, whether external services are on, which
+register commit the rules came from, and — once it has posted anything — when
+the token expires. A development instance is meant to be impossible to mistake
+for a production one at a glance.
+
+`/healthz` is unauthenticated, so a production deployment (`CHEKHOV_ENV`)
+reports only status, version, bot, register and environment, and its comments
+carry no footer naming the build.
 
 Then, on an issue of the testing register:
 
@@ -151,7 +171,7 @@ the command, the issue and what GitHub said.
 
 ```sh
 git commit ...           # the platform builds a commit, not a working tree
-runway app config set -a chekhov BP_GO_BUILD_LDFLAGS="-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)"
+runway app config set -a chekhov BP_GO_BUILD_FLAGS="-buildmode=pie -trimpath -ldflags=\"-X main.version=... -X main.commit=...\""
 runway app deploy source -y
 ```
 
@@ -166,8 +186,10 @@ finish.
    A 401 there means the secret on the platform and the secret on the webhook
    have drifted apart.
 3. `runway app logs` — what did it do with the delivery?
-4. A `401 Bad credentials` in the log means the token expired or was revoked;
-   see [`github-token.md`](github-token.md) for rotation.
+4. A `401 Bad credentials` in the log means the token expired or was revoked,
+   and a `403 Resource not accessible by personal access token` means it lacks
+   a permission - Issues: read and write is what posting a comment needs. See
+   [`github-token.md`](github-token.md).
 5. Redeliver the event from GitHub once the cause is fixed. The bot is not
    idempotent — a redelivery posts another comment — which is fine for a
    listing and worth thinking about for anything that changes the register.

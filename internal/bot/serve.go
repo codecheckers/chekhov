@@ -36,8 +36,10 @@ func Serve(address string, deployment command.Deployment) error {
 
 	deployment.Register = settings.TargetRepository()
 	deployment.Bot = settings.BotUser()
-	replies := github.New(token, settings.TargetRepository(),
-		fmt.Sprintf("`@%s` %s · working on `%s`", deployment.Bot, deployment.Version, deployment.Register))
+	deployment.Environment = config.Environment()
+	// Only a development deployment signs its comments with what it is; see
+	// command.Deployment.
+	replies := github.New(token, settings.TargetRepository(), deployment.Signature())
 
 	server := New(settings, secret, replies, deployment)
 	// A deployment is always online: the checks it runs read repositories and

@@ -186,6 +186,16 @@ usage - which the platform reads as a crash loop.
 - `chekhov comment` renders its answer through the same `bot.Preview` the
   listener uses, so what you read on the command line is what would be posted.
 
+**Development says more than production.** `CHEKHOV_ENV` picks the settings
+file and, through `command.Deployment.Development()`, how much a deployment
+talks about itself: in development every comment carries a footer with the
+build, the commit and the register, and `/healthz` adds the commit, the rules
+provenance, the token expiry and whether the services are reachable. In
+production the footer is gone and `/healthz` says only status, version, bot,
+register and environment - it is unauthenticated, and the rest is nobody's
+business. Anything new that names a build, a path or a credential belongs
+behind that check.
+
 `docs/deployment.md` has the platform, the webhook settings and what to do when
 it falls over; `docs/github-token.md` has the bot's credential and its
 rotation.

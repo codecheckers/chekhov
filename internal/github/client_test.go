@@ -155,3 +155,40 @@ func TestTokenExpiryIsRemembered(t *testing.T) {
 		t.Errorf("token expiry = %q", got)
 	}
 }
+
+// GitHub answers 403 both for "not now" and for "not ever". A token without
+// the permission says the same thing however often it is asked; the secondary
+// rate limit says so in the body, or sends Retry-After.
+func TestPermissionRefusalsAreNotRetried(t *testing.T) {
+	cases := []struct {
+		name     string
+		body     string
+		header   string
+		attempts int
+	}{
+		{"a token without the permission", `{"message":"Resource not accessible by personal access token"}`, "", 1},
+		{"the secondary rate limit", `{"message":"You have exceeded a secondary rate limit"}`, "", 2},
+		{"a 403 with Retry-After", `{"message":"slow down"}`, "1", 2},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			attempts := 0
+			client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+				attempts++
+				if testCase.header != "" {
+					w.Header().Set("Retry-After", testCase.header)
+				}
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(testCase.body))
+			})
+			client.RetryWait = 0
+
+			if _, err := client.Comment(context.Background(), client.Repository, 1, "hello"); err == nil {
+				t.Fatal("a 403 must be reported")
+			}
+			if attempts != testCase.attempts {
+				t.Errorf("%d attempts, want %d", attempts, testCase.attempts)
+			}
+		})
+	}
+}

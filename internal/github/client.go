@@ -231,14 +231,31 @@ func retryable(err error) bool {
 		return true // a connection that failed may succeed
 	}
 	switch {
-	case status.Status == http.StatusForbidden, status.Status == http.StatusTooManyRequests:
-		// The secondary rate limit answers 403 or 429; both mean "later".
+	case status.Status == http.StatusTooManyRequests:
 		return true
+	case status.Status == http.StatusForbidden:
+		// GitHub answers 403 both for "not now" and for "not ever", and the
+		// difference is in the body: the secondary rate limit says so, while a
+		// token without the right permission will say the same thing however
+		// often it is asked.
+		return status.rateLimited()
 	case status.Status >= 500:
 		return true
 	default:
 		return false
 	}
+}
+
+// rateLimited reports whether a refusal is a rate limit rather than a
+// permission. Observed in the live deployment: a token lacking Issues: write
+// answers 403 "Resource not accessible by personal access token", which was
+// retried once for nothing.
+func (e *statusError) rateLimited() bool {
+	if e.RetryAfter > 0 {
+		return true
+	}
+	body := strings.ToLower(e.Body)
+	return strings.Contains(body, "secondary rate limit") || strings.Contains(body, "abuse")
 }
 
 // backoff is how long to wait before the retry, honouring Retry-After when

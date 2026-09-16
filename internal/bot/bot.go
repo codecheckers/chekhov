@@ -237,21 +237,27 @@ func (s *Server) read(target string) (check.Context, error) {
 // health says which bot this is, in enough detail that a development
 // deployment cannot be mistaken for the real one.
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
+	// Unauthenticated, so it says only what a stranger may know: which bot,
+	// which register, which build. The rest - the commit, where the rules came
+	// from, when the token expires, whether the services are reachable - is
+	// for whoever is developing the thing, and is a gift to anyone else.
 	state := map[string]any{
 		"status":      "ok",
 		"version":     s.Deployment.Version,
-		"commit":      s.Deployment.Commit,
 		"bot":         s.Settings.BotUser(),
 		"register":    s.Settings.TargetRepository(),
 		"environment": config.Environment(),
-		"online":      s.Services.Enabled(),
 	}
-	if provenance, err := rules.Provenance(); err == nil {
-		state["rules_commit"] = provenance.Commit()
-		state["rules_retrieved"] = provenance.Retrieved
-	}
-	if client, ok := s.Replies.(*github.Client); ok && client.TokenExpiry() != "" {
-		state["token_expires"] = client.TokenExpiry()
+	if s.Deployment.Development() {
+		state["commit"] = s.Deployment.Commit
+		state["online"] = s.Services.Enabled()
+		if provenance, err := rules.Provenance(); err == nil {
+			state["rules_commit"] = provenance.Commit()
+			state["rules_retrieved"] = provenance.Retrieved
+		}
+		if client, ok := s.Replies.(*github.Client); ok && client.TokenExpiry() != "" {
+			state["token_expires"] = client.TokenExpiry()
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

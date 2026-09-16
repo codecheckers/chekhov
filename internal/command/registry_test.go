@@ -139,3 +139,33 @@ func TestHelloReplyNamesTheDeployment(t *testing.T) {
 		}
 	}
 }
+
+// A production deployment does not describe itself: the footer is what a
+// reader sees on every comment, and it is a fingerprint of the machine rather
+// than an answer to their question.
+func TestProductionRepliesCarryNoFooter(t *testing.T) {
+	production := Deployment{Version: "1.2.0", Commit: "0123456789abcdef",
+		Register: "codecheckers/register", Bot: "chekhovbot", Environment: "production"}
+
+	if signature := production.Signature(); signature != "" {
+		t.Errorf("a production reply is signed %q", signature)
+	}
+	hello := production.HelloReply()
+	for _, leak := range []string{"01234567", "1.2.0"} {
+		if strings.Contains(hello, leak) {
+			t.Errorf("the production greeting says %q: %s", leak, hello)
+		}
+	}
+	if !strings.Contains(hello, "codecheckers/register") {
+		t.Error("the greeting must still say which register it works on")
+	}
+
+	development := production
+	development.Environment = "development"
+	if !strings.Contains(development.Signature(), "1.2.0") {
+		t.Error("a development reply says which build answered")
+	}
+	if !strings.Contains(development.HelloReply(), "01234567") {
+		t.Error("a development greeting says which commit answered")
+	}
+}

@@ -248,3 +248,26 @@ func TestADeploymentRefusesALocalPath(t *testing.T) {
 		t.Errorf("a path was taken as a target: %s", reply)
 	}
 }
+
+// The health endpoint is unauthenticated. In production it says only what a
+// stranger may know.
+func TestHealthSaysLessInProduction(t *testing.T) {
+	server, _ := testServer(t)
+	server.Deployment.Environment = "production"
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+
+	body := response.Body.String()
+	for _, secret := range []string{"commit", "rules_commit", "token_expires", "online"} {
+		if strings.Contains(body, secret) {
+			t.Errorf("production health reports %q: %s", secret, body)
+		}
+	}
+	for _, want := range []string{"status", "version", "register"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("production health does not report %q: %s", want, body)
+		}
+	}
+}
