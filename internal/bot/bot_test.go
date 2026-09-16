@@ -219,7 +219,7 @@ func TestHealthSaysWhichBotThisIs(t *testing.T) {
 		t.Fatalf("status = %d, want 200", response.Code)
 	}
 	body := response.Body.String()
-	for _, want := range []string{"codecheckers/testing-dev-register", "0.1.0-test", "development", "rules_commit"} {
+	for _, want := range []string{"codecheckers/testing-dev-register", "0.1.0-test", "development", "rules_commit", `"announce"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("healthz does not report %q: %s", want, body)
 		}
@@ -285,7 +285,7 @@ func TestHealthSaysLessInProduction(t *testing.T) {
 	server.Handler().ServeHTTP(response, request)
 
 	body := response.Body.String()
-	for _, secret := range []string{"commit", "rules_commit", "token_expires", "online"} {
+	for _, secret := range []string{"commit", "rules_commit", "token_expires", "online", "announce"} {
 		if strings.Contains(body, secret) {
 			t.Errorf("production health reports %q: %s", secret, body)
 		}

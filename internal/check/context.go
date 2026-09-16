@@ -13,8 +13,10 @@ import (
 
 // Person is an author or a codechecker.
 type Person struct {
-	Name  string `yaml:"name"`
-	ORCID string `yaml:"ORCID"`
+	Name string `yaml:"name" json:"name"`
+	// ORCID is written "ORCID" in a codecheck.yml and "orcid" in a published
+	// certificate's index.json.
+	ORCID string `yaml:"ORCID" json:"orcid"`
 }
 
 // ManifestItem is one output the workflow produces.

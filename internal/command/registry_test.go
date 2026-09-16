@@ -40,15 +40,28 @@ func TestEveryCommandIsDescribed(t *testing.T) {
 }
 
 func TestListingShowsEveryVisibleCommand(t *testing.T) {
-	listing := Listing(RoleAnyone)
-	for _, definition := range Definitions() {
-		mentioned := strings.Contains(listing, escapePipes(definition.Usage))
-		if definition.Hidden && mentioned {
-			t.Errorf("%s is hidden but is listed", definition.Name)
+	for _, role := range []Role{RoleAnyone, RoleEditor} {
+		listing := Listing(role)
+		for _, definition := range Definitions() {
+			mentioned := strings.Contains(listing, escapePipes(definition.Usage))
+			visible := !definition.Hidden && definition.Permits(role)
+			if !visible && mentioned {
+				t.Errorf("%s is listed for %s but should not be", definition.Name, role)
+			}
+			if visible && !mentioned {
+				t.Errorf("%s is not in the listing for %s", definition.Name, role)
+			}
 		}
-		if !definition.Hidden && !mentioned {
-			t.Errorf("%s is not in the listing", definition.Name)
-		}
+	}
+}
+
+// announce posts in the project's name, so only an editor is told about it.
+func TestAnnounceIsForEditors(t *testing.T) {
+	if strings.Contains(Listing(RoleAnyone), "announce") {
+		t.Error("announce is listed for everyone")
+	}
+	if !strings.Contains(Listing(RoleEditor), "announce <certificate> [confirm]") {
+		t.Error("announce is not listed for an editor")
 	}
 }
 

@@ -38,6 +38,8 @@ runway app config set -a chekhov CHEKHOV_TARGET_REPO=codecheckers/testing-dev-re
 runway app config set -a chekhov CHEKHOV_BOT_GH_USER=chekhovbot
 runway app config set -a chekhov CHEKHOV_GH_ACCESS_TOKEN=...   # see github-token.md
 runway app config set -a chekhov CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -hex 32
+runway app config set -a chekhov CHEKHOV_MASTODON_TOKEN=...    # optional, see "Announcing" below
+# CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org
 runway app deploy source -y
 ```
 
@@ -124,6 +126,26 @@ GitHub's *Recent Deliveries* tab on that page is the first place to look when
 something is wrong: it shows the request, the response, and has a **Redeliver**
 button, which is how a failed delivery is replayed without writing another
 comment.
+
+## Announcing
+
+`@chekhovbot announce` posts as `CHEKHOV_MASTODON_ACCOUNT` on
+`CHEKHOV_MASTODON_INSTANCE` (by default `codecheck` on fediscience.org), and
+needs `CHEKHOV_MASTODON_TOKEN` of that account. Without it announcing is switched off: an editor
+still gets the preview, and `confirm` says it will not post. `/healthz` in
+development says whether it is configured, for which account and with which
+visibility. [`mastodon-token.md`](mastodon-token.md) has the application's
+scopes, where the token is kept, and its rotation.
+
+The settings file decides the visibility. `settings-development.yml` says
+`direct`, a test asserts it, and with `direct` every mention in the toot is
+written without its `@`, so a development toot notifies nobody. A production
+settings file has to choose `public` or `unlisted` on purpose.
+
+Where the toot comes from is in the `env:` block: `certificates`, the URL of a
+published certificate, and `codechecker_lists`. `persons.csv` and `venues.csv`
+are read from the target repository. In development all of it is the testing
+register's fake certificate `1970-001`.
 
 ## The deployment as it stands
 

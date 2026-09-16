@@ -20,6 +20,25 @@ chekhov:
     # Columns of register.csv in the target repo:
     # Certificate,Repository,Type,Venue,Issue
     register_file: register.csv
+    # The published certificate, {id} is the certificate identifier. The page
+    # has index.json and cert_1.png, cert_2.png, ... next to it.
+    certificates: https://codecheck.org.uk/testing-dev-register/{id}/
+    # The codechecker lists, read for fediverse accounts after persons.csv.
+    # persons.csv and venues.csv are read from the target repository.
+    codechecker_lists:
+      - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/codecheckers.csv
+      - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/institutional-codecheckers.csv
+
+  mastodon:
+    # Where "@chekhovbot announce" toots. The token is CHEKHOV_MASTODON_TOKEN;
+    # without it announcing is switched off. See docs/deployment.md.
+    instance: ${CHEKHOV_MASTODON_INSTANCE:-https://fediscience.org}
+    # The account the token must belong to, without @ or instance. A token of
+    # any other account is refused before anything is posted.
+    account: ${CHEKHOV_MASTODON_ACCOUNT:-codecheck}
+    # Development posts direct messages only, and with direct visibility every
+    # mention is defused, so no real person is ever notified. A test asserts it.
+    visibility: direct
 
   teams:
     # Who may run the editor-only commands. GitHub handles rather than a team

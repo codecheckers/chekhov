@@ -1,11 +1,11 @@
 package check
 
 import (
-	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/codecheckers/chekhov/internal/testserver"
 )
 
 // The offline half of the coverage for the checks that need external services.
@@ -22,37 +22,18 @@ import (
 
 // stub is a fake of every service, on one test server. Each service gets its
 // own path prefix so that the routes cannot collide.
-//
-// Routes live in a map rather than in a ServeMux, so that a case can serve
-// everything a certificate in good order gets and then replace the one route it
-// is about; a ServeMux panics on the second registration of a path.
 type stub struct {
-	server   *httptest.Server
-	routes   map[string]http.HandlerFunc
+	*testserver.Server
 	services *Services
 }
 
 func newStub(t *testing.T) *stub {
 	t.Helper()
 
-	server := &stub{routes: map[string]http.HandlerFunc{}}
-	server.server = httptest.NewServer(http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			if handler, ok := server.routes[r.URL.Path]; ok {
-				handler(w, r)
-				return
-			}
-			http.NotFound(w, r)
-		}))
-	t.Cleanup(server.server.Close)
-
-	url := server.server.URL
-	client := server.server.Client()
-	// An offline test that reaches the real internet is not an offline test.
-	// Anything not addressed to the stub fails, and says which URL it was.
-	client.Transport = localOnly{host: server.server.Listener.Addr().String(), base: client.Transport}
+	server := &stub{Server: testserver.New(t)}
+	url := server.URL
 	server.services = &Services{
-		HTTP:          client,
+		HTTP:          server.Client(),
 		Register:      "codecheckers/testing",
 		Zenodo:        url + "/zenodo",
 		ORCID:         url + "/orcid",
@@ -66,55 +47,14 @@ func newStub(t *testing.T) *stub {
 	return server
 }
 
-func (s *stub) handle(path string, handler http.HandlerFunc) {
-	s.routes[path] = handler
-}
-
-// url is the stub's address for a path, for a fixture that has to carry a link
-// to one of its own routes.
-func (s *stub) url(path string) string { return s.server.URL + path }
-
-// localOnly keeps the offline suite offline.
-type localOnly struct {
-	host string
-	base http.RoundTripper
-}
-
-func (l localOnly) RoundTrip(request *http.Request) (*http.Response, error) {
-	if request.URL.Host != l.host {
-		return nil, fmt.Errorf("offline test tried to reach %s; point it at the stub server",
-			request.URL)
-	}
-	return l.base.RoundTrip(request)
-}
-
-func (s *stub) json(path, body string) {
-	s.handle(path, func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, body)
-	})
-}
-
-func (s *stub) text(path, body string) {
-	s.handle(path, func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprint(w, body)
-	})
-}
-
-func (s *stub) status(path string, code int) {
-	s.handle(path, func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(code)
-	})
-}
-
 // register serves a register.csv, and venues.csv when venues is not empty.
 func (s *stub) register(registerCSV, venuesCSV string) {
-	s.text("/raw/codecheckers/testing/HEAD/register.csv", registerCSV)
+	s.Text("/raw/codecheckers/testing/HEAD/register.csv", registerCSV)
 	if venuesCSV == "" {
-		s.status("/raw/codecheckers/testing/HEAD/venues.csv", http.StatusNotFound)
+		s.Status("/raw/codecheckers/testing/HEAD/venues.csv", http.StatusNotFound)
 		return
 	}
-	s.text("/raw/codecheckers/testing/HEAD/venues.csv", venuesCSV)
+	s.Text("/raw/codecheckers/testing/HEAD/venues.csv", venuesCSV)
 }
 
 // run validates a codecheck.yml against the stubbed services and returns one
@@ -143,7 +83,7 @@ func (s *stub) runFrom(t *testing.T, configuration, repository, rule string) Rul
 // repository it came from when the case names one.
 func (s *stub) context(t *testing.T, configuration, repository string) Context {
 	t.Helper()
-	context := FromBytes([]byte(strings.ReplaceAll(configuration, "{{server}}", s.server.URL)))
+	context := FromBytes([]byte(strings.ReplaceAll(configuration, "{{server}}", s.URL)))
 	context = context.WithServices(s.services)
 	if repository == "" {
 		return context
@@ -236,23 +176,23 @@ const (
 // serveEverythingWell wires the answers a certificate in good order gets, so a
 // case only has to override the one route it is about.
 func (s *stub) serveEverythingWell() {
-	s.json("/zenodo/records/1234567", zenodoRecordJSON)
-	s.json("/orcid/0000-0001-8607-8025/person", orcidPersonJSON)
-	s.json("/orcid/0000-0002-1825-0097/person", carberryJSON)
-	s.json("/crossref/works/10.5555/preprint.1", crossrefJSON)
-	s.json("/github/repos/codecheckers/testing/issues/42", issueJSON)
-	s.text("/raw/codecheckers/demo/HEAD/figure1.png", "PNG")
-	s.json("/github/repos/codecheckers/demo/contents/", `[
+	s.JSON("/zenodo/records/1234567", zenodoRecordJSON)
+	s.JSON("/orcid/0000-0001-8607-8025/person", orcidPersonJSON)
+	s.JSON("/orcid/0000-0002-1825-0097/person", carberryJSON)
+	s.JSON("/crossref/works/10.5555/preprint.1", crossrefJSON)
+	s.JSON("/github/repos/codecheckers/testing/issues/42", issueJSON)
+	s.Text("/raw/codecheckers/demo/HEAD/figure1.png", "PNG")
+	s.JSON("/github/repos/codecheckers/demo/contents/", `[
 	  {"name": "codecheck", "type": "dir"},
 	  {"name": "LICENSE", "type": "file"},
 	  {"name": "figure1.png", "type": "file"}
 	]`)
-	s.json("/github/repos/codecheckers/demo/contents/codecheck", `[
+	s.JSON("/github/repos/codecheckers/demo/contents/codecheck", `[
 	  {"name": "codecheck.pdf", "type": "file"}
 	]`)
-	s.text("/doi/10.5281/zenodo.1234567", "the certificate")
-	s.text("/doi/10.5555/preprint.1", "the paper")
-	s.text("/github.com/codecheckers/demo", "the repository")
+	s.Text("/doi/10.5281/zenodo.1234567", "the certificate")
+	s.Text("/doi/10.5555/preprint.1", "the paper")
+	s.Text("/github.com/codecheckers/demo", "the repository")
 	s.register(registerRow, venuesRow)
 }
 
@@ -280,8 +220,8 @@ var stubCases = []stubCase{
 		configuration: with("report", `report: "{{server}}/doi/10.5281/zenodo.1234566"`),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/zenodo/records/1234566", zenodoRecordJSON)
-			s.text("/doi/10.5281/zenodo.1234566", "the certificate")
+			s.JSON("/zenodo/records/1234566", zenodoRecordJSON)
+			s.Text("/doi/10.5281/zenodo.1234566", "the certificate")
 		},
 		want:   OutcomeWarning,
 		detail: "concept DOI",
@@ -291,7 +231,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-002",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
+			s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
 				`{"index": 0, "is_last": true, "count": 1}`,
 				`{"index": 0, "is_last": false, "count": 3}`, 1))
 		},
@@ -303,7 +243,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-003",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
+			s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
 				`"files": [{"key": "CODECHECK_certificate_2026-001.pdf"}],`, `"files": [],`, 1))
 		},
 		want:   OutcomeWarning,
@@ -314,7 +254,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-004",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
+			s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
 				"CODECHECK Certificate 2026-001", "A certificate", 1))
 		},
 		want:   OutcomeWarning,
@@ -325,7 +265,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-005",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
+			s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
 				`"name": "Eglen, Stephen J."`, `"name": "Lovelace, Ada"`, 1))
 		},
 		want:   OutcomeWarning,
@@ -336,7 +276,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-006",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
+			s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
 				`"orcid": "0000-0001-8607-8025"`, `"orcid": "0000-0002-1825-0097"`, 1))
 		},
 		want:   OutcomeWarning,
@@ -347,7 +287,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-003",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/zenodo/records/1234567", http.StatusNotFound)
+			s.Status("/zenodo/records/1234567", http.StatusNotFound)
 		},
 		want:   OutcomeSkipped,
 		detail: "could not read the Zenodo record",
@@ -357,7 +297,7 @@ var stubCases = []stubCase{
 		rule: "CC-REP-004",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.text("/zenodo/records/1234567", "<html>maintenance</html>")
+			s.Text("/zenodo/records/1234567", "<html>maintenance</html>")
 		},
 		want:   OutcomeSkipped,
 		detail: "could not read the Zenodo record",
@@ -369,7 +309,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-005",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
+			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
 				"A paper whose code runs", "A quite different paper", 1))
 		},
 		want:   OutcomeWarning,
@@ -380,7 +320,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-006",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
+			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
 				`"author": [`, `"author": [{"given": "Ada", "family": "Lovelace"}, `, 1))
 		},
 		want:   OutcomeWarning,
@@ -391,7 +331,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-007",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
+			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
 				`"family": "Carberry"`, `"family": "Lovelace"`, 1))
 		},
 		want:   OutcomeWarning,
@@ -402,7 +342,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-008",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
+			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
 				"0000-0002-1825-0097", "0000-0002-1825-0098", 1))
 		},
 		want:   OutcomeWarning,
@@ -413,7 +353,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-005",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/crossref/works/10.5555/preprint.1", http.StatusNotFound)
+			s.Status("/crossref/works/10.5555/preprint.1", http.StatusNotFound)
 		},
 		want:   OutcomeSkipped,
 		detail: "could not ask Crossref",
@@ -425,7 +365,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-002",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/orcid/0000-0001-8607-8025/person", http.StatusNotFound)
+			s.Status("/orcid/0000-0001-8607-8025/person", http.StatusNotFound)
 		},
 		want:   OutcomeWarning,
 		detail: "0000-0001-8607-8025",
@@ -435,7 +375,7 @@ var stubCases = []stubCase{
 		rule: "CC-MET-003",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/orcid/0000-0001-8607-8025/person", strings.Replace(orcidPersonJSON,
+			s.JSON("/orcid/0000-0001-8607-8025/person", strings.Replace(orcidPersonJSON,
 				"Eglen", "Lovelace", 1))
 		},
 		want:   OutcomeWarning,
@@ -446,8 +386,8 @@ var stubCases = []stubCase{
 		rule: "CC-MET-003",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/orcid/0000-0001-8607-8025/person", http.StatusInternalServerError)
-			s.status("/orcid/0000-0002-1825-0097/person", http.StatusInternalServerError)
+			s.Status("/orcid/0000-0001-8607-8025/person", http.StatusInternalServerError)
+			s.Status("/orcid/0000-0002-1825-0097/person", http.StatusInternalServerError)
 		},
 		want:   OutcomeSkipped,
 		detail: "no ORCID record could be read",
@@ -535,7 +475,7 @@ var stubCases = []stubCase{
 		rule: "CC-REG-001",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/raw/codecheckers/testing/HEAD/register.csv", http.StatusNotFound)
+			s.Status("/raw/codecheckers/testing/HEAD/register.csv", http.StatusNotFound)
 		},
 		want:   OutcomeSkipped,
 		detail: "could not read the register",
@@ -547,7 +487,7 @@ var stubCases = []stubCase{
 		rule: "CC-REG-006",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/github/repos/codecheckers/testing/issues/42", http.StatusNotFound)
+			s.Status("/github/repos/codecheckers/testing/issues/42", http.StatusNotFound)
 		},
 		want:   OutcomeWarning,
 		detail: "could not be read",
@@ -557,7 +497,7 @@ var stubCases = []stubCase{
 		rule: "CC-REG-007",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.json("/github/repos/codecheckers/testing/issues/42",
+			s.JSON("/github/repos/codecheckers/testing/issues/42",
 				`{"number": 42, "title": "Carberry, a paper", "state": "open"}`)
 		},
 		want:   OutcomeWarning,
@@ -582,7 +522,7 @@ var stubCases = []stubCase{
 		repository: "github::codecheckers/demo",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusNotFound)
+			s.Status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusNotFound)
 		},
 		want:   OutcomeError,
 		detail: "figure1.png",
@@ -595,7 +535,7 @@ var stubCases = []stubCase{
 		repository: "github::codecheckers/demo",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusTooManyRequests)
+			s.Status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusTooManyRequests)
 		},
 		want:   OutcomeSkipped,
 		detail: "429",
@@ -606,8 +546,8 @@ var stubCases = []stubCase{
 		repository: "github::codecheckers/demo",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusNotFound)
-			s.text("/raw/codecheckers/demo/HEAD/codecheck/outputs/figure1.png", "PNG")
+			s.Status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusNotFound)
+			s.Text("/raw/codecheckers/demo/HEAD/codecheck/outputs/figure1.png", "PNG")
 		},
 		want:   OutcomeError,
 		detail: "figure1.png",
@@ -618,7 +558,7 @@ var stubCases = []stubCase{
 		configuration: with("repository", `repository: "{{server}}/gone"`),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/gone", http.StatusNotFound)
+			s.Status("/gone", http.StatusNotFound)
 		},
 		want:   OutcomeError,
 		detail: "do not answer",
@@ -631,7 +571,7 @@ var stubCases = []stubCase{
 		configuration: with("report", `report: "{{server}}/missing-report"`),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/missing-report", http.StatusNotFound)
+			s.Status("/missing-report", http.StatusNotFound)
 		},
 		want:   OutcomeInfo,
 		detail: "answers 404",
@@ -642,7 +582,7 @@ var stubCases = []stubCase{
 		configuration: with("  reference", `  reference: "{{server}}/blocked"`),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/blocked", http.StatusForbidden)
+			s.Status("/blocked", http.StatusForbidden)
 		},
 		want:   OutcomeSkipped,
 		detail: "blocks the check rather than failing it",
@@ -653,7 +593,7 @@ var stubCases = []stubCase{
 		configuration: with("  reference", `  reference: "{{server}}/slow-down"`),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/slow-down", http.StatusTooManyRequests)
+			s.Status("/slow-down", http.StatusTooManyRequests)
 		},
 		want:   OutcomeSkipped,
 		detail: "blocks the check rather than failing it",
@@ -664,7 +604,7 @@ var stubCases = []stubCase{
 		configuration: withReferenceOther("{{server}}/gone-reference"),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/gone-reference", http.StatusNotFound)
+			s.Status("/gone-reference", http.StatusNotFound)
 		},
 		want:   OutcomeWarning,
 		detail: "do not resolve",
@@ -675,7 +615,7 @@ var stubCases = []stubCase{
 		configuration: with("report", `report: "{{server}}/unavailable"`),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.status("/unavailable", http.StatusServiceUnavailable)
+			s.Status("/unavailable", http.StatusServiceUnavailable)
 		},
 		want:   OutcomeSkipped,
 		detail: "could not say",
@@ -686,7 +626,7 @@ var stubCases = []stubCase{
 		configuration: withReferenceOther("{{server}}/version-of-record"),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			s.text("/version-of-record", "the version of record")
+			s.Text("/version-of-record", "the version of record")
 		},
 		want:   OutcomeOK,
 		detail: "1 entry(s) resolve",

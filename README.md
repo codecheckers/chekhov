@@ -30,7 +30,10 @@ run. (Star Trek's Chekov has one `h`.)
 
 The bot answers `commands`, `hello` and an unknown command on the **testing
 register**, and validates a `codecheck.yml` when a comment names the repository
-to read it from. It runs against
+to read it from. Editors can announce a published certificate on Mastodon with
+`@chekhovbot announce <certificate>`, which previews the toot, and
+`@chekhovbot announce <certificate> confirm`, which posts it; in development
+the toot is a direct message with every mention defused. It runs against
 [`codecheckers/testing-dev-register`](https://github.com/codecheckers/testing-dev-register)
 only; the production register is not configured anywhere. See
 [`docs/deployment.md`](docs/deployment.md).
@@ -38,6 +41,7 @@ only; the production register is not configured anywhere. See
 ```bash
 go run ./cmd/chekhov serve                          # the bot: /dispatch and /healthz
 echo '@chekhovbot commands' | go run ./cmd/chekhov comment -   # the same answer, offline
+echo '@chekhovbot announce 1970-001' | go run ./cmd/chekhov comment --as nuest --online -  # an editor's preview
 ```
 
 ```bash

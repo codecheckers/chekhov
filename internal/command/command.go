@@ -25,6 +25,8 @@ const (
 	Version Name = "version"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
+	// Announce toots about a published certificate.
+	Announce Name = "announce"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

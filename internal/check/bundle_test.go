@@ -60,7 +60,7 @@ func TestABundleReadsADirectoryOnce(t *testing.T) {
 // rate limit would tell a codechecker their manifest files are not committed.
 func TestARateLimitIsNotAMissingFile(t *testing.T) {
 	stub := newStub(t)
-	stub.status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusTooManyRequests)
+	stub.Status("/raw/codecheckers/demo/HEAD/figure1.png", http.StatusTooManyRequests)
 	bundle := bundleFor(RepositorySpec{Type: "github", Path: "codecheckers/demo"}, stub.services)
 
 	found, err := bundle.Exists("figure1.png")
@@ -76,7 +76,7 @@ func TestARateLimitIsNotAMissingFile(t *testing.T) {
 // missing, not a bundle nobody could look in.
 func TestAnOSFFolderThatIsNotThereIsAMissingFile(t *testing.T) {
 	stub := newStub(t)
-	stub.json("/osf/nodes/ab12c/files/osfstorage/", `{"data": [
+	stub.JSON("/osf/nodes/ab12c/files/osfstorage/", `{"data": [
 	  {"attributes": {"name": "codecheck.yml", "kind": "file"}}
 	], "links": {}}`)
 	bundle := bundleFor(RepositorySpec{Type: "osf", Path: "ab12c"}, stub.services)
@@ -94,10 +94,10 @@ func TestAnOSFFolderThatIsNotThereIsAMissingFile(t *testing.T) {
 // page reports everything after it as missing.
 func TestAnOSFListingIsReadWhole(t *testing.T) {
 	stub := newStub(t)
-	stub.json("/osf/nodes/ab12c/files/osfstorage/", fmt.Sprintf(`{"data": [
+	stub.JSON("/osf/nodes/ab12c/files/osfstorage/", fmt.Sprintf(`{"data": [
 	  {"attributes": {"name": "codecheck.yml", "kind": "file"}}
-	], "links": {"next": %q}}`, stub.url("/osf/nodes/ab12c/files/osfstorage/page2")))
-	stub.json("/osf/nodes/ab12c/files/osfstorage/page2", `{"data": [
+	], "links": {"next": %q}}`, stub.At("/osf/nodes/ab12c/files/osfstorage/page2")))
+	stub.JSON("/osf/nodes/ab12c/files/osfstorage/page2", `{"data": [
 	  {"attributes": {"name": "codecheck", "kind": "folder"}}
 	], "links": {}}`)
 	bundle := bundleFor(RepositorySpec{Type: "osf", Path: "ab12c"}, stub.services)
@@ -111,7 +111,7 @@ func TestAnOSFListingIsReadWhole(t *testing.T) {
 // names share.
 func TestZenodoDirectoriesComeFromTheFileNames(t *testing.T) {
 	stub := newStub(t)
-	stub.json("/zenodo/records/3674056", `{"files": [
+	stub.JSON("/zenodo/records/3674056", `{"files": [
 	  {"key": "codecheck.yml"},
 	  {"key": "codecheck/codecheck.pdf"},
 	  {"key": "codecheck/outputs/figure1.png"}
@@ -140,25 +140,25 @@ func mustList(t *testing.T, bundle Bundle, dir string) []BundleEntry {
 // file, an archive in its metadata, where there is no file to find.
 func TestABundleStatesItsLicenceItsOwnWay(t *testing.T) {
 	stub := newStub(t)
-	stub.json("/github/repos/codecheckers/demo/contents/", `[
+	stub.JSON("/github/repos/codecheckers/demo/contents/", `[
 	  {"name": "LICENSE", "type": "file"},
 	  {"name": "licences", "type": "dir"}
 	]`)
 	// The current API answers an object, the older one a plain string, and a
 	// record deposited last month a rights list. All three are in the register.
-	stub.json("/zenodo/records/1", `{"metadata": {"license": {"id": "cc-by-4.0"}}}`)
-	stub.json("/zenodo/records/2", `{"metadata": {"license": "CC-BY-4.0"}}`)
-	stub.json("/zenodo/records/3", `{"metadata": {"rights": [{"id": "mit"}]}}`)
-	stub.json("/zenodo/records/4", `{"files": [{"key": "codecheck.yml"}], "metadata": {}}`)
-	stub.json("/osf/nodes/ab12c/", fmt.Sprintf(`{"data": {"relationships": {"license":
-	  {"links": {"related": {"href": %q}}}}}}`, stub.url("/osf/licenses/cc-by")))
-	stub.json("/osf/licenses/cc-by", `{"data": {"attributes": {"name": "CC-By Attribution 4.0 International"}}}`)
+	stub.JSON("/zenodo/records/1", `{"metadata": {"license": {"id": "cc-by-4.0"}}}`)
+	stub.JSON("/zenodo/records/2", `{"metadata": {"license": "CC-BY-4.0"}}`)
+	stub.JSON("/zenodo/records/3", `{"metadata": {"rights": [{"id": "mit"}]}}`)
+	stub.JSON("/zenodo/records/4", `{"files": [{"key": "codecheck.yml"}], "metadata": {}}`)
+	stub.JSON("/osf/nodes/ab12c/", fmt.Sprintf(`{"data": {"relationships": {"license":
+	  {"links": {"related": {"href": %q}}}}}}`, stub.At("/osf/licenses/cc-by")))
+	stub.JSON("/osf/licenses/cc-by", `{"data": {"attributes": {"name": "CC-By Attribution 4.0 International"}}}`)
 	// A node that has chosen nothing carries the licence called "No license",
 	// which states nothing at all.
-	stub.json("/osf/nodes/none1/", fmt.Sprintf(`{"data": {"relationships": {"license":
-	  {"links": {"related": {"href": %q}}}}}}`, stub.url("/osf/licenses/no-license")))
-	stub.json("/osf/licenses/no-license", `{"data": {"attributes": {"name": "No license"}}}`)
-	stub.json("/osf/nodes/none1/files/osfstorage/", `{"data": [], "links": {}}`)
+	stub.JSON("/osf/nodes/none1/", fmt.Sprintf(`{"data": {"relationships": {"license":
+	  {"links": {"related": {"href": %q}}}}}}`, stub.At("/osf/licenses/no-license")))
+	stub.JSON("/osf/licenses/no-license", `{"data": {"attributes": {"name": "No license"}}}`)
+	stub.JSON("/osf/nodes/none1/files/osfstorage/", `{"data": [], "links": {}}`)
 
 	for _, test := range []struct {
 		spec    string

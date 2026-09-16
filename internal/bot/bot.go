@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,9 +12,11 @@ import (
 	"time"
 
 	"github.com/codecheckers/chekhov/config"
+	"github.com/codecheckers/chekhov/internal/announce"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/mastodon"
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
@@ -28,6 +31,15 @@ type Poster interface {
 	Comment(ctx context.Context, repository string, issue int, body string) (int64, error)
 }
 
+// Toots is the part of the Mastodon client announcing needs, so a test can
+// watch what would be tooted without an instance.
+type Toots interface {
+	Post(ctx context.Context, status mastodon.Status) (mastodon.Posted, error)
+	UploadMedia(ctx context.Context, name, mimeType string, content []byte, description string) (string, error)
+	RecentStatuses(ctx context.Context, limit int) ([]mastodon.Posted, error)
+	Limits(ctx context.Context) (mastodon.Limits, error)
+}
+
 // Server is the whole bot: one webhook endpoint, one health endpoint, no state.
 type Server struct {
 	Settings   *config.Settings
@@ -39,6 +51,11 @@ type Server struct {
 	// Services lets the check command reach Crossref, ORCID, Zenodo and the
 	// register. Nil keeps the bot offline, which is how the tests run it.
 	Services *check.Services
+
+	// Toots is where announcements are posted. Nil means announcing is
+	// switched off for this deployment: the preview still works, confirm
+	// does not.
+	Toots Toots
 
 	// LocalPaths allows a command to name a file on this machine. It is off
 	// for a deployment on purpose: a path in a comment is written by anyone on
@@ -172,10 +189,13 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	}
 
 	if definition, found := command.Lookup(string(parsed.Name)); found && !definition.Permits(role) {
-		// Not reachable while every command is open to everyone, but the rule
-		// belongs next to the listing that hides them.
 		return fmt.Sprintf("`%s %s` is for editors.\n", command.Bot, parsed.Name)
 	}
+
+	// Every command reads the world afresh. A deployment keeps one Services for
+	// its whole life, and a response cached for it would answer a check, or
+	// compose an announcement, from what was published hours ago.
+	services := s.Services.Fresh()
 
 	switch parsed.Name {
 	case command.Commands:
@@ -185,7 +205,9 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	case command.Version:
 		return s.version()
 	case command.Check:
-		return s.check(ctx, parsed)
+		return s.check(parsed, services)
+	case command.Announce:
+		return s.announce(ctx, parsed, services)
 	default:
 		return command.UnknownReply(parsed)
 	}
@@ -206,7 +228,7 @@ func (s *Server) version() string {
 // spec, a shortcut, or a certificate identifier the register knows - and
 // check.ResolveTarget decides which. Working out from the issue alone which
 // configuration it is about is still to come.
-func (s *Server) check(ctx context.Context, parsed command.Command) string {
+func (s *Server) check(parsed command.Command, services *check.Services) string {
 	part, target := "", ""
 	for _, argument := range parsed.Args {
 		// A part name is never a target: the catalogue's own words come first,
@@ -231,7 +253,7 @@ func (s *Server) check(ctx context.Context, parsed command.Command) string {
 			command.Bot, command.Bot)
 	}
 
-	context, err := s.read(target)
+	context, err := s.read(target, services)
 	if err != nil {
 		return fmt.Sprintf("I could not read `%s`: %s\n", target, err)
 	}
@@ -242,11 +264,103 @@ func (s *Server) check(ctx context.Context, parsed command.Command) string {
 	return report.Markdown()
 }
 
+// recentToots is how many of the account's own toots, boosts left out, are
+// searched for an earlier announcement: the most Mastodon returns at once.
+const recentToots = 40
+
+// announce previews, or with "confirm" posts, the toot about a published
+// certificate. The bot keeps no state, so confirm composes the toot again from
+// what is published now rather than posting what the preview showed.
+func (s *Server) announce(ctx context.Context, parsed command.Command, services *check.Services) string {
+	certificate, confirm := "", false
+	for _, argument := range parsed.Args {
+		switch {
+		case strings.EqualFold(argument, "confirm"):
+			confirm = true
+		case certificate == "" && check.IsCertificateID(argument):
+			certificate = argument
+		}
+	}
+	if certificate == "" {
+		return fmt.Sprintf("I need the certificate to announce:\n\n    %s announce 2020-001\n", command.Bot)
+	}
+	if !services.Enabled() {
+		return "Announcing reads the published certificate, and this bot is not online.\n"
+	}
+	settings := s.Settings.Mastodon()
+
+	published, directory, err := announce.Load(services, s.Settings, certificate)
+	if err != nil {
+		return fmt.Sprintf("I could not read certificate %s: %s\n", certificate, err)
+	}
+
+	limits, imageLimit := announce.DefaultLimits, int64(announce.DefaultImageLimit)
+	if s.Toots != nil {
+		instance, err := s.Toots.Limits(ctx)
+		if err != nil {
+			return fmt.Sprintf("I could not ask %s what it allows: %s\n", settings.Instance, err)
+		}
+		limits, imageLimit = announce.LimitsFor(instance), instance.ImageSizeLimit
+	}
+
+	toot, err := announce.Compose(published, directory, limits, settings.Visibility)
+	if err != nil {
+		return fmt.Sprintf("I could not compose the toot for certificate %s: %s\n", certificate, err)
+	}
+	preview := command.Announcement{
+		Certificate: certificate, Text: toot.Text, Visibility: settings.Visibility, Defused: toot.Defused,
+		Mentioned: toot.Mentioned, Unmatched: toot.Unmatched, Enabled: s.Toots != nil,
+	}
+
+	if s.Toots != nil {
+		statuses, err := s.Toots.RecentStatuses(ctx, recentToots)
+		if err != nil {
+			return fmt.Sprintf("I could not read the account's recent toots, so I cannot tell whether %s was announced: %s\n",
+				certificate, err)
+		}
+		if preview.AnnouncedAt, _ = announce.Announced(statuses, published); preview.AnnouncedAt != "" {
+			// Nothing more to build: the answer is that it was done already.
+			return command.AnnouncePreview(preview)
+		}
+	}
+
+	attachment, err := announce.GIF(services, published, imageLimit)
+	if err != nil {
+		preview.AttachmentProblem = err.Error()
+	} else {
+		preview.Frames, preview.Bytes = attachment.Frames, len(attachment.GIF)
+	}
+
+	if !confirm || s.Toots == nil || preview.Frames == 0 {
+		// A confirm that cannot post answers with the preview, which says why.
+		return command.AnnouncePreview(preview)
+	}
+
+	media, err := s.Toots.UploadMedia(ctx, "codecheck-"+certificate+".gif", "image/gif", attachment.GIF,
+		fmt.Sprintf("The first pages of CODECHECK certificate %s", certificate))
+	if err != nil {
+		return fmt.Sprintf("The certificate could not be uploaded, nothing was posted: %s\n", err)
+	}
+	digest := sha256.Sum256([]byte(toot.Text))
+	posted, err := s.Toots.Post(ctx, mastodon.Status{
+		Text: toot.Text, MediaIDs: []string{media}, Visibility: settings.Visibility,
+		// A doubled confirm returns the first toot instead of posting twice.
+		// The text is part of the key, so that a corrected toot, posted after
+		// the first was deleted, is not answered with the deleted one.
+		IdempotencyKey: fmt.Sprintf("codecheck-%s-%x", certificate, digest[:8]),
+	})
+	if err != nil {
+		return fmt.Sprintf("The toot could not be posted: %s\n", err)
+	}
+	s.Logger.Info("announced", "certificate", certificate, "toot", posted.URL, "visibility", settings.Visibility)
+	return command.AnnouncePosted(certificate, posted.URL)
+}
+
 // read loads the configuration a command names. A deployment does not read its
 // own disk, so there a target is always a repository; check.Load is the one
 // place that decides.
-func (s *Server) read(target string) (check.Context, error) {
-	return check.Load(target, s.LocalPaths, s.Services)
+func (s *Server) read(target string, services *check.Services) (check.Context, error) {
+	return check.Load(target, s.LocalPaths, services)
 }
 
 // health says which bot this is, in enough detail that a development
@@ -266,6 +380,11 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		}
 		if client, ok := s.Replies.(*github.Client); ok && client.TokenExpiry() != "" {
 			state["token_expires"] = client.TokenExpiry()
+		}
+		state["announce"] = map[string]any{
+			"configured": s.Toots != nil,
+			"account":    s.Settings.Mastodon().Account,
+			"visibility": s.Settings.Mastodon().Visibility,
 		}
 	}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/mastodon"
 )
 
 // Serve runs the bot until the process is asked to stop.
@@ -44,9 +45,18 @@ func Serve(address, version, commit string) error {
 	// run instead.
 	server.Services = check.Online()
 
+	// Announcing needs its own token, and a deployment without one simply
+	// does not post: the preview still works.
+	if token := os.Getenv("CHEKHOV_MASTODON_TOKEN"); token != "" && settings.Mastodon().Instance != "" &&
+		settings.Mastodon().Account != "" {
+		mastodonSettings := settings.Mastodon()
+		server.Toots = mastodon.New(mastodonSettings.Instance, mastodonSettings.Account, token, mastodonSettings.Visibility)
+	}
+
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,
 		"commit", deployment.Commit, "register", deployment.Register,
-		"environment", deployment.Environment)
+		"environment", deployment.Environment,
+		"announcing", server.Toots != nil, "visibility", settings.Mastodon().Visibility)
 
 	return listen(address, server.Handler())
 }

@@ -77,8 +77,8 @@ func TestFromRepository(t *testing.T) {
 			spec:   "github::codecheckers/demo",
 			bundle: OutcomeOK,
 			route: func(s *stub) {
-				s.text("/raw/codecheckers/demo/HEAD/codecheck.yml", configuration)
-				s.json("/github/repos/codecheckers/demo/contents/", `[
+				s.Text("/raw/codecheckers/demo/HEAD/codecheck.yml", configuration)
+				s.JSON("/github/repos/codecheckers/demo/contents/", `[
 				  {"name": "codecheck", "type": "dir"},
 				  {"name": "LICENSE", "type": "file"}
 				]`)
@@ -91,8 +91,8 @@ func TestFromRepository(t *testing.T) {
 			spec:   "github::codecheckers/demo|paper/check",
 			bundle: OutcomeOK,
 			route: func(s *stub) {
-				s.text("/raw/codecheckers/demo/HEAD/paper/check/codecheck.yml", configuration)
-				s.json("/github/repos/codecheckers/demo/contents/paper/check", `[
+				s.Text("/raw/codecheckers/demo/HEAD/paper/check/codecheck.yml", configuration)
+				s.JSON("/github/repos/codecheckers/demo/contents/paper/check", `[
 				  {"name": "codecheck", "type": "dir"}
 				]`)
 			},
@@ -102,10 +102,10 @@ func TestFromRepository(t *testing.T) {
 			spec:   "gitlab::group/project",
 			bundle: OutcomeOK,
 			route: func(s *stub) {
-				s.text("/gitlab/group/project/-/raw/main/codecheck.yml", configuration)
+				s.Text("/gitlab/group/project/-/raw/main/codecheck.yml", configuration)
 				// The stub matches the decoded path; GitLab itself takes the
 				// project as one escaped segment.
-				s.json("/gitlab/api/v4/projects/group/project/repository/tree", `[
+				s.JSON("/gitlab/api/v4/projects/group/project/repository/tree", `[
 				  {"name": "codecheck", "type": "tree"}
 				]`)
 			},
@@ -116,8 +116,8 @@ func TestFromRepository(t *testing.T) {
 			spec:   "gitlab::group/project",
 			bundle: OutcomeSkipped,
 			route: func(s *stub) {
-				s.status("/gitlab/group/project/-/raw/main/codecheck.yml", http.StatusNotFound)
-				s.text("/gitlab/group/project/-/raw/master/codecheck.yml", configuration)
+				s.Status("/gitlab/group/project/-/raw/main/codecheck.yml", http.StatusNotFound)
+				s.Text("/gitlab/group/project/-/raw/master/codecheck.yml", configuration)
 			},
 		},
 		{
@@ -127,11 +127,11 @@ func TestFromRepository(t *testing.T) {
 			spec:   "osf::ab12c",
 			bundle: OutcomeWarning,
 			route: func(s *stub) {
-				s.json("/osf/nodes/ab12c/files/osfstorage/", fmt.Sprintf(`{"data": [
+				s.JSON("/osf/nodes/ab12c/files/osfstorage/", fmt.Sprintf(`{"data": [
 				  {"attributes": {"name": "README.md"}, "links": {"download": %q}},
 				  {"attributes": {"name": "codecheck.yml"}, "links": {"download": %q}}
-				]}`, s.url("/osf/download/README.md"), s.url("/osf/download/codecheck.yml")))
-				s.text("/osf/download/codecheck.yml", configuration)
+				]}`, s.At("/osf/download/README.md"), s.At("/osf/download/codecheck.yml")))
+				s.Text("/osf/download/codecheck.yml", configuration)
 			},
 		},
 		{
@@ -141,10 +141,10 @@ func TestFromRepository(t *testing.T) {
 			route: func(s *stub) {
 				// The older records answer with filename and links.download,
 				// the newer ones with key and links.self.
-				s.json("/zenodo/records/3674056", fmt.Sprintf(`{"files": [
+				s.JSON("/zenodo/records/3674056", fmt.Sprintf(`{"files": [
 				  {"key": "codecheck.yml", "links": {"self": %q}}
-				]}`, s.url("/zenodo/download/codecheck.yml")))
-				s.text("/zenodo/download/codecheck.yml", configuration)
+				]}`, s.At("/zenodo/download/codecheck.yml")))
+				s.Text("/zenodo/download/codecheck.yml", configuration)
 			},
 		},
 		{
@@ -152,10 +152,10 @@ func TestFromRepository(t *testing.T) {
 			spec:   "zenodo-sandbox::123",
 			bundle: OutcomeWarning,
 			route: func(s *stub) {
-				s.json("/zenodo-sandbox/records/123", fmt.Sprintf(`{"files": [
+				s.JSON("/zenodo-sandbox/records/123", fmt.Sprintf(`{"files": [
 				  {"filename": "codecheck.yml", "links": {"download": %q}}
-				]}`, s.url("/zenodo-sandbox/download/codecheck.yml")))
-				s.text("/zenodo-sandbox/download/codecheck.yml", configuration)
+				]}`, s.At("/zenodo-sandbox/download/codecheck.yml")))
+				s.Text("/zenodo-sandbox/download/codecheck.yml", configuration)
 			},
 		},
 	}
@@ -196,14 +196,14 @@ func TestFromRepository(t *testing.T) {
 // sub-directory looks for its files there.
 func TestManifestPathsFollowTheSubDirectory(t *testing.T) {
 	server := newStub(t)
-	server.text("/raw/codecheckers/demo/HEAD/paper/check/codecheck.yml", `---
+	server.Text("/raw/codecheckers/demo/HEAD/paper/check/codecheck.yml", `---
 manifest:
   - file: figure1.png
     comment: Figure 1
 repository: https://github.com/codecheckers/demo
 certificate: 2026-001
 `)
-	server.text("/raw/codecheckers/demo/HEAD/paper/check/figure1.png", "PNG")
+	server.Text("/raw/codecheckers/demo/HEAD/paper/check/figure1.png", "PNG")
 
 	context, err := FromRepository("github::codecheckers/demo|paper/check", server.services)
 	if err != nil {

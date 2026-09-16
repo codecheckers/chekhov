@@ -121,6 +121,7 @@ for the whole group, before writing #7.
 | `@chekhovbot binder` | Trigger a Binder build of the repo under check (NeuroLibre `binder_build`) | low |
 | `@chekhovbot call <service>` | Generic external service call (buffy `external_service`) | low |
 | `@chekhovbot stats` | Report register statistics | low |
+| `@chekhovbot announce <certificate> [confirm]` | Toot about a published certificate, mentioning its authors, codecheckers and venue; preview first (editors, #23) | medium |
 
 ## Proposed MVP
 

@@ -230,7 +230,7 @@ func (b *githubBundle) Read(name string) ([]byte, error) {
 	if err := b.available(); err != nil {
 		return nil, err
 	}
-	return b.services.fetchFile(b.url(name))
+	return b.services.FetchFile(b.url(name))
 }
 
 func (b *githubBundle) Exists(name string) (bool, error) {
@@ -284,7 +284,7 @@ func (b *gitlabBundle) Read(name string) ([]byte, error) {
 	}
 	var lastErr error
 	for _, branch := range b.branches() {
-		raw, err := b.services.fetchFile(b.url(branch, name))
+		raw, err := b.services.FetchFile(b.url(branch, name))
 		if err == nil {
 			b.branch = branch
 			return raw, nil
@@ -350,7 +350,7 @@ func (b *osfBundle) Read(name string) ([]byte, error) {
 	if !found {
 		return nil, fmt.Errorf("no %s in OSF node %s", name, b.spec.Path)
 	}
-	return b.services.fetchFile(item.Links.Download)
+	return b.services.FetchFile(item.Links.Download)
 }
 
 func (b *osfBundle) Exists(name string) (bool, error) { return existsInListing(b, name) }
@@ -480,7 +480,7 @@ func (b *zenodoBundle) Read(name string) ([]byte, error) {
 	for _, file := range record.Files {
 		if file.name() == wanted {
 			if link := file.downloadLink(); link != "" {
-				return b.services.fetchFile(link)
+				return b.services.FetchFile(link)
 			}
 		}
 	}

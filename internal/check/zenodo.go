@@ -222,7 +222,7 @@ func zenodoCodecheckerORCIDsMatch(c Context) Result {
 
 	recorded := map[string]bool{}
 	for _, creator := range record.Metadata.Creators {
-		if digits := orcidDigits(creator.ORCID); digits != "" {
+		if digits := ORCIDDigits(creator.ORCID); digits != "" {
 			recorded[digits] = true
 		}
 	}
@@ -232,7 +232,7 @@ func zenodoCodecheckerORCIDsMatch(c Context) Result {
 
 	var missing []string
 	for _, codechecker := range withORCID {
-		if !recorded[orcidDigits(codechecker.ORCID)] {
+		if !recorded[ORCIDDigits(codechecker.ORCID)] {
 			missing = append(missing, codechecker.Name+" ("+codechecker.ORCID+")")
 		}
 	}
@@ -267,14 +267,14 @@ func zenodoRecordFor(c Context, rule string) (zenodoRecord, *Result) {
 var zenodoRecordID = regexp.MustCompile(`zenodo\.([0-9]+)`)
 
 func sameDOI(a, b string) bool {
-	return normalise(doiIn(a)) != "" && normalise(doiIn(a)) == normalise(doiIn(b))
+	return Normalise(doiIn(a)) != "" && Normalise(doiIn(a)) == Normalise(doiIn(b))
 }
 
 // namesOverlap compares two ways of writing the same person, by the longest
 // word they share, which in practice is the family name.
 func namesOverlap(a, b string) bool {
 	longest := ""
-	for _, word := range strings.Fields(normalise(a)) {
+	for _, word := range strings.Fields(Normalise(a)) {
 		if len(word) > len(longest) {
 			longest = word
 		}
@@ -282,5 +282,5 @@ func namesOverlap(a, b string) bool {
 	if longest == "" {
 		return false
 	}
-	return strings.Contains(normalise(b), longest)
+	return strings.Contains(Normalise(b), longest)
 }

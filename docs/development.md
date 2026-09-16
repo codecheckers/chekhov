@@ -36,6 +36,9 @@ output is impossible to confuse with a real CODECHECK.
    currently in use actually has, and how to rotate it. A classic token with
    `public_repo` would reach the production register too, which is the reason
    not to use one.
+4. Optionally, `CHEKHOV_MASTODON_TOKEN` for `announce`: an application on the
+   `codecheck` account with four scopes, see
+   [`mastodon-token.md`](mastodon-token.md). Development toots are `direct`.
 
 ## Webhook on the testing register
 

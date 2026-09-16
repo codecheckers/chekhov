@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/codecheckers/chekhov/config"
 	"github.com/codecheckers/chekhov/internal/bot"
@@ -32,7 +33,7 @@ const usage = `chekhov - the CODECHECK register bot
 Usage:
   chekhov check [options] <path to codecheck.yml, a repository, or a certificate>
   chekhov check [options] [config|metadata|bundle|references|report|register] <target>
-  chekhov comment <path to a comment file, or - for stdin>
+  chekhov comment [--as <handle>] [--online] <path to a comment file, or - for stdin>
   chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
   chekhov version
@@ -152,16 +153,33 @@ func loadTarget(target string, online bool) (check.Context, error) {
 // runComment shows what the bot would reply to a comment, which is how the
 // command handling is exercised while there is no webhook.
 func runComment(args []string, out io.Writer) error {
-	if len(args) == 0 {
+	// The author is the local user as far as roles go, which is who is asking,
+	// unless --as says otherwise: an editor previewing an editor's command.
+	author, online, source := os.Getenv("USER"), false, ""
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--as":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--as needs a GitHub handle")
+			}
+			i++
+			author = strings.TrimPrefix(args[i], "@")
+		case "--online":
+			online = true
+		default:
+			source = args[i]
+		}
+	}
+	if source == "" {
 		return fmt.Errorf("comment needs a file, or - for stdin")
 	}
 
 	var raw []byte
 	var err error
-	if args[0] == "-" {
+	if source == "-" {
 		raw, err = io.ReadAll(os.Stdin)
 	} else {
-		raw, err = os.ReadFile(args[0])
+		raw, err = os.ReadFile(source)
 	}
 	if err != nil {
 		return err
@@ -172,9 +190,13 @@ func runComment(args []string, out io.Writer) error {
 		return err
 	}
 
-	// The same answer the deployed bot would post. The author is the local
-	// user as far as roles go, which is who is asking.
-	reply, addressed := bot.Preview(settings, version, commit, nil, os.Getenv("USER"), string(raw))
+	// The same answer the deployed bot would post. Nothing is posted from the
+	// command line, to GitHub or to Mastodon.
+	var services *check.Services
+	if online {
+		services = check.Online()
+	}
+	reply, addressed := bot.Preview(settings, version, commit, services, author, string(raw))
 	if !addressed {
 		fmt.Fprintln(out, "not addressed to the bot, no reply")
 		return nil

@@ -190,7 +190,7 @@ func orcidNameMatch(c Context) Result {
 		family := record.Name.FamilyName.Value
 		// The family name is the part that survives initials, transliteration
 		// and the order names are written in, so it is what is compared.
-		if family != "" && !strings.Contains(normalise(person.Name), normalise(family)) {
+		if family != "" && !strings.Contains(Normalise(person.Name), Normalise(family)) {
 			mismatched = append(mismatched, fmt.Sprintf("%s is %s %s at ORCID",
 				person.Name, record.Name.GivenNames.Value, family))
 		}
@@ -234,7 +234,7 @@ func crossrefTitleMatch(c Context) Result {
 	if len(work.Message.Title) == 0 {
 		return skip("Crossref records no title for this DOI")
 	}
-	if normalise(work.Message.Title[0]) == normalise(c.Config.Paper.Title) {
+	if Normalise(work.Message.Title[0]) == Normalise(c.Config.Paper.Title) {
 		return pass("")
 	}
 	return fail(fmt.Sprintf("the title is '%s' but Crossref says '%s'",
@@ -275,7 +275,7 @@ func crossrefAuthorNameMatch(c Context) Result {
 		}
 		found := false
 		for _, name := range names {
-			if strings.Contains(name, normalise(author.Family)) {
+			if strings.Contains(name, Normalise(author.Family)) {
 				found = true
 				break
 			}
@@ -301,7 +301,7 @@ func crossrefAuthorORCIDMatch(c Context) Result {
 	inFile := map[string]bool{}
 	for _, author := range c.Config.Paper.Authors {
 		if author.ORCID != "" {
-			inFile[orcidDigits(author.ORCID)] = true
+			inFile[ORCIDDigits(author.ORCID)] = true
 		}
 	}
 
@@ -312,7 +312,7 @@ func crossrefAuthorORCIDMatch(c Context) Result {
 			continue
 		}
 		compared++
-		if !inFile[orcidDigits(author.ORCID)] {
+		if !inFile[ORCIDDigits(author.ORCID)] {
 			missing = append(missing, strings.TrimSpace(author.Given+" "+author.Family)+
 				" ("+author.ORCID+")")
 		}
@@ -364,12 +364,14 @@ func doiIn(reference string) string {
 	return strings.TrimRight(match, ".,;)")
 }
 
-func orcidDigits(orcid string) string { return orcidInText.FindString(orcid) }
+// ORCIDDigits pulls the ORCID out of however it was written: bare, as a URL,
+// with or without a scheme. The check digit is uppercase, as ORCID writes it.
+func ORCIDDigits(orcid string) string { return strings.ToUpper(orcidInText.FindString(orcid)) }
 
-// normalise makes two names or titles comparable: case, punctuation and
+// Normalise makes two names or titles comparable: case, punctuation and
 // repeated spaces differ between a codecheck.yml and a metadata record without
 // meaning anything.
-func normalise(text string) string {
+func Normalise(text string) string {
 	text = strings.ToLower(strings.TrimSpace(text))
 	text = notLetters.ReplaceAllString(text, " ")
 	return strings.TrimSpace(spaces.ReplaceAllString(text, " "))
@@ -378,7 +380,7 @@ func normalise(text string) string {
 func normaliseAll(people []Person) []string {
 	names := make([]string, 0, len(people))
 	for _, person := range people {
-		names = append(names, normalise(person.Name))
+		names = append(names, Normalise(person.Name))
 	}
 	return names
 }

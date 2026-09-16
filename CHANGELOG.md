@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot announce <certificate>` previews a toot about a published
+  certificate - its text, the certificate pages as an animated GIF, who is
+  mentioned and who has no fediverse account on record - and
+  `announce <certificate> confirm` posts it to Mastodon, once. Editors only; in
+  development the toot is a direct message with every mention defused
+  (codecheckers/chekhov#23).
+- `chekhov comment --as <handle> --online` previews a command as someone else,
+  with the services it needs.
 - The rules about the bundle work for a repository, not only for a directory on
   disk: `codecheck/`, the certificate report and the licence are read over the
   same service the configuration came from, and the manifest is checked for
@@ -113,6 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A deployment answers every command from what is published now: responses
+  were cached for the life of the process, so `check` could report on a
+  `register.csv` or a repository as it was hours earlier.
 - The GitLab shortcut reads `cdchck/`, the group `register.csv` actually names;
   `chchck/` was a typo that could never match a CODECHECK project
   (codecheckers/chekhov#19).

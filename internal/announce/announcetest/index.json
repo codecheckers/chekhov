@@ -1,0 +1,41 @@
+{
+  "certificate": {
+    "id": "1970-001",
+    "title": "CODECHECK Certificate 1970-001",
+    "url": "https://codecheck.org.uk/testing-dev-register/1970-001/"
+  },
+  "paper": {
+    "title": "FAKE Reproducible machine learning classification for testing the announce command",
+    "authors": [
+      {
+        "name": "Josiah Carberry",
+        "orcid": "0000-0002-1825-0097"
+      },
+      {
+        "name": "Fake Author Without ORCID"
+      },
+      {
+        "name": "Fake Author Without Handle",
+        "orcid": "0000-0000-0000-0001"
+      }
+    ],
+    "reference": "https://doi.org/10.5555/FAKE-1970-001"
+  },
+  "codecheck": {
+    "codecheckers": [
+      {
+        "name": "Fake Codechecker",
+        "orcid": "0000-0000-0000-0002"
+      },
+      {
+        "name": "Fake Institutional Codechecker"
+      }
+    ],
+    "check_time": "1970-01-01T12:00:00",
+    "repository": "github::testuser/FAKE-ml-classification-demo",
+    "report": "https://doi.org/10.5281/zenodo.FAKE1970001",
+    "type": "journal",
+    "venue": "FAKE PeerJ Computer Science",
+    "summary": "FAKE certificate for testing chekhov's announce command (codecheckers/chekhov#23).\n"
+  }
+}

@@ -171,3 +171,98 @@ func firstWord(text string) string {
 	}
 	return fields[0]
 }
+
+// An Announcement is what the preview of "@chekhovbot announce" shows.
+type Announcement struct {
+	Certificate string
+	Text        string
+	Visibility  string
+	// Defused says the mentions in Text are written without their @.
+	Defused   bool
+	Mentioned []string
+	Unmatched []string
+	// Frames and Bytes describe the attachment; Frames is 0 when there is none.
+	Frames int
+	Bytes  int
+	// AttachmentProblem says why there is no attachment.
+	AttachmentProblem string
+	// AnnouncedAt is the toot that already announced the certificate.
+	AnnouncedAt string
+	// Enabled says whether this deployment can post at all.
+	Enabled bool
+}
+
+// AnnouncePreview is the answer to "@chekhovbot announce <certificate>":
+// everything the toot will be, and the exact line that posts it.
+func AnnouncePreview(a Announcement) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "**Preview of the announcement of certificate %s**\n\n", a.Certificate)
+	fmt.Fprintf(&out, "```text\n%s\n```\n\n", a.Text)
+
+	switch {
+	case a.AnnouncedAt != "":
+		// Not built: there is nothing to post.
+	case a.Frames > 0:
+		fmt.Fprintf(&out, "- attachment: the certificate as an animated GIF, %d page%s, %s\n",
+			a.Frames, plural(a.Frames), humanBytes(a.Bytes))
+	default:
+		fmt.Fprintf(&out, "- attachment: none, %s\n", a.AttachmentProblem)
+	}
+	fmt.Fprintf(&out, "- visibility: `%s`", a.Visibility)
+	if a.Defused {
+		out.WriteString(", so the mentions are written without `@` and nobody is notified")
+	}
+	out.WriteString("\n")
+	if len(a.Mentioned) > 0 {
+		fmt.Fprintf(&out, "- mentions: %s\n", codeList(a.Mentioned))
+	} else {
+		out.WriteString("- mentions: nobody\n")
+	}
+	if len(a.Unmatched) > 0 {
+		fmt.Fprintf(&out, "- no fediverse account on record for: %s\n", strings.Join(a.Unmatched, ", "))
+	}
+
+	switch {
+	case !a.Enabled:
+		out.WriteString("\nAnnouncing is switched off for this deployment, so I did not check whether it was announced already, " +
+			"and `confirm` will not post.\n")
+	case a.AnnouncedAt != "":
+		fmt.Fprintf(&out, "\n⚠ Already announced: %s\n", a.AnnouncedAt)
+	case a.Frames == 0:
+		out.WriteString("\nIt cannot be posted without its attachment.\n")
+	default:
+		fmt.Fprintf(&out, "\nTo post it, write:\n\n    %s announce %s confirm\n", Bot, a.Certificate)
+	}
+	return out.String()
+}
+
+// AnnouncePosted is the answer to a confirm that posted.
+func AnnouncePosted(certificate, url string) string {
+	return fmt.Sprintf("Announced certificate %s: %s\n", certificate, url)
+}
+
+func codeList(items []string) string {
+	quoted := make([]string, len(items))
+	for i, item := range items {
+		quoted[i] = "`" + item + "`"
+	}
+	return strings.Join(quoted, ", ")
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+func humanBytes(n int) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%d kB", n/(1<<10))
+	default:
+		return fmt.Sprintf("%d bytes", n)
+	}
+}

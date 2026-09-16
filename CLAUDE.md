@@ -109,7 +109,8 @@ The first two are offline and run on every push; the third runs weekly and on
 request, because a third-party API having a bad day must never turn a pull
 request red.
 
-**Stubs** serve every service from one `httptest` server, and their transport
+**Stubs** serve every service from one `httptest` server
+(`internal/testserver`, shared by every package's tests), and their transport
 refuses any request that is not addressed to it, so an offline test cannot
 quietly reach the internet. Add a case to `stubCases` naming the rule, the
 route it changes and the outcome it expects. The cases worth writing are the
@@ -240,7 +241,7 @@ behind that check.
 
 `docs/deployment.md` has the platform, the webhook settings and what to do when
 it falls over; `docs/github-token.md` has the bot's credential and its
-rotation.
+rotation, `docs/mastodon-token.md` the announcing account's.
 
 ## Commands live in the registry
 
@@ -317,6 +318,7 @@ exists; read the issues for what does not.
 | #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
+| #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
 The `codecheck` R package is the sibling implementation; its own remaining work
@@ -349,6 +351,9 @@ Procfile            what the deployment runs: `web: chekhov serve`
 config/             the settings file, and the code that reads it
 internal/bot/       the listener: webhook, signature, dispatch, /healthz
 internal/github/    the reply path: the one place that writes to GitHub
+internal/mastodon/  the one place that writes to Mastodon
+internal/announce/  the toot about a certificate: data, mentions, length, the GIF
+internal/testserver/ the offline stub server and its local-only client, for tests
 internal/rules/     the rule catalogue, embedded from the register
 internal/check/     one check function per rule, the runner and the formatting
   config.go         the checks that need only the file and its bundle

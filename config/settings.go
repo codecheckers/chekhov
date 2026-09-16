@@ -30,8 +30,14 @@ type Settings struct {
 			BotGitHubUser    string `yaml:"bot_github_user"`
 			TargetRepository string `yaml:"target_repository"`
 			RegisterFile     string `yaml:"register_file"`
+			// Certificates is the URL of a published certificate, with {id}
+			// for its identifier.
+			Certificates string `yaml:"certificates"`
+			// CodecheckerLists are the URLs of the codechecker lists.
+			CodecheckerLists []string `yaml:"codechecker_lists"`
 		} `yaml:"env"`
-		Teams struct {
+		Mastodon Mastodon `yaml:"mastodon"`
+		Teams    struct {
 			// Editors may run the editor-only commands. Handles rather than a
 			// team identifier: reading team membership needs an
 			// organisation-wide permission on the bot's token, and the token
@@ -40,6 +46,27 @@ type Settings struct {
 			Editors []string `yaml:"editors"`
 		} `yaml:"teams"`
 	} `yaml:"chekhov"`
+}
+
+// Mastodon is where the announcements go and what they are composed from.
+type Mastodon struct {
+	// Instance is the server, https://fediscience.org.
+	Instance string `yaml:"instance"`
+	// Account is the account the bot posts as, without @ or instance. The
+	// token has to belong to it, which the client checks.
+	Account string `yaml:"account"`
+	// Visibility is the only one the bot posts with: public, unlisted,
+	// private or direct.
+	Visibility string `yaml:"visibility"`
+}
+
+// CertificateURL is the published page of one certificate, ending in a slash.
+func (s *Settings) CertificateURL(id string) string {
+	page := strings.ReplaceAll(s.Chekhov.Env.Certificates, "{id}", id)
+	if !strings.HasSuffix(page, "/") {
+		page += "/"
+	}
+	return page
 }
 
 // Environment names which settings file to read, from CHEKHOV_ENV.
@@ -70,6 +97,12 @@ func Load(environment string) (*Settings, error) {
 	if settings.Chekhov.Env.TargetRepository == "" {
 		return nil, fmt.Errorf("%s names no target repository", name)
 	}
+	switch settings.Chekhov.Mastodon.Visibility {
+	case "public", "unlisted", "private", "direct":
+	default:
+		return nil, fmt.Errorf("%s: mastodon visibility %q is none of public, unlisted, private, direct",
+			name, settings.Chekhov.Mastodon.Visibility)
+	}
 	return &settings, nil
 }
 
@@ -82,6 +115,12 @@ func (s *Settings) TargetRepository() string { return s.Chekhov.Env.TargetReposi
 // BotUser is the account the bot posts as. A comment by this account is never
 // acted on, so that a reply cannot trigger a reply.
 func (s *Settings) BotUser() string { return s.Chekhov.Env.BotGitHubUser }
+
+// CodecheckerLists are the URLs of the codechecker lists.
+func (s *Settings) CodecheckerLists() []string { return s.Chekhov.Env.CodecheckerLists }
+
+// Mastodon is where announcements are posted.
+func (s *Settings) Mastodon() Mastodon { return s.Chekhov.Mastodon }
 
 // Editors are the handles allowed to run the editor-only commands.
 func (s *Settings) Editors() []string { return s.Chekhov.Teams.Editors }

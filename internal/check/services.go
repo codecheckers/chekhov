@@ -3,6 +3,7 @@ package check
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -124,6 +125,29 @@ func (s *Services) reset() {
 	s.loadErr = nil
 }
 
+// RegisterFile is the URL of a file in the register the bot works on.
+func (s *Services) RegisterFile(name string) string {
+	return s.RawContent + "/" + s.Register + "/HEAD/" + name
+}
+
+// Fresh is a copy that has seen nothing yet: the same client, register and
+// base URLs, an empty cache. The cache is meant for one run; a deployment
+// that keeps one Services for its whole life gives each command a fresh copy.
+// A nil or disabled Services stays as it is.
+func (s *Services) Fresh() *Services {
+	if !s.Enabled() {
+		return s
+	}
+	return &Services{
+		HTTP: s.HTTP, GitHubToken: s.GitHubToken, Register: s.Register,
+		Zenodo: s.Zenodo, ZenodoSandbox: s.ZenodoSandbox, ORCID: s.ORCID, Crossref: s.Crossref,
+		GitHub: s.GitHub, RawContent: s.RawContent, GitLab: s.GitLab, OSF: s.OSF,
+	}
+}
+
+// IsCertificateID reports whether a word is a certificate identifier, YYYY-NNN.
+func IsCertificateID(word string) bool { return certificateID.MatchString(word) }
+
 // Enabled reports whether checks may reach out.
 func (s *Services) Enabled() bool { return s != nil && s.HTTP != nil }
 
@@ -190,17 +214,33 @@ func (s *Services) exists(url string) (int, error) {
 	return status, err
 }
 
-// fetchFile reads one file, and says which URL failed rather than only that
+// FetchFile reads one file, and says which URL failed rather than only that
 // something did.
-func (s *Services) fetchFile(url string) ([]byte, error) {
+func (s *Services) FetchFile(url string) ([]byte, error) {
 	status, body, err := s.get(url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not read %s: %w", url, err)
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("%s answered %d", url, status)
+		return nil, &StatusError{URL: url, Status: status}
 	}
 	return body, nil
+}
+
+// StatusError is a file that answered something other than 200, so that a
+// caller can tell "not there" from "not now".
+type StatusError struct {
+	URL    string
+	Status int
+}
+
+func (e *StatusError) Error() string { return fmt.Sprintf("%s answered %d", e.URL, e.Status) }
+
+// IsNotFound reports whether an error from FetchFile says the file does not
+// exist, as opposed to a server or a network that failed.
+func IsNotFound(err error) bool {
+	var status *StatusError
+	return errors.As(err, &status) && (status.Status == http.StatusNotFound || status.Status == http.StatusGone)
 }
 
 func (s *Services) request(method, url string, header map[string]string) (int, []byte, error) {
@@ -308,9 +348,7 @@ type registerData struct {
 func (s *Services) registerCSV() (*registerData, error) {
 	s.once.Do(func() {
 		data := &registerData{venues: map[string]bool{}}
-		base := s.RawContent + "/" + s.Register + "/HEAD/"
-
-		rows, err := s.csv(base + "register.csv")
+		rows, err := s.CSV(s.RegisterFile("register.csv"))
 		if err != nil {
 			s.loadErr = err
 			return
@@ -327,7 +365,7 @@ func (s *Services) registerCSV() (*registerData, error) {
 
 		// venues.csv is optional: the testing register may not carry one, and
 		// a missing file must make the venue rule skip rather than fail.
-		if venues, err := s.csv(base + "venues.csv"); err == nil {
+		if venues, err := s.CSV(s.RegisterFile("venues.csv")); err == nil {
 			for _, row := range venues {
 				for _, key := range []string{"Venue", "name", "Name"} {
 					if value := strings.TrimSpace(row[key]); value != "" {
@@ -342,7 +380,9 @@ func (s *Services) registerCSV() (*registerData, error) {
 	return s.register, s.loadErr
 }
 
-func (s *Services) csv(url string) ([]map[string]string, error) {
+// CSV reads a CSV file into one map per row, keyed by the header. Lines
+// starting with # are comments, as in register.csv.
+func (s *Services) CSV(url string) ([]map[string]string, error) {
 	status, body, err := s.get(url, map[string]string{"Accept": "text/plain"})
 	if err != nil {
 		return nil, err

@@ -25,6 +25,7 @@ const (
 const (
 	GroupBasics     = "Basics"
 	GroupValidation = "Validation"
+	GroupRegister   = "Register"
 )
 
 // A Definition is one command the bot knows: what it is called, what it does,
@@ -79,6 +80,13 @@ var registry = []Definition{
 		Usage:   "check [config|metadata|bundle|references|report|register] <repository, or certificate>",
 		Group:   GroupValidation,
 		Role:    RoleAnyone,
+	},
+	{
+		Name:    Announce,
+		Summary: "Toot about a published certificate: a preview first, then `confirm` to post",
+		Usage:   "announce <certificate> [confirm]",
+		Group:   GroupRegister,
+		Role:    RoleEditor,
 	},
 }
 
@@ -189,7 +197,7 @@ func editDistance(a, b string) int {
 // declared order first, anything new after it, alphabetically, so a group
 // added without a thought here is still listed.
 func groups() []string {
-	known := []string{GroupBasics, GroupValidation}
+	known := []string{GroupBasics, GroupValidation, GroupRegister}
 	var extra []string
 	for _, definition := range registry {
 		if !contains(known, definition.Group) && !contains(extra, definition.Group) {

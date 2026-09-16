@@ -63,3 +63,44 @@ func TestEditorsAreMatchedCaseInsensitively(t *testing.T) {
 		t.Error("an unlisted handle is not an editor")
 	}
 }
+
+// A development toot is a direct message, so that it cannot reach the public
+// or - with its mentions defused - notify anyone.
+func TestDevelopmentAnnouncesDirectOnly(t *testing.T) {
+	t.Setenv("CHEKHOV_TARGET_REPO", "")
+
+	settings := mustLoad(t)
+	if visibility := settings.Mastodon().Visibility; visibility != "direct" {
+		t.Errorf("visibility = %q, want direct", visibility)
+	}
+	for _, source := range append([]string{settings.Chekhov.Env.Certificates}, settings.CodecheckerLists()...) {
+		if !strings.Contains(source, "testing-dev-register") {
+			t.Errorf("development reads %s, which is not the testing register", source)
+		}
+	}
+	if len(settings.CodecheckerLists()) == 0 {
+		t.Error("no codechecker lists")
+	}
+	if got := settings.CertificateURL("1970-001"); got != "https://codecheck.org.uk/testing-dev-register/1970-001/" {
+		t.Errorf("certificate URL = %q", got)
+	}
+}
+
+func mustLoad(t *testing.T) *Settings {
+	t.Helper()
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return settings
+}
+
+func TestTheMastodonAccountComesFromTheEnvironment(t *testing.T) {
+	t.Setenv("CHEKHOV_MASTODON_ACCOUNT", "codecheck_test")
+	t.Setenv("CHEKHOV_MASTODON_INSTANCE", "https://example.social")
+
+	mastodon := mustLoad(t).Mastodon()
+	if mastodon.Account != "codecheck_test" || mastodon.Instance != "https://example.social" {
+		t.Errorf("account %q on %q, want the ones from the environment", mastodon.Account, mastodon.Instance)
+	}
+}
