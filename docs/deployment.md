@@ -31,25 +31,68 @@ runway local key setup                                # the deploy key for this 
 From a checkout of this repository:
 
 ```sh
-runway app create                                     # name it chekhov
-runway app config set BP_GO_TARGETS=./cmd/chekhov
-runway app config set BP_GO_BUILD_LDFLAGS="-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)"
-runway app config set CHEKHOV_ENV=development
-runway app config set CHEKHOV_TARGET_REPO=codecheckers/testing-dev-register
-runway app config set CHEKHOV_GH_ACCESS_TOKEN=...     # see github-token.md
-runway app config set CHEKHOV_GH_SECRET_TOKEN=...     # openssl rand -hex 32
-runway app deploy
-runway app open
+runway app create chekhov -y
+runway app config set -a chekhov BP_GO_TARGETS=./cmd/chekhovd:./cmd/chekhov
+runway app config set -a chekhov CHEKHOV_ENV=development
+runway app config set -a chekhov CHEKHOV_TARGET_REPO=codecheckers/testing-dev-register
+runway app config set -a chekhov CHEKHOV_BOT_GH_USER=chekhovbot
+runway app config set -a chekhov CHEKHOV_GH_ACCESS_TOKEN=...   # see github-token.md
+runway app config set -a chekhov CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -hex 32
+runway app deploy source -y
 ```
 
-There is no Dockerfile: the Go buildpack detects the module and builds the
-target `BP_GO_TARGETS` names. The `-ldflags` are what make `@chekhovbot version`
-and `/healthz` honest about which commit is answering; if the buildpack ever
-refuses them, the fallback is a two-stage Dockerfile, which the platform also
-accepts.
+There is no Dockerfile: the Go buildpack detects the module and builds what
+`BP_GO_TARGETS` names.
+
+**The first target is `./cmd/chekhovd`, not `./cmd/chekhov`.** The buildpack
+runs the binary it built with no arguments - "the first target will be used as
+the main command for your app", and the platform's own Go example is a `main`
+that reads `$PORT` and serves. `chekhov` with no arguments is a command line
+tool that prints its usage and exits, which the platform reads as a crash loop.
+`cmd/chekhovd` is the same server with no surrounding tool; both call
+`bot.Serve`.
+
+The tool is built as a second target so that it is in the container too:
+
+```sh
+runway app exec -a chekhov -- chekhov version
+runway app exec -a chekhov -- chekhov check github::codecheckers/Piccolo-2020
+```
 
 The binary listens on `$PORT`, which the platform sets. `chekhov serve --addr`
 overrides it for local runs.
+
+### The build stamp
+
+`@chekhovbot version` and `/healthz` report the commit they were built from,
+which is injected rather than read from a file. The value is fixed when it is
+set, so set it immediately before each deploy:
+
+```sh
+runway app config set -a chekhov \
+  BP_GO_BUILD_LDFLAGS="-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)"
+runway app deploy source -y
+```
+
+### SSH keys, and the snap
+
+`runway app deploy source` is a `git push` to the remote the CLI adds, so the
+platform builds a **commit**: anything uncommitted is not deployed.
+
+The CLI is a snap and cannot read hidden directories, which makes two things
+fail confusingly. `runway local key setup` and `runway key add ~/.ssh/...` say
+"couldn't discover a key to use" - pass it a copy of the public key from a
+non-hidden path. And the ssh-agent socket under `/run/user/.../keyring/ssh` is
+unreachable, so authentication fails before the push; the way round is a
+passphrase-less key the CLI is pointed at directly (runway supports no other
+kind):
+
+```sh
+ssh-keygen -t ed25519 -N '' -C 'chekhov deploy key' -f ~/runway-keys/chekhov_deploy
+cp ~/runway-keys/chekhov_deploy.pub ./deploy-key.pub
+runway key add ./deploy-key.pub chekhov-deploy -y && rm deploy-key.pub
+runway local key set ~/runway-keys/chekhov_deploy
+```
 
 ## The webhook
 
@@ -90,7 +133,8 @@ Then, on an issue of the testing register:
 ## Watching it
 
 ```sh
-runway app logs          # keeps tailing through a deploy
+runway app logs -a chekhov                    # keeps tailing through a deploy
+runway app logs -a chekhov --no-build --limit 50   # runtime only
 ```
 
 Every answered command logs the command, the issue, the author, the identifier
@@ -101,8 +145,9 @@ the command, the issue and what GitHub said.
 ## Redeploying
 
 ```sh
-git push                 # the repository is the source; deploy from a checkout
-runway app deploy
+git commit ...           # the platform builds a commit, not a working tree
+runway app config set -a chekhov BP_GO_BUILD_LDFLAGS="-X main.version=$(git describe --tags --always) -X main.commit=$(git rev-parse HEAD)"
+runway app deploy source -y
 ```
 
 A redeploy replaces the process. Commands in flight are given twenty seconds to
