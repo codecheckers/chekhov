@@ -163,11 +163,10 @@ are fine when deliberate, and worth a comment when they are.
 ## The bot
 
 `bot.Serve` is the whole deployment: `POST /dispatch` for GitHub's deliveries,
-`GET /healthz` for everything else. No state, no database. It is started two
-ways - `chekhov serve` on a terminal, and `cmd/chekhovd` in the container,
-because a buildpack runs the binary it built with **no arguments** and the
-command line tool answers that with its usage. The deployment builds
-`./cmd/chekhovd`; do not point `BP_GO_TARGETS` at the tool.
+`GET /healthz` for everything else. No state, no database. The container runs
+it through the `Procfile` (`web: chekhov serve`), because a buildpack otherwise
+runs the built binary with **no arguments**, and the tool answers that with its
+usage - which the platform reads as a crash loop.
 
 - **Verify, then read.** The signature is checked against
   `CHEKHOV_GH_SECRET_TOKEN` before the body is parsed, in
@@ -270,7 +269,7 @@ These came out of a review and are easy to undo by accident:
 
 ```
 cmd/chekhov/        command line entry point, and `serve`
-cmd/chekhovd/       the bot as a deployment: no arguments, just listens
+Procfile            what the deployment runs: `web: chekhov serve`
 config/             the settings file, and the code that reads it
 internal/bot/       the listener: webhook, signature, dispatch, /healthz
 internal/github/    the reply path: the one place that writes to GitHub

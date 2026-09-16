@@ -32,7 +32,7 @@ From a checkout of this repository:
 
 ```sh
 runway app create chekhov -y
-runway app config set -a chekhov BP_GO_TARGETS=./cmd/chekhovd:./cmd/chekhov
+runway app config set -a chekhov BP_GO_TARGETS=./cmd/chekhov
 runway app config set -a chekhov CHEKHOV_ENV=development
 runway app config set -a chekhov CHEKHOV_TARGET_REPO=codecheckers/testing-dev-register
 runway app config set -a chekhov CHEKHOV_BOT_GH_USER=chekhovbot
@@ -44,15 +44,20 @@ runway app deploy source -y
 There is no Dockerfile: the Go buildpack detects the module and builds what
 `BP_GO_TARGETS` names.
 
-**The first target is `./cmd/chekhovd`, not `./cmd/chekhov`.** The buildpack
-runs the binary it built with no arguments - "the first target will be used as
-the main command for your app", and the platform's own Go example is a `main`
-that reads `$PORT` and serves. `chekhov` with no arguments is a command line
-tool that prints its usage and exits, which the platform reads as a crash loop.
-`cmd/chekhovd` is the same server with no surrounding tool; both call
-`bot.Serve`.
+**The `Procfile` is what starts the bot.** Without one, runway runs the built
+binary as a single `web` process *with no command line arguments*, and
+`chekhov` with no arguments is a tool that prints its usage and exits - which
+the platform reads as a crash loop. The file says:
 
-The tool is built as a second target so that it is in the container too:
+```
+web: chekhov serve
+```
+
+`web`, `init` and `worker` are the process types runway knows; as soon as a
+Procfile exists it is the complete list, nothing is added implicitly.
+
+The tool is in the container either way, so a live deployment can be asked
+questions directly:
 
 ```sh
 runway app exec -a chekhov -- chekhov version

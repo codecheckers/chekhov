@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   environment, the register commit the rules came from and when the token
   expires, so a development deployment cannot be mistaken for the real one.
 - Deployment on runway.horse against the testing register: the Go buildpack
-  builds `cmd/chekhovd`, the bot with no command line around it, and `docs/deployment.md` says
+  builds `cmd/chekhov` and the `Procfile` starts `chekhov serve`, and `docs/deployment.md` says
   how to create the app, configure the webhook, read the logs and recover
   (codecheckers/chekhov#16).
 - `docs/github-token.md` documents the bot's fine-grained GitHub token: what it
