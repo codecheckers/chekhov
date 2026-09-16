@@ -19,11 +19,10 @@ import (
 
 // Serve runs the bot until the process is asked to stop.
 //
-// It lives here rather than in a command so that the deployed daemon
-// (cmd/chekhovd) and "chekhov serve" are the same bot, started two ways: the
-// platform runs a container whose process takes no arguments, and a person on
-// a terminal wants a subcommand.
-func Serve(address string, deployment command.Deployment) error {
+// It lives here rather than in the command so that the server is not tangled
+// with the tool around it: the deployment runs "chekhov serve" through the
+// Procfile, and a person on a terminal runs the same thing.
+func Serve(address, version, commit string) error {
 	settings, err := config.Current()
 	if err != nil {
 		return err
@@ -34,9 +33,7 @@ func Serve(address string, deployment command.Deployment) error {
 		return fmt.Errorf("the bot needs CHEKHOV_GH_ACCESS_TOKEN and CHEKHOV_GH_SECRET_TOKEN, see docs/github-token.md")
 	}
 
-	deployment.Register = settings.TargetRepository()
-	deployment.Bot = settings.BotUser()
-	deployment.Environment = config.Environment()
+	deployment := deploymentFor(settings, version, commit)
 	// Only a development deployment signs its comments with what it is; see
 	// command.Deployment.
 	replies := github.New(token, settings.TargetRepository(), deployment.Signature())
@@ -49,7 +46,7 @@ func Serve(address string, deployment command.Deployment) error {
 
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,
 		"commit", deployment.Commit, "register", deployment.Register,
-		"environment", config.Environment())
+		"environment", deployment.Environment)
 
 	return listen(address, server.Handler())
 }
@@ -77,6 +74,19 @@ func listen(address string, handler http.Handler) error {
 		return err
 	}
 	return nil
+}
+
+// deploymentFor is the one place a Deployment is assembled, so that no caller
+// can leave out the environment - which decides how much a reply discloses -
+// and have the omission read as "development".
+func deploymentFor(settings *config.Settings, version, commit string) command.Deployment {
+	return command.Deployment{
+		Version:     version,
+		Commit:      commit,
+		Register:    settings.TargetRepository(),
+		Bot:         settings.BotUser(),
+		Environment: config.Environment(),
+	}
 }
 
 // Address is where to listen: the port the platform asks for, or 8080.

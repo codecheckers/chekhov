@@ -130,9 +130,11 @@ func (c *Client) post(ctx context.Context, url string, payload []byte) (int64, e
 	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return 0, &statusError{
-			Status:     response.StatusCode,
-			Body:       strings.TrimSpace(string(raw)),
-			RetryAfter: retryAfter(response),
+			Status:      response.StatusCode,
+			Body:        strings.TrimSpace(string(raw)),
+			RetryAfter:  retryAfter(response),
+			RateLimited: rateLimitExhausted(response),
+			Reset:       rateLimitReset(response),
 		}
 	}
 
@@ -213,6 +215,11 @@ type statusError struct {
 	Status     int
 	Body       string
 	RetryAfter time.Duration
+	// RateLimited and Reset come from the x-ratelimit headers: GitHub answers
+	// 403 both for "you have run out of requests" and for "this token may not
+	// do that", and the headers are how it says which.
+	RateLimited bool
+	Reset       time.Time
 }
 
 func (e *statusError) Error() string {
@@ -250,22 +257,54 @@ func retryable(err error) bool {
 // permission. Observed in the live deployment: a token lacking Issues: write
 // answers 403 "Resource not accessible by personal access token", which was
 // retried once for nothing.
+//
+// The headers decide it. GitHub owns the wording of its messages and has
+// changed it before, so the body is only consulted when the headers say
+// nothing.
 func (e *statusError) rateLimited() bool {
-	if e.RetryAfter > 0 {
+	if e.RetryAfter > 0 || e.RateLimited {
 		return true
 	}
 	body := strings.ToLower(e.Body)
-	return strings.Contains(body, "secondary rate limit") || strings.Contains(body, "abuse")
+	return strings.Contains(body, "rate limit") || strings.Contains(body, "abuse")
 }
 
 // backoff is how long to wait before the retry, honouring Retry-After when
 // GitHub sends one.
 func (c *Client) backoff(err error) time.Duration {
 	var status *statusError
-	if errors.As(err, &status) && status.RetryAfter > 0 {
+	if !errors.As(err, &status) {
+		return c.RetryWait
+	}
+	if status.RetryAfter > 0 {
 		return status.RetryAfter
 	}
+	// The primary rate limit says when it refills instead of how long to wait.
+	// Waiting for it is only sensible when it is close; an hour from now, the
+	// caller is better told that the answer did not go out.
+	if until := time.Until(status.Reset); until > 0 && until <= maxRateLimitWait {
+		return until
+	}
 	return c.RetryWait
+}
+
+// maxRateLimitWait is how long a retry may wait for the rate limit to refill.
+const maxRateLimitWait = 2 * time.Minute
+
+// rateLimitExhausted reports whether GitHub said the budget is used up.
+func rateLimitExhausted(response *http.Response) bool {
+	remaining := strings.TrimSpace(response.Header.Get("x-ratelimit-remaining"))
+	return remaining == "0"
+}
+
+// rateLimitReset is when the budget refills, zero when GitHub did not say.
+func rateLimitReset(response *http.Response) time.Time {
+	value := strings.TrimSpace(response.Header.Get("x-ratelimit-reset"))
+	seconds, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || seconds <= 0 {
+		return time.Time{}
+	}
+	return time.Unix(seconds, 0)
 }
 
 func retryAfter(response *http.Response) time.Duration {

@@ -3,6 +3,8 @@ package command
 import (
 	"fmt"
 	"strings"
+
+	"github.com/codecheckers/chekhov/internal/build"
 )
 
 // Deployment is what a reply says about the bot answering it.
@@ -25,8 +27,28 @@ type Deployment struct {
 }
 
 // Development reports whether this deployment may talk about itself.
+//
+// Only "development" does. Anything else - production, a future staging
+// environment, or a Deployment somebody forgot to fill in - says less than it
+// could rather than more than it should.
 func (d Deployment) Development() bool {
-	return d.Environment == "" || d.Environment == "development"
+	return d.Environment == "development"
+}
+
+// Facts are what this deployment may say about itself, for the health
+// endpoint. The rule about who may know what lives here, with the replies,
+// rather than being decided again at every place that reports something.
+func (d Deployment) Facts() map[string]any {
+	facts := map[string]any{
+		"version":     d.Version,
+		"bot":         d.Bot,
+		"register":    d.Register,
+		"environment": d.Environment,
+	}
+	if d.Development() {
+		facts["commit"] = d.Commit
+	}
+	return facts
 }
 
 // Signature goes under every comment in development: which bot, which build,
@@ -73,13 +95,12 @@ func Listing(role Role) string {
 // either way - that is the point of the command - and the build only where
 // someone is watching the build.
 func (d Deployment) HelloReply() string {
-	if !d.Development() {
-		return fmt.Sprintf("Hello! I am awake and working on `%s`.\n\n"+
-			"Type `%s commands` to see what I can do.\n", d.Register, Bot)
+	running := ""
+	if d.Development() {
+		running = ", running " + d.describeVersion()
 	}
-	return fmt.Sprintf("Hello! I am awake, running %s and working on `%s`.\n\n"+
-		"Type `%s commands` to see what I can do.\n",
-		d.describeVersion(), d.Register, Bot)
+	return fmt.Sprintf("Hello! I am awake%s and working on `%s`.\n\n"+
+		"Type `%s commands` to see what I can do.\n", running, d.Register, Bot)
 }
 
 // UnknownReply answers a comment addressed to the bot that it cannot read,
@@ -100,19 +121,13 @@ func UnknownReply(parsed Command) string {
 	return out.String()
 }
 
-// describeVersion names the build, with the commit when there is one.
+// describeVersion names the build, with the commit when there is one. Only
+// called where the deployment may say so.
 func (d Deployment) describeVersion() string {
-	if d.Commit == "" || !d.Development() {
+	if d.Commit == "" {
 		return "version " + d.Version
 	}
-	return fmt.Sprintf("version %s (`%s`)", d.Version, short(d.Commit))
-}
-
-func short(commit string) string {
-	if len(commit) > 8 {
-		return commit[:8]
-	}
-	return commit
+	return fmt.Sprintf("version %s (`%s`)", d.Version, build.Shorten(d.Commit))
 }
 
 // escapePipes keeps a usage line like "check [config|bundle]" from breaking

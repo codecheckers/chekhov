@@ -131,7 +131,8 @@ func TestUnknownReplyQuotesAndPointsAtTheListing(t *testing.T) {
 }
 
 func TestHelloReplyNamesTheDeployment(t *testing.T) {
-	deployment := Deployment{Version: "0.1.0", Commit: "0123456789abcdef", Register: "codecheckers/testing-dev-register"}
+	deployment := Deployment{Version: "0.1.0", Commit: "0123456789abcdef",
+		Register: "codecheckers/testing-dev-register", Environment: "development"}
 	reply := deployment.HelloReply()
 	for _, want := range []string{"0.1.0", "01234567", "codecheckers/testing-dev-register"} {
 		if !strings.Contains(reply, want) {
@@ -158,6 +159,14 @@ func TestProductionRepliesCarryNoFooter(t *testing.T) {
 	}
 	if !strings.Contains(hello, "codecheckers/register") {
 		t.Error("the greeting must still say which register it works on")
+	}
+
+	// An environment nobody taught it about is treated as production: a
+	// deployment says less than it could rather than more than it should.
+	unknown := production
+	unknown.Environment = "staging"
+	if unknown.Signature() != "" {
+		t.Error("an unknown environment discloses the build")
 	}
 
 	development := production

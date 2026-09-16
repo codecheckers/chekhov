@@ -5,11 +5,10 @@ import (
 	"io"
 
 	"github.com/codecheckers/chekhov/internal/bot"
-	"github.com/codecheckers/chekhov/internal/command"
 )
 
-// runServe starts the webhook listener from the command line. The deployed bot
-// is cmd/chekhovd, which is the same server without the surrounding tool.
+// runServe starts the webhook listener from the command line. The deployment
+// runs the same command through the Procfile, see docs/deployment.md.
 func runServe(args []string, out io.Writer) error {
 	address := bot.Address()
 	for i := 0; i < len(args); i++ {
@@ -20,5 +19,5 @@ func runServe(args []string, out io.Writer) error {
 	}
 
 	fmt.Fprintf(out, "chekhov %s listening on %s\n", version, address)
-	return bot.Serve(address, command.Deployment{Version: version, Commit: commit})
+	return bot.Serve(address, version, commit)
 }

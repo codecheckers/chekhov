@@ -241,15 +241,9 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	// which register, which build. The rest - the commit, where the rules came
 	// from, when the token expires, whether the services are reachable - is
 	// for whoever is developing the thing, and is a gift to anyone else.
-	state := map[string]any{
-		"status":      "ok",
-		"version":     s.Deployment.Version,
-		"bot":         s.Settings.BotUser(),
-		"register":    s.Settings.TargetRepository(),
-		"environment": config.Environment(),
-	}
+	state := s.Deployment.Facts()
+	state["status"] = "ok"
 	if s.Deployment.Development() {
-		state["commit"] = s.Deployment.Commit
 		state["online"] = s.Services.Enabled()
 		if provenance, err := rules.Provenance(); err == nil {
 			state["rules_commit"] = provenance.Commit()
@@ -272,13 +266,13 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 // It exists so that `chekhov comment` and the deployed bot answer through the
 // same code: a reply that can be read on the command line is only worth
 // reading if it is the reply that would be posted.
-func Preview(settings *config.Settings, deployment command.Deployment, services *check.Services, author, body string) (string, bool) {
+func Preview(settings *config.Settings, version, commit string, services *check.Services, author, body string) (string, bool) {
 	parsed, addressed := command.Parse(body)
 	if !addressed {
 		return "", false
 	}
 
-	server := New(settings, "", nil, deployment)
+	server := New(settings, "", nil, deploymentFor(settings, version, commit))
 	server.Services = services
 	// On the command line the path in the comment is the user's own.
 	server.LocalPaths = true

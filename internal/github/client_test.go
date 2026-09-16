@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // stub is a GitHub that answers what the test tells it to, in the style of
@@ -190,5 +192,31 @@ func TestPermissionRefusalsAreNotRetried(t *testing.T) {
 				t.Errorf("%d attempts, want %d", attempts, testCase.attempts)
 			}
 		})
+	}
+}
+
+// The primary rate limit says nothing in the body: it sets x-ratelimit-remaining
+// to 0 and names the time it refills. Retrying that is worth doing; retrying a
+// permission refusal that happens to be the same status code is not.
+func TestThePrimaryRateLimitIsReadFromTheHeaders(t *testing.T) {
+	attempts := 0
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts == 1 {
+			w.Header().Set("x-ratelimit-remaining", "0")
+			w.Header().Set("x-ratelimit-reset", strconv.FormatInt(time.Now().Add(time.Second).Unix(), 10))
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"API rate limit exceeded"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id": 9}`))
+	})
+
+	id, err := client.Comment(context.Background(), client.Repository, 1, "hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != 9 || attempts != 2 {
+		t.Errorf("id = %d after %d attempts, want 9 after 2", id, attempts)
 	}
 }

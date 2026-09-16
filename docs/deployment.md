@@ -69,16 +69,25 @@ overrides it for local runs.
 
 ### The build stamp
 
-`@chekhovbot version` and `/healthz` report the commit they are running. It is
-**not** injected: runway pins the buildpack's build flags, so
-`BP_GO_BUILD_FLAGS` and `BP_GO_BUILD_LDFLAGS` set through `runway app config`
-never reach the compiler - the build log shows `go build -buildmode pie
--trimpath` whatever they say.
+`@chekhovbot version` and `/healthz` report the commit they are running, and on
+this platform it has to be handed to them:
 
-Instead the binary carries its own revision: Go stamps `vcs.revision` into
-every binary built from a checkout, and `internal/build` reads it at startup
-(`-ldflags` still wins, for a release built by hand). A binary built from a
-dirty tree says so: `978a0bc0+dirty`.
+```sh
+runway app config set -a chekhov CHEKHOV_COMMIT=$(git rev-parse HEAD)
+runway app deploy source -y
+```
+
+Two ordinary routes are closed here. `-ldflags` never reaches the compiler,
+because runway pins the buildpack's build flags - the build log says `go build
+-buildmode pie -trimpath` whatever `BP_GO_BUILD_FLAGS` or
+`BP_GO_BUILD_LDFLAGS` are set to. And Go's own `vcs.revision` stamp is absent,
+because the builder exports the source without `.git`. The configuration is
+the one channel that arrives, so set `CHEKHOV_COMMIT` in the same breath as the
+deploy; `CHEKHOV_VERSION` overrides the version string when there is a release
+worth naming.
+
+Locally none of this is needed: a binary built from a checkout carries its own
+revision, and says `978a0bc0+dirty` when the tree had uncommitted changes.
 
 ### SSH keys, and the snap
 

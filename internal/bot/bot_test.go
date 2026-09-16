@@ -66,6 +66,7 @@ func testServer(t *testing.T) (*Server, *recorder) {
 	server := New(settings, secret, replies, command.Deployment{
 		Version: "0.1.0-test", Commit: "0123456789abcdef",
 		Register: settings.TargetRepository(), Bot: settings.BotUser(),
+		Environment: "development",
 	})
 	server.Logger = slog.New(slog.DiscardHandler)
 	server.done = make(chan struct{}, 1)

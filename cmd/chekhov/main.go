@@ -15,7 +15,6 @@ import (
 	"github.com/codecheckers/chekhov/internal/bot"
 	"github.com/codecheckers/chekhov/internal/build"
 	"github.com/codecheckers/chekhov/internal/check"
-	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
@@ -181,16 +180,10 @@ func runComment(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	deployment := command.Deployment{
-		Version:  version,
-		Commit:   commit,
-		Register: settings.TargetRepository(),
-		Bot:      settings.BotUser(),
-	}
 
 	// The same answer the deployed bot would post. The author is the local
 	// user as far as roles go, which is who is asking.
-	reply, addressed := bot.Preview(settings, deployment, nil, os.Getenv("USER"), string(raw))
+	reply, addressed := bot.Preview(settings, version, commit, nil, os.Getenv("USER"), string(raw))
 	if !addressed {
 		fmt.Fprintln(out, "not addressed to the bot, no reply")
 		return nil
@@ -229,7 +222,7 @@ func runVersion(out io.Writer) error {
 	fmt.Fprintf(out, "chekhov %s\n", version)
 	if commit != "" {
 		fmt.Fprintf(out, "commit %s (https://github.com/codecheckers/chekhov/commit/%s)\n",
-			short(commit), commit)
+			build.Shorten(commit), commit)
 	}
 	if settings, err := config.Current(); err == nil {
 		fmt.Fprintf(out, "working on %s as @%s (%s)\n",
@@ -241,17 +234,10 @@ func runVersion(out io.Writer) error {
 		return err
 	}
 	fmt.Fprintf(out, "rules from register commit %s, retrieved %s\n",
-		short(provenance.Commit()), provenance.Retrieved)
+		build.Shorten(provenance.Commit()), provenance.Retrieved)
 	for _, file := range provenance.Files {
 		fmt.Fprintf(out, "  %s: %d rules for specification %s\n",
 			file.Name, file.Rules, file.SpecVersion)
 	}
 	return nil
-}
-
-func short(commit string) string {
-	if len(commit) > 8 {
-		return commit[:8]
-	}
-	return commit
 }

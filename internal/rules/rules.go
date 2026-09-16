@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -144,7 +145,12 @@ type ProvenanceRecord struct {
 }
 
 // Provenance reads the record written alongside the bundled rule files.
-func Provenance() (ProvenanceRecord, error) {
+//
+// The record is compiled in and cannot change while the process runs, so it is
+// parsed once: the health endpoint asks for it on every probe.
+var Provenance = sync.OnceValues(readProvenance)
+
+func readProvenance() (ProvenanceRecord, error) {
 	var record ProvenanceRecord
 	if err := json.Unmarshal(provenanceJSON, &record); err != nil {
 		return record, fmt.Errorf("provenance.json: %w", err)
