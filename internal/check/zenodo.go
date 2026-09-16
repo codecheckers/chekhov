@@ -11,15 +11,13 @@ import (
 // https://zenodo.org/communities/codecheck/curation-policy
 
 type zenodoRecord struct {
-	ID          int64  `json:"id"`
-	DOI         string `json:"doi"`
-	ConceptDOI  string `json:"conceptdoi"`
-	ConceptRecI int64  `json:"conceptrecid,string"`
-	Title       string `json:"title"`
-	Files       []struct {
-		Key string `json:"key"`
-	} `json:"files"`
-	Metadata struct {
+	ID          int64        `json:"id"`
+	DOI         string       `json:"doi"`
+	ConceptDOI  string       `json:"conceptdoi"`
+	ConceptRecI int64        `json:"conceptrecid,string"`
+	Title       string       `json:"title"`
+	Files       []zenodoFile `json:"files"`
+	Metadata    struct {
 		Title    string `json:"title"`
 		Creators []struct {
 			Name  string `json:"name"`
@@ -33,6 +31,32 @@ type zenodoRecord struct {
 			} `json:"version"`
 		} `json:"relations"`
 	} `json:"metadata"`
+}
+
+// zenodoFile is one file of a record. Zenodo's newer API names it `key` and
+// links it under `links.self`; the older one used `filename` and
+// `links.download`, and records deposited years ago still answer that way.
+type zenodoFile struct {
+	Key      string `json:"key"`
+	Filename string `json:"filename"`
+	Links    struct {
+		Self     string `json:"self"`
+		Download string `json:"download"`
+	} `json:"links"`
+}
+
+func (f zenodoFile) name() string {
+	if f.Key != "" {
+		return f.Key
+	}
+	return f.Filename
+}
+
+func (f zenodoFile) downloadLink() string {
+	if f.Links.Download != "" {
+		return f.Links.Download
+	}
+	return f.Links.Self
 }
 
 func (r zenodoRecord) title() string {
@@ -88,7 +112,7 @@ func zenodoFilesPresent(c Context) Result {
 	}
 	var names []string
 	for _, file := range record.Files {
-		names = append(names, file.Key)
+		names = append(names, file.name())
 	}
 	return pass(strings.Join(names, ", "))
 }

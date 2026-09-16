@@ -85,14 +85,12 @@ func repositorySpecFormat(c Context) Result {
 	if entry.Repository == "" {
 		return fail("the register entry has no Repository")
 	}
-
-	for _, known := range knownRepositoryTypes {
-		if strings.HasPrefix(entry.Repository, known+"::") {
-			return pass(entry.Repository)
-		}
+	// The same parser the bot reads a repository with, so the format cannot be
+	// defined twice and drift.
+	if _, err := ParseRepositorySpec(entry.Repository); err != nil {
+		return fail(err.Error())
 	}
-	return fail(fmt.Sprintf("'%s' does not start with a known prefix (%s)",
-		entry.Repository, strings.Join(withSuffix(knownRepositoryTypes, "::"), " ")))
+	return pass(entry.Repository)
 }
 
 // rule: CC-REG-004 type-known

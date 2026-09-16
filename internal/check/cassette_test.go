@@ -100,14 +100,24 @@ func cassetteRecorder(t *testing.T, name string) *recorder.Recorder {
 	return rec
 }
 
-// scrubAndShrink keeps a cassette safe to commit and small enough to read.
+// scrubAndShrink keeps a cassette safe to commit, small enough to read, and
+// free of a bad afternoon at one of the services.
 //
-// A token must never reach a committed file. And several checks only look at
-// the status code of a page - a publisher's landing page, an arXiv abstract -
-// so keeping hundreds of kilobytes of HTML would be noise; the JSON and CSV the
+// A token must never reach a committed file. A 5xx is never recorded: a
+// transient outage would otherwise be pinned in the cassette and replayed as
+// though it were how the service answers. And several checks only look at the
+// status code of a page - a publisher's landing page, an arXiv abstract - so
+// keeping hundreds of kilobytes of HTML would be noise; the JSON and CSV the
 // checks actually parse is kept in full.
 func scrubAndShrink(i *cassette.Interaction) error {
 	delete(i.Request.Headers, "Authorization")
+
+	if i.Response.Code >= 500 {
+		fmt.Fprintf(os.Stderr, "not recording %s %s: the service answered %d\n",
+			i.Request.Method, i.Request.URL, i.Response.Code)
+		i.DiscardOnSave = true
+		return nil
+	}
 
 	contentType := strings.ToLower(strings.Join(i.Response.Headers["Content-Type"], " "))
 	parsed := strings.Contains(contentType, "json") || strings.Contains(contentType, "csv") ||

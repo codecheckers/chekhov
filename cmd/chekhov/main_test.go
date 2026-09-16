@@ -95,3 +95,48 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+// The check command takes a part of the catalogue before the target, the way
+// "@chekhovbot check bundle" does.
+func TestCheckOnePartOfTheCatalogue(t *testing.T) {
+	var out bytes.Buffer
+	if err := run([]string{"check", "bundle", fixture("valid-2.0")}, &out); err != nil {
+		t.Fatalf("check bundle: %v", err)
+	}
+	report := out.String()
+	if !strings.Contains(report, "CC-BUN-002") {
+		t.Error("check bundle should report the bundle rules")
+	}
+	if strings.Contains(report, "CC-CFG-001") {
+		t.Error("check bundle should not report the configuration rules")
+	}
+	if !strings.Contains(report, "bundle only") {
+		t.Error("the report should say it covered one part")
+	}
+
+	// A word that names no part is not silently ignored: it would otherwise be
+	// read as a second target and the whole catalogue would run, which is not
+	// what was asked for.
+	out.Reset()
+	err := run([]string{"check", "whatever", fixture("valid-2.0")}, &out)
+	if err == nil {
+		t.Fatal("an unrecognised word should be an error")
+	}
+	if !strings.Contains(err.Error(), "one target") {
+		t.Errorf("the error should say what it saw: %v", err)
+	}
+}
+
+// A comment can name a part too.
+func TestCommentChecksOnePart(t *testing.T) {
+	var out bytes.Buffer
+	comment := t.TempDir() + "/comment.md"
+	writeFile(t, comment, "@chekhovbot check bundle "+fixture("valid-2.0")+"\n")
+
+	if err := run([]string{"comment", comment}, &out); err != nil {
+		t.Fatalf("comment: %v", err)
+	}
+	if !strings.Contains(out.String(), "bundle only") {
+		t.Errorf("the reply should cover the bundle only:\n%s", out.String())
+	}
+}

@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suite exercises every rule.
 - `chekhov check --online` runs the checks that need external services from the
   command line.
+- A `codecheck.yml` can be read from a repository the way `register.csv` names
+  one: `github::org/repo`, `github::org/repo|sub/dir`, `gitlab::group/project`,
+  `osf::<id>` and `zenodo::<id>` (codecheckers/chekhov#7).
+- `check` can be narrowed to one part of the catalogue: `config`, `metadata`,
+  `bundle`, `references`, `report` or `register`, which is what the bot's
+  `@chekhovbot check bundle` asks for (codecheckers/chekhov#9, #10, #11).
 - CI: `Tests` runs the fast, offline suite on every push and pull request;
   `Integration tests` runs the external-service suite weekly and on request,
   and re-records the cassettes to catch a service changing its answers.

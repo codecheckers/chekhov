@@ -52,13 +52,16 @@ func newStub(t *testing.T) *stub {
 	// Anything not addressed to the stub fails, and says which URL it was.
 	client.Transport = localOnly{host: server.server.Listener.Addr().String(), base: client.Transport}
 	server.services = &Services{
-		HTTP:       client,
-		Register:   "codecheckers/testing",
-		Zenodo:     url + "/zenodo",
-		ORCID:      url + "/orcid",
-		Crossref:   url + "/crossref",
-		GitHub:     url + "/github",
-		RawContent: url + "/raw",
+		HTTP:          client,
+		Register:      "codecheckers/testing",
+		Zenodo:        url + "/zenodo",
+		ORCID:         url + "/orcid",
+		Crossref:      url + "/crossref",
+		GitHub:        url + "/github",
+		RawContent:    url + "/raw",
+		GitLab:        url + "/gitlab",
+		OSF:           url + "/osf",
+		ZenodoSandbox: url + "/zenodo-sandbox",
 	}
 	return server
 }
@@ -66,6 +69,10 @@ func newStub(t *testing.T) *stub {
 func (s *stub) handle(path string, handler http.HandlerFunc) {
 	s.routes[path] = handler
 }
+
+// url is the stub's address for a path, for a fixture that has to carry a link
+// to one of its own routes.
+func (s *stub) url(path string) string { return s.server.URL + path }
 
 // localOnly keeps the offline suite offline.
 type localOnly struct {
@@ -444,7 +451,7 @@ var stubCases = []stubCase{
 				"2026-001,https://github.com/codecheckers/demo,journal,GigaScience,42\n", venuesRow)
 		},
 		want:   OutcomeError,
-		detail: "does not start with a known prefix",
+		detail: "malformed repository specification",
 	},
 	{
 		name: "the Type column is not one of the four",

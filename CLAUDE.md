@@ -149,6 +149,21 @@ are fine when deliberate, and worth a comment when they are.
 - The reply the bot posts lists **only the rules that need attention**. A table
   of every passing rule buries the few lines a codechecker has to act on.
 
+## Reading a configuration
+
+`check.FromFile` reads a path; `check.FromRepository` reads a repository the
+way `register.csv` names one (`github::org/repo`, with `|sub/dir` when the
+configuration is not at the root, plus `gitlab::`, `osf::` and `zenodo::`),
+mirroring `get_codecheck_yml_*` in the R package. A repository has no bundle on
+disk, so the rules about the directory around the file say they could not look,
+while the manifest files are checked through the repository.
+
+A check command can be narrowed to one part of the catalogue with
+`Report.Subset`: the rule areas, plus `references`, which crosses two areas
+because the catalogue separates the form of a reference from what resolving it
+says. A narrowed report says so in its heading, so that "0 failed" cannot be
+read as "this file is fine".
+
 ## Layout
 
 ```

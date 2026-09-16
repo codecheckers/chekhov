@@ -26,7 +26,7 @@ func Symbol(outcome Outcome) string { return symbol[outcome] }
 // skipped or is unchecked stays short, so a clean run does not fill a screen.
 func (r Report) Text() string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "CODECHECK rules %s: %s\n\n", r.SpecVersion, r.Label)
+	fmt.Fprintf(&out, "CODECHECK rules %s%s: %s\n\n", r.SpecVersion, r.partSuffix(), r.Label)
 	for _, result := range r.Results {
 		line := result.Line()
 		if reported(result.Outcome) {
@@ -45,6 +45,15 @@ func (r Report) Text() string {
 	return out.String()
 }
 
+// partSuffix names the piece of the catalogue a narrowed report covers, so
+// that "0 failed" cannot be mistaken for "nothing is wrong with this file".
+func (r Report) partSuffix() string {
+	if r.Part == "" {
+		return ""
+	}
+	return " (" + r.Part + " only)"
+}
+
 // Summary counts the outcomes in one line.
 func (r Report) Summary() string {
 	return fmt.Sprintf("%d passed, %d failed, %d warnings, %d notes, %d skipped, %d not checked",
@@ -59,11 +68,11 @@ func (r Report) Markdown() string {
 	var out strings.Builder
 
 	if r.OK() {
-		fmt.Fprintf(&out, "%s **`codecheck.yml` is valid** against specification %s.\n",
-			Symbol(OutcomeOK), r.SpecVersion)
+		fmt.Fprintf(&out, "%s **`codecheck.yml` is valid** against specification %s%s.\n",
+			Symbol(OutcomeOK), r.SpecVersion, r.partSuffix())
 	} else {
-		fmt.Fprintf(&out, "%s **`codecheck.yml` is not valid yet** against specification %s.\n",
-			Symbol(OutcomeError), r.SpecVersion)
+		fmt.Fprintf(&out, "%s **`codecheck.yml` is not valid yet** against specification %s%s.\n",
+			Symbol(OutcomeError), r.SpecVersion, r.partSuffix())
 	}
 	fmt.Fprintf(&out, "\n%s\n", r.Summary())
 

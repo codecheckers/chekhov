@@ -24,10 +24,20 @@ var version = "dev"
 const usage = `chekhov - the CODECHECK register bot
 
 Usage:
-  chekhov check [--spec <version>] [--strict] [--markdown] [--online] <path to codecheck.yml>
+  chekhov check [options] <path to codecheck.yml, or a repository spec>
+  chekhov check [options] [config|metadata|bundle|references|report|register] <target>
   chekhov comment <path to a comment file, or - for stdin>
   chekhov rules [--spec <version>]
   chekhov version
+
+Options: --spec <version>, --strict, --markdown, --online
+
+The target is a path, or a repository the way register.csv names one:
+github::org/repo, github::org/repo|sub/dir, gitlab::group/project, osf::<id>,
+zenodo::<id>. Reading a repository implies --online.
+
+Naming a part of the catalogue checks only that part, which is what the bot's
+"@chekhovbot check bundle" asks for.
 
 The check command exits non-zero when a rule failed as an error. Without
 --online it reads nothing but the file and its bundle, and the rules that need
@@ -70,38 +80,41 @@ func runCheck(args []string, out io.Writer) error {
 	strict := false
 	markdown := false
 	online := false
-	var path string
+	part := ""
+	var target string
 
 	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--spec":
+		switch argument := args[i]; {
+		case argument == "--spec":
 			if i+1 >= len(args) {
 				return fmt.Errorf("--spec needs a specification version")
 			}
 			i++
 			specVersion = args[i]
-		case "--strict":
+		case argument == "--strict":
 			strict = true
-		case "--markdown":
+		case argument == "--markdown":
 			markdown = true
-		case "--online":
+		case argument == "--online":
 			online = true
+		case check.IsPart(argument) && argument != "":
+			part = argument
+		case target != "":
+			return fmt.Errorf("check takes one target, but got %q and %q", target, argument)
 		default:
-			path = args[i]
+			target = argument
 		}
 	}
-	if path == "" {
-		return fmt.Errorf("check needs a path to a codecheck.yml")
+	if target == "" {
+		return fmt.Errorf("check needs a path to a codecheck.yml, or a repository spec")
 	}
 
-	context, err := check.FromFile(path)
+	context, err := loadTarget(target, online)
 	if err != nil {
 		return err
 	}
-	if online {
-		context = context.WithServices(check.Online())
-	}
-	report, err := check.Run(context, specVersion, strict)
+
+	report, err := check.RunPart(context, specVersion, strict, part)
 	if err != nil {
 		return err
 	}
@@ -115,6 +128,24 @@ func runCheck(args []string, out io.Writer) error {
 		return fmt.Errorf("%s", report.FailureMessage())
 	}
 	return nil
+}
+
+// loadTarget reads a codecheck.yml from a path or from a repository.
+//
+// A repository has to be read before it can be checked, so asking for one is
+// asking to go online.
+func loadTarget(target string, online bool) (check.Context, error) {
+	if check.IsRepositorySpec(target) {
+		return check.FromRepository(target, check.Online())
+	}
+	context, err := check.FromFile(target)
+	if err != nil {
+		return context, err
+	}
+	if online {
+		context = context.WithServices(check.Online())
+	}
+	return context, nil
 }
 
 // runComment shows what the bot would reply to a comment, which is how the
@@ -143,17 +174,27 @@ func runComment(args []string, out io.Writer) error {
 
 	switch parsed.Name {
 	case command.Check:
-		path := "codecheck.yml"
-		if len(parsed.Args) > 0 && strings.HasSuffix(parsed.Args[0], ".yml") {
-			path = parsed.Args[0]
+		// "@chekhovbot check bundle" narrows to one part of the catalogue;
+		// "@chekhovbot check codecheck.yml" and a bare "check" do all of it.
+		target := "codecheck.yml"
+		part := ""
+		for _, argument := range parsed.Args {
+			switch {
+			case check.IsPart(argument) && argument != "":
+				part = argument
+			case strings.HasSuffix(argument, ".yml"), check.IsRepositorySpec(argument):
+				target = argument
+			}
 		}
-		context, err := check.FromFile(path)
+
+		context, err := loadTarget(target, false)
 		if err != nil {
 			return err
 		}
-		report, err := check.Run(context, "", false)
+		report, err := check.RunPart(context, "", false, part)
 		if err != nil {
-			return err
+			fmt.Fprintln(out, err)
+			return nil
 		}
 		fmt.Fprint(out, report.Markdown())
 		return nil

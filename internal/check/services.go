@@ -32,11 +32,14 @@ type Services struct {
 
 	// Base URLs of the services, so that a sandbox, a mirror or a test server
 	// can be used instead. Empty means the real one, see defaults().
-	Zenodo     string // https://zenodo.org/api
-	ORCID      string // https://pub.orcid.org/v3.0
-	Crossref   string // https://api.crossref.org
-	GitHub     string // https://api.github.com
-	RawContent string // https://raw.githubusercontent.com
+	Zenodo        string // https://zenodo.org/api
+	ZenodoSandbox string // https://sandbox.zenodo.org/api
+	ORCID         string // https://pub.orcid.org/v3.0
+	Crossref      string // https://api.crossref.org
+	GitHub        string // https://api.github.com
+	RawContent    string // https://raw.githubusercontent.com
+	GitLab        string // https://gitlab.com
+	OSF           string // https://api.osf.io/v2
 
 	once     sync.Once
 	register *registerData
@@ -94,10 +97,13 @@ func (s *Services) defaults() {
 		url   string
 	}{
 		{&s.Zenodo, "https://zenodo.org/api"},
+		{&s.ZenodoSandbox, "https://sandbox.zenodo.org/api"},
 		{&s.ORCID, "https://pub.orcid.org/v3.0"},
 		{&s.Crossref, "https://api.crossref.org"},
 		{&s.GitHub, "https://api.github.com"},
 		{&s.RawContent, "https://raw.githubusercontent.com"},
+		{&s.GitLab, "https://gitlab.com"},
+		{&s.OSF, "https://api.osf.io/v2"},
 	} {
 		if *field.value == "" {
 			*field.value = field.url
@@ -165,18 +171,53 @@ type cachedResponse struct {
 // same record several times, and the checks are separate functions by design,
 // so without this the bot would ask the same question repeatedly.
 func (s *Services) get(url string, header map[string]string) (int, []byte, error) {
-	if cached, ok := s.cache.Load(url); ok {
+	return s.request(http.MethodGet, url, header)
+}
+
+// exists asks only whether something is there. It is a HEAD, so a manifest of
+// two dozen figures does not download two dozen figures - and does not keep
+// them in the cache for the rest of the run.
+//
+// Not every server answers a HEAD: some reply 405, some proxies drop it, and a
+// recorded cassette may only hold the GET. Any of those falls back to a GET,
+// which is what the check was doing before.
+func (s *Services) exists(url string) (int, error) {
+	status, _, err := s.request(http.MethodHead, url, nil)
+	if err != nil || status == http.StatusMethodNotAllowed {
+		status, _, err = s.get(url, nil)
+	}
+	return status, err
+}
+
+// fetchFile reads one file, and says which URL failed rather than only that
+// something did.
+func (s *Services) fetchFile(url string) ([]byte, error) {
+	status, body, err := s.get(url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not read %s: %w", url, err)
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("%s answered %d", url, status)
+	}
+	return body, nil
+}
+
+func (s *Services) request(method, url string, header map[string]string) (int, []byte, error) {
+	// The Accept header is part of the key: the same URL answers JSON or text
+	// depending on what was asked for.
+	key := method + " " + url + " " + header["Accept"]
+	if cached, ok := s.cache.Load(key); ok {
 		response := cached.(*cachedResponse)
 		return response.status, response.body, response.err
 	}
 
-	status, body, err := s.fetch(url, header)
-	s.cache.Store(url, &cachedResponse{status: status, body: body, err: err})
+	status, body, err := s.fetch(method, url, header)
+	s.cache.Store(key, &cachedResponse{status: status, body: body, err: err})
 	return status, body, err
 }
 
-func (s *Services) fetch(url string, header map[string]string) (int, []byte, error) {
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+func (s *Services) fetch(method, url string, header map[string]string) (int, []byte, error) {
+	request, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return 0, nil, err
 	}

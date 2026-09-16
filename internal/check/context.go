@@ -71,6 +71,10 @@ type Context struct {
 	ParseError error
 	Label      string
 	Services   *Services
+
+	// RepositorySpec is set when the configuration was fetched from a
+	// repository rather than read from disk, see source.go.
+	RepositorySpec RepositorySpec
 }
 
 // WithServices returns the context with the outside world attached.

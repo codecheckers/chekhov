@@ -120,8 +120,9 @@ func manifestFilesExist(c Context) Result {
 		if item.File == "" {
 			continue
 		}
-		url := fmt.Sprintf("%s/%s/%s/HEAD/%s", c.Services.RawContent, owner, repo, item.File)
-		status, _, err := c.Services.get(url, nil)
+		base := fmt.Sprintf("%s/%s/%s/HEAD", c.Services.RawContent, owner, repo)
+		url := c.RepositorySpec.within(base, item.File)
+		status, err := c.Services.exists(url)
 		if err != nil {
 			return skip(fmt.Sprintf("could not reach %s: %s", url, err))
 		}

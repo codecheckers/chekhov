@@ -417,3 +417,109 @@ func TestArchivedPDFReference(t *testing.T) {
 		})
 	}
 }
+
+// The bot's check commands name a part of the catalogue: "check bundle" asks
+// about the bundle and nothing else, and the rest is not run at all.
+func TestRunPart(t *testing.T) {
+	context, err := FromFile(filepath.Join("..", "..", "testdata", "exhaustive-2.0", "codecheck.yml"))
+	if err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+
+	for _, name := range []string{"config", "metadata", "bundle", "report", "register"} {
+		report, err := RunPart(context, "2.0", false, name)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(report.Results) == 0 {
+			t.Errorf("%s: no rules", name)
+		}
+		for _, result := range report.Results {
+			if result.Rule.Area != name {
+				t.Errorf("%s ran %s, which is a %s rule", name, result.Rule.ID, result.Rule.Area)
+			}
+		}
+	}
+
+	// The references cross two areas, because the catalogue separates the form
+	// of a reference from what resolving it says.
+	references, err := RunPart(context, "2.0", false, "references")
+	if err != nil {
+		t.Fatalf("references: %v", err)
+	}
+	ran := map[string]bool{}
+	for _, result := range references.Results {
+		ran[result.Rule.ID] = true
+	}
+	for _, id := range []string{"CC-CFG-021", "CC-CFG-031", "CC-MET-005", "CC-MET-009"} {
+		if !ran[id] {
+			t.Errorf("the references part should run %s", id)
+		}
+	}
+	if ran["CC-CFG-001"] {
+		t.Error("the references part should not run the parsing rule")
+	}
+
+	// Nothing is lost: no part and "all" are the whole catalogue.
+	all, err := Run(context, "2.0", false)
+	if err != nil {
+		t.Fatalf("all: %v", err)
+	}
+	everything, err := RunPart(context, "2.0", false, "all")
+	if err != nil {
+		t.Fatalf("all: %v", err)
+	}
+	if len(all.Results) != len(everything.Results) {
+		t.Error(`"all" and no part should be the same run`)
+	}
+
+	if _, err := RunPart(context, "2.0", false, "whatever"); err == nil {
+		t.Error("an unknown part should be an error, not an empty report")
+	}
+}
+
+// A narrowed report says so, so that "0 failed" cannot be read as "this file is
+// fine".
+func TestNarrowedReportSaysWhatItCovered(t *testing.T) {
+	context, err := FromFile(filepath.Join("..", "..", "testdata", "exhaustive-2.0", "codecheck.yml"))
+	if err != nil {
+		t.Fatalf("fixture: %v", err)
+	}
+	bundle, err := RunPart(context, "2.0", false, "bundle")
+	if err != nil {
+		t.Fatalf("bundle: %v", err)
+	}
+	if !strings.Contains(bundle.Text(), "bundle only") {
+		t.Error("the report should say which part it covers")
+	}
+	if !strings.Contains(bundle.Markdown(), "bundle only") {
+		t.Error("the reply should say which part it covers")
+	}
+}
+
+// The one list of rule properties this package keeps in code. A rule the
+// register adds with a reference-shaped name has to be classified, or
+// "check references" would quietly stop covering it.
+func TestReferenceRulesCoverTheRegister(t *testing.T) {
+	for _, version := range rules.SpecVersions() {
+		catalogue, err := rules.For(version)
+		if err != nil {
+			t.Fatalf("rules for %s: %v", version, err)
+		}
+		for _, rule := range catalogue {
+			// Only the paper's own references: CC-REG-007 is about the checks
+			// issue carrying the certificate identifier, which is a different
+			// sense of the word.
+			aboutThePaper := rule.Area == "config" || rule.Area == "metadata"
+			if aboutThePaper && strings.Contains(rule.Name, "reference") && !referenceRules[rule.ID] {
+				t.Errorf("%s %s looks like a reference rule but is not in referenceRules",
+					rule.ID, rule.Name)
+			}
+		}
+	}
+	for id := range referenceRules {
+		if _, err := rules.Get(id, "2.0"); err != nil {
+			t.Errorf("referenceRules names %s, which is not a rule: %v", id, err)
+		}
+	}
+}
