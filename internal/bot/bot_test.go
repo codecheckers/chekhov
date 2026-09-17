@@ -312,3 +312,27 @@ func TestVersionIsAnswered(t *testing.T) {
 	}
 	_ = replies
 }
+
+// A panic in one command must cost that command's answer, not the process:
+// every other command in flight on a shared deployment must not be dropped
+// with it. See codecheckers/chekhov#32.
+func TestAPanicInACommandIsRecoveredAndReported(t *testing.T) {
+	server, replies := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "acodechecker"}
+
+	func() {
+		defer server.recoverCommand(event, command.Command{Name: command.Hello})
+		panic("boom")
+	}()
+
+	if replies.count() != 1 {
+		t.Fatalf("%d replies, want 1", replies.count())
+	}
+	reply := replies.last()
+	if !strings.Contains(reply, "went wrong") {
+		t.Errorf("reply = %q, want an apology rather than silence", reply)
+	}
+	if !strings.Contains(reply, string(command.Hello)) {
+		t.Errorf("reply = %q, want it to name the command that panicked", reply)
+	}
+}

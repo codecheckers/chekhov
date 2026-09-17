@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -166,12 +167,21 @@ func (s *Server) refuse(event mention) string {
 }
 
 // act runs one command and posts the answer.
+//
+// A panic here is a bug in one command, not a reason to take down every other
+// command in flight: without recover, Go crashes the whole process, and a
+// deployment shared by every codechecker loses whatever else was running.
+// A kill from the platform's own memory limit is a different thing entirely -
+// an OS signal ends the process before any Go code, recover included, runs -
+// and no amount of recovering here changes that; see docs/deployment.md ->
+// Memory and codecheckers/chekhov#32.
 func (s *Server) act(event mention, parsed command.Command) {
 	defer func() {
 		if s.done != nil {
 			s.done <- struct{}{}
 		}
 	}()
+	defer s.recoverCommand(event, parsed)
 
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
@@ -190,6 +200,28 @@ func (s *Server) act(event mention, parsed command.Command) {
 	}
 	s.Logger.Info("answered", "command", parsed.Name, "issue", event.Issue,
 		"author", event.Author, "comment", id, "took", time.Since(started))
+}
+
+// recoverCommand catches a panic from one command, so it costs that command's
+// answer rather than the process. It logs the full trace and tries to leave a
+// word on the issue; either can fail without making things worse - and must
+// not panic in turn, or reporting the first panic costs the process the
+// second one was meant to save.
+func (s *Server) recoverCommand(event mention, parsed command.Command) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	defer func() { recover() }()
+
+	trace := string(debug.Stack())
+	s.Logger.Error("command panicked", "command", parsed.Name, "repository", event.Repository,
+		"issue", event.Issue, "author", event.Author, "panic", r, "stack", trace)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = s.Replies.Comment(ctx, event.Repository, event.Issue,
+		fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
 }
 
 // answer produces the reply to one command.

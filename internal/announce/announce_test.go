@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"image"
 	"image/gif"
+	"image/png"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -292,5 +294,24 @@ func TestGIFReportsAPageThatFailed(t *testing.T) {
 
 	if _, err := GIF(p.Services, certificate, 0); err == nil || !strings.Contains(err.Error(), "503") {
 		t.Errorf("error = %v, want the 503 of page 2", err)
+	}
+}
+
+// A page far taller than any real certificate's is refused before it is
+// scaled, rather than risking the deployment's memory limit; see
+// codecheckers/chekhov#32.
+func TestGIFRefusesATallPage(t *testing.T) {
+	p := newPublished(t)
+	tall := image.NewGray(image.Rect(0, 0, 100, maxPageHeight+1))
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, tall); err != nil {
+		t.Fatal(err)
+	}
+	p.Bytes(announcetest.PagePath(1), buf.Bytes())
+	certificate, _ := p.load(t)
+
+	_, err := GIF(p.Services, certificate, 0)
+	if err == nil || !strings.Contains(err.Error(), "px tall") {
+		t.Errorf("error = %v, want the page refused as too tall", err)
 	}
 }

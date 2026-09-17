@@ -24,6 +24,17 @@ const (
 	// width is how wide the animation is, and fallbackWidth how wide when
 	// that is over the instance's limit.
 	width, fallbackWidth = 800, 600
+	// maxPageHeight is the tallest source page scale() will take on. 1754 px
+	// is the fake 1970-001 page docs/deployment.md already measures a ~73 MB
+	// CatmullRom buffer against - not a margin to allow more of, since the
+	// buffer grows with it: a page anywhere near that height is already close
+	// to the deployment's headroom. A real certificate's is at most 842 px,
+	// since the register rasterises every page at a fixed 72 dpi, so this
+	// leaves room for legitimate variation while refusing anything the
+	// deployment hasn't been shown to survive. A page this size that got the
+	// deployment OOM-killed with no reply is what this refuses; see
+	// codecheckers/chekhov#32.
+	maxPageHeight = 1754
 )
 
 // DefaultImageLimit is the attachment size to stay under when the instance was
@@ -112,6 +123,11 @@ func fetchPages(services *check.Services, certificate Certificate) ([]*image.RGB
 			page, err := png.Decode(bytes.NewReader(raw))
 			if err != nil {
 				results[i].err = fmt.Errorf("cert_%d.png is not a PNG: %w", i+1, err)
+				return
+			}
+			if height := page.Bounds().Dy(); height > maxPageHeight {
+				results[i].err = fmt.Errorf("cert_%d.png is %d px tall, more than this bot will scale (%d)",
+					i+1, height, maxPageHeight)
 				return
 			}
 			results[i].page = scale(page, width)

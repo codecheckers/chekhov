@@ -294,10 +294,26 @@ func TestFollowFollows(t *testing.T) {
 	}
 }
 
-func TestCollectionsFindsOrCreatesAndAddsItems(t *testing.T) {
+// CHEKHOV_MASTODON_INSTANCE is configurable; not every instance wraps the
+// collections index the way fediscience.org does.
+func TestCollectionsAcceptsABareArrayToo(t *testing.T) {
 	stub, client := newInstance(t)
 	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"codecheck"}`))
 	stub.handle("GET /api/v1/accounts/7/collections", answer(200, `[{"id":"1","name":"Codecheckers"}]`))
+
+	collections, err := client.Collections(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(collections) != 1 || collections[0].Name != "Codecheckers" {
+		t.Errorf("collections = %+v", collections)
+	}
+}
+
+func TestCollectionsFindsOrCreatesAndAddsItems(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"codecheck"}`))
+	stub.handle("GET /api/v1/accounts/7/collections", answer(200, `{"collections":[{"id":"1","name":"Codecheckers"}]}`))
 	stub.handle("POST /api/v1/collections", answer(200, `{"id":"2","name":"Authors"}`))
 	stub.handle("GET /api/v1/collections/1", answer(200,
 		`{"id":"1","name":"Codecheckers",`+

@@ -167,6 +167,17 @@ page at a time. Without a limit, Go lets garbage pile up past 150 MB before it
 collects; `GOMEMLIMIT=96MiB` makes it collect in time, and a local preview of
 `1970-001` then peaks at about 73 MB.
 
+A real certificate's pages are no larger than the fake one: the register
+renders every page at a fixed `CONFIG$CERT_DPI <- 72`, whatever the source
+`cert.pdf`'s own size or colour depth - so a big PDF is not a proxy for a big
+raster page. Previewing `2026-019`, the largest `cert.pdf` in the register
+(15.6 MB over 15 pages), on the deployment itself peaked at 103 MB: safe, 25 MB
+under the kill limit, but well above the 73 MB the local figure predicts. The
+gap is the container's own overhead, not the certificate's - a local preview
+before trusting a change here should read the deployment's own
+`runway app stats`, not just its own process. See
+[chekhov#32](https://github.com/codecheckers/chekhov/issues/32).
+
 ## The deployment as it stands
 
 | | |

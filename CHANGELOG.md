@@ -152,6 +152,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A reference or report answering 401, 403, 405, 429 or a 5xx is reported as
   blocked rather than broken: a publisher refusing robots says nothing about
   whether the reference is right.
+- A command that panics is answered with an apology and logged, rather than
+  crashing the whole process and losing every other command in flight on a
+  shared deployment (codecheckers/chekhov#32).
+- `announce` refuses a certificate page taller than 1754 px rather than
+  risking the deployment's 128 MB memory limit while scaling it - reproduced
+  live: an oversized page got the deployment OOM-killed with no reply ever
+  posted (codecheckers/chekhov#32).
 
 ### Notes
 

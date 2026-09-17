@@ -373,12 +373,28 @@ func (c *Client) Collections(ctx context.Context) ([]Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	var collections []Collection
+	// Shape varies by instance: fediscience.org wraps this as
+	// {"collections":[...]}, verified directly against it, while
+	// mastodon/mastodon's own main branch source renders a bare [...] array -
+	// a version gap, not a doc error. CHEKHOV_MASTODON_INSTANCE is
+	// configurable, so a deployment could see either; try both rather than
+	// commit to one.
+	var raw json.RawMessage
 	path := "/api/v1/accounts/" + url.PathEscape(accountID) + "/collections"
-	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &collections); err != nil {
+	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &raw); err != nil {
 		return nil, err
 	}
-	return collections, nil
+	var wrapped struct {
+		Collections []Collection `json:"collections"`
+	}
+	if err := json.Unmarshal(raw, &wrapped); err == nil {
+		return wrapped.Collections, nil
+	}
+	var bare []Collection
+	if err := json.Unmarshal(raw, &bare); err != nil {
+		return nil, fmt.Errorf("the collections index answered neither the wrapped nor the bare array shape: %w", err)
+	}
+	return bare, nil
 }
 
 // GetCollection reads one collection with its items - each one's state
