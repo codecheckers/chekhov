@@ -74,7 +74,7 @@ func TestDevelopmentAnnouncesDirectOnly(t *testing.T) {
 		t.Errorf("visibility = %q, want direct", visibility)
 	}
 	if settings.Mastodon().Follow {
-		t.Error("development follows accounts and manages lists, which is a public act on a real account")
+		t.Error("development follows accounts and curates collections, which is a public act on a real account")
 	}
 	for _, source := range append([]string{settings.Chekhov.Env.Certificates}, settings.CodecheckerLists()...) {
 		if !strings.Contains(source, "testing-dev-register") {

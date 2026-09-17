@@ -122,7 +122,7 @@ for the whole group, before writing #7.
 | `@chekhovbot call <service>` | Generic external service call (buffy `external_service`) | low |
 | `@chekhovbot stats` | Report register statistics | low |
 | `@chekhovbot announce <certificate> [confirm]` | Toot about a published certificate, mentioning its authors, codecheckers and venue; preview first (editors, #23) | medium |
-| `@chekhovbot follow <certificate> [confirm]` | Follow the fediverse accounts a certificate names, and keep public Codecheckers/Authors/Venues Mastodon lists on `@codecheck` in sync; preview first (editors, #31) | medium |
+| `@chekhovbot follow <certificate> [confirm]` | Follow the fediverse accounts a certificate names, and curate public, consent-gated Codecheckers/Authors/Venues Mastodon collections on `@codecheck` (capped at 25, oldest evicted); preview first (editors, #31) | medium |
 
 ## Proposed MVP
 

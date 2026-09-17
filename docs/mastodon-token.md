@@ -34,8 +34,8 @@ unless configured otherwise): **Preferences → Development → New application*
 | `read:search` | finds an account named by `follow`, `resolve=true` does the federation lookup | `GET /api/v2/search` |
 | `read:follows` | sees whether `@codecheck` already follows an account named by `follow` | `GET /api/v1/accounts/relationships` |
 | `write:follows` | follows the accounts a certificate names, `@chekhovbot follow <certificate> confirm` (#31) | `POST /api/v1/accounts/:id/follow` |
-| `read:lists` | finds the Codecheckers/Authors/Venues lists, and who is on them already | `GET /api/v1/lists`, `GET /api/v1/lists/:id/accounts` |
-| `write:lists` | creates the three lists on first use, and adds accounts to them | `POST /api/v1/lists`, `POST /api/v1/lists/:id/accounts` |
+| `read:collections` | finds the Codecheckers/Authors/Venues collections, and who is in them already | `GET /api/v1/accounts/:id/collections`, `GET /api/v1/collections/:id` |
+| `write:collections` | creates the three collections on first use, requests that accounts join, and evicts the oldest member once one is full | `POST /api/v1/collections`, `POST /api/v1/collections/:id/items`, `DELETE /api/v1/collections/:id/items/:id` |
 
 The token in use has all nine. Without `mastodon.follow: true` in the
 deployment's settings, `follow` only ever previews - see below.
@@ -92,9 +92,10 @@ notifies nobody. See [`deployment.md`](deployment.md#announcing).
 
 ## Following is not softened by visibility
 
-Unlike a toot, following an account and adding it to a public list are real,
-visible acts that `direct` visibility does not defuse - the account being
-followed, or listed, sees it either way. `mastodon.follow` in the settings
+Unlike a toot, following an account and requesting it for a public collection
+are real, visible acts that `direct` visibility does not defuse - the account
+being followed, or asked to join a collection, sees it either way.
+`mastodon.follow` in the settings
 file is a separate switch for that reason: `config/settings-development.yml`
 says `follow: false`, a test asserts it, and `@chekhovbot follow` previews
 regardless but only `confirm`s when it is `true`. A production deployment

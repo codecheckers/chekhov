@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,10 +44,11 @@ type Toots interface {
 	ResolveAccount(ctx context.Context, handle string) (mastodon.Account, error)
 	Relationships(ctx context.Context, accountIDs []string) ([]mastodon.Relationship, error)
 	Follow(ctx context.Context, accountID string) error
-	Lists(ctx context.Context) ([]mastodon.List, error)
-	CreateList(ctx context.Context, title string) (mastodon.List, error)
-	ListAccounts(ctx context.Context, listID string) ([]mastodon.Account, error)
-	AddToList(ctx context.Context, listID string, accountIDs []string) error
+	Collections(ctx context.Context) ([]mastodon.Collection, error)
+	GetCollection(ctx context.Context, id string) (mastodon.Collection, error)
+	CreateCollection(ctx context.Context, name, description string) (mastodon.Collection, error)
+	AddCollectionItem(ctx context.Context, collectionID, accountID string) (mastodon.CollectionItem, error)
+	RemoveCollectionItem(ctx context.Context, collectionID, itemID string) error
 }
 
 // Server is the whole bot: one webhook endpoint, one health endpoint, no state.
@@ -373,16 +375,17 @@ func parseCertificateAndConfirm(args []string) (certificate string, confirm bool
 	return certificate, confirm
 }
 
-// followLists are the public Mastodon lists follow keeps in sync, in the
-// order the reply reports them, each with how to read its members out of a
-// certificate's resolved mentions.
-var followLists = []struct {
-	title   string
-	handles func(announce.Mentions) []string
+// followCollections are the public Mastodon collections follow curates, in
+// the order the reply reports them, each with how to read its members out of
+// a certificate's resolved mentions and what the collection is described as.
+var followCollections = []struct {
+	title       string
+	description string
+	handles     func(announce.Mentions) []string
 }{
-	{command.CodecheckersList, func(m announce.Mentions) []string { return m.Codecheckers }},
-	{command.AuthorsList, func(m announce.Mentions) []string { return m.Authors }},
-	{command.VenuesList, func(m announce.Mentions) []string {
+	{command.CodecheckersList, "Accounts that codechecked a CODECHECK certificate", func(m announce.Mentions) []string { return m.Codecheckers }},
+	{command.AuthorsList, "Accounts whose paper was CODECHECKed", func(m announce.Mentions) []string { return m.Authors }},
+	{command.VenuesList, "Venues whose paper was CODECHECKed", func(m announce.Mentions) []string {
 		if m.Venue == "" {
 			return nil
 		}
@@ -391,9 +394,17 @@ var followLists = []struct {
 }
 
 // follow previews, or with "confirm" performs, following a certificate's
-// accounts and keeping the Codecheckers/Authors/Venues lists in sync. Like
+// accounts and curating the Codecheckers/Authors/Venues collections. Like
 // announce, the bot keeps no state: every run resolves the certificate and
-// the lists afresh.
+// the collections afresh.
+//
+// A collection is public and federated, unlike a private List, which is why
+// it is the right shape for "who has codechecked, who has been CODECHECKed" -
+// but membership needs the account's consent (an item starts "pending" until
+// accepted) and Mastodon caps a collection at mastodon.MaxCollectionItems.
+// Past the cap, the oldest member is evicted to make room: these collections
+// are a curated, rotating sample, not an exhaustive membership record - that
+// record is the codechecker lists themselves (codecheckers/codecheckers).
 func (s *Server) follow(ctx context.Context, parsed command.Command, services *check.Services) string {
 	certificate, confirm := parseCertificateAndConfirm(parsed.Args)
 	if certificate == "" {
@@ -486,58 +497,94 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 		}
 	}
 
-	lists, err := s.Toots.Lists(ctx)
+	existing, err := s.Toots.Collections(ctx)
 	if err != nil {
-		return fmt.Sprintf("I could not read the account's lists: %s\n", err)
+		return fmt.Sprintf("I could not read the account's collections: %s\n", err)
 	}
-	byTitle := make(map[string]mastodon.List, len(lists))
-	for _, list := range lists {
-		byTitle[list.Title] = list
+	byTitle := make(map[string]mastodon.Collection, len(existing))
+	for _, collection := range existing {
+		byTitle[collection.Name] = collection
 	}
 
-	reply.Added = map[string][]string{}
-	for _, group := range followLists {
+	reply.Requested = map[string][]string{}
+	reply.Evicted = map[string]int{}
+	for _, group := range followCollections {
 		handles := group.handles(mentions)
 		if !anyResolved(handles, accounts) {
 			// Nothing in this group resolved to an account, so there is
-			// nothing to add - and no reason to create the list for it yet.
+			// nothing to request - and no reason to create the collection yet.
 			continue
 		}
 
-		list, ok := byTitle[group.title]
-		if !ok {
-			if list, err = s.Toots.CreateList(ctx, group.title); err != nil {
-				return fmt.Sprintf("I could not prepare the %s list: %s\n", group.title, err)
+		collection, existed := byTitle[group.title]
+		var items []mastodon.CollectionItem
+		if !existed {
+			if collection, err = s.Toots.CreateCollection(ctx, group.title, group.description); err != nil {
+				return fmt.Sprintf("I could not prepare the %s collection: %s\n", group.title, err)
 			}
-			byTitle[group.title] = list
-		}
-		already, err := s.Toots.ListAccounts(ctx, list.ID)
-		if err != nil {
-			return fmt.Sprintf("I could not read who is on the %s list already: %s\n", group.title, err)
-		}
-		listed := make(map[string]bool, len(already))
-		for _, account := range already {
-			listed[account.ID] = true
+			byTitle[group.title] = collection
+			// A freshly created collection has no items by construction - no
+			// need to ask for what we already know.
+		} else {
+			full, err := s.Toots.GetCollection(ctx, collection.ID)
+			if err != nil {
+				return fmt.Sprintf("I could not read who is in the %s collection already: %s\n", group.title, err)
+			}
+			items = full.Items
 		}
 
-		var toAdd []string
+		// handled is every account this collection has ever asked, in any
+		// state: pending, accepted, but also rejected and revoked, which
+		// activeItems (below) deliberately leaves out because they don't
+		// count towards the cap. A rejected or revoked account still must
+		// not be asked again every run - that's a declined request, not an
+		// absent one.
+		handled := make(map[string]bool, len(items))
+		for _, item := range items {
+			handled[item.AccountID] = true
+		}
+		active := activeItems(items)
+
 		for _, handle := range handles {
 			account, ok := accounts[handle]
-			if !ok || listed[account.ID] {
+			if !ok || handled[account.ID] {
 				continue
 			}
-			toAdd = append(toAdd, account.ID)
-			reply.Added[group.title] = append(reply.Added[group.title], handle)
-		}
-		if len(toAdd) > 0 {
-			if err := s.Toots.AddToList(ctx, list.ID, toAdd); err != nil {
-				return fmt.Sprintf("I could not add to the %s list: %s\n", group.title, err)
+			for len(active) >= mastodon.MaxCollectionItems {
+				oldest := active[0]
+				if err := s.Toots.RemoveCollectionItem(ctx, collection.ID, oldest.ID); err != nil {
+					return fmt.Sprintf("I could not make room in the %s collection: %s\n", group.title, err)
+				}
+				active = active[1:]
+				reply.Evicted[group.title]++
 			}
+			item, err := s.Toots.AddCollectionItem(ctx, collection.ID, account.ID)
+			if err != nil {
+				return fmt.Sprintf("I could not request %s for the %s collection: %s\n", handle, group.title, err)
+			}
+			active = append(active, item)
+			handled[account.ID] = true
+			reply.Requested[group.title] = append(reply.Requested[group.title], handle)
 		}
 	}
 
 	s.Logger.Info("followed", "certificate", certificate, "newly_followed", len(reply.NewlyFollowed))
 	return command.FollowPosted(reply)
+}
+
+// activeItems returns a collection's pending and accepted items, oldest
+// first: rejected and revoked items don't count towards
+// mastodon.MaxCollectionItems and are left out, and oldest-first is the order
+// a caller evicts from to make room for a new item.
+func activeItems(items []mastodon.CollectionItem) []mastodon.CollectionItem {
+	var active []mastodon.CollectionItem
+	for _, item := range items {
+		if item.State == mastodon.CollectionItemPending || item.State == mastodon.CollectionItemAccepted {
+			active = append(active, item)
+		}
+	}
+	sort.Slice(active, func(i, j int) bool { return active[i].CreatedAt.Before(active[j].CreatedAt) })
+	return active
 }
 
 // followEnabled says whether this deployment may follow accounts and manage

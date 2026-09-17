@@ -150,8 +150,9 @@ register's fake certificate `1970-001`.
 
 `@chekhovbot follow` uses the same account, instance and token, plus
 `mastodon.follow` in the settings file - `false` in development, a test
-asserts it - because following an account and adding it to a public list are
-not softened by `direct` visibility the way a toot's mentions are. `/healthz`
+asserts it - because following an account and requesting it for a public
+collection are not softened by `direct` visibility the way a toot's mentions
+are. `/healthz`
 in development reports `announce.follow`, true only when both a token is
 configured and the settings file turns it on. A production settings file
 turns it on deliberately, once the token has the extra scopes

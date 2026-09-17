@@ -3,7 +3,7 @@
 # Identical to settings-development.yml - same TESTING register, never the
 # production one - with one difference: `mastodon.follow: true`. It exists so
 # a deployment can be switched, deliberately and briefly, into actually
-# following accounts and managing the Codecheckers/Authors/Venues lists
+# following accounts and curating the Codecheckers/Authors/Venues collections
 # against real fediverse test data (codecheckers/chekhov#31), without ever
 # changing what `development` does by default. Select it with
 # `CHEKHOV_ENV=live-test`; switch back to `development` when the run is done.
@@ -39,7 +39,7 @@ chekhov:
     # Same as development: direct messages only, every mention defused.
     visibility: direct
     # The one difference from development: on, so a live test can actually
-    # follow accounts and manage the public lists. Switch back to
+    # follow accounts and curate the public collections. Switch back to
     # CHEKHOV_ENV=development once the test is done.
     follow: true
 

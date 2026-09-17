@@ -90,7 +90,7 @@ var registry = []Definition{
 	},
 	{
 		Name: Follow,
-		Summary: "Follow a certificate's accounts and keep the Codecheckers/Authors/Venues lists in sync: " +
+		Summary: "Follow a certificate's accounts and curate the Codecheckers/Authors/Venues collections: " +
 			"a preview first, then `confirm` to act",
 		Usage: "follow <certificate> [confirm]",
 		Group: GroupRegister,

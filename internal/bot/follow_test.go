@@ -3,8 +3,10 @@ package bot
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/announce/announcetest"
 	"github.com/codecheckers/chekhov/internal/command"
@@ -42,8 +44,8 @@ func TestFollowPreviewActsOnNothingWhenDisabled(t *testing.T) {
 	if !strings.Contains(reply, "Following is switched off for this deployment") {
 		t.Errorf("the reply does not say following is off: %s", reply)
 	}
-	if len(toots.followed) != 0 || len(toots.lists) != 0 {
-		t.Error("a disabled preview followed or listed something")
+	if len(toots.followed) != 0 || len(toots.collections) != 0 {
+		t.Error("a disabled preview followed or touched a collection")
 	}
 }
 
@@ -68,12 +70,12 @@ func TestFollowPreviewShowsWhoIsAlreadyFollowed(t *testing.T) {
 	if len(toots.followed) != 1 {
 		t.Error("a preview followed someone")
 	}
-	if len(toots.lists) != 0 {
-		t.Error("a preview created a list")
+	if len(toots.collections) != 0 {
+		t.Error("a preview created a collection")
 	}
 }
 
-func TestFollowConfirmFollowsAndFillsTheLists(t *testing.T) {
+func TestFollowConfirmFollowsAndCuratesTheCollections(t *testing.T) {
 	server, toots := followServer(t)
 
 	reply := followAs(server, "nuest", "1970-001", "confirm")
@@ -84,9 +86,9 @@ func TestFollowConfirmFollowsAndFillsTheLists(t *testing.T) {
 		"@else@example.social",
 		"@inst@example.social",
 		"@venue@example.social",
-		"added to the Codecheckers list:",
-		"added to the Authors list: `@carberry@example.social`",
-		"added to the Venues list: `@venue@example.social`",
+		"requested for the Codecheckers collection:",
+		"requested for the Authors collection: `@carberry@example.social`",
+		"requested for the Venues collection: `@venue@example.social`",
 	} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the reply does not say %q:\n%s", want, reply)
@@ -96,56 +98,117 @@ func TestFollowConfirmFollowsAndFillsTheLists(t *testing.T) {
 	if len(toots.followed) != 4 {
 		t.Errorf("%d accounts followed, want 4", len(toots.followed))
 	}
-	if len(toots.lists) != 3 {
-		t.Fatalf("%d lists exist, want 3", len(toots.lists))
+	if len(toots.collections) != 3 {
+		t.Fatalf("%d collections exist, want 3", len(toots.collections))
 	}
-	codecheckers := toots.lists["Codecheckers"]
-	if members := toots.listAccounts[codecheckers.ID]; len(members) != 2 {
+	codecheckers := toots.collections["Codecheckers"]
+	if !codecheckers.Discoverable {
+		t.Error("the Codecheckers collection was not created discoverable")
+	}
+	if members := toots.collectionItems[codecheckers.ID]; len(members) != 2 {
 		t.Errorf("Codecheckers has %d members, want 2", len(members))
 	}
 }
 
-// A second confirm must not re-follow or re-add anyone: follow, like
-// announce, reads the world afresh and so has to notice what is already true.
-func TestFollowConfirmTwiceAddsNobodyTwice(t *testing.T) {
+// A second confirm must not re-request anyone: follow, like announce, reads
+// the world afresh and so has to notice what is already true.
+func TestFollowConfirmTwiceRequestsNobodyTwice(t *testing.T) {
 	server, toots := followServer(t)
 
 	followAs(server, "nuest", "1970-001", "confirm")
-	codecheckers := toots.lists["Codecheckers"]
-	firstCount := len(toots.listAccounts[codecheckers.ID])
+	codecheckers := toots.collections["Codecheckers"]
+	firstCount := len(toots.collectionItems[codecheckers.ID])
 
 	reply := followAs(server, "nuest", "1970-001", "confirm")
 	if !strings.Contains(reply, "followed: nobody new") {
 		t.Errorf("a second confirm followed someone again: %s", reply)
 	}
-	if !strings.Contains(reply, "lists: already up to date") {
-		t.Errorf("a second confirm reported list changes: %s", reply)
+	if !strings.Contains(reply, "collections: already up to date") {
+		t.Errorf("a second confirm reported collection changes: %s", reply)
 	}
-	if got := len(toots.listAccounts[codecheckers.ID]); got != firstCount {
+	if got := len(toots.collectionItems[codecheckers.ID]); got != firstCount {
 		t.Errorf("Codecheckers gained members on a second confirm: %d, was %d", got, firstCount)
 	}
 }
 
-func TestFollowConfirmSkipsAlreadyListedAccounts(t *testing.T) {
+func TestFollowConfirmSkipsAlreadyMemberAccounts(t *testing.T) {
 	server, toots := followServer(t)
-	toots.lists = map[string]mastodon.List{"Codecheckers": {ID: "1", Title: "Codecheckers"}}
-	toots.listAccounts = map[string][]mastodon.Account{"1": {{ID: "id-@else@example.social"}}}
+	toots.collections = map[string]mastodon.Collection{"Codecheckers": {ID: "1", Name: "Codecheckers"}}
+	toots.collectionItems = map[string][]mastodon.CollectionItem{
+		"1": {{ID: "existing", State: mastodon.CollectionItemAccepted, AccountID: "id-@else@example.social", CreatedAt: time.Unix(0, 0)}},
+	}
 
 	reply := followAs(server, "nuest", "1970-001", "confirm")
-	if strings.Contains(reply, "added to the Codecheckers list: `@else@example.social`") {
-		t.Errorf("an already-listed account was reported as added: %s", reply)
+	if strings.Contains(reply, "requested for the Codecheckers collection: `@else@example.social`") {
+		t.Errorf("an already-member account was reported as requested: %s", reply)
 	}
-	if !strings.Contains(reply, "added to the Codecheckers list: `@inst@example.social`") {
-		t.Errorf("the missing account was not added: %s", reply)
+	if !strings.Contains(reply, "requested for the Codecheckers collection: `@inst@example.social`") {
+		t.Errorf("the missing account was not requested: %s", reply)
 	}
-	if len(toots.listAccounts["1"]) != 2 {
-		t.Errorf("Codecheckers has %d members, want 2", len(toots.listAccounts["1"]))
+	if len(toots.collectionItems["1"]) != 2 {
+		t.Errorf("Codecheckers has %d items, want 2", len(toots.collectionItems["1"]))
+	}
+}
+
+// Mastodon caps a collection at mastodon.MaxCollectionItems; past that, the
+// oldest member is evicted to make room for a new one.
+func TestFollowConfirmEvictsTheOldestMemberWhenFull(t *testing.T) {
+	server, toots := followServer(t)
+	toots.collections = map[string]mastodon.Collection{"Codecheckers": {ID: "1", Name: "Codecheckers"}}
+	items := make([]mastodon.CollectionItem, mastodon.MaxCollectionItems)
+	for i := range items {
+		items[i] = mastodon.CollectionItem{
+			ID: fmt.Sprintf("old-%d", i), State: mastodon.CollectionItemPending,
+			AccountID: fmt.Sprintf("old-account-%d", i), CreatedAt: time.Unix(int64(i), 0),
+		}
+	}
+	toots.collectionItems = map[string][]mastodon.CollectionItem{"1": items}
+
+	reply := followAs(server, "nuest", "1970-001", "confirm")
+	if !strings.Contains(reply, "made room in the Codecheckers collection by evicting 2 older members") {
+		t.Errorf("the reply does not report the eviction: %s", reply)
+	}
+	if !strings.Contains(reply, "requested for the Codecheckers collection:") {
+		t.Errorf("the new members were not requested: %s", reply)
+	}
+	final := toots.collectionItems["1"]
+	if len(final) != mastodon.MaxCollectionItems {
+		t.Errorf("Codecheckers has %d items, want the cap of %d", len(final), mastodon.MaxCollectionItems)
+	}
+	for _, item := range final {
+		if item.ID == "old-0" || item.ID == "old-1" {
+			t.Errorf("the oldest items were not evicted: %+v", final)
+		}
+	}
+}
+
+// A rejected or revoked item is a declined request, not an absent one: it
+// must not be asked again every run, even though it doesn't count towards
+// the cap (activeItems leaves it out on purpose).
+func TestFollowConfirmDoesNotReaskARejectedAccount(t *testing.T) {
+	server, toots := followServer(t)
+	toots.collections = map[string]mastodon.Collection{"Codecheckers": {ID: "1", Name: "Codecheckers"}}
+	toots.collectionItems = map[string][]mastodon.CollectionItem{
+		"1": {{ID: "declined", State: "rejected", AccountID: "id-@inst@example.social", CreatedAt: time.Unix(0, 0)}},
+	}
+
+	reply := followAs(server, "nuest", "1970-001", "confirm")
+	if strings.Contains(reply, "requested for the Codecheckers collection: `@inst@example.social`") {
+		t.Errorf("a rejected account was requested again: %s", reply)
+	}
+	if !strings.Contains(reply, "requested for the Codecheckers collection: `@else@example.social`") {
+		t.Errorf("the other codechecker was not requested: %s", reply)
+	}
+	// The rejected item is not "active" (doesn't count towards the cap), so
+	// it stays in place rather than being evicted or replaced.
+	if len(toots.collectionItems["1"]) != 2 {
+		t.Errorf("Codecheckers has %d items, want 2 (the rejection kept, plus the new request)", len(toots.collectionItems["1"]))
 	}
 }
 
 // An account the directory matched can still fail to resolve on the instance
 // - deleted, suspended or moved. That must not abandon the whole command:
-// everyone else is still previewed, followed and listed.
+// everyone else is still previewed, followed and curated.
 func TestFollowContinuesWhenAnAccountCannotBeResolved(t *testing.T) {
 	server, toots := followServer(t)
 	toots.resolveErr = map[string]error{"@carberry@example.social": errors.New("Mastodon answered 410: Gone")}
@@ -161,34 +224,34 @@ func TestFollowContinuesWhenAnAccountCannotBeResolved(t *testing.T) {
 		"@else@example.social",
 		"@inst@example.social",
 		"@venue@example.social",
-		"added to the Codecheckers list:",
-		"added to the Venues list: `@venue@example.social`",
+		"requested for the Codecheckers collection:",
+		"requested for the Venues collection: `@venue@example.social`",
 	} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the reply does not say %q:\n%s", want, reply)
 		}
 	}
-	if strings.Contains(reply, "added to the Authors list") {
-		t.Errorf("the unresolved author was added to a list: %s", reply)
+	if strings.Contains(reply, "requested for the Authors collection") {
+		t.Errorf("the unresolved author was requested for a collection: %s", reply)
 	}
 	if len(toots.followed) != 3 {
 		t.Errorf("%d accounts followed, want 3 (not the unresolved one)", len(toots.followed))
 	}
 }
 
-// findOrCreateList used to ask for the account's lists once per title; a
-// single confirm must ask once and reuse it for all three.
-func TestFollowConfirmReadsListsOnce(t *testing.T) {
+// A single confirm must read the account's collections once and reuse it for
+// all three, not ask again per collection.
+func TestFollowConfirmReadsCollectionsOnce(t *testing.T) {
 	server, toots := followServer(t)
 
 	followAs(server, "nuest", "1970-001", "confirm")
-	if toots.listsCalls != 1 {
-		t.Errorf("Lists was called %d times, want 1", toots.listsCalls)
+	if toots.collectionsCalls != 1 {
+		t.Errorf("Collections was called %d times, want 1", toots.collectionsCalls)
 	}
 }
 
-// A token of the wrong account must not follow or list anyone, mirroring the
-// guard announce gets for free through RecentStatuses.
+// A token of the wrong account must not follow or touch a collection,
+// mirroring the guard announce gets for free through RecentStatuses.
 func TestFollowConfirmRefusesATokenOfTheWrongAccount(t *testing.T) {
 	server, toots := followServer(t)
 	toots.verifyErr = errors.New("the token belongs to @someone, but this deployment posts as @codecheck")
@@ -197,8 +260,8 @@ func TestFollowConfirmRefusesATokenOfTheWrongAccount(t *testing.T) {
 	if !strings.Contains(reply, "the token belongs to @someone") {
 		t.Errorf("the reply does not surface the wrong-account error: %s", reply)
 	}
-	if len(toots.followed) != 0 || len(toots.lists) != 0 {
-		t.Error("a wrong-account confirm followed or listed someone")
+	if len(toots.followed) != 0 || len(toots.collections) != 0 {
+		t.Error("a wrong-account confirm followed or touched a collection")
 	}
 }
 

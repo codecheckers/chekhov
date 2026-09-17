@@ -63,6 +63,20 @@ label, a comment, a new item: propose it, wait for the go-ahead. The same rule
 as commits, and for the same reason - it is visible to other people the moment
 it happens.
 
+## Runway config
+
+`runway app config ls`, with or without `-o json`, prints every variable's
+value - secrets included - straight into whatever ran the command, which means
+straight into that command's log or transcript. **Never run it in a way that
+displays values.** To confirm which variables are set, pipe `-o json` directly
+into a filter that only lists keys, e.g.
+`runway app config ls -a <app> -o json | python3 -c "import json,sys; print(sorted(json.load(sys.stdin)))"`,
+never into `head`, `cat`, or the terminal directly. To change a value,
+`runway app config set` writes it without echoing it back, which is the only
+reason to touch a deployment's config in the first place. If a value is ever
+displayed by mistake, treat it as compromised and say so - the fix is rotating
+the credential, not hoping the display goes unnoticed.
+
 ## The testing register
 
 **Development and testing run against the testing register, never the

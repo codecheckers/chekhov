@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/announce/announcetest"
 	"github.com/codecheckers/chekhov/internal/command"
@@ -33,10 +34,16 @@ type fakeToots struct {
 	followErr error
 	verifyErr error // non-nil simulates a token belonging to the wrong account
 
-	lists        map[string]mastodon.List      // title -> list
-	listAccounts map[string][]mastodon.Account // list id -> members
-	nextListID   int
-	listsCalls   int // how many times Lists was asked, for TestFollowConfirmReadsListsOnce
+	// collections maps a title to the collection created (or preseeded) for
+	// it; collectionItems maps a collection id to its items, mirroring what
+	// GetCollection embeds. nextCollectionID/nextItemID generate ids for what
+	// Create/Add return; each item's CreatedAt is derived from nextItemID, so
+	// insertion order is deterministic regardless of wall-clock resolution.
+	collections      map[string]mastodon.Collection
+	collectionItems  map[string][]mastodon.CollectionItem
+	nextCollectionID int
+	nextItemID       int
+	collectionsCalls int // how many times Collections was asked
 }
 
 func (f *fakeToots) Post(_ context.Context, status mastodon.Status) (mastodon.Posted, error) {
@@ -106,45 +113,71 @@ func (f *fakeToots) Follow(_ context.Context, id string) error {
 	return nil
 }
 
-func (f *fakeToots) Lists(context.Context) ([]mastodon.List, error) {
+func (f *fakeToots) Collections(context.Context) ([]mastodon.Collection, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.listsCalls++
-	lists := make([]mastodon.List, 0, len(f.lists))
-	for _, list := range f.lists {
-		lists = append(lists, list)
+	f.collectionsCalls++
+	collections := make([]mastodon.Collection, 0, len(f.collections))
+	for _, collection := range f.collections {
+		collections = append(collections, collection)
 	}
-	return lists, nil
+	return collections, nil
 }
 
-func (f *fakeToots) CreateList(_ context.Context, title string) (mastodon.List, error) {
+func (f *fakeToots) GetCollection(_ context.Context, id string) (mastodon.Collection, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.lists == nil {
-		f.lists = map[string]mastodon.List{}
+	items := append([]mastodon.CollectionItem{}, f.collectionItems[id]...)
+	for _, collection := range f.collections {
+		if collection.ID == id {
+			collection.Items = items
+			return collection, nil
+		}
 	}
-	f.nextListID++
+	return mastodon.Collection{ID: id, Items: items}, nil
+}
+
+func (f *fakeToots) CreateCollection(_ context.Context, name, description string) (mastodon.Collection, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.collections == nil {
+		f.collections = map[string]mastodon.Collection{}
+	}
+	f.nextCollectionID++
 	// Prefixed so a generated id never collides with one a test preseeds by
 	// hand.
-	list := mastodon.List{ID: fmt.Sprintf("created-%d", f.nextListID), Title: title}
-	f.lists[title] = list
-	return list, nil
-}
-
-func (f *fakeToots) ListAccounts(_ context.Context, listID string) ([]mastodon.Account, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.listAccounts[listID], nil
-}
-
-func (f *fakeToots) AddToList(_ context.Context, listID string, ids []string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.listAccounts == nil {
-		f.listAccounts = map[string][]mastodon.Account{}
+	collection := mastodon.Collection{
+		ID: fmt.Sprintf("created-%d", f.nextCollectionID), Name: name, Description: description, Discoverable: true,
 	}
-	for _, id := range ids {
-		f.listAccounts[listID] = append(f.listAccounts[listID], mastodon.Account{ID: id})
+	f.collections[name] = collection
+	return collection, nil
+}
+
+func (f *fakeToots) AddCollectionItem(_ context.Context, collectionID, accountID string) (mastodon.CollectionItem, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.nextItemID++
+	item := mastodon.CollectionItem{
+		ID:        fmt.Sprintf("item-%d", f.nextItemID),
+		State:     mastodon.CollectionItemPending,
+		AccountID: accountID,
+		CreatedAt: time.Unix(int64(f.nextItemID), 0),
+	}
+	if f.collectionItems == nil {
+		f.collectionItems = map[string][]mastodon.CollectionItem{}
+	}
+	f.collectionItems[collectionID] = append(f.collectionItems[collectionID], item)
+	return item, nil
+}
+
+func (f *fakeToots) RemoveCollectionItem(_ context.Context, collectionID, itemID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, item := range f.collectionItems[collectionID] {
+		if item.ID == itemID {
+			f.collectionItems[collectionID] = append(f.collectionItems[collectionID][:i], f.collectionItems[collectionID][i+1:]...)
+			return nil
+		}
 	}
 	return nil
 }

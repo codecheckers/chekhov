@@ -250,11 +250,40 @@ type Account struct {
 	Acct string `json:"acct"`
 }
 
-// A List is one of the account's own lists, https://docs.joinmastodon.org/entities/List/.
-type List struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
+// MaxCollectionItems is Mastodon's own hard limit on how many pending or
+// accepted items a collection may hold (app/models/collection.rb,
+// MAX_ITEMS). A caller that wants to add beyond it has to make room first.
+const MaxCollectionItems = 25
+
+// A Collection is a public, shareable "starter pack" of accounts - unlike a
+// List, which is private and does not federate. Items is embedded by
+// GetCollection; Collections, which lists an account's collections, does not
+// fill it in.
+type Collection struct {
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	Description  string           `json:"description"`
+	Discoverable bool             `json:"discoverable"`
+	Items        []CollectionItem `json:"items"`
 }
+
+// A CollectionItem is one account's membership request or membership in a
+// collection. AccountID is only present once State is "pending" or
+// "accepted" (Mastodon leaves it out for "rejected"/"revoked").
+type CollectionItem struct {
+	ID        string    `json:"id"`
+	State     string    `json:"state"`
+	AccountID string    `json:"account_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// CollectionItemPending and CollectionItemAccepted are the CollectionItem
+// states that count towards MaxCollectionItems and mean an account is
+// (or is waiting to be) a visible member.
+const (
+	CollectionItemPending  = "pending"
+	CollectionItemAccepted = "accepted"
+)
 
 // A Relationship says whether the token's account follows another one,
 // https://docs.joinmastodon.org/entities/Relationship/.
@@ -264,9 +293,10 @@ type Relationship struct {
 }
 
 // VerifyAccount checks that the token belongs to the configured account,
-// refusing before a caller follows, lists or otherwise writes as the wrong
-// account. RecentStatuses does this check itself, ahead of every announce;
-// a caller that skips RecentStatuses - follow does - needs it explicitly.
+// refusing before a caller follows, manages a collection, or otherwise writes
+// as the wrong account. RecentStatuses does this check itself, ahead of every
+// announce; a caller that skips RecentStatuses - follow does - needs it
+// explicitly.
 func (c *Client) VerifyAccount(ctx context.Context) error {
 	_, err := c.verifiedAccountID(ctx)
 	return err
@@ -336,53 +366,66 @@ func (c *Client) Follow(ctx context.Context, accountID string) error {
 	})
 }
 
-// Lists returns the token's account's own lists.
-func (c *Client) Lists(ctx context.Context) ([]List, error) {
-	var lists []List
-	if _, err := c.do(ctx, http.MethodGet, "/api/v1/lists", nil, nil, &lists); err != nil {
+// Collections returns the token's own account's collections. It does not
+// fill in Items - GetCollection does, for one collection at a time.
+func (c *Client) Collections(ctx context.Context) ([]Collection, error) {
+	accountID, err := c.verifiedAccountID(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return lists, nil
+	var collections []Collection
+	path := "/api/v1/accounts/" + url.PathEscape(accountID) + "/collections"
+	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &collections); err != nil {
+		return nil, err
+	}
+	return collections, nil
 }
 
-// CreateList makes a new, empty list.
-func (c *Client) CreateList(ctx context.Context, title string) (List, error) {
-	form := url.Values{"title": {title}}
+// GetCollection reads one collection with its items - each one's state
+// (pending or accepted count towards MaxCollectionItems; rejected and
+// revoked do not) and when it was added, oldest first, for a caller that
+// needs to make room before adding another.
+func (c *Client) GetCollection(ctx context.Context, id string) (Collection, error) {
+	var collection Collection
+	if _, err := c.do(ctx, http.MethodGet, "/api/v1/collections/"+url.PathEscape(id), nil, nil, &collection); err != nil {
+		return Collection{}, err
+	}
+	return collection, nil
+}
+
+// CreateCollection makes a new, empty, discoverable collection.
+func (c *Client) CreateCollection(ctx context.Context, name, description string) (Collection, error) {
+	form := url.Values{"name": {name}, "description": {description}, "discoverable": {"true"}}
 	header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
-	var list List
-	err := c.withRetry(ctx, "creating a list", func() error {
-		_, err := c.do(ctx, http.MethodPost, "/api/v1/lists", header, []byte(form.Encode()), &list)
+	var collection Collection
+	err := c.withRetry(ctx, "creating a collection", func() error {
+		_, err := c.do(ctx, http.MethodPost, "/api/v1/collections", header, []byte(form.Encode()), &collection)
 		return err
 	})
-	return list, err
+	return collection, err
 }
 
-// ListAccounts returns who is on a list already, so a caller can add only
-// who is missing. It reads one page: Mastodon's maximum per page is 80, which
-// the lists this bot maintains are not expected to outgrow by hand; paging
-// past it would need to follow the response's Link header, not implemented.
-func (c *Client) ListAccounts(ctx context.Context, listID string) ([]Account, error) {
-	var accounts []Account
-	path := "/api/v1/lists/" + url.PathEscape(listID) + "/accounts?limit=80"
-	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &accounts); err != nil {
-		return nil, err
-	}
-	return accounts, nil
-}
-
-// AddToList adds accounts to a list. Mastodon only allows adding an account
-// the token's account already follows.
-func (c *Client) AddToList(ctx context.Context, listID string, accountIDs []string) error {
-	if len(accountIDs) == 0 {
-		return nil
-	}
-	form := url.Values{}
-	for _, id := range accountIDs {
-		form.Add("account_ids[]", id)
-	}
+// AddCollectionItem requests that an account join a collection. Unlike a
+// List, this is not immediate membership: the returned item's State is
+// "pending" until the account accepts, and may end up "rejected".
+func (c *Client) AddCollectionItem(ctx context.Context, collectionID, accountID string) (CollectionItem, error) {
+	form := url.Values{"account_id": {accountID}}
 	header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
-	return c.withRetry(ctx, "adding accounts to a list", func() error {
-		_, err := c.do(ctx, http.MethodPost, "/api/v1/lists/"+url.PathEscape(listID)+"/accounts", header, []byte(form.Encode()), nil)
+	var item CollectionItem
+	err := c.withRetry(ctx, "requesting a collection item", func() error {
+		_, err := c.do(ctx, http.MethodPost, "/api/v1/collections/"+url.PathEscape(collectionID)+"/items", header, []byte(form.Encode()), &item)
+		return err
+	})
+	return item, err
+}
+
+// RemoveCollectionItem removes an item from a collection - used both to drop
+// someone deliberately and to evict the oldest item when MaxCollectionItems
+// is reached and a new one needs the room.
+func (c *Client) RemoveCollectionItem(ctx context.Context, collectionID, itemID string) error {
+	return c.withRetry(ctx, "removing a collection item", func() error {
+		_, err := c.do(ctx, http.MethodDelete,
+			"/api/v1/collections/"+url.PathEscape(collectionID)+"/items/"+url.PathEscape(itemID), nil, nil, nil)
 		return err
 	})
 }

@@ -58,11 +58,11 @@ type Mastodon struct {
 	// Visibility is the only one the bot posts with: public, unlisted,
 	// private or direct.
 	Visibility string `yaml:"visibility"`
-	// Follow says whether this deployment may follow accounts and manage the
-	// Codecheckers/Authors/Venues lists at all. Following is a public, hard
-	// to reverse act on a real account - unlike posting, it is not softened
-	// by direct visibility - so it defaults to off rather than inheriting
-	// "switched on unless configured otherwise".
+	// Follow says whether this deployment may follow accounts and curate the
+	// Codecheckers/Authors/Venues collections at all. Following is a public,
+	// hard to reverse act on a real account - unlike posting, it is not
+	// softened by direct visibility - so it defaults to off rather than
+	// inheriting "switched on unless configured otherwise".
 	Follow bool `yaml:"follow"`
 }
 

@@ -259,8 +259,8 @@ var FollowListTitles = []string{CodecheckersList, AuthorsList, VenuesList}
 // - after confirm - what changed.
 type Following struct {
 	Certificate string
-	// Enabled says whether this deployment may follow accounts and manage
-	// lists at all.
+	// Enabled says whether this deployment may follow accounts and curate
+	// collections at all.
 	Enabled bool
 
 	Codecheckers []string
@@ -280,9 +280,13 @@ type Following struct {
 	NewlyFollowed   []string
 	AlreadyFollowed []string
 
-	// Added is filled by confirm: the handles newly put on each list, keyed
-	// by its title.
-	Added map[string][]string
+	// Requested is filled by confirm: the handles newly asked to join each
+	// collection, keyed by its title. A collection needs the account's
+	// consent, so this is a request, not immediate membership.
+	Requested map[string][]string
+	// Evicted counts, per collection, how many older members were dropped to
+	// make room under Mastodon's cap - see mastodon.MaxCollectionItems.
+	Evicted map[string]int
 }
 
 // FollowPreview is the answer to "@chekhovbot follow <certificate>": who is
@@ -312,11 +316,11 @@ func FollowPreview(f Following) string {
 
 	switch {
 	case !f.Enabled:
-		out.WriteString("\nFollowing is switched off for this deployment, so `confirm` will not follow anyone or change any list.\n")
+		out.WriteString("\nFollowing is switched off for this deployment, so `confirm` will not follow anyone or touch any collection.\n")
 	case len(f.Codecheckers)+len(f.Authors) == 0 && f.Venue == "":
 		out.WriteString("\nNobody on this certificate has a fediverse account on record.\n")
 	default:
-		fmt.Fprintf(&out, "\nTo follow whoever is not yet followed, and keep the Codecheckers, Authors and Venues lists in sync, write:\n\n    %s follow %s confirm\n",
+		fmt.Fprintf(&out, "\nTo follow whoever is not yet followed, and request the Codecheckers, Authors and Venues collections for them, write:\n\n    %s follow %s confirm\n",
 			Bot, f.Certificate)
 	}
 	return out.String()
@@ -336,13 +340,17 @@ func FollowPosted(f Following) string {
 	}
 	any := false
 	for _, title := range FollowListTitles {
-		if added := f.Added[title]; len(added) > 0 {
-			fmt.Fprintf(&out, "- added to the %s list: %s\n", title, codeList(added))
+		if requested := f.Requested[title]; len(requested) > 0 {
+			fmt.Fprintf(&out, "- requested for the %s collection: %s\n", title, codeList(requested))
+			any = true
+		}
+		if evicted := f.Evicted[title]; evicted > 0 {
+			fmt.Fprintf(&out, "- made room in the %s collection by evicting %d older member%s\n", title, evicted, plural(evicted))
 			any = true
 		}
 	}
 	if !any {
-		out.WriteString("- lists: already up to date\n")
+		out.WriteString("- collections: already up to date\n")
 	}
 	return out.String()
 }

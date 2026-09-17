@@ -294,52 +294,60 @@ func TestFollowFollows(t *testing.T) {
 	}
 }
 
-func TestListsFindsOrCreatesAndAdds(t *testing.T) {
+func TestCollectionsFindsOrCreatesAndAddsItems(t *testing.T) {
 	stub, client := newInstance(t)
-	stub.handle("GET /api/v1/lists", answer(200, `[{"id":"1","title":"Codecheckers"}]`))
-	stub.handle("POST /api/v1/lists", answer(200, `{"id":"2","title":"Authors"}`))
-	stub.handle("GET /api/v1/lists/1/accounts", answer(200, `[{"id":"9","acct":"alice@example.social"}]`))
-	stub.handle("POST /api/v1/lists/1/accounts", answer(200, `[]`))
+	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"codecheck"}`))
+	stub.handle("GET /api/v1/accounts/7/collections", answer(200, `[{"id":"1","name":"Codecheckers"}]`))
+	stub.handle("POST /api/v1/collections", answer(200, `{"id":"2","name":"Authors"}`))
+	stub.handle("GET /api/v1/collections/1", answer(200,
+		`{"id":"1","name":"Codecheckers",`+
+			`"items":[{"id":"5","state":"accepted","account_id":"9","created_at":"2026-01-01T00:00:00Z"}]}`))
+	stub.handle("POST /api/v1/collections/1/items", answer(200, `{"id":"6","state":"pending","account_id":"10","created_at":"2026-02-01T00:00:00Z"}`))
+	stub.handle("DELETE /api/v1/collections/1/items/5", answer(200, `{}`))
 
-	lists, err := client.Lists(context.Background())
+	collections, err := client.Collections(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lists) != 1 || lists[0].Title != "Codecheckers" {
-		t.Errorf("lists = %+v", lists)
+	if len(collections) != 1 || collections[0].Name != "Codecheckers" {
+		t.Errorf("collections = %+v", collections)
 	}
 
-	created, err := client.CreateList(context.Background(), "Authors")
+	created, err := client.CreateCollection(context.Background(), "Authors", "Accounts whose paper was CODECHECKed")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID != "2" || created.Title != "Authors" {
+	if created.ID != "2" || created.Name != "Authors" {
 		t.Errorf("created = %+v", created)
 	}
+	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "discoverable=true") {
+		t.Errorf("the collection was not created discoverable: %s", stub.bodies[len(stub.bodies)-1])
+	}
 
-	already, err := client.ListAccounts(context.Background(), "1")
+	full, err := client.GetCollection(context.Background(), "1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(already) != 1 || already[0].Acct != "alice@example.social" {
-		t.Errorf("already = %+v", already)
+	if len(full.Items) != 1 || full.Items[0].State != "accepted" || full.Items[0].AccountID != "9" {
+		t.Errorf("items = %+v", full.Items)
 	}
 
-	if err := client.AddToList(context.Background(), "1", []string{"10", "11"}); err != nil {
+	item, err := client.AddCollectionItem(context.Background(), "1", "10")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "account_ids%5B%5D=10") {
-		t.Errorf("the add request lacks the account ids: %s", stub.bodies[len(stub.bodies)-1])
+	if item.State != "pending" || item.AccountID != "10" {
+		t.Errorf("item = %+v", item)
 	}
-}
+	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "account_id=10") {
+		t.Errorf("the item request lacks the account id: %s", stub.bodies[len(stub.bodies)-1])
+	}
 
-func TestAddToListOfNoAccountsMakesNoRequest(t *testing.T) {
-	stub, client := newInstance(t)
-	if err := client.AddToList(context.Background(), "1", nil); err != nil {
+	if err := client.RemoveCollectionItem(context.Background(), "1", "5"); err != nil {
 		t.Fatal(err)
 	}
-	if len(stub.requests) != 0 {
-		t.Error("a request was made for no accounts")
+	if n := stub.count("DELETE /api/v1/collections/1/items/5"); n != 1 {
+		t.Errorf("%d deletes, want 1", n)
 	}
 }
 

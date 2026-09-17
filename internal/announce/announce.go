@@ -330,8 +330,8 @@ func defuse(text string) string {
 }
 
 // Mentions are the fediverse handles a certificate names, split by role - for
-// following and list membership (codecheckers/chekhov#31), unlike Compose's
-// Toot.Mentioned, which is flat and defused for the toot text.
+// following and collection membership (codecheckers/chekhov#31), unlike
+// Compose's Toot.Mentioned, which is flat and defused for the toot text.
 type Mentions struct {
 	Codecheckers []string
 	Authors      []string
