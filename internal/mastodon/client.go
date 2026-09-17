@@ -184,24 +184,17 @@ func (c *Client) awaitMedia(ctx context.Context, id string) error {
 // account's own direct statuses appear in its timeline depends on the server,
 // and the duplicate check must not depend on that.
 func (c *Client) RecentStatuses(ctx context.Context, limit int) ([]Posted, error) {
-	var account struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
-	}
-	if _, err := c.do(ctx, http.MethodGet, "/api/v1/accounts/verify_credentials", nil, nil, &account); err != nil {
-		return nil, err
-	}
 	// The bot reads the recent toots before every post, so this is where a
 	// token of the wrong account stops it.
-	if !strings.EqualFold(account.Username, c.Account) {
-		return nil, fmt.Errorf("the token belongs to @%s, but this deployment posts as @%s",
-			account.Username, c.Account)
+	accountID, err := c.verifiedAccountID(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var statuses []Posted
 	// Boosts are left out: their text is the boosted toot's, and ten of them
 	// would push an announcement out of the window the duplicate check reads.
-	path := fmt.Sprintf("/api/v1/accounts/%s/statuses?limit=%d&exclude_reblogs=true", url.PathEscape(account.ID), limit)
+	path := fmt.Sprintf("/api/v1/accounts/%s/statuses?limit=%d&exclude_reblogs=true", url.PathEscape(accountID), limit)
 	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &statuses); err != nil {
 		return nil, err
 	}
@@ -249,6 +242,149 @@ func (c *Client) Limits(ctx context.Context) (Limits, error) {
 		CharactersPerURL: configuration.Statuses.CharactersReservedPerURL,
 		ImageSizeLimit:   configuration.MediaAttachments.ImageSizeLimit,
 	}, nil
+}
+
+// An Account is a Mastodon account, https://docs.joinmastodon.org/entities/Account/.
+type Account struct {
+	ID   string `json:"id"`
+	Acct string `json:"acct"`
+}
+
+// A List is one of the account's own lists, https://docs.joinmastodon.org/entities/List/.
+type List struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// A Relationship says whether the token's account follows another one,
+// https://docs.joinmastodon.org/entities/Relationship/.
+type Relationship struct {
+	ID        string `json:"id"`
+	Following bool   `json:"following"`
+}
+
+// VerifyAccount checks that the token belongs to the configured account,
+// refusing before a caller follows, lists or otherwise writes as the wrong
+// account. RecentStatuses does this check itself, ahead of every announce;
+// a caller that skips RecentStatuses - follow does - needs it explicitly.
+func (c *Client) VerifyAccount(ctx context.Context) error {
+	_, err := c.verifiedAccountID(ctx)
+	return err
+}
+
+// verifiedAccountID reads the token's own account and refuses it if it does
+// not belong to c.Account, otherwise returning its id for a caller (like
+// RecentStatuses) that needs it next.
+func (c *Client) verifiedAccountID(ctx context.Context) (string, error) {
+	var account struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+	}
+	if _, err := c.do(ctx, http.MethodGet, "/api/v1/accounts/verify_credentials", nil, nil, &account); err != nil {
+		return "", err
+	}
+	if !strings.EqualFold(account.Username, c.Account) {
+		return "", fmt.Errorf("the token belongs to @%s, but this deployment posts as @%s",
+			account.Username, c.Account)
+	}
+	return account.ID, nil
+}
+
+// ResolveAccount finds the account a handle names, @user@instance.
+//
+// /api/v1/accounts/lookup only knows accounts this instance has already seen;
+// search with resolve does the federation lookup that following someone new
+// needs.
+func (c *Client) ResolveAccount(ctx context.Context, handle string) (Account, error) {
+	handle = strings.TrimPrefix(strings.TrimSpace(handle), "@")
+	var result struct {
+		Accounts []Account `json:"accounts"`
+	}
+	path := "/api/v2/search?type=accounts&resolve=true&limit=1&q=" + url.QueryEscape(handle)
+	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &result); err != nil {
+		return Account{}, err
+	}
+	if len(result.Accounts) == 0 {
+		return Account{}, fmt.Errorf("no account found for %s", handle)
+	}
+	return result.Accounts[0], nil
+}
+
+// Relationships reports, for each account id, whether the token's account
+// follows it already.
+func (c *Client) Relationships(ctx context.Context, accountIDs []string) ([]Relationship, error) {
+	if len(accountIDs) == 0 {
+		return nil, nil
+	}
+	values := url.Values{}
+	for _, id := range accountIDs {
+		values.Add("id[]", id)
+	}
+	var relationships []Relationship
+	path := "/api/v1/accounts/relationships?" + values.Encode()
+	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &relationships); err != nil {
+		return nil, err
+	}
+	return relationships, nil
+}
+
+// Follow makes the token's account follow another one.
+func (c *Client) Follow(ctx context.Context, accountID string) error {
+	return c.withRetry(ctx, "following an account", func() error {
+		_, err := c.do(ctx, http.MethodPost, "/api/v1/accounts/"+url.PathEscape(accountID)+"/follow", nil, nil, nil)
+		return err
+	})
+}
+
+// Lists returns the token's account's own lists.
+func (c *Client) Lists(ctx context.Context) ([]List, error) {
+	var lists []List
+	if _, err := c.do(ctx, http.MethodGet, "/api/v1/lists", nil, nil, &lists); err != nil {
+		return nil, err
+	}
+	return lists, nil
+}
+
+// CreateList makes a new, empty list.
+func (c *Client) CreateList(ctx context.Context, title string) (List, error) {
+	form := url.Values{"title": {title}}
+	header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
+	var list List
+	err := c.withRetry(ctx, "creating a list", func() error {
+		_, err := c.do(ctx, http.MethodPost, "/api/v1/lists", header, []byte(form.Encode()), &list)
+		return err
+	})
+	return list, err
+}
+
+// ListAccounts returns who is on a list already, so a caller can add only
+// who is missing. It reads one page: Mastodon's maximum per page is 80, which
+// the lists this bot maintains are not expected to outgrow by hand; paging
+// past it would need to follow the response's Link header, not implemented.
+func (c *Client) ListAccounts(ctx context.Context, listID string) ([]Account, error) {
+	var accounts []Account
+	path := "/api/v1/lists/" + url.PathEscape(listID) + "/accounts?limit=80"
+	if _, err := c.do(ctx, http.MethodGet, path, nil, nil, &accounts); err != nil {
+		return nil, err
+	}
+	return accounts, nil
+}
+
+// AddToList adds accounts to a list. Mastodon only allows adding an account
+// the token's account already follows.
+func (c *Client) AddToList(ctx context.Context, listID string, accountIDs []string) error {
+	if len(accountIDs) == 0 {
+		return nil
+	}
+	form := url.Values{}
+	for _, id := range accountIDs {
+		form.Add("account_ids[]", id)
+	}
+	header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
+	return c.withRetry(ctx, "adding accounts to a list", func() error {
+		_, err := c.do(ctx, http.MethodPost, "/api/v1/lists/"+url.PathEscape(listID)+"/accounts", header, []byte(form.Encode()), nil)
+		return err
+	})
 }
 
 // withRetry runs a write once more after a failure that may pass: a dropped

@@ -88,6 +88,14 @@ var registry = []Definition{
 		Group:   GroupRegister,
 		Role:    RoleEditor,
 	},
+	{
+		Name: Follow,
+		Summary: "Follow a certificate's accounts and keep the Codecheckers/Authors/Venues lists in sync: " +
+			"a preview first, then `confirm` to act",
+		Usage: "follow <certificate> [confirm]",
+		Group: GroupRegister,
+		Role:  RoleEditor,
+	},
 }
 
 // index maps every name and alias to its definition.

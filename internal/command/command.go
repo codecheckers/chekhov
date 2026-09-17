@@ -27,6 +27,9 @@ const (
 	Check Name = "check"
 	// Announce toots about a published certificate.
 	Announce Name = "announce"
+	// Follow follows the fediverse accounts a certificate names, and keeps
+	// the Codecheckers/Authors/Venues Mastodon lists in sync.
+	Follow Name = "follow"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

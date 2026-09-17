@@ -39,6 +39,10 @@ chekhov:
     # Development posts direct messages only, and with direct visibility every
     # mention is defused, so no real person is ever notified. A test asserts it.
     visibility: direct
+    # Following an account, and adding it to a public list, is a real, visible
+    # act that direct visibility does not soften - so it stays off here,
+    # whatever the token's scopes allow. A test asserts it.
+    follow: false
 
   teams:
     # Who may run the editor-only commands. GitHub handles rather than a team

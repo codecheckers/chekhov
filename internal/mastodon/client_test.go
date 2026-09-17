@@ -229,7 +229,140 @@ func TestLimitsAreRead(t *testing.T) {
 	}
 }
 
+func TestResolveAccountSearchesWithResolve(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v2/search", answer(200, `{"accounts":[{"id":"9","acct":"alice@example.social"}]}`))
+
+	account, err := client.ResolveAccount(context.Background(), "@alice@example.social")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if account.ID != "9" || account.Acct != "alice@example.social" {
+		t.Errorf("account = %+v", account)
+	}
+	query := stub.requests[0].URL.Query()
+	if query.Get("q") != "alice@example.social" || query.Get("resolve") != "true" || query.Get("type") != "accounts" {
+		t.Errorf("query = %v", query)
+	}
+}
+
+func TestResolveAccountRefusesWhenNothingIsFound(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v2/search", answer(200, `{"accounts":[]}`))
+
+	if _, err := client.ResolveAccount(context.Background(), "@nobody@example.social"); err == nil {
+		t.Fatal("no error for an account nothing resolved to")
+	}
+}
+
+func TestRelationshipsAsksForEveryID(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v1/accounts/relationships", answer(200, `[{"id":"1","following":true},{"id":"2","following":false}]`))
+
+	relationships, err := client.Relationships(context.Background(), []string{"1", "2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(relationships) != 2 || !relationships[0].Following || relationships[1].Following {
+		t.Errorf("relationships = %+v", relationships)
+	}
+	query := stub.requests[0].URL.RawQuery
+	if !strings.Contains(query, "id%5B%5D=1") || !strings.Contains(query, "id%5B%5D=2") {
+		t.Errorf("query = %s", query)
+	}
+}
+
+func TestRelationshipsOfNoAccountsMakesNoRequest(t *testing.T) {
+	stub, client := newInstance(t)
+	if _, err := client.Relationships(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.requests) != 0 {
+		t.Error("a request was made for no accounts")
+	}
+}
+
+func TestFollowFollows(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("POST /api/v1/accounts/9/follow", answer(200, `{"id":"9","following":true}`))
+
+	if err := client.Follow(context.Background(), "9"); err != nil {
+		t.Fatal(err)
+	}
+	if n := stub.count("POST /api/v1/accounts/9/follow"); n != 1 {
+		t.Errorf("%d follow requests, want 1", n)
+	}
+}
+
+func TestListsFindsOrCreatesAndAdds(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v1/lists", answer(200, `[{"id":"1","title":"Codecheckers"}]`))
+	stub.handle("POST /api/v1/lists", answer(200, `{"id":"2","title":"Authors"}`))
+	stub.handle("GET /api/v1/lists/1/accounts", answer(200, `[{"id":"9","acct":"alice@example.social"}]`))
+	stub.handle("POST /api/v1/lists/1/accounts", answer(200, `[]`))
+
+	lists, err := client.Lists(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lists) != 1 || lists[0].Title != "Codecheckers" {
+		t.Errorf("lists = %+v", lists)
+	}
+
+	created, err := client.CreateList(context.Background(), "Authors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID != "2" || created.Title != "Authors" {
+		t.Errorf("created = %+v", created)
+	}
+
+	already, err := client.ListAccounts(context.Background(), "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(already) != 1 || already[0].Acct != "alice@example.social" {
+		t.Errorf("already = %+v", already)
+	}
+
+	if err := client.AddToList(context.Background(), "1", []string{"10", "11"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "account_ids%5B%5D=10") {
+		t.Errorf("the add request lacks the account ids: %s", stub.bodies[len(stub.bodies)-1])
+	}
+}
+
+func TestAddToListOfNoAccountsMakesNoRequest(t *testing.T) {
+	stub, client := newInstance(t)
+	if err := client.AddToList(context.Background(), "1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.requests) != 0 {
+		t.Error("a request was made for no accounts")
+	}
+}
+
 // A token of another account must not post in this deployment's name.
+func TestVerifyAccountAcceptsTheConfiguredAccount(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"codecheck"}`))
+
+	if err := client.VerifyAccount(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVerifyAccountRefusesAnotherAccount(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"someone"}`))
+
+	err := client.VerifyAccount(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "belongs to @someone") {
+		t.Fatalf("error = %v, want a refusal naming the account", err)
+	}
+}
+
 func TestATokenOfAnotherAccountIsRefused(t *testing.T) {
 	stub, client := newInstance(t)
 	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"someone"}`))

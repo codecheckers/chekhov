@@ -13,13 +13,30 @@ import (
 	"github.com/codecheckers/chekhov/internal/mastodon"
 )
 
-// fakeToots stands in for Mastodon and records what would have been posted.
+// fakeToots stands in for Mastodon and records what would have been posted,
+// followed or listed.
 type fakeToots struct {
 	mu       sync.Mutex
 	recent   []mastodon.Posted
 	uploads  int
 	posts    []mastodon.Status
 	limitErr error
+
+	// accounts maps a handle to the account ResolveAccount returns; a handle
+	// missing here resolves to a deterministic account id derived from it, so
+	// a test that does not care about ids need not set this up. resolveErr
+	// makes resolving a handle fail instead.
+	accounts   map[string]mastodon.Account
+	resolveErr map[string]error
+
+	followed  map[string]bool // account id -> already followed
+	followErr error
+	verifyErr error // non-nil simulates a token belonging to the wrong account
+
+	lists        map[string]mastodon.List      // title -> list
+	listAccounts map[string][]mastodon.Account // list id -> members
+	nextListID   int
+	listsCalls   int // how many times Lists was asked, for TestFollowConfirmReadsListsOnce
 }
 
 func (f *fakeToots) Post(_ context.Context, status mastodon.Status) (mastodon.Posted, error) {
@@ -46,6 +63,90 @@ func (f *fakeToots) RecentStatuses(context.Context, int) ([]mastodon.Posted, err
 
 func (f *fakeToots) Limits(context.Context) (mastodon.Limits, error) {
 	return mastodon.Limits{MaxCharacters: 1500, CharactersPerURL: 23, ImageSizeLimit: 16 << 20}, f.limitErr
+}
+
+func (f *fakeToots) VerifyAccount(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.verifyErr
+}
+
+func (f *fakeToots) ResolveAccount(_ context.Context, handle string) (mastodon.Account, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err := f.resolveErr[handle]; err != nil {
+		return mastodon.Account{}, err
+	}
+	if account, ok := f.accounts[handle]; ok {
+		return account, nil
+	}
+	return mastodon.Account{ID: "id-" + handle, Acct: strings.TrimPrefix(handle, "@")}, nil
+}
+
+func (f *fakeToots) Relationships(_ context.Context, ids []string) ([]mastodon.Relationship, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	relationships := make([]mastodon.Relationship, len(ids))
+	for i, id := range ids {
+		relationships[i] = mastodon.Relationship{ID: id, Following: f.followed[id]}
+	}
+	return relationships, nil
+}
+
+func (f *fakeToots) Follow(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.followErr != nil {
+		return f.followErr
+	}
+	if f.followed == nil {
+		f.followed = map[string]bool{}
+	}
+	f.followed[id] = true
+	return nil
+}
+
+func (f *fakeToots) Lists(context.Context) ([]mastodon.List, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.listsCalls++
+	lists := make([]mastodon.List, 0, len(f.lists))
+	for _, list := range f.lists {
+		lists = append(lists, list)
+	}
+	return lists, nil
+}
+
+func (f *fakeToots) CreateList(_ context.Context, title string) (mastodon.List, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.lists == nil {
+		f.lists = map[string]mastodon.List{}
+	}
+	f.nextListID++
+	// Prefixed so a generated id never collides with one a test preseeds by
+	// hand.
+	list := mastodon.List{ID: fmt.Sprintf("created-%d", f.nextListID), Title: title}
+	f.lists[title] = list
+	return list, nil
+}
+
+func (f *fakeToots) ListAccounts(_ context.Context, listID string) ([]mastodon.Account, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.listAccounts[listID], nil
+}
+
+func (f *fakeToots) AddToList(_ context.Context, listID string, ids []string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.listAccounts == nil {
+		f.listAccounts = map[string][]mastodon.Account{}
+	}
+	for _, id := range ids {
+		f.listAccounts[listID] = append(f.listAccounts[listID], mastodon.Account{ID: id})
+	}
+	return nil
 }
 
 // announceServer is a test server whose services read the published

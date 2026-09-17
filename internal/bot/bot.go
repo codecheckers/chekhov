@@ -31,13 +31,22 @@ type Poster interface {
 	Comment(ctx context.Context, repository string, issue int, body string) (int64, error)
 }
 
-// Toots is the part of the Mastodon client announcing needs, so a test can
-// watch what would be tooted without an instance.
+// Toots is the part of the Mastodon client announcing and following need, so
+// a test can watch what would be tooted, followed or listed without an
+// instance.
 type Toots interface {
 	Post(ctx context.Context, status mastodon.Status) (mastodon.Posted, error)
 	UploadMedia(ctx context.Context, name, mimeType string, content []byte, description string) (string, error)
 	RecentStatuses(ctx context.Context, limit int) ([]mastodon.Posted, error)
 	Limits(ctx context.Context) (mastodon.Limits, error)
+	VerifyAccount(ctx context.Context) error
+	ResolveAccount(ctx context.Context, handle string) (mastodon.Account, error)
+	Relationships(ctx context.Context, accountIDs []string) ([]mastodon.Relationship, error)
+	Follow(ctx context.Context, accountID string) error
+	Lists(ctx context.Context) ([]mastodon.List, error)
+	CreateList(ctx context.Context, title string) (mastodon.List, error)
+	ListAccounts(ctx context.Context, listID string) ([]mastodon.Account, error)
+	AddToList(ctx context.Context, listID string, accountIDs []string) error
 }
 
 // Server is the whole bot: one webhook endpoint, one health endpoint, no state.
@@ -208,6 +217,8 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.check(parsed, services)
 	case command.Announce:
 		return s.announce(ctx, parsed, services)
+	case command.Follow:
+		return s.follow(ctx, parsed, services)
 	default:
 		return command.UnknownReply(parsed)
 	}
@@ -272,15 +283,7 @@ const recentToots = 40
 // certificate. The bot keeps no state, so confirm composes the toot again from
 // what is published now rather than posting what the preview showed.
 func (s *Server) announce(ctx context.Context, parsed command.Command, services *check.Services) string {
-	certificate, confirm := "", false
-	for _, argument := range parsed.Args {
-		switch {
-		case strings.EqualFold(argument, "confirm"):
-			confirm = true
-		case certificate == "" && check.IsCertificateID(argument):
-			certificate = argument
-		}
-	}
+	certificate, confirm := parseCertificateAndConfirm(parsed.Args)
 	if certificate == "" {
 		return fmt.Sprintf("I need the certificate to announce:\n\n    %s announce 2020-001\n", command.Bot)
 	}
@@ -356,6 +359,219 @@ func (s *Server) announce(ctx context.Context, parsed command.Command, services 
 	return command.AnnouncePosted(certificate, posted.URL)
 }
 
+// parseCertificateAndConfirm reads "<certificate> [confirm]" out of a
+// command's arguments, the shape announce and follow both take.
+func parseCertificateAndConfirm(args []string) (certificate string, confirm bool) {
+	for _, argument := range args {
+		switch {
+		case strings.EqualFold(argument, "confirm"):
+			confirm = true
+		case certificate == "" && check.IsCertificateID(argument):
+			certificate = argument
+		}
+	}
+	return certificate, confirm
+}
+
+// followLists are the public Mastodon lists follow keeps in sync, in the
+// order the reply reports them, each with how to read its members out of a
+// certificate's resolved mentions.
+var followLists = []struct {
+	title   string
+	handles func(announce.Mentions) []string
+}{
+	{command.CodecheckersList, func(m announce.Mentions) []string { return m.Codecheckers }},
+	{command.AuthorsList, func(m announce.Mentions) []string { return m.Authors }},
+	{command.VenuesList, func(m announce.Mentions) []string {
+		if m.Venue == "" {
+			return nil
+		}
+		return []string{m.Venue}
+	}},
+}
+
+// follow previews, or with "confirm" performs, following a certificate's
+// accounts and keeping the Codecheckers/Authors/Venues lists in sync. Like
+// announce, the bot keeps no state: every run resolves the certificate and
+// the lists afresh.
+func (s *Server) follow(ctx context.Context, parsed command.Command, services *check.Services) string {
+	certificate, confirm := parseCertificateAndConfirm(parsed.Args)
+	if certificate == "" {
+		return fmt.Sprintf("I need the certificate whose accounts to follow:\n\n    %s follow 2020-001\n", command.Bot)
+	}
+	if !services.Enabled() {
+		return "Following reads the published certificate, and this bot is not online.\n"
+	}
+
+	published, directory, err := announce.Load(services, s.Settings, certificate)
+	if err != nil {
+		return fmt.Sprintf("I could not read certificate %s: %s\n", certificate, err)
+	}
+	mentions := announce.Resolve(published, directory)
+
+	reply := command.Following{
+		Certificate:  certificate,
+		Enabled:      s.followEnabled(),
+		Codecheckers: mentions.Codecheckers,
+		Authors:      mentions.Authors,
+		Venue:        mentions.Venue,
+		Unmatched:    mentions.Unmatched,
+	}
+	if !reply.Enabled {
+		return command.FollowPreview(reply)
+	}
+
+	handles := append([]string{}, mentions.Codecheckers...)
+	handles = append(handles, mentions.Authors...)
+	if mentions.Venue != "" {
+		handles = append(handles, mentions.Venue)
+	}
+	handles = dedupeHandles(handles)
+
+	// A handle the directory matched can still fail to resolve on the
+	// instance - an account since deleted, suspended or moved - and that is
+	// the same kind of "known, but unreachable" outcome Unmatched already
+	// reports for a person with no account on file at all, not a reason to
+	// abandon the whole preview.
+	accounts := map[string]mastodon.Account{}
+	var resolved []string
+	for _, handle := range handles {
+		account, err := s.Toots.ResolveAccount(ctx, handle)
+		if err != nil {
+			reply.Unresolved = append(reply.Unresolved, handle)
+			s.Logger.Warn("could not resolve a mentioned account", "certificate", certificate, "handle", handle, "error", err)
+			continue
+		}
+		accounts[handle] = account
+		resolved = append(resolved, handle)
+	}
+	handles = resolved
+
+	ids := make([]string, 0, len(handles))
+	for _, handle := range handles {
+		ids = append(ids, accounts[handle].ID)
+	}
+	relationships, err := s.Toots.Relationships(ctx, ids)
+	if err != nil {
+		return fmt.Sprintf("I could not check who @%s already follows: %s\n", s.Settings.Mastodon().Account, err)
+	}
+	following := make(map[string]bool, len(relationships))
+	for _, relationship := range relationships {
+		following[relationship.ID] = relationship.Following
+	}
+	for _, handle := range handles {
+		if following[accounts[handle].ID] {
+			reply.AlreadyFollowed = append(reply.AlreadyFollowed, handle)
+		} else {
+			reply.NewlyFollowed = append(reply.NewlyFollowed, handle)
+		}
+	}
+
+	if !confirm {
+		return command.FollowPreview(reply)
+	}
+
+	// announce reaches this same check through RecentStatuses, which it always
+	// calls; follow has no equivalent read to piggyback it on, so it is
+	// explicit here, and before the first write - a token of the wrong
+	// account must never follow or list a real person in this deployment's
+	// name.
+	if err := s.Toots.VerifyAccount(ctx); err != nil {
+		return fmt.Sprintf("%s\n", err)
+	}
+
+	for _, handle := range reply.NewlyFollowed {
+		if err := s.Toots.Follow(ctx, accounts[handle].ID); err != nil {
+			return fmt.Sprintf("I could not follow %s: %s\n", handle, err)
+		}
+	}
+
+	lists, err := s.Toots.Lists(ctx)
+	if err != nil {
+		return fmt.Sprintf("I could not read the account's lists: %s\n", err)
+	}
+	byTitle := make(map[string]mastodon.List, len(lists))
+	for _, list := range lists {
+		byTitle[list.Title] = list
+	}
+
+	reply.Added = map[string][]string{}
+	for _, group := range followLists {
+		handles := group.handles(mentions)
+		if !anyResolved(handles, accounts) {
+			// Nothing in this group resolved to an account, so there is
+			// nothing to add - and no reason to create the list for it yet.
+			continue
+		}
+
+		list, ok := byTitle[group.title]
+		if !ok {
+			if list, err = s.Toots.CreateList(ctx, group.title); err != nil {
+				return fmt.Sprintf("I could not prepare the %s list: %s\n", group.title, err)
+			}
+			byTitle[group.title] = list
+		}
+		already, err := s.Toots.ListAccounts(ctx, list.ID)
+		if err != nil {
+			return fmt.Sprintf("I could not read who is on the %s list already: %s\n", group.title, err)
+		}
+		listed := make(map[string]bool, len(already))
+		for _, account := range already {
+			listed[account.ID] = true
+		}
+
+		var toAdd []string
+		for _, handle := range handles {
+			account, ok := accounts[handle]
+			if !ok || listed[account.ID] {
+				continue
+			}
+			toAdd = append(toAdd, account.ID)
+			reply.Added[group.title] = append(reply.Added[group.title], handle)
+		}
+		if len(toAdd) > 0 {
+			if err := s.Toots.AddToList(ctx, list.ID, toAdd); err != nil {
+				return fmt.Sprintf("I could not add to the %s list: %s\n", group.title, err)
+			}
+		}
+	}
+
+	s.Logger.Info("followed", "certificate", certificate, "newly_followed", len(reply.NewlyFollowed))
+	return command.FollowPosted(reply)
+}
+
+// followEnabled says whether this deployment may follow accounts and manage
+// the Codecheckers/Authors/Venues lists at all.
+func (s *Server) followEnabled() bool {
+	return s.Toots != nil && s.Settings.Mastodon().Follow
+}
+
+// anyResolved reports whether at least one handle resolved to an account, so
+// a list with nobody to add to it is not created for nothing.
+func anyResolved(handles []string, accounts map[string]mastodon.Account) bool {
+	for _, handle := range handles {
+		if _, ok := accounts[handle]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// dedupeHandles keeps the first occurrence of each handle, so an account
+// mentioned twice (a codechecker who is also named as an author, say) is
+// resolved and followed once.
+func dedupeHandles(handles []string) []string {
+	seen := make(map[string]bool, len(handles))
+	out := make([]string, 0, len(handles))
+	for _, handle := range handles {
+		if !seen[handle] {
+			seen[handle] = true
+			out = append(out, handle)
+		}
+	}
+	return out
+}
+
 // read loads the configuration a command names. A deployment does not read its
 // own disk, so there a target is always a repository; check.Load is the one
 // place that decides.
@@ -385,6 +601,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 			"configured": s.Toots != nil,
 			"account":    s.Settings.Mastodon().Account,
 			"visibility": s.Settings.Mastodon().Visibility,
+			"follow":     s.followEnabled(),
 		}
 	}
 

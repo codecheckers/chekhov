@@ -148,6 +148,15 @@ published certificate, and `codechecker_lists`. `persons.csv` and `venues.csv`
 are read from the target repository. In development all of it is the testing
 register's fake certificate `1970-001`.
 
+`@chekhovbot follow` uses the same account, instance and token, plus
+`mastodon.follow` in the settings file - `false` in development, a test
+asserts it - because following an account and adding it to a public list are
+not softened by `direct` visibility the way a toot's mentions are. `/healthz`
+in development reports `announce.follow`, true only when both a token is
+configured and the settings file turns it on. A production settings file
+turns it on deliberately, once the token has the extra scopes
+[`mastodon-token.md`](mastodon-token.md) lists for it.
+
 ## Memory
 
 The free plan kills the process above 128 MB, and a restart loses the command

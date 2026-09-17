@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot follow <certificate>` previews following the fediverse accounts
+  a certificate names - who is matched, who `@codecheck` already follows,
+  who has no account on record - and `follow <certificate> confirm` follows
+  whoever is missing and adds everyone matched to public Mastodon lists on
+  `@codecheck`, split by role: Codecheckers, Authors, Venues, created on first
+  use. Editors only; switched off in development by `mastodon.follow: false`,
+  since following and listing are public acts a development deployment must
+  not perform on a real account (codecheckers/chekhov#31).
 - `@chekhovbot announce <certificate>` previews a toot about a published
   certificate - its text, the certificate pages as an animated GIF, who is
   mentioned and who has no fediverse account on record - and

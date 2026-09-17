@@ -229,7 +229,10 @@ func Compose(certificate Certificate, directory Directory, limits Limits, visibi
 			if handle := directory.Person(person); handle != "" {
 				toot.Mentioned = append(toot.Mentioned, handle)
 				named = append(named, fmt.Sprintf("%s (%s)", name, handle))
-			} else {
+			} else if name != "" {
+				// A person with neither a matched account nor a name has
+				// nothing to show; an empty Unmatched entry would only
+				// confuse the list it is joined into.
 				toot.Unmatched = append(toot.Unmatched, name)
 				named = append(named, name)
 			}
@@ -239,13 +242,13 @@ func Compose(certificate Certificate, directory Directory, limits Limits, visibi
 
 	authors := people(certificate.Authors)
 	codecheckers := people(certificate.Codecheckers)
-	venue := directory.Venue(certificate.Venue)
+	venue, venueUnmatched := matchVenue(certificate, directory)
 	venueLine := certificate.Venue
 	if venue.Handle != "" {
 		toot.Mentioned = append(toot.Mentioned, venue.Handle)
 		venueLine += " " + venue.Handle
-	} else if certificate.Venue != "" {
-		toot.Unmatched = append(toot.Unmatched, "venue "+certificate.Venue)
+	} else if venueUnmatched != "" {
+		toot.Unmatched = append(toot.Unmatched, venueUnmatched)
 	}
 	hashtags := []string{"#CODECHECK"}
 	for _, tag := range venue.Hashtags {
@@ -324,6 +327,55 @@ func defuse(text string) string {
 		}
 		text = next
 	}
+}
+
+// Mentions are the fediverse handles a certificate names, split by role - for
+// following and list membership (codecheckers/chekhov#31), unlike Compose's
+// Toot.Mentioned, which is flat and defused for the toot text.
+type Mentions struct {
+	Codecheckers []string
+	Authors      []string
+	// Venue is the matched handle, or "" when there is none.
+	Venue string
+	// Unmatched are the people, and the venue, with no account on record.
+	Unmatched []string
+}
+
+// Resolve looks up a certificate's people and venue in the directory, without
+// composing a toot.
+func Resolve(certificate Certificate, directory Directory) Mentions {
+	var mentions Mentions
+	handles := func(persons []Person) []string {
+		matched := make([]string, 0, len(persons))
+		for _, person := range persons {
+			if handle := directory.Person(person); handle != "" {
+				matched = append(matched, handle)
+			} else if name := strings.TrimSpace(person.Name); name != "" {
+				mentions.Unmatched = append(mentions.Unmatched, name)
+			}
+		}
+		return matched
+	}
+
+	mentions.Codecheckers = handles(certificate.Codecheckers)
+	mentions.Authors = handles(certificate.Authors)
+	venue, venueUnmatched := matchVenue(certificate, directory)
+	mentions.Venue = venue.Handle
+	if venueUnmatched != "" {
+		mentions.Unmatched = append(mentions.Unmatched, venueUnmatched)
+	}
+	return mentions
+}
+
+// matchVenue finds a certificate's venue account, and the note to add to an
+// Unmatched list when there is none - shared so the definition of "matched"
+// cannot drift between the toot and the follow/list bookkeeping.
+func matchVenue(certificate Certificate, directory Directory) (venue Venue, unmatchedNote string) {
+	venue = directory.Venue(certificate.Venue)
+	if venue.Handle == "" && certificate.Venue != "" {
+		unmatchedNote = "venue " + certificate.Venue
+	}
+	return venue, unmatchedNote
 }
 
 // Announced finds a status that already announced the certificate, by its

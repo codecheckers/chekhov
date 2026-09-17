@@ -241,6 +241,119 @@ func AnnouncePosted(certificate, url string) string {
 	return fmt.Sprintf("Announced certificate %s: %s\n", certificate, url)
 }
 
+// Names of the public Mastodon lists follow keeps in sync, and the order a
+// reply reports them in. The single definition both bot.go (what it builds)
+// and FollowPosted (what it reports) work from, so the two cannot drift.
+const (
+	CodecheckersList = "Codecheckers"
+	AuthorsList      = "Authors"
+	VenuesList       = "Venues"
+)
+
+// FollowListTitles are CodecheckersList, AuthorsList and VenuesList, in the
+// order a reply reports them.
+var FollowListTitles = []string{CodecheckersList, AuthorsList, VenuesList}
+
+// A Following is what the preview and the posted reply of "@chekhovbot
+// follow" show: who a certificate names, who @codecheck already follows, and
+// - after confirm - what changed.
+type Following struct {
+	Certificate string
+	// Enabled says whether this deployment may follow accounts and manage
+	// lists at all.
+	Enabled bool
+
+	Codecheckers []string
+	Authors      []string
+	// Venue is the matched handle, or "" when there is none.
+	Venue string
+	// Unmatched are the people, and the venue, with no account on record.
+	Unmatched []string
+	// Unresolved are handles on record that the instance could not resolve
+	// to an account - deleted, suspended or moved, say - as opposed to
+	// Unmatched, where there was no handle to try in the first place.
+	Unresolved []string
+
+	// NewlyFollowed and AlreadyFollowed are the matched handles, split by
+	// whether @codecheck followed them already - known in the preview, and
+	// unchanged by it.
+	NewlyFollowed   []string
+	AlreadyFollowed []string
+
+	// Added is filled by confirm: the handles newly put on each list, keyed
+	// by its title.
+	Added map[string][]string
+}
+
+// FollowPreview is the answer to "@chekhovbot follow <certificate>": who is
+// matched, who is already followed, and the exact line that acts.
+func FollowPreview(f Following) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "**Preview of following certificate %s's accounts**\n\n", f.Certificate)
+	writeMentionGroup(&out, "codecheckers", f.Codecheckers)
+	writeMentionGroup(&out, "authors", f.Authors)
+	if f.Venue != "" {
+		writeMentionGroup(&out, "venue", []string{f.Venue})
+	}
+	if len(f.Unmatched) > 0 {
+		fmt.Fprintf(&out, "- no fediverse account on record for: %s\n", strings.Join(f.Unmatched, ", "))
+	}
+	if len(f.Unresolved) > 0 {
+		fmt.Fprintf(&out, "- on record, but the instance could not resolve: %s\n", codeList(f.Unresolved))
+	}
+	if f.Enabled {
+		if len(f.AlreadyFollowed) > 0 {
+			fmt.Fprintf(&out, "- already followed: %s\n", codeList(f.AlreadyFollowed))
+		}
+		if len(f.NewlyFollowed) > 0 {
+			fmt.Fprintf(&out, "- not yet followed: %s\n", codeList(f.NewlyFollowed))
+		}
+	}
+
+	switch {
+	case !f.Enabled:
+		out.WriteString("\nFollowing is switched off for this deployment, so `confirm` will not follow anyone or change any list.\n")
+	case len(f.Codecheckers)+len(f.Authors) == 0 && f.Venue == "":
+		out.WriteString("\nNobody on this certificate has a fediverse account on record.\n")
+	default:
+		fmt.Fprintf(&out, "\nTo follow whoever is not yet followed, and keep the Codecheckers, Authors and Venues lists in sync, write:\n\n    %s follow %s confirm\n",
+			Bot, f.Certificate)
+	}
+	return out.String()
+}
+
+// FollowPosted is the answer to a confirm that ran.
+func FollowPosted(f Following) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "**Followed for certificate %s**\n\n", f.Certificate)
+	if len(f.NewlyFollowed) > 0 {
+		fmt.Fprintf(&out, "- followed: %s\n", codeList(f.NewlyFollowed))
+	} else {
+		out.WriteString("- followed: nobody new, everyone matched was already followed\n")
+	}
+	if len(f.Unresolved) > 0 {
+		fmt.Fprintf(&out, "- on record, but the instance could not resolve: %s\n", codeList(f.Unresolved))
+	}
+	any := false
+	for _, title := range FollowListTitles {
+		if added := f.Added[title]; len(added) > 0 {
+			fmt.Fprintf(&out, "- added to the %s list: %s\n", title, codeList(added))
+			any = true
+		}
+	}
+	if !any {
+		out.WriteString("- lists: already up to date\n")
+	}
+	return out.String()
+}
+
+func writeMentionGroup(out *strings.Builder, label string, handles []string) {
+	if len(handles) == 0 {
+		return
+	}
+	fmt.Fprintf(out, "- %s: %s\n", label, codeList(handles))
+}
+
 func codeList(items []string) string {
 	quoted := make([]string, len(items))
 	for i, item := range items {

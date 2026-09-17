@@ -31,11 +31,14 @@ unless configured otherwise): **Preferences → Development → New application*
 | `read:statuses` | reads the last ten toots and, with `direct` visibility, the conversations, to refuse a second announcement | `GET /api/v1/accounts/:id/statuses`, `GET /api/v1/conversations` |
 | `write:media` | uploads the certificate animation | `POST /api/v2/media`, `GET /api/v1/media/:id` |
 | `write:statuses` | posts the toot | `POST /api/v1/statuses` |
-| `write:follows` | not used yet: following the accounts a certificate mentions, #31 | `POST /api/v1/accounts/:id/follow` |
+| `read:search` | finds an account named by `follow`, `resolve=true` does the federation lookup | `GET /api/v2/search` |
+| `read:follows` | sees whether `@codecheck` already follows an account named by `follow` | `GET /api/v1/accounts/relationships` |
+| `write:follows` | follows the accounts a certificate names, `@chekhovbot follow <certificate> confirm` (#31) | `POST /api/v1/accounts/:id/follow` |
+| `read:lists` | finds the Codecheckers/Authors/Venues lists, and who is on them already | `GET /api/v1/lists`, `GET /api/v1/lists/:id/accounts` |
+| `write:lists` | creates the three lists on first use, and adds accounts to them | `POST /api/v1/lists`, `POST /api/v1/lists/:id/accounts` |
 
-The token in use has all five. #31 will also need `read:search` and
-`read:follows`, to find a mentioned account on the instance and to see whether
-`@codecheck` follows it already; add them when that lands.
+The token in use has all nine. Without `mastodon.follow: true` in the
+deployment's settings, `follow` only ever previews - see below.
 
 The instance limits (`GET /api/v2/instance`) need no scope.
 
@@ -86,3 +89,14 @@ The token can post publicly; the settings file decides whether the bot does.
 and `internal/mastodon` refuses any other visibility before making a request.
 With `direct`, every mention is written without its `@`, so a development toot
 notifies nobody. See [`deployment.md`](deployment.md#announcing).
+
+## Following is not softened by visibility
+
+Unlike a toot, following an account and adding it to a public list are real,
+visible acts that `direct` visibility does not defuse - the account being
+followed, or listed, sees it either way. `mastodon.follow` in the settings
+file is a separate switch for that reason: `config/settings-development.yml`
+says `follow: false`, a test asserts it, and `@chekhovbot follow` previews
+regardless but only `confirm`s when it is `true`. A production deployment
+turns it on deliberately, in its own settings file, once the token has the
+scopes above.
