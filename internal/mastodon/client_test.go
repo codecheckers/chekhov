@@ -342,7 +342,7 @@ func TestCollectionsFindsOrCreatesAndAddsItems(t *testing.T) {
 	stub, client := newInstance(t)
 	stub.handle("GET /api/v1/accounts/verify_credentials", answer(200, `{"id":"7","username":"codecheck"}`))
 	stub.handle("GET /api/v1/accounts/7/collections", answer(200, `{"collections":[{"id":"1","name":"Codecheckers"}]}`))
-	stub.handle("POST /api/v1/collections", answer(200, `{"id":"2","name":"Authors"}`))
+	stub.handle("POST /api/v1/collections", answer(200, `{"id":"2","name":"Authors","url":"https://example.social/collections/2"}`))
 	stub.handle("GET /api/v1/collections/1", answer(200,
 		`{"id":"1","name":"Codecheckers",`+
 			`"items":[{"id":"5","state":"accepted","account_id":"9","created_at":"2026-01-01T00:00:00Z"}]}`))
@@ -361,7 +361,7 @@ func TestCollectionsFindsOrCreatesAndAddsItems(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID != "2" || created.Name != "Authors" {
+	if created.ID != "2" || created.Name != "Authors" || created.URL != "https://example.social/collections/2" {
 		t.Errorf("created = %+v", created)
 	}
 	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "discoverable=true") ||

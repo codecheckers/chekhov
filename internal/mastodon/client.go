@@ -279,11 +279,15 @@ const MaxCollectionItems = 25
 // GetCollection; Collections, which lists an account's collections, does not
 // fill it in.
 type Collection struct {
-	ID           string           `json:"id"`
-	Name         string           `json:"name"`
-	Description  string           `json:"description"`
-	Discoverable bool             `json:"discoverable"`
-	Items        []CollectionItem `json:"items"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Discoverable bool   `json:"discoverable"`
+	// URL is the collection's own public page - what a human, not an
+	// ActivityPub client, follows. Distinct from the API/ActivityPub "uri",
+	// which this type does not keep.
+	URL   string           `json:"url"`
+	Items []CollectionItem `json:"items"`
 }
 
 // A CollectionItem is one account's membership request or membership in a

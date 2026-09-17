@@ -203,7 +203,7 @@ func TestFollowConfirmAsksAnIneligibleAccountToFollowBack(t *testing.T) {
 	if len(toots.directMessages) != 1 {
 		t.Fatalf("%d direct messages sent, want 1", len(toots.directMessages))
 	}
-	for _, want := range []string{"@else@example.social", "1970-001", "@codecheck"} {
+	for _, want := range []string{"@else@example.social", "1970-001", "Codecheckers: https://example.social/collections/"} {
 		if !strings.Contains(toots.directMessages[0], want) {
 			t.Errorf("the direct message does not mention %q: %s", want, toots.directMessages[0])
 		}

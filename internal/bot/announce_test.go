@@ -164,6 +164,7 @@ func (f *fakeToots) CreateCollection(_ context.Context, name, description string
 	// hand.
 	collection := mastodon.Collection{
 		ID: fmt.Sprintf("created-%d", f.nextCollectionID), Name: name, Description: description, Discoverable: true,
+		URL: "https://example.social/collections/" + fmt.Sprintf("created-%d", f.nextCollectionID),
 	}
 	f.collections[name] = collection
 	return collection, nil

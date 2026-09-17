@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -543,6 +544,7 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 	reply.Requested = map[string][]string{}
 	reply.Evicted = map[string]int{}
 	reply.NotEligible = map[string][]string{}
+	collectionURL := map[string]string{} // title -> its public page, for the follow-back DM
 	for _, group := range followCollections {
 		handles := group.handles(mentions)
 		if !anyResolved(handles, accounts) {
@@ -567,6 +569,7 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 			}
 			items = full.Items
 		}
+		collectionURL[group.title] = collection.URL
 
 		// handled is every account this collection has ever asked, in any
 		// state: pending, accepted, but also rejected and revoked, which
@@ -600,10 +603,11 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 					// Mastodon's own consent model, not a failure of ours: the
 					// account has not (yet) declared a feature-approval policy
 					// that allows it, typically because it does not follow
-					// @codecheck back. The toot invites that; nothing more to
-					// do here but say so and move on to the next handle. A
-					// slot possibly freed by eviction above stays unused this
-					// run rather than the confirm aborting outright.
+					// @codecheck back. A private message below asks for that;
+					// nothing more to do here but say so and move on to the
+					// next handle. A slot possibly freed by eviction above
+					// stays unused this run rather than the confirm aborting
+					// outright.
 					handled[account.ID] = true
 					reply.NotEligible[group.title] = append(reply.NotEligible[group.title], handle)
 					continue
@@ -628,9 +632,19 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 				continue
 			}
 			asked[handle] = true
+
+			// Named plainly rather than "collection(s)": almost always one
+			// title, and a handle named on the same certificate under two
+			// roles is the only way it is ever more than that.
+			var links []string
+			for _, t := range command.FollowListTitles {
+				if url := collectionURL[t]; url != "" && slices.Contains(reply.NotEligible[t], handle) {
+					links = append(links, fmt.Sprintf("- %s: %s", t, url))
+				}
+			}
 			text := fmt.Sprintf(
-				"Hi %s! You're named on CODECHECK certificate %s. To be featured in @codecheck's public Codecheckers/Authors/Venues collections, please follow this account back - thanks for being part of CODECHECK!",
-				handle, certificate)
+				"Hi %s! You're named on CODECHECK certificate %s, and could be featured in:\n%s\n\nFollow this account back to be included - thanks for being part of CODECHECK!",
+				handle, certificate, strings.Join(links, "\n"))
 			// Guards only against a doubled confirm within Mastodon's own
 			// hour-long idempotency window, same as announce's own toot - not
 			// a lasting "already asked" record. See PostDirect's own doc.
