@@ -112,6 +112,32 @@ runway key add ./deploy-key.pub chekhov-deploy -y && rm deploy-key.pub
 runway local key set ~/runway-keys/chekhov_deploy
 ```
 
+The snap has a private `/tmp`, so a checkout under `/tmp` is not a git
+repository as far as the CLI is concerned - it answers "Deployments are only
+possible from a git repo". Deploy from somewhere in the home directory.
+
+### `object not found`, with nothing deployed
+
+`runway app deploy source` reads the repository with go-git rather than with
+`git`, and go-git does not understand a **multi-pack-index**. Background
+maintenance writes one - `git maintenance`, or a client like GitKraken, which
+leaves a `.git/gk` directory and `loose-*.pack` files beside it - and from then
+on every deploy fails with `object not found` before anything is pushed, while
+the platform happily goes on serving the build it received last. `-l debug`
+shows it resolving `refs/heads/main` and then giving up.
+
+Check with `ls .git/objects/pack/`: a `multi-pack-index` file is the symptom.
+
+```sh
+git multi-pack-index expire --object-dir=.git/objects   # drop the index
+git repack -ad                                          # one pack again
+git maintenance unregister                              # and stop it coming back
+```
+
+Deploying from a fresh clone works too, and is the quicker way out when a
+deployment is waiting, but it is a second checkout to keep in step - prefer
+repacking the one you work in.
+
 ## The webhook
 
 On `codecheckers/testing-dev-register`: Settings → Webhooks → Add webhook.
@@ -241,7 +267,9 @@ finish.
 ## When it falls over
 
 1. `curl https://<app>.runway.horse/healthz` — is it up, and is it the build you
-   think?
+   think? A commit that stayed the same across a deploy usually means
+   `CHEKHOV_COMMIT` was not set with it, not that the deploy failed: the
+   container is new, its idea of which commit it is is old.
 2. GitHub's *Recent Deliveries* — did the event arrive, and what was answered?
    A 401 there means the secret on the platform and the secret on the webhook
    have drifted apart.
