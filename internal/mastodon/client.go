@@ -411,7 +411,10 @@ func (c *Client) GetCollection(ctx context.Context, id string) (Collection, erro
 
 // CreateCollection makes a new, empty, discoverable collection.
 func (c *Client) CreateCollection(ctx context.Context, name, description string) (Collection, error) {
-	form := url.Values{"name": {name}, "description": {description}, "discoverable": {"true"}}
+	// sensitive has no server-side default on fediscience.org: omitting it
+	// fails validation ("Sensitive is not included in the list") rather than
+	// defaulting to false, so it is sent explicitly.
+	form := url.Values{"name": {name}, "description": {description}, "discoverable": {"true"}, "sensitive": {"false"}}
 	header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
 	var collection Collection
 	err := c.withRetry(ctx, "creating a collection", func() error {

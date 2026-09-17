@@ -336,8 +336,9 @@ func TestCollectionsFindsOrCreatesAndAddsItems(t *testing.T) {
 	if created.ID != "2" || created.Name != "Authors" {
 		t.Errorf("created = %+v", created)
 	}
-	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "discoverable=true") {
-		t.Errorf("the collection was not created discoverable: %s", stub.bodies[len(stub.bodies)-1])
+	if !strings.Contains(stub.bodies[len(stub.bodies)-1], "discoverable=true") ||
+		!strings.Contains(stub.bodies[len(stub.bodies)-1], "sensitive=false") {
+		t.Errorf("the collection was not created discoverable and explicitly not sensitive: %s", stub.bodies[len(stub.bodies)-1])
 	}
 
 	full, err := client.GetCollection(context.Background(), "1")
