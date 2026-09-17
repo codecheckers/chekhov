@@ -39,6 +39,13 @@ output is impossible to confuse with a real CODECHECK.
 4. Optionally, `CHEKHOV_MASTODON_TOKEN` for `announce`: an application on the
    `codecheck` account with five scopes, see
    [`mastodon-token.md`](mastodon-token.md). Development toots are `direct`.
+5. `follow` (codecheckers/chekhov#31) stays off even with the token configured
+   - `mastodon.follow: false` in `settings-development.yml`, a test asserts it,
+     since following and listing are real, visible acts a toot's `direct`
+     visibility does not soften. `CHEKHOV_ENV=live-test` selects
+     `settings-live-test.yml`, identical except `follow: true`, for a
+     deliberate, brief live test against the testing register; switch back to
+     `development` once it is done.
 
 ## Webhook on the testing register
 

@@ -89,6 +89,27 @@ func TestDevelopmentAnnouncesDirectOnly(t *testing.T) {
 	}
 }
 
+// live-test exists only to flip mastodon.follow on for a deliberate, brief
+// run against real fediverse test data; everything else about it must match
+// development, especially which register it reads.
+func TestLiveTestSettingsMatchDevelopmentExceptFollow(t *testing.T) {
+	t.Setenv("CHEKHOV_TARGET_REPO", "")
+
+	settings, err := Load("live-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings.TargetRepository(); got != "codecheckers/testing-dev-register" {
+		t.Errorf("target repository = %q, want the testing register", got)
+	}
+	if !settings.Mastodon().Follow {
+		t.Error("live-test settings do not enable follow, so they serve no purpose over development")
+	}
+	if visibility := settings.Mastodon().Visibility; visibility != "direct" {
+		t.Errorf("visibility = %q, want direct - live-test is not where announce's own behaviour changes", visibility)
+	}
+}
+
 func mustLoad(t *testing.T) *Settings {
 	t.Helper()
 	settings, err := Load("development")

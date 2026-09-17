@@ -1,0 +1,67 @@
+# Chekhov — live-test configuration
+#
+# Identical to settings-development.yml - same TESTING register, never the
+# production one - with one difference: `mastodon.follow: true`. It exists so
+# a deployment can be switched, deliberately and briefly, into actually
+# following accounts and managing the Codecheckers/Authors/Venues lists
+# against real fediverse test data (codecheckers/chekhov#31), without ever
+# changing what `development` does by default. Select it with
+# `CHEKHOV_ENV=live-test`; switch back to `development` when the run is done.
+#
+# `${VAR:-default}` is expanded from the environment when the file is read,
+# see settings.go.
+chekhov:
+  env:
+    bot_github_user: ${CHEKHOV_BOT_GH_USER:-chekhovbot}
+    # Target repository for all development and testing. Do NOT point this at
+    # codecheckers/register.
+    target_repository: ${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}
+    # Columns of register.csv in the target repo:
+    # Certificate,Repository,Type,Venue,Issue
+    register_file: register.csv
+    # The published certificate, {id} is the certificate identifier. The page
+    # has index.json and cert_1.png, cert_2.png, ... next to it.
+    certificates: https://codecheck.org.uk/testing-dev-register/{id}/
+    # The codechecker lists, read for fediverse accounts after persons.csv.
+    # persons.csv and venues.csv are read from the target repository.
+    codechecker_lists:
+      - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/codecheckers.csv
+      - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/institutional-codecheckers.csv
+
+  mastodon:
+    # Where "@chekhovbot announce"/"follow" act. The token is
+    # CHEKHOV_MASTODON_TOKEN; without it both are switched off. See
+    # docs/deployment.md.
+    instance: ${CHEKHOV_MASTODON_INSTANCE:-https://fediscience.org}
+    # The account the token must belong to, without @ or instance. A token of
+    # any other account is refused before anything is posted.
+    account: ${CHEKHOV_MASTODON_ACCOUNT:-codecheck}
+    # Same as development: direct messages only, every mention defused.
+    visibility: direct
+    # The one difference from development: on, so a live test can actually
+    # follow accounts and manage the public lists. Switch back to
+    # CHEKHOV_ENV=development once the test is done.
+    follow: true
+
+  teams:
+    # Who may run the editor-only commands. GitHub handles rather than a team
+    # ID: reading team membership needs an organisation-wide permission on the
+    # bot's token, and the token is deliberately scoped to one repository.
+    editors:
+      - nuest
+    codecheckers:
+
+  responders:
+    help:
+    hello:
+      hidden: true
+    welcome:
+      message: "Hi! I'm @chekhovbot. If the research paper has code, it must run.\n\nType ```@chekhovbot commands``` to see how I can help."
+    assign_codechecker:
+      only: editors
+    check_config:
+      # Validate codecheck.yml early, rather than at render time
+      config_file: codecheck.yml
+    register:
+      # Open the PR adding a row to register.csv
+      only: editors
