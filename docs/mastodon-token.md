@@ -23,7 +23,7 @@ unless configured otherwise): **Preferences → Development → New application*
 | Application name | `chekhov` (shown under every toot the bot posts) |
 | Application website | `https://github.com/codecheckers/chekhov` |
 | Redirect URI | leave the default, `urn:ietf:wg:oauth:2.0:oob` |
-| Scopes | exactly the four below; untick everything else, including the top-level `read`, `write` and `follow` |
+| Scopes | exactly the ones below; untick everything else, including the top-level `read`, `write` and `follow` |
 
 | Scope | What the bot does with it | Endpoint |
 |---|---|---|
@@ -31,13 +31,18 @@ unless configured otherwise): **Preferences → Development → New application*
 | `read:statuses` | reads the last ten toots and, with `direct` visibility, the conversations, to refuse a second announcement | `GET /api/v1/accounts/:id/statuses`, `GET /api/v1/conversations` |
 | `write:media` | uploads the certificate animation | `POST /api/v2/media`, `GET /api/v1/media/:id` |
 | `write:statuses` | posts the toot | `POST /api/v1/statuses` |
+| `write:follows` | not used yet: following the accounts a certificate mentions, #31 | `POST /api/v1/accounts/:id/follow` |
+
+The token in use has all five. #31 will also need `read:search` and
+`read:follows`, to find a mentioned account on the instance and to see whether
+`@codecheck` follows it already; add them when that lands.
 
 The instance limits (`GET /api/v2/instance`) need no scope.
 
 Submit, open the application, and copy **Your access token**. The client key
 and client secret on the same page are not needed.
 
-A token with the top-level `write` scope could also delete toots, follow
+A token with the top-level `write` scope could also delete toots, block
 accounts and change the profile. Nothing the bot does needs that, so do not
 grant it.
 
