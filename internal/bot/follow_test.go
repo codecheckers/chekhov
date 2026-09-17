@@ -182,6 +182,56 @@ func TestFollowConfirmEvictsTheOldestMemberWhenFull(t *testing.T) {
 	}
 }
 
+// An account Mastodon refuses to add (not following @codecheck back, most
+// likely) is not a hard failure: the run continues, and the account is sent
+// a private message asking them to follow back, since the GitHub reply never
+// reaches them.
+func TestFollowConfirmAsksAnIneligibleAccountToFollowBack(t *testing.T) {
+	server, toots := followServer(t)
+	toots.addItemDenied = map[string]bool{"id-@else@example.social": true}
+
+	reply := followAs(server, "nuest", "1970-001", "confirm")
+	for _, want := range []string{
+		"not yet eligible for the Codecheckers collection (they do not follow @codecheck back): `@else@example.social`",
+		"requested for the Codecheckers collection: `@inst@example.social`",
+		"privately asked to follow back: `@else@example.social`",
+	} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not say %q:\n%s", want, reply)
+		}
+	}
+	if len(toots.directMessages) != 1 {
+		t.Fatalf("%d direct messages sent, want 1", len(toots.directMessages))
+	}
+	for _, want := range []string{"@else@example.social", "1970-001", "@codecheck"} {
+		if !strings.Contains(toots.directMessages[0], want) {
+			t.Errorf("the direct message does not mention %q: %s", want, toots.directMessages[0])
+		}
+	}
+	// Everyone else was followed and the venue still followed normally.
+	if len(toots.followed) != 4 {
+		t.Errorf("%d accounts followed, want 4", len(toots.followed))
+	}
+}
+
+// PostDirect failing must not undo or block what the run already did.
+func TestFollowConfirmContinuesWhenTheDirectMessageFails(t *testing.T) {
+	server, toots := followServer(t)
+	toots.addItemDenied = map[string]bool{"id-@else@example.social": true}
+	toots.postDirectErr = errors.New("Mastodon answered 500: internal server error")
+
+	reply := followAs(server, "nuest", "1970-001", "confirm")
+	if !strings.Contains(reply, "not yet eligible for the Codecheckers collection") {
+		t.Errorf("the reply does not report the ineligible account: %s", reply)
+	}
+	if strings.Contains(reply, "privately asked to follow back") {
+		t.Errorf("the reply claims a direct message was sent when it failed: %s", reply)
+	}
+	if len(toots.directMessages) != 0 {
+		t.Errorf("a direct message was recorded despite the simulated failure: %v", toots.directMessages)
+	}
+}
+
 // A rejected or revoked item is a declined request, not an absent one: it
 // must not be asked again every run, even though it doesn't count towards
 // the cap (activeItems leaves it out on purpose).

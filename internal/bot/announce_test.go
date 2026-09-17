@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"sync"
@@ -22,6 +23,9 @@ type fakeToots struct {
 	uploads  int
 	posts    []mastodon.Status
 	limitErr error
+
+	directMessages []string // texts PostDirect was asked to send
+	postDirectErr  error
 
 	// accounts maps a handle to the account ResolveAccount returns; a handle
 	// missing here resolves to a deterministic account id derived from it, so
@@ -44,6 +48,8 @@ type fakeToots struct {
 	nextCollectionID int
 	nextItemID       int
 	collectionsCalls int // how many times Collections was asked
+
+	addItemDenied map[string]bool // account id -> AddCollectionItem returns 403
 }
 
 func (f *fakeToots) Post(_ context.Context, status mastodon.Status) (mastodon.Posted, error) {
@@ -53,6 +59,16 @@ func (f *fakeToots) Post(_ context.Context, status mastodon.Status) (mastodon.Po
 	posted := mastodon.Posted{ID: fmt.Sprint(len(f.posts)), URL: "https://example.social/@codecheck/1", Content: status.Text}
 	f.recent = append([]mastodon.Posted{posted}, f.recent...)
 	return posted, nil
+}
+
+func (f *fakeToots) PostDirect(_ context.Context, text, _ string) (mastodon.Posted, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.postDirectErr != nil {
+		return mastodon.Posted{}, f.postDirectErr
+	}
+	f.directMessages = append(f.directMessages, text)
+	return mastodon.Posted{ID: fmt.Sprint(len(f.directMessages)), URL: "https://example.social/@codecheck/direct"}, nil
 }
 
 func (f *fakeToots) UploadMedia(context.Context, string, string, []byte, string) (string, error) {
@@ -156,6 +172,11 @@ func (f *fakeToots) CreateCollection(_ context.Context, name, description string
 func (f *fakeToots) AddCollectionItem(_ context.Context, collectionID, accountID string) (mastodon.CollectionItem, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.addItemDenied[accountID] {
+		// Mirrors Mastodon's own consent check refusing an account that has
+		// not agreed to be featured - see AccountPolicy#feature? upstream.
+		return mastodon.CollectionItem{}, &mastodon.StatusError{Status: http.StatusForbidden, Body: "This action is not allowed"}
+	}
 	f.nextItemID++
 	item := mastodon.CollectionItem{
 		ID:        fmt.Sprintf("item-%d", f.nextItemID),

@@ -112,6 +112,34 @@ func TestAnotherVisibilityIsRefusedBeforeAnyRequest(t *testing.T) {
 	}
 }
 
+// A private ask must go out as direct even from a deployment configured to
+// post publicly - the opposite of what Post refuses in the test above.
+func TestPostDirectIgnoresTheClientsConfiguredVisibility(t *testing.T) {
+	stub, client := newInstance(t)
+	client.Visibility = "public"
+	stub.handle("POST /api/v1/statuses", answer(200, `{"id":"1","url":"https://example.social/@codecheck/1"}`))
+
+	if _, err := client.PostDirect(context.Background(), "please follow back", "codecheck-ask-1970-001-abcd"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stub.bodies[0], "visibility=direct") {
+		t.Errorf("the form does not say direct: %s", stub.bodies[0])
+	}
+	if got := stub.requests[0].Header.Get("Idempotency-Key"); got != "codecheck-ask-1970-001-abcd" {
+		t.Errorf("Idempotency-Key = %q", got)
+	}
+}
+
+func TestPostDirectRefusesAnEmptyMessage(t *testing.T) {
+	stub, client := newInstance(t)
+	if _, err := client.PostDirect(context.Background(), "  ", ""); err == nil {
+		t.Fatal("an empty direct message was not refused")
+	}
+	if len(stub.requests) != 0 {
+		t.Errorf("%d requests were made", len(stub.requests))
+	}
+}
+
 func TestARefusalIsNotRetried(t *testing.T) {
 	for _, code := range []int{401, 403, 422} {
 		t.Run(fmt.Sprint(code), func(t *testing.T) {

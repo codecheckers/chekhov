@@ -17,10 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   created on first use. A collection needs the account's consent (Mastodon
   reports a request as "pending" until accepted) and is capped at 25 members,
   so past that the oldest is evicted to make room - a curated, rotating
-  sample, not an exhaustive membership record. Editors only; switched off in
-  development by `mastodon.follow: false`, since following and requesting
-  collection membership are public acts a development deployment must not
-  perform on a real account (codecheckers/chekhov#31).
+  sample, not an exhaustive membership record. An account Mastodon refuses to
+  request (most commonly: it does not follow `@codecheck` back, which its own
+  feature-approval policy requires) is not a hard failure - the run continues,
+  and the account is sent a private message asking it to follow back, since a
+  GitHub reply never reaches the person it is about. That message has no
+  cross-run duplicate protection (only Mastodon's own hour-long idempotency
+  window, matching `announce`'s toot): the bot keeps no state, so an account
+  still not eligible gets asked again on every later `confirm`. Editors only;
+  switched off in development by `mastodon.follow: false`, since following,
+  requesting collection membership and messaging an account are public acts a
+  development deployment must not perform on a real account
+  (codecheckers/chekhov#31).
 - `@chekhovbot announce <certificate>` previews a toot about a published
   certificate - its text, the certificate pages as an animated GIF, who is
   mentioned and who has no fediverse account on record - and

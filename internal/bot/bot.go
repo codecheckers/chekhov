@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -38,6 +39,7 @@ type Poster interface {
 // instance.
 type Toots interface {
 	Post(ctx context.Context, status mastodon.Status) (mastodon.Posted, error)
+	PostDirect(ctx context.Context, text, idempotencyKey string) (mastodon.Posted, error)
 	UploadMedia(ctx context.Context, name, mimeType string, content []byte, description string) (string, error)
 	RecentStatuses(ctx context.Context, limit int) ([]mastodon.Posted, error)
 	Limits(ctx context.Context) (mastodon.Limits, error)
@@ -540,6 +542,7 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 
 	reply.Requested = map[string][]string{}
 	reply.Evicted = map[string]int{}
+	reply.NotEligible = map[string][]string{}
 	for _, group := range followCollections {
 		handles := group.handles(mentions)
 		if !anyResolved(handles, accounts) {
@@ -592,11 +595,52 @@ func (s *Server) follow(ctx context.Context, parsed command.Command, services *c
 			}
 			item, err := s.Toots.AddCollectionItem(ctx, collection.ID, account.ID)
 			if err != nil {
+				var status *mastodon.StatusError
+				if errors.As(err, &status) && (status.Status == http.StatusForbidden || status.Status == http.StatusNotFound) {
+					// Mastodon's own consent model, not a failure of ours: the
+					// account has not (yet) declared a feature-approval policy
+					// that allows it, typically because it does not follow
+					// @codecheck back. The toot invites that; nothing more to
+					// do here but say so and move on to the next handle. A
+					// slot possibly freed by eviction above stays unused this
+					// run rather than the confirm aborting outright.
+					handled[account.ID] = true
+					reply.NotEligible[group.title] = append(reply.NotEligible[group.title], handle)
+					continue
+				}
 				return fmt.Sprintf("I could not request %s for the %s collection: %s\n", handle, group.title, err)
 			}
 			active = append(active, item)
 			handled[account.ID] = true
 			reply.Requested[group.title] = append(reply.Requested[group.title], handle)
+		}
+	}
+
+	// Ask each not-yet-eligible account, once, to follow back - a private
+	// message, because that is the only channel that reaches the person
+	// themselves; the reply above only reaches the editor reading the issue.
+	// Not fatal: a failed ask does not undo the following or requesting
+	// already done, so it is logged and skipped rather than aborting.
+	asked := map[string]bool{}
+	for _, title := range command.FollowListTitles {
+		for _, handle := range reply.NotEligible[title] {
+			if asked[handle] {
+				continue
+			}
+			asked[handle] = true
+			text := fmt.Sprintf(
+				"Hi %s! You're named on CODECHECK certificate %s. To be featured in @codecheck's public Codecheckers/Authors/Venues collections, please follow this account back - thanks for being part of CODECHECK!",
+				handle, certificate)
+			// Guards only against a doubled confirm within Mastodon's own
+			// hour-long idempotency window, same as announce's own toot - not
+			// a lasting "already asked" record. See PostDirect's own doc.
+			digest := sha256.Sum256([]byte(text))
+			key := fmt.Sprintf("codecheck-ask-%s-%x", certificate, digest[:8])
+			if _, err := s.Toots.PostDirect(ctx, text, key); err != nil {
+				s.Logger.Warn("could not ask an account to follow back", "certificate", certificate, "handle", handle, "error", err)
+				continue
+			}
+			reply.Asked = append(reply.Asked, handle)
 		}
 	}
 

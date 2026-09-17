@@ -287,6 +287,15 @@ type Following struct {
 	// Evicted counts, per collection, how many older members were dropped to
 	// make room under Mastodon's cap - see mastodon.MaxCollectionItems.
 	Evicted map[string]int
+	// NotEligible is filled by confirm: handles Mastodon refused to request
+	// for a collection because the account's own feature-approval policy
+	// does not allow it yet - commonly because they do not follow @codecheck
+	// back. Not an error: worth another try on a later confirm, once they do.
+	NotEligible map[string][]string
+	// Asked is who among NotEligible was sent a private message asking them
+	// to follow back, deduplicated across collections - the only channel
+	// that reaches the person themselves, this reply being a GitHub comment.
+	Asked []string
 }
 
 // FollowPreview is the answer to "@chekhovbot follow <certificate>": who is
@@ -348,6 +357,14 @@ func FollowPosted(f Following) string {
 			fmt.Fprintf(&out, "- made room in the %s collection by evicting %d older member%s\n", title, evicted, plural(evicted))
 			any = true
 		}
+		if notEligible := f.NotEligible[title]; len(notEligible) > 0 {
+			fmt.Fprintf(&out, "- not yet eligible for the %s collection (they do not follow @codecheck back): %s\n", title, codeList(notEligible))
+			any = true
+		}
+	}
+	if len(f.Asked) > 0 {
+		fmt.Fprintf(&out, "- privately asked to follow back: %s\n", codeList(f.Asked))
+		any = true
 	}
 	if !any {
 		out.WriteString("- collections: already up to date\n")

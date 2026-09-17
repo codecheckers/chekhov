@@ -89,19 +89,38 @@ func (c *Client) Post(ctx context.Context, status Status) (Posted, error) {
 		return Posted{}, fmt.Errorf("refusing to post with visibility %q: this deployment posts %q only",
 			status.Visibility, c.Visibility)
 	}
-	if strings.TrimSpace(status.Text) == "" {
+	return c.postStatus(ctx, status.Text, status.Visibility, status.MediaIDs, status.IdempotencyKey)
+}
+
+// PostDirect sends a private, one-to-one message - a request to follow back,
+// say - regardless of the client's configured Visibility. Unlike Post, this
+// is never refused for mismatching the deployment's public visibility
+// setting: a private ask stays private even where announce posts publicly.
+// It carries none of announce's own development safety net (see follow's
+// mastodon.follow guard instead): once a caller reaches this method, the
+// message is sent for real. idempotencyKey only guards against Mastodon's own
+// hour-long window (a doubled confirm within one run); it is not, and cannot
+// be, a lasting "already asked this account" record - the bot keeps no state
+// across runs, so a caller that must not repeat a message across separate
+// confirms needs its own answer to that, not this parameter.
+func (c *Client) PostDirect(ctx context.Context, text, idempotencyKey string) (Posted, error) {
+	return c.postStatus(ctx, text, "direct", nil, idempotencyKey)
+}
+
+func (c *Client) postStatus(ctx context.Context, text, visibility string, mediaIDs []string, idempotencyKey string) (Posted, error) {
+	if strings.TrimSpace(text) == "" {
 		return Posted{}, errors.New("refusing to post an empty status")
 	}
 
 	form := url.Values{}
-	form.Set("status", status.Text)
-	form.Set("visibility", status.Visibility)
-	for _, id := range status.MediaIDs {
+	form.Set("status", text)
+	form.Set("visibility", visibility)
+	for _, id := range mediaIDs {
 		form.Add("media_ids[]", id)
 	}
 	header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
-	if status.IdempotencyKey != "" {
-		header.Set("Idempotency-Key", status.IdempotencyKey)
+	if idempotencyKey != "" {
+		header.Set("Idempotency-Key", idempotencyKey)
 	}
 
 	var posted Posted
