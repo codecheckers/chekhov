@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot thanks` answers with a quote from the bot's namesake, credited to
+  the work it is from and linking to the Wikiquote page the collection was
+  taken from. Hidden from the `commands` listing (codecheckers/chekhov#5).
 - `@chekhovbot follow <certificate>` previews following the fediverse accounts
   a certificate names - who is matched, who `@codecheck` already follows,
   who has no account on record - and `follow <certificate> confirm` follows

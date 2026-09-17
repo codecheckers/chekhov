@@ -45,7 +45,8 @@ type Definition struct {
 	Group string
 	Role  Role
 	// Hidden keeps a working command out of the listing. hello is hidden
-	// because it is a smoke test rather than something a codechecker needs.
+	// because it is a smoke test rather than something a codechecker needs,
+	// and thanks because a listing is for what to do next, not for manners.
 	Hidden bool
 }
 
@@ -63,6 +64,15 @@ var registry = []Definition{
 		Name:    Hello,
 		Summary: "Check that the bot is awake",
 		Usage:   "hello",
+		Group:   GroupBasics,
+		Role:    RoleAnyone,
+		Hidden:  true,
+	},
+	{
+		Name:    Thanks,
+		Aliases: []string{"thank", "thx", "cheers"},
+		Summary: "Acknowledge thanks, in the words of the bot's namesake",
+		Usage:   "thanks",
 		Group:   GroupBasics,
 		Role:    RoleAnyone,
 		Hidden:  true,
@@ -115,8 +125,16 @@ func Definitions() []Definition { return registry }
 
 // Lookup finds the command a word names, aliases included.
 func Lookup(word string) (Definition, bool) {
-	definition, found := index[strings.ToLower(strings.TrimSpace(word))]
+	definition, found := index[normalize(word)]
 	return definition, found
+}
+
+// normalize is what a command word looks like once the sentence around it is
+// taken off: "Thanks!" and "check." are the command with the punctuation of
+// the comment they were written in. Lookup and Suggest both go through it, so
+// that a typo is measured against the same word a match would have been.
+func normalize(word string) string {
+	return strings.TrimRight(strings.ToLower(strings.TrimSpace(word)), "!.,;:?")
 }
 
 // Permits reports whether a role may run the command.
@@ -143,7 +161,7 @@ func Visible(role Role) []Definition {
 // certificate" is not a typo for anything, and guessing at it would be worse
 // than saying nothing.
 func Suggest(word string) (Name, bool) {
-	word = strings.ToLower(strings.TrimSpace(word))
+	word = normalize(word)
 	if word == "" {
 		return "", false
 	}

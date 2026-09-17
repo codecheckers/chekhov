@@ -92,4 +92,7 @@ day one of them changes its answer. It reads only, and CI runs it weekly.
 ## Licence
 
 Code MIT (see `LICENSE`). Graphics in `logo/` are CC BY 4.0, matching the rest
-of the CODECHECK branding.
+of the CODECHECK branding. The Chekhov quotes in
+`internal/command/data/quotes.yml` come from
+[Wikiquote](https://en.wikiquote.org/wiki/Anton_Chekhov) and are CC BY-SA 4.0;
+every reply that uses one links back to the page.

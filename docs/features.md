@@ -23,7 +23,7 @@ for completeness of the conversational set.
 | `@chekhovbot hello` | Liveness check; bot replies it is awake | MVP | #2 |
 | `@chekhovbot <unknown>` | Reply that the command is unknown, suggest `commands` | MVP | #3 |
 | `@chekhovbot version` | Report bot version, commit and **which register it targets** | MVP | #4 |
-| `@chekhovbot thanks` | Friendly acknowledgement (buffy `thanks`) | MVP | #5 |
+| `@chekhovbot thanks` | Friendly acknowledgement: a quote from the namesake | MVP | #5 |
 | `@chekhovbot goodbye` | Closing pleasantry when a check ends | low | #6 |
 
 ## B. People, roles and assignment

@@ -103,6 +103,24 @@ func (d Deployment) HelloReply() string {
 		"Type `%s commands` to see what I can do.\n", running, d.Register, Bot)
 }
 
+// ThanksReply acknowledges being thanked, in the words of the bot's namesake.
+//
+// pick chooses which quote, and is the caller's: the listener passes a random
+// one, so that the same pleasantry twice reads differently, and a test passes a
+// fixed one, so that it can say what the answer should be.
+func ThanksReply(pick func(n int) int) string {
+	collection, err := quotes()
+	if err != nil || len(collection.Quotes) == 0 {
+		// The quotes are embedded, so this cannot happen in a built binary -
+		// and if it somehow does, being thanked is not the moment to complain.
+		return "You are welcome.\n"
+	}
+
+	quote := collection.Quotes[pick(len(collection.Quotes))]
+	return fmt.Sprintf("> %s\n\n<sub>Anton Chekhov, %s · [Wikiquote](%s)</sub>\n",
+		quote.Text, quote.Cite(), collection.Source)
+}
+
 // VersionReply is the answer to "@chekhovbot version": which build is
 // answering, and - deliberately - which register it is configured against, so
 // that a development deployment cannot be mistaken for the real one.

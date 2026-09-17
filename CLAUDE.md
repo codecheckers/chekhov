@@ -378,6 +378,7 @@ internal/check/     one check function per rule, the runner and the formatting
   source.go         reading a codecheck.yml from github::, gitlab::, osf::, zenodo::
   bundle.go         the files around it, on disk or in the repository
 internal/command/   the command registry, the parser, and the reply bodies
+  data/quotes.yml   Chekhov quotes from Wikiquote, for `thanks`
 testdata/           codecheck.yml fixtures, valid and failing, one per directory
 testdata/cassettes/ recorded service responses, replayed offline
 scripts/            maintenance scripts

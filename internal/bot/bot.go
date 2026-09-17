@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"runtime/debug"
 	"slices"
@@ -248,6 +249,8 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return command.Listing(role)
 	case command.Hello:
 		return s.Deployment.HelloReply()
+	case command.Thanks:
+		return command.ThanksReply(rand.IntN)
 	case command.Version:
 		return s.version()
 	case command.Check:

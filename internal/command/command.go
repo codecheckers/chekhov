@@ -20,6 +20,8 @@ const (
 	Commands Name = "commands"
 	// Hello is the liveness check.
 	Hello Name = "hello"
+	// Thanks acknowledges being thanked.
+	Thanks Name = "thanks"
 	// Version reports which build is answering, and which register it works
 	// on.
 	Version Name = "version"

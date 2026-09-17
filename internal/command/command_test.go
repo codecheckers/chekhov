@@ -10,6 +10,12 @@ func TestParse(t *testing.T) {
 		want      Name
 	}{
 		{
+			name:      "the punctuation of the sentence it was written in",
+			comment:   "@chekhovbot version.",
+			addressed: true,
+			want:      Version,
+		},
+		{
 			name:      "the command on the first line",
 			comment:   "@chekhovbot check codecheck.yml",
 			addressed: true,

@@ -336,3 +336,19 @@ func TestAPanicInACommandIsRecoveredAndReported(t *testing.T) {
 		t.Errorf("reply = %q, want it to name the command that panicked", reply)
 	}
 }
+
+// Being thanked is answered once, with a quote from the bot's namesake. A
+// comment carries one command however many times it mentions the bot: the
+// convention is the first line, and a second line is conversation.
+func TestThanksIsAnsweredOnceWithAQuote(t *testing.T) {
+	server, replies := testServer(t)
+
+	deliver(t, server, "issue_comment", "issue-comment-thanks.json")
+	if replies.count() != 1 {
+		t.Fatalf("%d replies, want 1", replies.count())
+	}
+	reply := replies.last()
+	if !strings.Contains(reply, "Anton Chekhov") || !strings.Contains(reply, "wikiquote.org") {
+		t.Errorf("the reply is not an attributed quote: %s", reply)
+	}
+}
