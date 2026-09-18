@@ -127,6 +127,23 @@ func (s *Signer) sign(payload []byte) string {
 	return base64.StdEncoding.EncodeToString(ed25519.Sign(s.Private, payload))
 }
 
+// Knows reports whether a public key, as a record names it, is one this bot
+// accepts. A record naming an unknown key is refused with that said, rather
+// than with a bare "the signature is wrong": the likeliest cause is a key
+// rotated out of the list, and the reader should be told which key to look
+// for.
+func (s *Signer) Knows(key string) bool {
+	if key == "" {
+		return false
+	}
+	for _, accepted := range s.Accepted {
+		if base64.StdEncoding.EncodeToString(accepted) == key {
+			return true
+		}
+	}
+	return false
+}
+
 // verify says whether these bytes carry this bot's signature.
 //
 // A missing signature is a failure whenever the bot signs: an attacker who can

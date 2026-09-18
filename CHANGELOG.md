@@ -20,9 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the easier forgery. `@chekhovbot accept roles` lets an editor adopt an edited
   record, recording who adopted it inside the signed payload
   (codecheckers/chekhov#41).
-- `chekhov record-key` makes the signing key; the public half is meant to be
-  published, so a roles record can be verified without asking the bot
-  (codecheckers/chekhov#41).
+- `chekhov record-key` makes the signing key: the private half goes into the
+  deployment's configuration and nowhere else, the public half into
+  `docs/record-keys.pub`, so a roles record can be verified without asking the
+  bot. A record names the key that signed it, so a reader knows which published
+  key to check it against after a rotation (codecheckers/chekhov#41).
 
 - `@chekhovbot assign @user as codechecker|author|handling editor`, `remove`
   the same way, and `roles`, which says who holds which role on this check and

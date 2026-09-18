@@ -40,6 +40,7 @@ runway app config set -a chekhov CHEKHOV_GH_ACCESS_TOKEN=...   # see github-toke
 runway app config set -a chekhov CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -hex 32
 runway app config set -a chekhov CHEKHOV_MASTODON_TOKEN=...    # optional, see "Announcing" below
 runway app config set -a chekhov GOMEMLIMIT=96MiB             # the free plan has 128 MB, see "Memory" below
+runway app config set -a chekhov CHEKHOV_RECORD_KEY=...       # `chekhov record-key`, see record-key.md
 # CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org
 runway app deploy source -y
 ```

@@ -19,18 +19,47 @@ roles the record decides. So the bot signs what it writes, and checks the
 signature when it reads it back. This is detection, not prevention: the edit
 still happens, and the bot notices instead of acting on it.
 
-## Making a key
+## Where each half of the key lives
 
 ```sh
 go run ./cmd/chekhov record-key
 ```
 
-It prints two things:
+The command generates the pair in memory and **prints** it. It writes nothing:
+no file, no keychain, no repository. What happens to each half is a decision,
+not a default.
 
-| | Where it goes |
+| Half | Made | Kept | Who can read it |
+|---|---|---|---|
+| private (`CHEKHOV_RECORD_KEY=...`) | on the machine that runs the command, once | the deployment's configuration only — `runway app config set` | whoever can read that app's configuration: the same people who hold the bot's GitHub token |
+| public (`public key: ...`) | the same moment | [`record-keys.pub`](record-keys.pub) in this repository, and the register's site | everybody, by design |
+
+The private half is **never** committed, never in `.env.example`, never in a
+reply and never in a log — `/healthz` reports the *public* key, and only in
+development. `.env` carries it for a local run and is ignored by git. If it
+leaks, treat it as a leaked token: make a new pair, set it, restart, and see
+"Rotation" below, which is not as reassuring as it sounds.
+
+## Where the public key is published
+
+In [`record-keys.pub`](record-keys.pub), one line per register.
+
+**Not in the register itself**, and that is the point. The people who can edit
+a roles comment — anyone with write access to the register — could otherwise
+re-sign a record with a key of their own and update the published key in the
+same breath, and the two would agree. The anchor has to sit somewhere with a
+different set of writers and a visible history:
+
+| Where | Why |
 |---|---|
-| `CHEKHOV_RECORD_KEY=...` | the deployment's configuration, and nowhere else |
-| `public key: ...` | published, so that anyone can verify a roles record |
+| `codecheckers/chekhov/docs/record-keys.pub` | the implementation repository, whose write access is narrower than the register's, and where every change to the file is a commit somebody can see |
+| the register's website, `codecheck.org.uk` | a citable URL for a reader who is verifying a certificate rather than reading source |
+| the register's Zenodo deposition | immutable and timestamped: a key published there cannot be quietly changed afterwards, which is what makes an old record checkable years later |
+
+A record names the key that signed it, so a reader of an old certificate can
+tell *which* published key to check against after a rotation. That naming
+proves nothing by itself — a forger would name their own key — which is exactly
+why the list above, and not the record, is the trust anchor.
 
 Ed25519, not an HMAC, for that second row: a shared secret would mean only the
 bot can check its own work, which is a strange arrangement for a project whose
@@ -46,28 +75,45 @@ to see which key a deployment is signing with.
 
 ## What the signature covers
 
-**The bytes of the record, exactly as they stand in the comment.** The record
-is one line:
+**The bytes of the record, exactly as they stand in the comment.** This is what
+the bot writes, in full — `TestTheRecordHasTheDocumentedShape` keeps this file
+and the code in step:
 
 ```
-<!-- chekhov:roles {"v":1,"check":"codecheckers/register#42","roles":{...}} -->
-<!-- chekhov:sig <base64 Ed25519 signature over the line above, including the markers> -->
+<!-- chekhov:roles {"v":1,"check":"codecheckers/register#42","key":"9M8SoHGUZ2PC+Ujpxj2mVwFEJfcQJX1TgH7K1dHxrXE=","roles":{"handling_editor":"nuest","assigned_codechecker":"a-codechecker","authors":["an-author"]}} -->
+<!-- chekhov:sig b/FiuZlKy4RtkczF3EJWFdFzEh1Z5HmhBGA3KzoKqOImvyLxXdZnuWzPYARz4did4MOwb0mllEsRN26a+FOeBw== -->
+
+**Roles on this check**
+
+| Role | Who |
+|---|---|
+| handling editor | `@nuest` |
+| assigned codechecker | `@a-codechecker` |
+| author | `@an-author` |
+
+I keep this comment up to date, and I read the record at the top rather than
+the table, which I sign, so I can tell when any of this has been changed.
 ```
 
-The signed message is that first line in full — from `<!-- ` to ` -->` — and
-nothing else. Not a re-encoding of what it decodes to: a signature over a
-re-marshal covers an *equivalence class* of records rather than the one a
-reader sees, so duplicate JSON keys, unknown fields and different spellings of
-a handle would all verify, and an independent verifier would have to reproduce
-Go's JSON encoder to check anything. Verifying is therefore:
+The signed message is the **first line in full** — from `<!-- ` through ` -->`,
+markers included — and nothing else. Not a re-encoding of what it decodes to: a
+signature over a re-marshal covers an *equivalence class* of records rather
+than the one a reader sees, so duplicate JSON keys, unknown fields and
+different spellings of a handle would all verify, and an independent verifier
+would have to reproduce Go's JSON encoder to check anything.
 
-```
-ed25519.Verify(publicKey, []byte(firstLine), base64decode(signatureLine))
-```
+Verifying a record is therefore three steps, and needs nothing but
+[`record-keys.pub`](record-keys.pub):
+
+1. Take `key` from the record and find it in `record-keys.pub`. A key that is
+   not there is not this bot's, whatever the signature says — that lookup is
+   the trust, not the record's own claim about itself.
+2. `ed25519.Verify(key, firstLineBytes, base64decode(signatureLine))`.
+3. Check that `check` is the repository and issue you are actually reading.
 
 The check identity is inside the payload deliberately: a signature over the
 roles alone would let a valid record be lifted from one issue and pasted into
-another, where it would verify perfectly and be wrong. It is compared
+another, where it would verify perfectly and be wrong. The bot compares it
 case-insensitively, as GitHub's names are.
 
 **The table below the record is not signed** — it is generated from the record,
@@ -89,8 +135,14 @@ An editor who is content with what it says adopts it:
 ```
 
 That re-signs the record as it stands and writes `accepted_by` and
-`accepted_at` **into the signed block**, so adopting an edit is part of the
-record rather than a reset nobody can see afterwards.
+`accepted_at` **into the signed payload**, so adopting an edit is part of the
+record rather than a reset nobody can see afterwards. It is editor-only, like
+`assign`.
+
+A record that names a key which is not in the accepted list is refused with
+that said — `it names a key I do not accept` — rather than as a bare bad
+signature, because the likeliest cause is a key rotated out of the list rather
+than an attack.
 
 ## Rotation
 

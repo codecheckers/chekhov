@@ -225,7 +225,12 @@ type content struct {
 type record struct {
 	Version int    `json:"v"`
 	Check   string `json:"check"`
-	Roles   Record `json:"roles"`
+	// Key is the public half of the key this record was signed with, so that
+	// a reader knows which published key to check it against. Naming the key
+	// proves nothing on its own - a forger would name their own - but without
+	// it a verifier cannot tell a rotated key from a wrong one.
+	Key   string `json:"key,omitempty"`
+	Roles Record `json:"roles"`
 	// AcceptedBy and AcceptedAt record an editor knowingly adopting a record
 	// the bot did not write. Inside the signed payload, so that adopting an
 	// edit is part of the record rather than an invisible reset.
@@ -235,6 +240,7 @@ type record struct {
 
 // render writes a record and signs it as written.
 func render(what record, signer *Signer) (content, error) {
+	what.Key = signer.PublicKey()
 	payload, err := json.Marshal(what)
 	if err != nil {
 		return content{}, err
@@ -420,6 +426,9 @@ func (c *Checks) check(read content, body, repository string, issue int) error {
 	// else's roles. Compared case-insensitively: GitHub's names are.
 	if !strings.EqualFold(read.Check, checkOf(repository, issue)) {
 		return fmt.Errorf("%w: it says it belongs to %s", ErrTampered, read.Check)
+	}
+	if read.Signature != "" && !c.Signer.Knows(read.Key) {
+		return fmt.Errorf("%w: it names a key I do not accept (%s)", ErrTampered, read.Key)
 	}
 	if err := c.Signer.verify(read.payload, read.Signature); err != nil {
 		return err

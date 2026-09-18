@@ -293,3 +293,29 @@ func TestTheCheckIdentityIgnoresCase(t *testing.T) {
 		t.Errorf("a record written for the same check in another casing was refused: %v", reading.Tampered)
 	}
 }
+
+// The shape docs/record-key.md promises a verifier: one line carrying the
+// record, one line carrying the signature over it, and a table below that is
+// generated rather than signed.
+func TestTheRecordHasTheDocumentedShape(t *testing.T) {
+	body := comment(t, signer(t), "codecheckers/register", 42, Record{
+		HandlingEditor: "nuest", AssignedCodechecker: "a-codechecker", Authors: []string{"an-author"},
+	})
+	lines := strings.Split(body, "\n")
+
+	if !strings.HasPrefix(lines[0], marker) || !strings.HasSuffix(lines[0], markerEnd) {
+		t.Errorf("the first line is not the record: %q", lines[0])
+	}
+	if !strings.HasPrefix(lines[1], signatureMarker) {
+		t.Errorf("the second line is not the signature: %q", lines[1])
+	}
+	if !strings.Contains(lines[0], `"check":"codecheckers/register#42"`) {
+		t.Errorf("the record does not name its check: %q", lines[0])
+	}
+	if !strings.Contains(lines[0], `"key":"`+signer(t).PublicKey()+`"`) {
+		t.Errorf("the record does not name the key that signed it: %q", lines[0])
+	}
+	if t.Failed() || testing.Verbose() {
+		t.Logf("a record as the bot writes it:\n%s", body)
+	}
+}

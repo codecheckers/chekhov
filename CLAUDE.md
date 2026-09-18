@@ -285,7 +285,10 @@ than a `switch`.
   one it did not write. The signature covers the repository and issue too, so a
   valid record cannot be lifted between checks. An editor adopts an edited
   record with `accept roles`, and who adopted it is written into the signed
-  block. See `docs/record-key.md`. Nothing the bot posts may look like a
+  block. The private key exists only in the deployment's configuration; the
+  public key is published in `docs/record-keys.pub`, deliberately **not** in
+  the register - the people who could edit a record must not also be able to
+  change the key it is checked against. See `docs/record-key.md`. Nothing the bot posts may look like a
   record, so `act` defuses every reply once, centrally.
 - **Roles that conflict are refused before they are granted**, in
   `internal/command/roles.go`: the assigned codechecker may not be an author of

@@ -1,0 +1,16 @@
+# The public keys @chekhovbot signs a check's roles record with.
+#
+# One line per register: the repository the bot works on, then the key, base64
+# as the record itself writes it. A record names the key it was signed with, so
+# during a rotation a reader can tell which of these to check against.
+#
+# Verifying a roles record needs nothing but this file:
+#
+#   ed25519.Verify(key, <the "<!-- chekhov:roles ... -->" line, in full>,
+#                  base64decode(<the "<!-- chekhov:sig ... -->" value>))
+#
+# See record-key.md. Never put a private key here - the private half lives only
+# in the deployment's configuration.
+
+codecheckers/testing-dev-register  noZFbyVy85ydV7qraoUBBc9wPbVqRbZ3Pj1DDqNA294=
+codecheckers/register              (none yet: the bot does not run on the production register)
