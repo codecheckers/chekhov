@@ -85,59 +85,25 @@ func (c *Client) Comment(ctx context.Context, repository string, issue int, body
 	}
 	url := fmt.Sprintf("%s/repos/%s/issues/%d/comments", strings.TrimSuffix(c.BaseURL, "/"), repository, issue)
 
-	// One retry: a comment lost to a hiccup is a codechecker waiting for an
-	// answer that never comes, and posting twice is a smaller sin than that.
-	var lastErr error
-	for attempt := range 2 {
-		if attempt > 0 {
-			if err := wait(ctx, c.backoff(lastErr)); err != nil {
-				return 0, err
-			}
-		}
-		id, err := c.post(ctx, url, payload)
-		if err == nil {
-			return id, nil
-		}
-		lastErr = err
-		c.Logger.Warn("posting a comment failed",
-			"repository", repository, "issue", issue, "attempt", attempt+1, "error", err)
-		if !retryable(err) {
-			break
-		}
+	// Posting twice is a smaller sin than a codechecker never being answered,
+	// so a hiccup is retried once.
+	var id int64
+	err = c.attempt(ctx, fmt.Sprintf("posting a comment on %s#%d", repository, issue), func() error {
+		var err error
+		id, err = c.post(ctx, url, payload)
+		return err
+	})
+	if err != nil {
+		return 0, fmt.Errorf("could not comment on %s#%d: %w", repository, issue, err)
 	}
-	return 0, fmt.Errorf("could not comment on %s#%d: %w", repository, issue, lastErr)
+	return id, nil
 }
 
 func (c *Client) post(ctx context.Context, url string, payload []byte) (int64, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	raw, err := c.do(ctx, http.MethodPost, url, payload)
 	if err != nil {
 		return 0, err
 	}
-	request.Header.Set("Accept", "application/vnd.github+json")
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-	if c.Token != "" {
-		request.Header.Set("Authorization", "Bearer "+c.Token)
-	}
-
-	response, err := c.HTTP.Do(request)
-	if err != nil {
-		return 0, err
-	}
-	defer response.Body.Close()
-
-	c.noteTokenExpiry(response)
-	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return 0, &statusError{
-			Status:      response.StatusCode,
-			Body:        strings.TrimSpace(string(raw)),
-			RetryAfter:  retryAfter(response),
-			RateLimited: rateLimitExhausted(response),
-			Reset:       rateLimitReset(response),
-		}
-	}
-
 	var created struct {
 		ID int64 `json:"id"`
 	}
@@ -145,6 +111,73 @@ func (c *Client) post(ctx context.Context, url string, payload []byte) (int64, e
 		return 0, fmt.Errorf("the comment posted but the answer could not be read: %w", err)
 	}
 	return created.ID, nil
+}
+
+// do is the one request this package makes, whichever way round.
+//
+// Every call carries the same headers, the same body limit and the same
+// reading of a failure, so that reading the API and writing to it cannot drift
+// apart - a new header GitHub asks for is added once.
+func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]byte, error) {
+	var body io.Reader
+	if payload != nil {
+		body = bytes.NewReader(payload)
+	}
+	request, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	if payload != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	if c.Token != "" {
+		request.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+
+	response, err := c.HTTP.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	c.noteTokenExpiry(response)
+	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, &statusError{
+			Status:      response.StatusCode,
+			Body:        strings.TrimSpace(string(raw)),
+			RetryAfter:  retryAfter(response),
+			RateLimited: rateLimitExhausted(response),
+			Reset:       rateLimitReset(response),
+		}
+	}
+	return raw, nil
+}
+
+// attempt runs a request twice at most, waiting as GitHub asks between the
+// two. A request lost to a hiccup is a codechecker waiting for an answer that
+// never comes; a permission refusal is not retried, because it will not change.
+func (c *Client) attempt(ctx context.Context, what string, request func() error) error {
+	var lastErr error
+	for try := range 2 {
+		if try > 0 {
+			if err := wait(ctx, c.backoff(lastErr)); err != nil {
+				return err
+			}
+		}
+		if err := request(); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		c.Logger.Warn(what+" failed", "attempt", try+1, "error", lastErr)
+		if !retryable(lastErr) {
+			break
+		}
+	}
+	return lastErr
 }
 
 // compose puts the signature under the reply and keeps the whole within

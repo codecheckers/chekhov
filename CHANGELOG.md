@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Standing roles come from the organisation's GitHub teams rather than a list
+  of handles in the settings file: membership is read with the token's
+  *Members: read* permission and held in memory for a day, refreshed lazily on
+  read and rebuilt at startup. A team that cannot be read has no members, so
+  the editor commands refuse rather than open (codecheckers/chekhov#18).
+- `@chekhovbot refresh teams`, for an editor who has just changed a team and
+  will not wait for the day's expiry; it reports what each team now holds
+  (codecheckers/chekhov#18).
+- `/healthz` reports how old each cached membership list is, in development
+  (codecheckers/chekhov#18).
+
 - `@chekhovbot thanks` answers with a quote from the bot's namesake, credited to
   the work it is from and linking to the Wikiquote page the collection was
   taken from. Hidden from the `commands` listing (codecheckers/chekhov#5).

@@ -47,20 +47,23 @@ func TestUnknownEnvironmentSaysSo(t *testing.T) {
 	}
 }
 
-func TestEditorsAreMatchedCaseInsensitively(t *testing.T) {
+func TestSettingsNameTeamsRatherThanPeople(t *testing.T) {
 	settings, err := Load("development")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(settings.Editors()) == 0 {
-		t.Fatal("the settings list no editors, so no one could run an editor command")
+	if settings.TeamOrganisation() == "" {
+		t.Error("no organisation to read the teams from")
 	}
-	editor := settings.Editors()[0]
-	if !settings.IsEditor(strings.ToUpper(editor)) {
-		t.Errorf("%q is an editor, so %q is too", editor, strings.ToUpper(editor))
+	if settings.EditorsTeam() == "" {
+		t.Error("no editors team, so no one could run an editor command")
 	}
-	if settings.IsEditor("someone-else") {
-		t.Error("an unlisted handle is not an editor")
+	// Membership belongs to the organisation. A list of handles here is a
+	// second copy that goes stale the day somebody joins.
+	for _, team := range settings.Teams() {
+		if strings.HasPrefix(team, "@") || strings.Contains(team, " ") {
+			t.Errorf("%q looks like a person rather than a team", team)
+		}
 	}
 }
 

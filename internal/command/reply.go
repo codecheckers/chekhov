@@ -3,8 +3,10 @@ package command
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/build"
+	"github.com/codecheckers/chekhov/internal/people"
 )
 
 // Deployment is what a reply says about the bot answering it.
@@ -421,4 +423,46 @@ func humanBytes(n int) string {
 	default:
 		return fmt.Sprintf("%d bytes", n)
 	}
+}
+
+// oneLine puts a message in a table cell: a GitHub error carries the response
+// body, and a proxy's HTML page would otherwise end the row and the table with
+// it.
+func oneLine(message string) string {
+	return escapePipes(strings.Join(strings.Fields(message), " "))
+}
+
+// TeamsReply says what reading the teams found, for `refresh teams`.
+//
+// It names the size of each team and whether the copy it holds is current, so
+// that an editor who has just added somebody can see their change arrive
+// rather than trusting that it did.
+func TeamsReply(states []people.State) string {
+	if len(states) == 0 {
+		return "There are no teams configured, so nobody holds a standing role here.\n"
+	}
+
+	var reply strings.Builder
+	refused := false
+	reply.WriteString("Read the organisation's teams again:\n\n")
+	reply.WriteString("| Team | Members | Read |\n|---|---|---|\n")
+	for _, state := range states {
+		switch {
+		case state.Err != nil && state.Members == 0:
+			refused = true
+			fmt.Fprintf(&reply, "| `%s` | — | could not be read: %s |\n",
+				state.Team, oneLine(state.Err.Error()))
+		case state.Err != nil:
+			fmt.Fprintf(&reply, "| `%s` | %d | could not be read, so the copy from %s still stands |\n",
+				state.Team, state.Members, state.Fetched.UTC().Format(time.RFC3339))
+		default:
+			fmt.Fprintf(&reply, "| `%s` | %d | just now |\n", state.Team, state.Members)
+		}
+	}
+
+	if refused {
+		reply.WriteString("\nUntil a team can be read, nobody holds the role it carries, " +
+			"so the commands that need it will refuse.\n")
+	}
+	return reply.String()
 }

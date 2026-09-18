@@ -44,12 +44,12 @@ chekhov:
     follow: true
 
   teams:
-    # Who may run the editor-only commands. GitHub handles rather than a team
-    # ID: reading team membership needs an organisation-wide permission on the
-    # bot's token, and the token is deliberately scoped to one repository.
-    editors:
-      - nuest
-    codecheckers:
+    # The standing roles come from the organisation's own teams, read with the
+    # token's Members: read permission and held in memory for a day. See
+    # settings-development.yml.
+    organisation: ${CHEKHOV_TEAMS_ORG:-codecheckers}
+    editors: editors
+    codecheckers: codecheckers
 
   responders:
     help:

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"slices"
 	"sort"
@@ -22,6 +23,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/mastodon"
+	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
@@ -72,6 +74,11 @@ type Server struct {
 	// switched off for this deployment: the preview still works, confirm
 	// does not.
 	Toots Toots
+
+	// Teams is who holds the standing roles, as the organisation maintains
+	// them. Nil means nobody does: a deployment that cannot read the teams
+	// refuses the editor commands rather than opening them to everyone.
+	Teams *people.Teams
 
 	// LocalPaths allows a command to name a file on this machine. It is off
 	// for a deployment on purpose: a path in a comment is written by anyone on
@@ -230,10 +237,7 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 
 // answer produces the reply to one command.
 func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) string {
-	role := command.RoleAnyone
-	if s.Settings.IsEditor(event.Author) {
-		role = command.RoleEditor
-	}
+	role := s.roleOf(ctx, event)
 
 	if definition, found := command.Lookup(string(parsed.Name)); found && !definition.Permits(role) {
 		return fmt.Sprintf("`%s %s` is for editors.\n", command.Bot, parsed.Name)
@@ -259,9 +263,71 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.announce(ctx, parsed, services)
 	case command.Follow:
 		return s.follow(ctx, parsed, services)
+	case command.Refresh:
+		return s.refresh(ctx, parsed)
 	default:
 		return command.UnknownReply(parsed)
 	}
+}
+
+// TeamsFor is the membership cache, wired the one way. The deployment and the
+// command line preview both go through it, so that what a preview answers
+// cannot drift from what would be posted.
+func TeamsFor(settings *config.Settings, reader people.Reader, logger *slog.Logger) *people.Teams {
+	return &people.Teams{
+		Reader:       reader,
+		Organisation: settings.TeamOrganisation(),
+		Logger:       logger,
+	}
+}
+
+// teamState is how old each membership list is, for /healthz in development.
+// A cache that stopped refreshing looks exactly like one that is working,
+// until somebody is refused.
+func (s *Server) teamState() map[string]any {
+	now := time.Now()
+	state := map[string]any{}
+	for _, team := range s.Teams.States(s.Settings.Teams()...) {
+		entry := map[string]any{"members": team.Members, "read": "never"}
+		if !team.Fetched.IsZero() {
+			entry["read"] = team.Fetched.UTC().Format(time.RFC3339)
+			entry["age_seconds"] = int(now.Sub(team.Fetched).Seconds())
+		}
+		if team.Err != nil {
+			entry["error"] = team.Err.Error()
+		}
+		state[team.Team] = entry
+	}
+	return state
+}
+
+// roleOf is what the person writing the comment may do.
+//
+// A standing role comes from the organisation's teams, read through the cache,
+// which fails closed: a team that cannot be read has no members, so the editor
+// commands refuse rather than open.
+//
+// It takes the whole mention rather than the handle because the per-check
+// roles - who is checking this paper, who wrote it - are a property of the
+// issue, and are read from it when they arrive (#18). The single return value
+// is what will have to give then: a person may hold several roles at once.
+func (s *Server) roleOf(ctx context.Context, event mention) command.Role {
+	if s.Teams.Has(ctx, s.Settings.EditorsTeam(), event.Author) {
+		return command.RoleEditor
+	}
+	return command.RoleAnyone
+}
+
+// refresh reads the teams again, so that somebody just added to one does not
+// wait for the day's expiry.
+//
+// The runtime cache is the transient copy of something the organisation owns;
+// this and the reload at startup are the two ways it is rebuilt from it.
+func (s *Server) refresh(ctx context.Context, parsed command.Command) string {
+	if what := strings.ToLower(strings.Join(parsed.Args, " ")); what != "" && what != "teams" {
+		return fmt.Sprintf("I can refresh `teams`, not %q.\n", what)
+	}
+	return command.TeamsReply(s.Teams.Refresh(ctx, s.Settings.Teams()...))
 }
 
 // version says which build is answering and which catalogue it judges by.
@@ -737,6 +803,7 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		if client, ok := s.Replies.(*github.Client); ok && client.TokenExpiry() != "" {
 			state["token_expires"] = client.TokenExpiry()
 		}
+		state["teams"] = s.teamState()
 		state["announce"] = map[string]any{
 			"configured": s.Toots != nil,
 			"account":    s.Settings.Mastodon().Account,
@@ -767,6 +834,13 @@ func Preview(settings *config.Settings, version, commit string, services *check.
 	server.Services = services
 	// On the command line the path in the comment is the user's own.
 	server.LocalPaths = true
+	// Roles are the organisation's to say here too. With a token the preview
+	// asks it, so that an editor sees what an editor would be answered; with
+	// none it falls back to a stranger's reply, which is what a deployment
+	// without the permission would give.
+	if token := os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"); token != "" {
+		server.Teams = TeamsFor(settings, github.New(token, settings.TargetRepository(), ""), server.Logger)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 	return server.answer(ctx, mention{Author: author}, parsed), true

@@ -25,6 +25,10 @@ const (
 	// Version reports which build is answering, and which register it works
 	// on.
 	Version Name = "version"
+	// Refresh reads the organisation's teams again, for an editor who has
+	// just changed one. The command takes what to refresh as an argument, so
+	// that the parser stays one word per command.
+	Refresh Name = "refresh"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Announce toots about a published certificate.

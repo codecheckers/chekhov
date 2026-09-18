@@ -267,9 +267,16 @@ than a `switch`.
 
 - A command someone may not run is **absent** from the listing, not shown and
   refused.
-- Editors are handles in `config/settings-development.yml`. Reading GitHub team
-  membership would need an organisation-wide permission on a token that is
-  deliberately scoped to one repository.
+- Standing roles come from the organisation's GitHub teams, read through
+  `internal/people` and held in memory for a day. The settings file names
+  *teams*, never people, so membership is maintained in one place. The cache is
+  the transient copy; `Teams.Refresh` rebuilds it from the persistent one, at
+  startup and whenever an editor runs `refresh teams`.
+- **Fail closed.** A team the token cannot read has no members: the editor
+  commands refuse and the listing does not offer them. The opposite - an
+  unreadable team meaning everyone is an editor - would hand the register to
+  anyone who can type. This needs *Members: read* on the token, see
+  `docs/github-token.md`.
 - `config/` is the single place that names the target repository, and a test
   asserts the shipped file names the testing register.
 
@@ -365,6 +372,7 @@ Procfile            what the deployment runs: `web: chekhov serve`
 config/             the settings file, and the code that reads it
 internal/bot/       the listener: webhook, signature, dispatch, /healthz
 internal/github/    the reply path: the one place that writes to GitHub
+internal/people/    who holds a standing role, cached from the org's teams
 internal/mastodon/  the one place that writes to Mastodon
 internal/announce/  the toot about a certificate: data, mentions, length, the GIF
 internal/testserver/ the offline stub server and its local-only client, for tests

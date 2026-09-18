@@ -7,10 +7,10 @@ import (
 
 // Role is what the person writing the comment is allowed to do.
 //
-// Roles are decided by the handles in the settings file rather than by GitHub
-// team membership, because reading a team needs an organisation-wide
-// permission on the bot's token and the token is scoped to one repository. See
-// docs/github-token.md.
+// A standing role comes from the organisation's GitHub teams, which the bot
+// reads with the token's Members: read permission and holds in memory for a
+// day, see internal/people. A team that cannot be read means nobody holds that
+// role, never that everyone does.
 type Role string
 
 const (
@@ -83,6 +83,13 @@ var registry = []Definition{
 		Usage:   "version",
 		Group:   GroupBasics,
 		Role:    RoleAnyone,
+	},
+	{
+		Name:    Refresh,
+		Summary: "Read the organisation's teams again, after a membership change",
+		Usage:   "refresh teams",
+		Group:   GroupBasics,
+		Role:    RoleEditor,
 	},
 	{
 		Name:    Check,

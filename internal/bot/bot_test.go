@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/codecheckers/chekhov/config"
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/people"
 )
 
 const secret = "a-test-webhook-secret"
@@ -70,7 +72,25 @@ func testServer(t *testing.T) (*Server, *recorder) {
 	})
 	server.Logger = slog.New(slog.DiscardHandler)
 	server.done = make(chan struct{}, 1)
+	// The standing roles come from the organisation; the tests stand in for it
+	// rather than reaching GitHub.
+	server.Teams = &people.Teams{
+		Reader:       teamList{settings.EditorsTeam(): {"nuest"}},
+		Organisation: settings.TeamOrganisation(),
+		Logger:       server.Logger,
+	}
 	return server, replies
+}
+
+// teamList is the organisation's teams, as a test knows them.
+type teamList map[string][]string
+
+func (l teamList) TeamMembers(_ context.Context, _, team string) ([]string, error) {
+	members, known := l[team]
+	if !known {
+		return nil, fmt.Errorf("no such team %q", team)
+	}
+	return members, nil
 }
 
 // deliver posts a recorded payload the way GitHub would, signature and all.
@@ -350,5 +370,54 @@ func TestThanksIsAnsweredOnceWithAQuote(t *testing.T) {
 	reply := replies.last()
 	if !strings.Contains(reply, "Anton Chekhov") || !strings.Contains(reply, "wikiquote.org") {
 		t.Errorf("the reply is not an attributed quote: %s", reply)
+	}
+}
+
+// The standing roles come from the organisation, and an editor command asks
+// the cache rather than a list in the settings file.
+func TestRefreshTeamsIsForEditors(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1}
+
+	event.Author = "nuest"
+	reply := server.answer(context.Background(), event, command.Command{Name: command.Refresh, Args: []string{"teams"}})
+	if !strings.Contains(reply, server.Settings.EditorsTeam()) || !strings.Contains(reply, "| 1 |") {
+		t.Errorf("the reply does not say what was read: %s", reply)
+	}
+
+	event.Author = "a-stranger"
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Refresh, Args: []string{"teams"}}); !strings.Contains(reply, "for editors") {
+		t.Errorf("a stranger was allowed to refresh the teams: %s", reply)
+	}
+}
+
+// A bot that cannot read the teams refuses the editor commands. The other
+// direction would hand the register to anyone who can type.
+func TestWithoutTheTeamsNobodyIsAnEditor(t *testing.T) {
+	server, _ := testServer(t)
+	server.Teams = nil
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Refresh, Args: []string{"teams"}}); !strings.Contains(reply, "for editors") {
+		t.Errorf("an editor command ran without the teams: %s", reply)
+	}
+	// And the listing does not advertise what it would refuse.
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Commands}); strings.Contains(reply, "refresh teams") {
+		t.Errorf("the listing offers a command nobody may run: %s", reply)
+	}
+}
+
+// Only teams can be refreshed, and asking for anything else says so rather
+// than quietly refreshing the teams.
+func TestRefreshSaysWhatItCanRefresh(t *testing.T) {
+	server, _ := testServer(t)
+	reply := server.answer(context.Background(),
+		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"},
+		command.Command{Name: command.Refresh, Args: []string{"everything"}})
+	if !strings.Contains(reply, "`teams`") {
+		t.Errorf("the reply does not say what can be refreshed: %s", reply)
 	}
 }

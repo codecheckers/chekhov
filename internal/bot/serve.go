@@ -53,12 +53,44 @@ func Serve(address, version, commit string) error {
 		server.Toots = mastodon.New(mastodonSettings.Instance, mastodonSettings.Account, token, mastodonSettings.Visibility)
 	}
 
+	// Who holds a standing role is the organisation's to say. The cache is the
+	// transient copy of it; the reload below is how the transient copy is
+	// rebuilt from the persistent one at boot.
+	server.Teams = TeamsFor(settings, replies, slog.Default())
+	reloadTeams(server, settings)
+
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,
 		"commit", deployment.Commit, "register", deployment.Register,
 		"environment", deployment.Environment,
 		"announcing", server.Toots != nil, "visibility", settings.Mastodon().Visibility)
 
 	return listen(address, server.Handler())
+}
+
+// reloadTeams fills the membership cache before the first command needs it.
+//
+// In the background, because the platform's health check must not wait for
+// GitHub, and because a bot that cannot read the teams still answers
+// everything that does not depend on them. What it finds is logged either way:
+// a token without Members: read turns every editor into a stranger, and that
+// should be visible at startup rather than the first time somebody is refused.
+func reloadTeams(server *Server, settings *config.Settings) {
+	teams := settings.Teams()
+	if len(teams) == 0 {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		for _, state := range server.Teams.Refresh(ctx, teams...) {
+			if state.Err != nil {
+				slog.Warn("a team could not be read at startup; nobody holds that role until it can be",
+					"team", state.Team, "error", state.Err)
+				continue
+			}
+			slog.Info("team loaded", "team", state.Team, "members", state.Members)
+		}
+	}()
 }
 
 // listen serves until the process is asked to stop, and then lets the commands

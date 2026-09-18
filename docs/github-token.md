@@ -38,9 +38,23 @@ Permissions, under Repository permissions:
 | Contents | Read | Reading `register.csv` and `venues.csv` through the API |
 | Pull requests | Read and write | Only for `@chekhovbot register`, which opens the PR against `register.csv` |
 
-Organisation permissions: **none**. Reading team membership would need
-organisation-wide *Members: read*, which is not repository-scoped; the editors
-are listed by handle in `config/settings-development.yml` instead.
+Organisation permissions:
+
+| Permission | Level | Needed for |
+|---|---|---|
+| Members | Read | Reading the `editors` and `codecheckers` teams, which is where the standing roles come from |
+
+*Members: read* is organisation-wide rather than repository-scoped, and it is
+the one permission here that reaches beyond the single repository. It is the
+price of not keeping a second list of people by hand: membership is maintained
+once, by the organisation, and the bot reads it. See "One token, or two" below
+for why this does not warrant a second credential.
+
+**A token without it must degrade to "nobody is an editor", never to
+"everybody is".** `internal/people` fails closed: a team that cannot be read
+has no members, the editor-only commands refuse, and the listing does not offer
+them. The startup log says so at boot - `a team could not be read at startup` -
+so the cause is visible before an editor is told they are not one.
 
 If the resource owner is the organisation, the request may land in
 Organization settings → Third-party Access → Personal access tokens for an
@@ -51,7 +65,11 @@ nothing.
 ## What the token in use actually has
 
 The token currently in `.env` was created with **Issues, Contents and Pull
-requests all at read and write**. That is wider than today's commands need:
+requests all at read and write**, and *Members: read* has to be added to it
+before the standing roles work: a token without it makes every editor a
+stranger. Adding a permission to an existing fine-grained token is an edit on
+the token's page, and an organisation-owned token may need approving again
+afterwards. That is wider than today's commands need:
 `commands`, `hello` and the unknown-command reply post an issue comment and
 nothing else, and the `check` command only reads. The extra rights are for the
 commands that come later — labels and assignees (Issues: write, in use already

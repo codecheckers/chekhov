@@ -38,12 +38,15 @@ type Settings struct {
 		} `yaml:"env"`
 		Mastodon Mastodon `yaml:"mastodon"`
 		Teams    struct {
-			// Editors may run the editor-only commands. Handles rather than a
-			// team identifier: reading team membership needs an
-			// organisation-wide permission on the bot's token, and the token
-			// is deliberately scoped to one repository. See
-			// docs/github-token.md.
-			Editors []string `yaml:"editors"`
+			// Organisation the teams belong to.
+			Organisation string `yaml:"organisation"`
+			// Editors may run the editor-only commands, Codecheckers are the
+			// people who perform checks. These are GitHub team slugs, not
+			// handles: membership is maintained by the organisation, in one
+			// place, and the bot reads it with the token's Members: read
+			// permission. See docs/github-token.md.
+			Editors      string `yaml:"editors"`
+			Codecheckers string `yaml:"codecheckers"`
 		} `yaml:"teams"`
 	} `yaml:"chekhov"`
 }
@@ -128,18 +131,26 @@ func (s *Settings) CodecheckerLists() []string { return s.Chekhov.Env.Codechecke
 // Mastodon is where announcements are posted.
 func (s *Settings) Mastodon() Mastodon { return s.Chekhov.Mastodon }
 
-// Editors are the handles allowed to run the editor-only commands.
-func (s *Settings) Editors() []string { return s.Chekhov.Teams.Editors }
+// TeamOrganisation is the organisation the standing roles are read from.
+func (s *Settings) TeamOrganisation() string { return s.Chekhov.Teams.Organisation }
 
-// IsEditor reports whether a GitHub handle is an editor. GitHub handles are
-// case-insensitive, and people write them as they please.
-func (s *Settings) IsEditor(login string) bool {
-	for _, editor := range s.Chekhov.Teams.Editors {
-		if strings.EqualFold(strings.TrimSpace(editor), strings.TrimSpace(login)) {
-			return true
+// EditorsTeam is the team whose members may run the editor-only commands.
+func (s *Settings) EditorsTeam() string { return s.Chekhov.Teams.Editors }
+
+// CodecheckersTeam is the team of people who perform CODECHECKs. Read and
+// cached but not yet consulted: the codechecker role arrives with the
+// per-check roles, codecheckers/chekhov#18.
+func (s *Settings) CodecheckersTeam() string { return s.Chekhov.Teams.Codecheckers }
+
+// Teams are the teams the bot reads, in the order a listing should show them.
+func (s *Settings) Teams() []string {
+	var teams []string
+	for _, team := range []string{s.EditorsTeam(), s.CodecheckersTeam()} {
+		if strings.TrimSpace(team) != "" {
+			teams = append(teams, team)
 		}
 	}
-	return false
+	return teams
 }
 
 // expand replaces ${VAR} and ${VAR:-default} with what the environment says.
