@@ -775,8 +775,14 @@ type Suggestions struct {
 	// NotChecked names the exclusions that could not be applied - on the
 	// command line there is no issue, so this check's roles are unknown.
 	NotChecked []string
-	// Considered is how many codecheckers were ranked.
+	// Matched is how many codecheckers share anything with this check, of
+	// which Candidates is the first few.
+	Matched int
+	// Considered is how many codecheckers were read from the lists.
 	Considered int
+	// Undistinguished says the shortlist is not in order of fitness, because
+	// nothing about the check separates the people on it.
+	Undistinguished bool
 }
 
 // SuggestionsReply names the candidates without mentioning them.
@@ -789,12 +795,17 @@ func SuggestionsReply(s Suggestions) string {
 	if len(s.Candidates) == 0 {
 		reply.WriteString("I have nobody to suggest for this check.\n")
 	} else {
-		fmt.Fprintf(&reply, "Codecheckers who could check this, out of %d on the lists:\n\n",
-			s.Considered)
+		fmt.Fprintf(&reply, "%s, of the %d on the lists:\n\n",
+			describeShortlist(len(s.Candidates), s.Matched), s.Considered)
 		reply.WriteString("| Handle | Codechecker | Declares |\n|---|---|---|\n")
 		for _, candidate := range s.Candidates {
 			fmt.Fprintf(&reply, "| `@%s` | %s | %s |\n", candidate.Handle,
 				oneLine(withoutMentions(candidate.Name)), oneLine(candidate.Why))
+		}
+		if s.Undistinguished {
+			reply.WriteString("\nThey share exactly the same thing with this check, so this is a " +
+				"slice of a long list rather than the best of it. Naming the paper's DOI, or " +
+				"pasting its abstract, gives me something to tell them apart by.\n")
 		}
 		reply.WriteString("\nThe handles are written so that nobody is notified by my asking: " +
 			"mention whom you choose, and `" + Bot + " assign @user as codechecker` records it.\n")
@@ -829,6 +840,16 @@ func SuggestionsReply(s Suggestions) string {
 // promise is that asking me notifies nobody. The entity renders as an @ and
 // links to nothing.
 func withoutMentions(text string) string { return strings.ReplaceAll(text, "@", "&#64;") }
+
+// describeShortlist says whether the reply is the whole answer or a slice of
+// it. Five out of forty is a different answer from five out of five, and an
+// editor choosing between them should be told which they are reading.
+func describeShortlist(shown, matched int) string {
+	if matched > shown {
+		return fmt.Sprintf("%d of the %d codecheckers who could check this", shown, matched)
+	}
+	return fmt.Sprintf("%d codechecker%s who could check this", shown, plural(shown))
+}
 
 func describeMatch(s Suggestions) string {
 	var matched []string

@@ -18,7 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   abstract or availability statement pasted under the command. Authors of the
   paper, anyone already on this check and anyone with an open check are left
   out and named as such, and every handle is written so that asking notifies
-  nobody (codecheckers/chekhov#24).
+  nobody. A share counts for what it distinguishes - two thirds of the
+  community declare R or Python - and a shortlist nothing separates says so
+  rather than sending every check to the same five people
+  (codecheckers/chekhov#24).
 
 - Every change to a check's roles is its own record in the thread: the reply
   that confirms an assignment also says who asked for it and when, so the issue

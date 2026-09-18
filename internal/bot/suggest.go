@@ -84,25 +84,38 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 	}
 
 	excluded, notChecked := s.exclusions(ctx, event)
-	ranked, left := suggest.Rank(codecheckers, evidence, excluded)
+	ranking := suggest.Rank(codecheckers, evidence, excluded, thisCheck(event))
 
 	reply := command.Suggestions{
-		Read:       evidence.Sources,
-		Unread:     append(evidence.Unread, listsUnread(unread)...),
-		Languages:  evidence.Languages,
-		Fields:     evidence.Fields,
-		NotChecked: notChecked,
-		Considered: len(codecheckers),
+		Read:            evidence.Sources,
+		Unread:          append(evidence.Unread, listsUnread(unread)...),
+		Languages:       evidence.Languages,
+		Fields:          evidence.Fields,
+		NotChecked:      notChecked,
+		Matched:         ranking.Matched,
+		Considered:      len(codecheckers),
+		Undistinguished: ranking.Undistinguished,
 	}
-	for _, candidate := range ranked {
+	for _, candidate := range ranking.Suggested {
 		reply.Candidates = append(reply.Candidates, command.Candidate{
 			Handle: candidate.Handle, Name: candidate.Name, Why: candidate.Why(),
 		})
 	}
-	for _, out := range left {
+	for _, out := range ranking.LeftOut {
 		reply.LeftOut = append(reply.LeftOut, command.LeftOut{Handle: out.Handle, Why: out.Why})
 	}
 	return command.SuggestionsReply(reply)
+}
+
+// thisCheck is what a tied shortlist is ordered by: an editor asking twice
+// about one check gets the same order, and two checks that match the same
+// fifty people do not both get the same five. On the command line there is no
+// issue to be this check, so the comment stands in for one.
+func thisCheck(event mention) string {
+	if event.Issue > 0 {
+		return fmt.Sprintf("%s#%d", event.Repository, event.Issue)
+	}
+	return event.Body
 }
 
 // onlyEmptyText reports that the editor named nothing at all.

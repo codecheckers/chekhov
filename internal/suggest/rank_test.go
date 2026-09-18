@@ -82,12 +82,12 @@ func TestRank(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			ranked, left := Rank(candidates(), testCase.evidence, testCase.excluded)
-			if got := handlesOf(ranked); !equal(got, testCase.want) {
+			ranking := Rank(candidates(), testCase.evidence, testCase.excluded, "")
+			if got := handlesOf(ranking.Suggested); !equal(got, testCase.want) {
 				t.Errorf("suggested %v, want %v", got, testCase.want)
 			}
 			var out []string
-			for _, exclusion := range left {
+			for _, exclusion := range ranking.LeftOut {
 				out = append(out, exclusion.Handle)
 				if exclusion.Why == "" {
 					t.Errorf("%s was left out with no reason", exclusion.Handle)
@@ -105,19 +105,23 @@ func TestRankNamesAtMostFive(t *testing.T) {
 	for _, handle := range []string{"a", "b", "c", "d", "e", "f", "g"} {
 		many = append(many, Codechecker{Handle: handle, Languages: terms("R")})
 	}
-	ranked, _ := Rank(many, Evidence{Languages: []string{"r"}}, Excluded{})
-	if len(ranked) != Most {
-		t.Fatalf("suggested %d, want at most %d", len(ranked), Most)
+	ranking := Rank(many, Evidence{Languages: []string{"r"}}, Excluded{}, "")
+	if len(ranking.Suggested) != Most {
+		t.Fatalf("suggested %d, want at most %d", len(ranking.Suggested), Most)
+	}
+	if ranking.Matched != len(many) {
+		t.Errorf("matched %d, want all %d, so the reply can say it is showing a slice",
+			ranking.Matched, len(many))
 	}
 }
 
 func TestWhySaysWhatIsShared(t *testing.T) {
-	ranked, _ := Rank(candidates(),
-		Evidence{Languages: []string{"r", "python"}, Fields: []string{"containers"}}, Excluded{})
-	if len(ranked) == 0 {
+	ranking := Rank(candidates(),
+		Evidence{Languages: []string{"r", "python"}, Fields: []string{"containers"}}, Excluded{}, "")
+	if len(ranking.Suggested) == 0 {
 		t.Fatal("nobody was suggested")
 	}
-	if got := ranked[0].Why(); got != "R, Python · containers" {
+	if got := ranking.Suggested[0].Why(); got != "R, Python · containers" {
 		t.Errorf("why %q", got)
 	}
 }
@@ -141,4 +145,76 @@ func handlesOf(suggestions []Suggestion) []string {
 
 func equal(got, want []string) bool {
 	return strings.Join(got, ",") == strings.Join(want, ",")
+}
+
+// The shape of the real lists: nearly everybody declares R and Python, and
+// most other languages are declared by one person. Counting every share alike
+// gives half the community the same score for every R paper, and the
+// tie-break - whatever it is - then sends every such check to the same few
+// people. A rare share has to outweigh a common one.
+func TestACommonLanguageDoesNotDecideTheRanking(t *testing.T) {
+	var many []Codechecker
+	for _, handle := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
+		many = append(many, Codechecker{Handle: handle, Languages: terms("R")})
+	}
+	// One person late in the alphabet declares what this paper actually needs.
+	many = append(many, Codechecker{Handle: "zoe", Languages: terms("R, Fortran")})
+
+	ranking := Rank(many, Evidence{Languages: []string{"r", "fortran"}}, Excluded{}, "")
+	if len(ranking.Suggested) == 0 {
+		t.Fatal("nobody was suggested")
+	}
+	if got := ranking.Suggested[0].Handle; got != "zoe" {
+		t.Errorf("first suggestion is %q, want the one who declares the rare language", got)
+	}
+	if ranking.Matched != len(many) {
+		t.Errorf("matched %d, want all %d", ranking.Matched, len(many))
+	}
+}
+
+func TestRarity(t *testing.T) {
+	everybody, one := rarity(75, 75), rarity(1, 75)
+	if everybody != 1 {
+		t.Errorf("a term the whole list declares is worth %v, want 1", everybody)
+	}
+	if one <= everybody {
+		t.Errorf("a term one person declares is worth %v, not more than %v", one, everybody)
+	}
+	if rarity(0, 75) != 1 || rarity(1, 0) != 1 {
+		t.Error("a term nobody declares, or a list of nobody, should not be worth more than anything")
+	}
+}
+
+// Fifty people who all declare R are not a shortlist, and the same five must
+// not be the answer to every R paper. The order is the check's own, and stable
+// for that check.
+func TestATiedShortlistIsThisChecksOwnAndSaysSo(t *testing.T) {
+	var many []Codechecker
+	for _, handle := range []string{"ada", "bo", "cy", "di", "eve", "fay", "gus", "hal"} {
+		many = append(many, Codechecker{Handle: handle, Languages: terms("R")})
+	}
+	evidence := Evidence{Languages: []string{"r"}}
+
+	first := Rank(many, evidence, Excluded{}, "codecheckers/register#1")
+	again := Rank(many, evidence, Excluded{}, "codecheckers/register#1")
+	other := Rank(many, evidence, Excluded{}, "codecheckers/register#2")
+
+	if !equal(handlesOf(first.Suggested), handlesOf(again.Suggested)) {
+		t.Error("the same check ranked differently twice")
+	}
+	if equal(handlesOf(first.Suggested), handlesOf(other.Suggested)) {
+		t.Errorf("two checks got the same five of eight tied candidates: %v", handlesOf(first.Suggested))
+	}
+	if !first.Undistinguished {
+		t.Error("a shortlist where everybody shares the same thing should say so")
+	}
+}
+
+func TestAShortlistThatIsDistinguishedDoesNotApologise(t *testing.T) {
+	ranking := Rank(candidates(), Evidence{Languages: []string{"r", "python"},
+		Fields: []string{"bioinformatics"}}, Excluded{}, "x#1")
+	if ranking.Undistinguished {
+		t.Errorf("candidates sharing different things were called indistinguishable: %v",
+			handlesOf(ranking.Suggested))
+	}
 }

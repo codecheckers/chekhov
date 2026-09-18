@@ -1,6 +1,8 @@
 package suggest
 
 import (
+	"hash/fnv"
+	"math"
 	"sort"
 	"strings"
 
@@ -15,15 +17,65 @@ import (
 // with interest, so a language counts double. Everything else is a tie-break,
 // and every tie-break is deterministic: an editor who asks twice gets the same
 // answer, and a test can say what the answer is.
+//
+// A share is worth what it distinguishes. Fifty-one of the seventy-five people
+// on the list declare R and fifty-three Python, while thirty-eight of the
+// fifty-four languages are declared by exactly one person - so counting every
+// share alike gives every R paper the same score for half the community, and
+// the tie-break, whatever it is, then picks the same few people for every
+// check. Weighting a share by how rare it is puts the person who declares what
+// this paper actually needs above the fifty who declare what everything needs.
 
 // Most is how many candidates a reply names. Five is enough to choose from and
 // few enough to read; a longer list is the CSV again.
 const Most = 5
 
 const (
-	languageWeight = 2
-	fieldWeight    = 1
+	languageWeight = 2.0
+	fieldWeight    = 1.0
 )
+
+// counts is how many of the candidates declare each term, lowercased, which is
+// what makes a share worth more or less.
+type counts struct{ languages, fields map[string]int }
+
+func frequencies(codecheckers []Codechecker) counts {
+	declared := counts{languages: map[string]int{}, fields: map[string]int{}}
+	for _, codechecker := range codecheckers {
+		countInto(declared.languages, codechecker.Languages)
+		countInto(declared.fields, codechecker.Fields)
+	}
+	return declared
+}
+
+func countInto(into map[string]int, terms []string) {
+	seen := map[string]bool{}
+	for _, term := range terms {
+		if key := strings.ToLower(term); !seen[key] {
+			seen[key] = true
+			into[key]++
+		}
+	}
+}
+
+// weight is what a set of shared terms is worth: rarer is worth more, and a
+// term everybody declares is still worth something, because being able to run
+// the code is the point.
+func weight(shared []string, declaring map[string]int, total int) float64 {
+	sum := 0.0
+	for _, term := range shared {
+		sum += rarity(declaring[strings.ToLower(term)], total)
+	}
+	return sum
+}
+
+// rarity is 1 for a term the whole list declares, and grows as fewer do.
+func rarity(declaring, total int) float64 {
+	if declaring <= 0 || total <= 0 {
+		return 1
+	}
+	return 1 + math.Log(float64(total)/float64(declaring))
+}
 
 // A Suggestion is one candidate, with the reason they are suggested.
 type Suggestion struct {
@@ -33,7 +85,26 @@ type Suggestion struct {
 	Fields    []string
 	// OpenChecks is how many checks they are already assigned to.
 	OpenChecks int
-	Score      int
+	// Score is the weight of everything shared, rarest first. Comparable
+	// within one ranking and meaningless outside it, so no reply prints it.
+	Score float64
+}
+
+// A Ranking is the answer: who to suggest, how many could have been, and who
+// was deliberately left out.
+//
+// Matched is there because "five codecheckers" and "five of forty-two" are
+// different answers to an editor: the first reads as a shortlist, the second
+// says the shortlist is a slice and that the criteria were broad.
+type Ranking struct {
+	Suggested []Suggestion
+	Matched   int
+	LeftOut   []Exclusion
+	// Undistinguished says every suggestion shares exactly the same thing
+	// with the check, so their order is not a recommendation. A paper written
+	// in plain R matches half the community equally, and pretending the first
+	// five are the best five would be a lie an editor acts on.
+	Undistinguished bool
 }
 
 // An Exclusion is somebody deliberately left out, and why.
@@ -61,7 +132,12 @@ type Excluded struct {
 // Pure: everything it needs has been fetched already, so the interesting cases
 // - an author who is also a codechecker, a tie, nothing to go on - are tested
 // without a server.
-func Rank(codecheckers []Codechecker, evidence Evidence, excluded Excluded) ([]Suggestion, []Exclusion) {
+// seed makes the order of an otherwise tied shortlist this check's own: the
+// same check ranks the same way every time it is asked, and two checks that
+// match the same fifty people do not both get the first five in the alphabet.
+// Empty falls back to the handle, which is what a test wants.
+func Rank(codecheckers []Codechecker, evidence Evidence, excluded Excluded, seed string) Ranking {
+	declared := frequencies(codecheckers)
 	authors := handleSet(excluded.Authors)
 	for _, author := range evidence.Authors {
 		// An author who registered as a codechecker is found by ORCID, which
@@ -94,7 +170,8 @@ func Rank(codecheckers []Codechecker, evidence Evidence, excluded Excluded) ([]S
 			Fields:      shared(candidate.Fields, evidence.Fields),
 			OpenChecks:  excluded.OpenChecks[candidate.Handle],
 		}
-		suggestion.Score = languageWeight*len(suggestion.Languages) + fieldWeight*len(suggestion.Fields)
+		suggestion.Score = languageWeight*weight(suggestion.Languages, declared.languages, len(codecheckers)) +
+			fieldWeight*weight(suggestion.Fields, declared.fields, len(codecheckers))
 		if suggestion.Score == 0 {
 			// Not an exclusion: somebody who matches nothing is not ruled out,
 			// they simply have no reason to be at the top of the list.
@@ -114,15 +191,43 @@ func Rank(codecheckers []Codechecker, evidence Evidence, excluded Excluded) ([]S
 			return a.Score > b.Score
 		case len(a.Languages) != len(b.Languages):
 			return len(a.Languages) > len(b.Languages)
+		case a.Handle == b.Handle:
+			return false
 		default:
-			return a.Handle < b.Handle
+			// Nothing about the check separates them, so nothing about the
+			// alphabet should either.
+			return order(seed, a.Handle) < order(seed, b.Handle)
 		}
 	})
+	ranking := Ranking{Matched: len(ranked), LeftOut: left, Undistinguished: allAlike(ranked)}
 	if len(ranked) > Most {
 		ranked = ranked[:Most]
 	}
+	ranking.Suggested = ranked
 	sort.SliceStable(left, func(i, j int) bool { return left[i].Handle < left[j].Handle })
-	return ranked, left
+	return ranking
+}
+
+// order is where a handle falls for one check. A hash rather than the
+// alphabet, so that being called Aaron is not a career.
+func order(seed, handle string) uint64 {
+	digest := fnv.New64a()
+	_, _ = digest.Write([]byte(seed + "\x00" + handle))
+	return digest.Sum64()
+}
+
+// allAlike reports that every suggestion shares the same thing with the check.
+func allAlike(ranked []Suggestion) bool {
+	if len(ranked) < 2 {
+		return false
+	}
+	first := ranked[0].Why()
+	for _, suggestion := range ranked[1:] {
+		if suggestion.Why() != first {
+			return false
+		}
+	}
+	return true
 }
 
 // Why is the reason a candidate is suggested, in words.

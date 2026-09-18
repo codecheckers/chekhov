@@ -85,7 +85,11 @@ func Load(services *check.Services, settings *config.Settings) ([]Codechecker, [
 func terms(written string) []string {
 	var split []string
 	for _, term := range strings.Split(written, ",") {
-		if term, _, _ := strings.Cut(term, "("); strings.TrimSpace(term) != "" {
+		// The brackets are the person's own prose around the term: one row
+		// reads "utilitarian languages (Python, Go), systems programming (C)",
+		// which the comma splits into fragments carrying half a bracket each.
+		term, _, _ = strings.Cut(term, "(")
+		if term = strings.Trim(strings.TrimSpace(term), "()[].;"); term != "" {
 			split = append(split, strings.TrimSpace(term))
 		}
 	}

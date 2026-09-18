@@ -249,3 +249,24 @@ func TestGatherFilesLanguagesAsLanguages(t *testing.T) {
 		t.Errorf("fields %v, want a repository's languages counted as languages only", evidence.Fields)
 	}
 }
+
+// The lists are filled in by hand, and one row writes prose where the others
+// write a list: "functional languages (Haskell, ML, LISP), utilitarian
+// languages (Python, Go), systems programming (C), bourne shell, make".
+// Splitting that on the comma leaves fragments carrying half a bracket.
+func TestTermsSurviveProseInTheColumn(t *testing.T) {
+	got := terms("functional languages (Haskell, ML, LISP), utilitarian languages (Python, Go), make")
+	for _, want := range []string{"ML", "LISP", "Go", "make"} {
+		if !contains(got, want) {
+			t.Errorf("%q was not read out of %v", want, got)
+		}
+	}
+	for _, unwanted := range []string{"Go)", "LISP)", ""} {
+		if contains(got, unwanted) {
+			t.Errorf("%q survived into %v", unwanted, got)
+		}
+	}
+	if got := terms("R(expert), Python (intermediate)"); !equal(got, []string{"R", "Python"}) {
+		t.Errorf("a note in brackets is not a language: %v", got)
+	}
+}
