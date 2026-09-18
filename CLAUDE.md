@@ -44,6 +44,34 @@ wait for the go-ahead before `gh issue create`. The wording is reviewed before
 it is public. Write the body to a file as well, because `--body-file` is what
 `gh` reads, but what the reply shows is what is being approved.
 
+**Never write a plain `@mention` of an account that is not on the list below.**
+A handle in a comment or an issue body notifies whoever owns it, and the
+plausible-looking ones are taken: `@somebody`, `@mallory`, `@an-author`,
+`@an-intruder`, `@nobody` and `@octocat` are all real accounts, and real people
+were notified by test comments before this was written down.
+
+| May be mentioned | |
+|---|---|
+| `@nuest` | the maintainer, who is running the test |
+| `@chekhovbot` | the bot itself, which the command is addressed to |
+
+For anybody else in a test, **check first** and use a handle that does not
+exist:
+
+```sh
+gh api users/<handle> --silent || echo "free to use"
+```
+
+`@a-codechecker` and `@a-handling-editor` are free at the time of writing and
+read well in a transcript. Backticks do not help in a command - the bot parses
+the first line, and `` `@x` `` is not a handle - so the handle in a command has
+to be one nobody owns. In prose, and in the bot's own replies, a handle in
+backticks renders without notifying, which is why the reply bodies write them
+that way.
+
+If a test genuinely needs a real account - checking that an assignee sticks,
+say - **ask first**, every time.
+
 **One live test issue per change set.** Live testing happens on a new issue in
 the testing register, named for what is being tried and listing what each
 command should answer. A single long-running issue buries the run that matters
