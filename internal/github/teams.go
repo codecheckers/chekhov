@@ -2,9 +2,7 @@ package github
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -25,31 +23,22 @@ const membersPerPage = 100
 // team, so this command is open to everyone".
 func (c *Client) TeamMembers(ctx context.Context, organisation, team string) ([]string, error) {
 	var handles []string
-	for page := 1; ; page++ {
-		url := fmt.Sprintf("%s/orgs/%s/teams/%s/members?per_page=%d&page=%d",
-			strings.TrimSuffix(c.BaseURL, "/"), organisation, team, membersPerPage, page)
+	url := fmt.Sprintf("%s/orgs/%s/teams/%s/members?per_page=%d",
+		strings.TrimSuffix(c.BaseURL, "/"), organisation, team, membersPerPage)
+	what := fmt.Sprintf("reading the %s/%s team", organisation, team)
 
-		var batch []struct {
-			Login string `json:"login"`
-		}
-		err := c.attempt(ctx, fmt.Sprintf("reading the %s/%s team", organisation, team), func() error {
-			raw, err := c.do(ctx, http.MethodGet, url, nil)
-			if err != nil {
-				return err
-			}
-			return json.Unmarshal(raw, &batch)
-		})
-		if err != nil {
-			return nil, fmt.Errorf("could not read the %s/%s team: %w", organisation, team, err)
-		}
-
-		for _, member := range batch {
-			if member.Login != "" {
-				handles = append(handles, member.Login)
-			}
-		}
-		if len(batch) < membersPerPage {
-			return handles, nil
-		}
+	type member struct {
+		Login string `json:"login"`
 	}
+	err := paged(ctx, c, what, url, membersPerPage, func(batch []member) {
+		for _, read := range batch {
+			if read.Login != "" {
+				handles = append(handles, read.Login)
+			}
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not read the %s/%s team: %w", organisation, team, err)
+	}
+	return handles, nil
 }

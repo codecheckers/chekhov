@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/codecheckers/chekhov/internal/build"
-	"github.com/codecheckers/chekhov/internal/people"
 )
 
 // Deployment is what a reply says about the bot answering it.
@@ -158,7 +157,7 @@ func UnknownReply(parsed Command) string {
 	if parsed.Raw == "" {
 		out.WriteString("You called, but did not say what for.\n")
 	} else {
-		fmt.Fprintf(&out, "I do not know the command `%s`.\n", parsed.Raw)
+		fmt.Fprintf(&out, "I do not know the command `%s`.\n", Defuse(parsed.Raw))
 	}
 
 	if suggestion, found := Suggest(firstWord(parsed.Raw)); found {
@@ -425,11 +424,38 @@ func humanBytes(n int) string {
 	}
 }
 
+// Defuse is how anything somebody else wrote goes into a reply.
+//
+// The bot quotes people - an unknown command is echoed back, a check report
+// carries strings out of a codecheck.yml somebody controls - and its own
+// comments are where the per-check roles are kept. An HTML comment in quoted
+// text would let a stranger write what looks like a record into a comment
+// authored by the bot, so the opening sequence never survives the journey.
+// internal/people/record.go has the other half of that defence.
+func Defuse(text string) string {
+	// The opener only: "-->" on its own starts nothing, and escaping it would
+	// show up as literal "--&gt;" inside the code blocks of a check report,
+	// where entities are not decoded.
+	return strings.ReplaceAll(text, "<!--", "&lt;!--")
+}
+
 // oneLine puts a message in a table cell: a GitHub error carries the response
 // body, and a proxy's HTML page would otherwise end the row and the table with
 // it.
 func oneLine(message string) string {
-	return escapePipes(strings.Join(strings.Fields(message), " "))
+	return Defuse(escapePipes(strings.Join(strings.Fields(message), " ")))
+}
+
+// A TeamState is what reading one team found, as a reply shows it. The cache
+// itself is internal/people; this is the handful of fields a comment says out
+// loud, so that the reply bodies stay free of what fetched them.
+type TeamState struct {
+	Team    string
+	Members int
+	// Read is when the membership in hand was read, zero when it never was.
+	Read time.Time
+	// Problem is why the team could not be read, empty when it could.
+	Problem string
 }
 
 // TeamsReply says what reading the teams found, for `refresh teams`.
@@ -437,7 +463,7 @@ func oneLine(message string) string {
 // It names the size of each team and whether the copy it holds is current, so
 // that an editor who has just added somebody can see their change arrive
 // rather than trusting that it did.
-func TeamsReply(states []people.State) string {
+func TeamsReply(states []TeamState) string {
 	if len(states) == 0 {
 		return "There are no teams configured, so nobody holds a standing role here.\n"
 	}
@@ -448,13 +474,13 @@ func TeamsReply(states []people.State) string {
 	reply.WriteString("| Team | Members | Read |\n|---|---|---|\n")
 	for _, state := range states {
 		switch {
-		case state.Err != nil && state.Members == 0:
+		case state.Problem != "" && state.Members == 0:
 			refused = true
 			fmt.Fprintf(&reply, "| `%s` | — | could not be read: %s |\n",
-				state.Team, oneLine(state.Err.Error()))
-		case state.Err != nil:
+				state.Team, oneLine(state.Problem))
+		case state.Problem != "":
 			fmt.Fprintf(&reply, "| `%s` | %d | could not be read, so the copy from %s still stands |\n",
-				state.Team, state.Members, state.Fetched.UTC().Format(time.RFC3339))
+				state.Team, state.Members, state.Read.UTC().Format(time.RFC3339))
 		default:
 			fmt.Fprintf(&reply, "| `%s` | %d | just now |\n", state.Team, state.Members)
 		}
@@ -465,4 +491,97 @@ func TeamsReply(states []people.State) string {
 			"so the commands that need it will refuse.\n")
 	}
 	return reply.String()
+}
+
+// Holders is who holds each per-check role, as a reply shows it. The record
+// itself is internal/people; this is what a comment says out loud.
+type Holders struct {
+	HandlingEditor      string
+	AssignedCodechecker string
+	Authors             []string
+}
+
+// Teams are the teams the standing roles come from, for a reply that says
+// where a role came from rather than only who holds it.
+type Teams struct {
+	Editors      string
+	Codecheckers string
+}
+
+// RolesTable is the per-check roles as a table. One renderer, used by the
+// `roles` reply and by the record comment the bot keeps in the issue, so that
+// the two readings of the same fact cannot drift apart.
+func RolesTable(holders Holders) string {
+	var table strings.Builder
+	table.WriteString("**Roles on this check**\n\n")
+	table.WriteString("| Role | Who |\n|---|---|\n")
+	fmt.Fprintf(&table, "| %s | %s |\n", RoleHandlingEditor, mention(holders.HandlingEditor))
+	fmt.Fprintf(&table, "| %s | %s |\n", RoleAssignedCodechecker, mention(holders.AssignedCodechecker))
+	fmt.Fprintf(&table, "| %s | %s |\n", RoleAuthor, mentions(holders.Authors))
+	return table.String()
+}
+
+// RolesReply says who holds which role on this check, and where each role
+// comes from - the issue, or a team the organisation maintains.
+func RolesReply(holders Holders, teams Teams, asker Roles) string {
+	var reply strings.Builder
+	reply.WriteString(RolesTable(holders))
+	fmt.Fprintf(&reply, "\nThe standing roles come from the organisation: "+
+		"the `%s` team, and the `%s` team.\n", teams.Editors, teams.Codecheckers)
+
+	if len(asker) > 0 {
+		names := make([]string, 0, len(asker))
+		for _, role := range asker {
+			names = append(names, string(role))
+		}
+		fmt.Fprintf(&reply, "\nYou are %s here.\n", strings.Join(names, " and "))
+	}
+	reply.WriteString("\nAn editor changes the roles above with `" + Bot +
+		" assign` and `" + Bot + " remove`; team membership is changed on GitHub.\n")
+	return reply.String()
+}
+
+// AssignedReply says what an assignment did.
+func AssignedReply(role Role, handle, replaced string, assignee bool) string {
+	var reply strings.Builder
+	fmt.Fprintf(&reply, "%s is now the %s of this check.\n", mention(handle), role)
+	if replaced != "" {
+		fmt.Fprintf(&reply, "\nThat replaces %s, who held it until now.\n", mention(replaced))
+	}
+	if assignee {
+		fmt.Fprintf(&reply, "\nI have also set %s as the assignee of this issue, so the role is "+
+			"visible where people look for it.\n", mention(handle))
+	}
+	return reply.String()
+}
+
+// RemovedReply says what a removal did.
+func RemovedReply(role Role, handle string, held bool) string {
+	if !held {
+		return fmt.Sprintf("%s was not the %s of this check, so there was nothing to take away.\n",
+			mention(handle), role)
+	}
+	return fmt.Sprintf("%s is no longer the %s of this check.\n", mention(handle), role)
+}
+
+// mention writes a handle the way GitHub renders it, or an em dash for nobody.
+//
+// Deliberately without the @: a role table that mentions five people notifies
+// five people every time somebody asks who holds what.
+func mention(handle string) string {
+	if handle == "" {
+		return "—"
+	}
+	return "`@" + handle + "`"
+}
+
+func mentions(handles []string) string {
+	if len(handles) == 0 {
+		return "—"
+	}
+	written := make([]string, 0, len(handles))
+	for _, handle := range handles {
+		written = append(written, mention(handle))
+	}
+	return strings.Join(written, ", ")
 }

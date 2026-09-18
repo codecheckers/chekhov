@@ -1,96 +1,16 @@
 package command
 
 import (
-	"slices"
 	"sort"
 	"strings"
 )
-
-// Role is something the person writing the comment is, on this check.
-//
-// Two kinds, stored differently on purpose. A standing role - editor,
-// codechecker - is a property of a person, and the organisation maintains it
-// as a GitHub team, which the bot reads with the token's Members: read
-// permission and holds in memory for a day, see internal/people. A per-check
-// role - the assigned codechecker, an author - is a property of a person *on
-// one issue*, and has nowhere to live but that issue.
-//
-// A team that cannot be read means nobody holds that role, never that everyone
-// does.
-type Role string
-
-const (
-	// RoleAnyone is everybody, including people not in the organisation.
-	RoleAnyone Role = "anyone"
-	// RoleEditor is a CODECHECK editor, who may run the commands that change
-	// the register.
-	RoleEditor Role = "editor"
-	// RoleCodechecker is somebody who performs CODECHECKs, whether or not they
-	// are doing this one.
-	RoleCodechecker Role = "codechecker"
-	// RoleAssignedCodechecker is the codechecker doing *this* check.
-	RoleAssignedCodechecker Role = "assigned codechecker"
-	// RoleAuthor wrote the paper under check.
-	RoleAuthor Role = "author"
-)
-
-// grantable are the roles a person can be given, in the order they are worth
-// reading - the standing ones first, then the ones a check grants - with the
-// words a refusal uses for each. One table, so that adding a role is one entry
-// rather than three lists to keep in step.
-var grantable = []struct {
-	Role        Role
-	Description string
-}{
-	{RoleEditor, "editors"},
-	{RoleCodechecker, "codecheckers"},
-	{RoleAssignedCodechecker, "the assigned codechecker"},
-	{RoleAuthor, "the paper's authors"},
-}
-
-// Description is the role in words, for a refusal that has to say what the
-// asker would have to be.
-func (r Role) Description() string {
-	for _, known := range grantable {
-		if known.Role == r {
-			return known.Description
-		}
-	}
-	return string(r)
-}
-
-// Roles are everything one person is on one check.
-//
-// A set rather than a single role: the same person can be an editor and the
-// codechecker assigned to this check, and a command either of them may run has
-// to be open to them once rather than twice. A slice because there are four
-// roles and never more: the order is the order they were granted in, and the
-// zero value is somebody nothing is known about.
-type Roles []Role
-
-// With returns the roles plus one more, leaving the original alone.
-//
-// Copied rather than appended in place: a resolver that works out the standing
-// roles once and adds a per-check role to them must not widen what every other
-// caller sees.
-func (r Roles) With(role Role) Roles {
-	if role == "" || role == RoleAnyone || r.Has(role) {
-		return r
-	}
-	return append(append(make(Roles, 0, len(r)+1), r...), role)
-}
-
-// Has reports whether the person holds a role. Everybody is RoleAnyone, and
-// somebody who holds nothing holds nothing else.
-func (r Roles) Has(role Role) bool {
-	return role == RoleAnyone || slices.Contains(r, role)
-}
 
 // Groups the listing is arranged in, in the order they are shown.
 const (
 	GroupBasics     = "Basics"
 	GroupValidation = "Validation"
 	GroupRegister   = "Register"
+	GroupPeople     = "People"
 )
 
 // A Definition is one command the bot knows: what it is called, what it does,
@@ -155,6 +75,27 @@ var registry = []Definition{
 		Usage:   "refresh teams",
 		Group:   GroupBasics,
 		Role:    RoleEditor,
+	},
+	{
+		Name:    Assign,
+		Summary: "Give somebody a role on this check",
+		Usage:   "assign @user as codechecker|author|handling editor",
+		Group:   GroupPeople,
+		Role:    RoleEditor,
+	},
+	{
+		Name:    Remove,
+		Summary: "Take a role away again",
+		Usage:   "remove @user as codechecker|author|handling editor",
+		Group:   GroupPeople,
+		Role:    RoleEditor,
+	},
+	{
+		Name:    ListRoles,
+		Summary: "Say who holds which role on this check",
+		Usage:   "roles",
+		Group:   GroupPeople,
+		Role:    RoleAnyone,
 	},
 	{
 		Name:    Check,
@@ -295,7 +236,7 @@ func editDistance(a, b string) int {
 // declared order first, anything new after it, alphabetically, so a group
 // added without a thought here is still listed.
 func groups() []string {
-	known := []string{GroupBasics, GroupValidation, GroupRegister}
+	known := []string{GroupBasics, GroupPeople, GroupValidation, GroupRegister}
 	var extra []string
 	for _, definition := range registry {
 		if !contains(known, definition.Group) && !contains(extra, definition.Group) {

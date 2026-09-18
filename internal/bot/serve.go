@@ -16,6 +16,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/mastodon"
+	"github.com/codecheckers/chekhov/internal/people"
 )
 
 // Serve runs the bot until the process is asked to stop.
@@ -57,6 +58,9 @@ func Serve(address, version, commit string) error {
 	// transient copy of it; the reload below is how the transient copy is
 	// rebuilt from the persistent one at boot.
 	server.Teams = TeamsFor(settings, replies, slog.Default())
+	// The per-check roles live in each issue, in a comment only the bot can
+	// edit. Nothing caches them: the issue is the record.
+	server.Checks = &people.Checks{Comments: replies, Bot: settings.BotUser()}
 	reloadTeams(server, settings)
 
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,

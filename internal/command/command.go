@@ -29,6 +29,14 @@ const (
 	// just changed one. The command takes what to refresh as an argument, so
 	// that the parser stays one word per command.
 	Refresh Name = "refresh"
+	// Assign gives somebody a role on this check.
+	Assign Name = "assign"
+	// Remove takes a role away again.
+	Remove Name = "remove"
+	// ListRoles says who holds which role on this check. Named for what it
+	// does rather than for the word people type, because Roles is the set of
+	// roles one person holds.
+	ListRoles Name = "roles"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Announce toots about a published certificate.

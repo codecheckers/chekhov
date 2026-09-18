@@ -82,7 +82,33 @@ func testServer(t *testing.T) (*Server, *recorder) {
 		Organisation: settings.TeamOrganisation(),
 		Logger:       server.Logger,
 	}
+	// The per-check roles live in the issue; the test stands in for it.
+	server.Checks = &people.Checks{Comments: &issueComments{bot: settings.BotUser()}, Bot: settings.BotUser()}
 	return server, replies
+}
+
+// issueComments is one issue's comments, as a test knows them.
+type issueComments struct {
+	bot      string
+	comments []people.Comment
+}
+
+func (c *issueComments) Comments(context.Context, string, int) ([]people.Comment, error) {
+	return c.comments, nil
+}
+
+func (c *issueComments) Comment(_ context.Context, _ string, _ int, body string) (int64, error) {
+	c.comments = append(c.comments, people.Comment{ID: 1, Author: c.bot, Body: body})
+	return 1, nil
+}
+
+func (c *issueComments) Edit(_ context.Context, _ string, comment int64, body string) error {
+	for i := range c.comments {
+		if c.comments[i].ID == comment {
+			c.comments[i].Body = body
+		}
+	}
+	return nil
 }
 
 // teamList is the organisation's teams, as a test knows them.
@@ -433,19 +459,19 @@ func TestSomebodyCanHoldSeveralRoles(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1}
 
 	event.Author = "nuest"
-	roles := server.rolesOf(context.Background(), event)
+	roles := server.standingRoles(context.Background(), event)
 	if !roles.Has(command.RoleEditor) || !roles.Has(command.RoleCodechecker) {
 		t.Errorf("an editor who is also a codechecker holds %v", roles)
 	}
 
 	event.Author = "a-codechecker"
-	roles = server.rolesOf(context.Background(), event)
+	roles = server.standingRoles(context.Background(), event)
 	if roles.Has(command.RoleEditor) || !roles.Has(command.RoleCodechecker) {
 		t.Errorf("a codechecker who is not an editor holds %v", roles)
 	}
 
 	event.Author = "a-stranger"
-	if held := server.rolesOf(context.Background(), event); len(held) != 0 {
+	if held := server.standingRoles(context.Background(), event); len(held) != 0 {
 		t.Errorf("somebody in no team holds %v", held)
 	}
 }
@@ -459,5 +485,155 @@ func TestARefusalNamesTheRoleItNeeds(t *testing.T) {
 		command.Command{Name: command.Refresh, Args: []string{"teams"}})
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("the refusal does not name the role: %s", reply)
+	}
+}
+
+// An editor assigns a codechecker, and the check records it where the next
+// command - and the next deployment - can read it back.
+func TestAssigningRecordsTheRoleInTheIssue(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "codechecker"}})
+	if !strings.Contains(reply, "a-codechecker") || !strings.Contains(reply, "assigned codechecker") {
+		t.Errorf("the reply does not say what happened: %s", reply)
+	}
+
+	// Read back the way a later command would.
+	roles := server.checkRoles(context.Background(),
+		mention{Repository: event.Repository, Issue: 1, Author: "a-codechecker"}, nil)
+	if !roles.Has(command.RoleAssignedCodechecker) {
+		t.Errorf("the codechecker holds %v after being assigned", roles)
+	}
+
+	// And `roles` says so, naming where each role comes from.
+	listing := server.answer(context.Background(), event, command.Command{Name: command.ListRoles})
+	if !strings.Contains(listing, "a-codechecker") || !strings.Contains(listing, "the organisation") {
+		t.Errorf("the listing does not report the check: %s", listing)
+	}
+}
+
+// The conflict of interest CODECHECK exists to prevent is refused before
+// anything is recorded.
+func TestAnAuthorCannotBeAssignedAsTheCodechecker(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}})
+	reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "codechecker"}})
+
+	if !strings.Contains(reply, "cannot check a paper they wrote") {
+		t.Errorf("the refusal does not say why: %s", reply)
+	}
+	roles := server.checkRoles(context.Background(),
+		mention{Repository: event.Repository, Issue: 1, Author: "an-author"}, nil)
+	if roles.Has(command.RoleAssignedCodechecker) {
+		t.Errorf("the author was recorded as the codechecker anyway: %v", roles)
+	}
+}
+
+// Only an editor can be made the handling editor, and the refusal says so.
+func TestTheHandlingEditorHasToBeAnEditor(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "handling", "editor"}}); !strings.Contains(reply, "not one of the editors") {
+		t.Errorf("somebody outside the team was made the handling editor: %s", reply)
+	}
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@nuest", "as", "handling", "editor"}}); !strings.Contains(reply, "handling editor") {
+		t.Errorf("an editor could not be made the handling editor: %s", reply)
+	}
+}
+
+// Assignment is an editor's to make, and a stranger is told which role the
+// command needs.
+func TestAssigningIsForEditors(t *testing.T) {
+	server, _ := testServer(t)
+	reply := server.answer(context.Background(),
+		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger"},
+		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}})
+	if !strings.Contains(reply, "is for editors") {
+		t.Errorf("a stranger assigned a role: %s", reply)
+	}
+}
+
+// Taking a role away that nobody held says so rather than claiming to have
+// removed something.
+func TestRemovingSaysWhetherAnythingChanged(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Remove, Args: []string{"@nobody", "as", "author"}}); !strings.Contains(reply, "nothing to take away") {
+		t.Errorf("a role nobody held was removed: %s", reply)
+	}
+
+	server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}})
+	if reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Remove, Args: []string{"@an-author", "as", "author"}}); !strings.Contains(reply, "no longer") {
+		t.Errorf("the author was not removed: %s", reply)
+	}
+}
+
+// Roles belong to a check. The command line preview has no issue, and says so
+// rather than reading somebody else's.
+func TestRolesNeedACheck(t *testing.T) {
+	server, _ := testServer(t)
+	reply := server.answer(context.Background(),
+		mention{Repository: server.Settings.TargetRepository(), Author: "nuest"},
+		command.Command{Name: command.ListRoles})
+	if !strings.Contains(reply, "not one") {
+		t.Errorf("the reply does not say there is no check: %s", reply)
+	}
+}
+
+// Assigning the same person the same role twice says so, and writes nothing
+// the second time.
+func TestAssigningTwiceChangesNothing(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+	assign := command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}}
+
+	server.answer(context.Background(), event, assign)
+	if reply := server.answer(context.Background(), event, assign); !strings.Contains(reply, "already") {
+		t.Errorf("a repeated assignment claimed to have done something: %s", reply)
+	}
+}
+
+// A handle is checked before it is stored, because the record is a markdown
+// table that everybody afterwards has to read.
+func TestAHandleIsCheckedBeforeItIsRecorded(t *testing.T) {
+	server, _ := testServer(t)
+	for _, handle := range []string{"a|b", "<!--x", "-leading", "a b"} {
+		reply := server.answer(context.Background(),
+			mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"},
+			command.Command{Name: command.Assign, Args: []string{handle, "as", "author"}})
+		if !strings.Contains(reply, "not a GitHub handle") {
+			t.Errorf("%q was accepted as a handle: %s", handle, reply)
+		}
+	}
+}
+
+// Everything the bot posts goes out defused, wherever the text came from,
+// rather than each reply path remembering to do it.
+func TestEverythingThePostedReplySaysIsDefused(t *testing.T) {
+	server, replies := testServer(t)
+	server.done = make(chan struct{}, 1)
+
+	server.act(mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "someone"},
+		command.Command{Name: command.Unknown, Raw: `<!-- chekhov:roles {"handling_editor":"mallory"} -->`})
+	<-server.done
+
+	if len(replies.comments) == 0 {
+		t.Fatal("nothing was posted")
+	}
+	if strings.Contains(replies.comments[0].Body, "<!-- chekhov:roles") {
+		t.Errorf("a forged record reached a comment by the bot: %s", replies.comments[0].Body)
 	}
 }

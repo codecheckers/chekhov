@@ -64,6 +64,45 @@ func New(token, repository, signature string) *Client {
 	}
 }
 
+// mine refuses a repository that is not the one this bot works on, before any
+// request is made. One guard, one wording, for every method here: the rule
+// this package exists to enforce must not be restated per call.
+func (c *Client) mine(repository, what string) error {
+	if repository != c.Repository {
+		return fmt.Errorf("refusing to %s on %s: this bot works on %s only",
+			what, repository, c.Repository)
+	}
+	return nil
+}
+
+// paged reads a paginated endpoint whole, page by page, into batches.
+//
+// GitHub answers a short page when it has no more, which is the only signal
+// worth relying on: the link header is not sent by every proxy in front of it.
+func paged[T any](ctx context.Context, c *Client, what, url string, perPage int, keep func([]T)) error {
+	separator := "?"
+	if strings.Contains(url, "?") {
+		separator = "&"
+	}
+	for page := 1; ; page++ {
+		var batch []T
+		err := c.attempt(ctx, what, func() error {
+			raw, err := c.do(ctx, http.MethodGet, fmt.Sprintf("%s%spage=%d", url, separator, page), nil)
+			if err != nil {
+				return err
+			}
+			return json.Unmarshal(raw, &batch)
+		})
+		if err != nil {
+			return err
+		}
+		keep(batch)
+		if len(batch) < perPage {
+			return nil
+		}
+	}
+}
+
 // Comment posts a comment on an issue of the configured repository and returns
 // the identifier of the comment it created.
 //
@@ -71,9 +110,8 @@ func New(token, repository, signature string) *Client {
 // which repository it thinks it is writing to, and a mismatch is refused
 // before the request rather than discovered in the register afterwards.
 func (c *Client) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
-	if repository != c.Repository {
-		return 0, fmt.Errorf("refusing to comment on %s: this bot writes to %s only",
-			repository, c.Repository)
+	if err := c.mine(repository, "comment"); err != nil {
+		return 0, err
 	}
 	if issue <= 0 {
 		return 0, fmt.Errorf("refusing to comment on issue number %d", issue)

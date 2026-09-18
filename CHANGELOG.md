@@ -9,11 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot assign @user as codechecker|author|handling editor`, `remove`
+  the same way, and `roles`, which says who holds which role on this check and
+  where each role comes from. The per-check roles are kept in a comment the bot
+  posted and edits in place, because the bot has no storage but the issue
+  itself (codecheckers/chekhov#18).
+- A role that conflicts is refused before anything is recorded, and only a
+  member of the editors team can be made the handling editor
+  (codecheckers/chekhov#18).
+- Assigning a codechecker also sets the issue's assignee, so the role is
+  visible where people look for it (codecheckers/chekhov#18).
+
 - Standing roles come from the organisation's GitHub teams rather than a list
   of handles in the settings file: membership is read with the token's
   *Members: read* permission and held in memory for a day, refreshed lazily on
   read and rebuilt at startup. A team that cannot be read has no members, so
   the editor commands refuse rather than open (codecheckers/chekhov#18).
+- A `handling editor` role, the editor looking after one check, which only a
+  member of the editors team can be given (codecheckers/chekhov#18).
+- Roles that cannot be held at once are refused before they are granted: the
+  assigned codechecker may not be an author of the paper, and neither may the
+  handling editor. Being an editor and a codechecker at the same time is no
+  conflict - most editors check papers (codecheckers/chekhov#18).
 - The bot knows a person may hold several roles at once: `editor`,
   `codechecker` from the organisation's teams, and `assigned codechecker` and
   `author` once a check records them. A refusal says which role the command
@@ -158,6 +175,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `${VAR:-default}`, which Go can read.
 
 ### Fixed
+
+- Nothing the bot posts can be mistaken for the roles record: a record is the
+  marker on the first line of a comment the bot wrote, and every reply is
+  defused before it is posted, so a stranger cannot have the bot quote a
+  forged record back into the issue (codecheckers/chekhov#18).
 
 - A deployment answers every command from what is published now: responses
   were cached for the life of the process, so `check` could report on a

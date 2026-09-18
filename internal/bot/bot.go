@@ -38,6 +38,14 @@ type Poster interface {
 	Comment(ctx context.Context, repository string, issue int, body string) (int64, error)
 }
 
+// Assigner is the part of the reply path that keeps the issue's assignee in
+// step with the assigned codechecker. A Poster that cannot assign - the test
+// recorder, or a preview - simply does not, and the reply says so.
+type Assigner interface {
+	Assign(ctx context.Context, repository string, issue int, handle string) ([]string, error)
+	Unassign(ctx context.Context, repository string, issue int, handle string) error
+}
+
 // Toots is the part of the Mastodon client announcing and following need, so
 // a test can watch what would be tooted, followed or listed without an
 // instance.
@@ -79,6 +87,11 @@ type Server struct {
 	// them. Nil means nobody does: a deployment that cannot read the teams
 	// refuses the editor commands rather than opening them to everyone.
 	Teams *people.Teams
+
+	// Checks is the per-check roles, kept in each issue's own bot-owned
+	// comment. Nil means the bot cannot read or record them, and says so
+	// rather than pretending a check has none.
+	Checks *people.Checks
 
 	// LocalPaths allows a command to name a file on this machine. It is off
 	// for a deployment on purpose: a path in a comment is written by anyone on
@@ -198,7 +211,13 @@ func (s *Server) act(event mention, parsed command.Command) {
 	defer cancel()
 
 	started := time.Now()
-	body := s.answer(ctx, event, parsed)
+	// Everything the bot says goes out through here, and everything it says
+	// may quote somebody: a command it did not understand, a report built from
+	// a stranger's codecheck.yml, a toot composed from a published record. The
+	// roles of a check are kept in a comment by the bot, so nothing the bot
+	// posts may look like one. Defusing here rather than in each reply makes
+	// that structural instead of something every new reply has to remember.
+	body := command.Defuse(s.answer(ctx, event, parsed))
 	if body == "" {
 		return
 	}
@@ -237,9 +256,16 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 
 // answer produces the reply to one command.
 func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) string {
-	roles := s.rolesOf(ctx, event)
+	roles := s.standingRoles(ctx, event)
+	definition, found := command.Lookup(string(parsed.Name))
+	// The per-check roles cost a read of the issue's comments, so they are
+	// resolved only for a command that is gated on one. Nothing else - hello,
+	// version, a check - is about who somebody is on this check.
+	if found && definition.Role != command.RoleAnyone && !definition.Role.Standing() {
+		roles = s.checkRoles(ctx, event, roles)
+	}
 
-	if definition, found := command.Lookup(string(parsed.Name)); found && !definition.Permits(roles) {
+	if found && !definition.Permits(roles) {
 		return fmt.Sprintf("`%s %s` is for %s.\n", command.Bot, parsed.Name, definition.Role.Description())
 	}
 
@@ -265,6 +291,12 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.follow(ctx, parsed, services)
 	case command.Refresh:
 		return s.refresh(ctx, parsed)
+	case command.Assign:
+		return s.assign(ctx, event, parsed)
+	case command.Remove:
+		return s.remove(ctx, event, parsed)
+	case command.ListRoles:
+		return s.listRoles(ctx, event, roles)
 	default:
 		return command.UnknownReply(parsed)
 	}
@@ -279,6 +311,20 @@ func TeamsFor(settings *config.Settings, reader people.Reader, logger *slog.Logg
 		Organisation: settings.TeamOrganisation(),
 		Logger:       logger,
 	}
+}
+
+// teamStates is what the cache holds, in the terms a reply speaks: the reply
+// bodies know nothing about how membership is fetched.
+func teamStates(states []people.State) []command.TeamState {
+	reply := make([]command.TeamState, 0, len(states))
+	for _, state := range states {
+		shown := command.TeamState{Team: state.Team, Members: state.Members, Read: state.Fetched}
+		if state.Err != nil {
+			shown.Problem = state.Err.Error()
+		}
+		reply = append(reply, shown)
+	}
+	return reply
 }
 
 // teamState is how old each membership list is, for /healthz in development.
@@ -311,15 +357,194 @@ func (s *Server) teamState() map[string]any {
 // of this issue and are read from it, which is why this takes the whole
 // mention. That store is the next part of codecheckers/chekhov#18; until it
 // exists, an editor is an editor and everybody else is whatever the teams say.
-func (s *Server) rolesOf(ctx context.Context, event mention) command.Roles {
+func (s *Server) standingRoles(ctx context.Context, event mention) command.Roles {
 	var roles command.Roles
-	if s.Teams.Has(ctx, s.Settings.EditorsTeam(), event.Author) {
-		roles = roles.With(command.RoleEditor)
-	}
-	if s.Teams.Has(ctx, s.Settings.CodecheckersTeam(), event.Author) {
-		roles = roles.With(command.RoleCodechecker)
+	for _, standing := range []command.Role{command.RoleEditor, command.RoleCodechecker} {
+		if s.Teams.Has(ctx, s.team(standing), event.Author) {
+			roles = roles.With(standing)
+		}
 	}
 	return roles
+}
+
+// checkRoles adds what this check gave the author to what the organisation
+// already says they are.
+//
+// A record that cannot be read is not a reason to refuse everything: the
+// standing roles still stand, and the command that needs the record says what
+// went wrong when it reads it for itself.
+func (s *Server) checkRoles(ctx context.Context, event mention, roles command.Roles) command.Roles {
+	if event.Issue <= 0 || s.Checks == nil {
+		return roles
+	}
+	record, _, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	if err != nil {
+		s.Logger.Warn("the roles of this check could not be read",
+			"repository", event.Repository, "issue", event.Issue, "error", err)
+		return roles
+	}
+	for _, role := range record.RolesOf(event.Author) {
+		roles = roles.With(role)
+	}
+	return roles
+}
+
+// assign gives somebody a role on this check, and records it in the issue.
+func (s *Server) assign(ctx context.Context, event mention, parsed command.Command) string {
+	handle, role, err := command.ParseAssignment(parsed.Args)
+	if reply, ok := s.roleCommand(event, err); !ok {
+		return reply
+	}
+
+	// A role a check gives out may still need the person to be something
+	// already: only an editor can be the handling editor.
+	if required, needs := role.Requires(); needs && !s.Teams.Has(ctx, s.team(required), handle) {
+		return fmt.Sprintf("`@%s` is not one of the %s, so I cannot make them the %s of this check.\n",
+			handle, required.Description(), role)
+	}
+
+	replaced := ""
+	_, err = s.Checks.Update(ctx, event.Repository, event.Issue, func(record people.Record) (people.Record, error) {
+		var err error
+		record, replaced, err = record.Grant(role, handle)
+		return record, err
+	})
+	switch {
+	case errors.Is(err, people.ErrUnchanged):
+		return fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role)
+	case err != nil:
+		return fmt.Sprintf("%s\n", err)
+	}
+
+	// The assigned codechecker is also the issue's assignee, so that the role
+	// is visible where people look for it rather than only in a comment.
+	assigned := false
+	if role == command.RoleAssignedCodechecker {
+		assigned = s.assignee(ctx, event, handle, replaced)
+	}
+	return command.AssignedReply(role, handle, replaced, assigned)
+}
+
+// remove takes a role away again.
+func (s *Server) remove(ctx context.Context, event mention, parsed command.Command) string {
+	handle, role, err := command.ParseAssignment(parsed.Args)
+	if reply, ok := s.roleCommand(event, err); !ok {
+		return reply
+	}
+
+	_, err = s.Checks.Update(ctx, event.Repository, event.Issue, func(record people.Record) (people.Record, error) {
+		updated, held := record.Revoke(role, handle)
+		if !held {
+			return record, people.ErrUnchanged
+		}
+		return updated, nil
+	})
+	switch {
+	case errors.Is(err, people.ErrUnchanged):
+		return command.RemovedReply(role, handle, false)
+	case err != nil:
+		return fmt.Sprintf("%s\n", err)
+	}
+
+	if role == command.RoleAssignedCodechecker {
+		s.unassign(ctx, event, handle)
+	}
+	return command.RemovedReply(role, handle, true)
+}
+
+// roleCommand is the two things every role command needs before it starts:
+// somewhere to keep the roles, and arguments that made sense.
+func (s *Server) roleCommand(event mention, err error) (string, bool) {
+	if reply, ok := s.noCheck(event); !ok {
+		return reply, false
+	}
+	if err != nil {
+		return fmt.Sprintf("%s\n", err), false
+	}
+	return "", true
+}
+
+// listRoles says who holds which role on this check.
+func (s *Server) listRoles(ctx context.Context, event mention, roles command.Roles) string {
+	if reply, ok := s.noCheck(event); !ok {
+		return reply
+	}
+	record, _, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	if err != nil {
+		return fmt.Sprintf("I could not read the roles of this check: %s\n", err)
+	}
+	for _, role := range record.RolesOf(event.Author) {
+		roles = roles.With(role)
+	}
+	return command.RolesReply(record.Holders(), command.Teams{
+		Editors:      s.Settings.EditorsTeam(),
+		Codecheckers: s.Settings.CodecheckersTeam(),
+	}, roles)
+}
+
+// noCheck refuses the commands that are about one check when there is no
+// check to be about: the command line preview has no issue, and a deployment
+// without a store cannot record anything.
+func (s *Server) noCheck(event mention) (string, bool) {
+	switch {
+	case event.Issue <= 0:
+		return "Roles belong to one check, and this is not one - ask me on the checks issue.\n", false
+	case s.Checks == nil:
+		return "I cannot read or record the roles of a check here.\n", false
+	default:
+		return "", true
+	}
+}
+
+// team is the GitHub team a standing role comes from.
+func (s *Server) team(role command.Role) string {
+	switch role {
+	case command.RoleEditor:
+		return s.Settings.EditorsTeam()
+	case command.RoleCodechecker:
+		return s.Settings.CodecheckersTeam()
+	default:
+		return ""
+	}
+}
+
+// assignee keeps the issue's assignee in step with the assigned codechecker.
+//
+// A failure is logged and reported as "not done" rather than undoing the
+// assignment: the record is the roles, and the assignee is a convenience on
+// top of it.
+func (s *Server) assignee(ctx context.Context, event mention, handle, replaced string) bool {
+	assigner, ok := s.Replies.(Assigner)
+	if !ok {
+		return false
+	}
+	// Assign before unassigning: a failure between the two would otherwise
+	// leave the issue with nobody assigned at all, which is worse than the
+	// state the command started from.
+	assigned, err := assigner.Assign(ctx, event.Repository, event.Issue, handle)
+	if err != nil {
+		s.Logger.Warn("the codechecker could not be made the issue's assignee",
+			"issue", event.Issue, "handle", handle, "error", err)
+		return false
+	}
+	if replaced != "" {
+		s.unassign(ctx, event, replaced)
+	}
+	for _, who := range assigned {
+		if strings.EqualFold(who, handle) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) unassign(ctx context.Context, event mention, handle string) {
+	if assigner, ok := s.Replies.(Assigner); ok {
+		if err := assigner.Unassign(ctx, event.Repository, event.Issue, handle); err != nil {
+			s.Logger.Warn("the codechecker could not be unassigned",
+				"issue", event.Issue, "handle", handle, "error", err)
+		}
+	}
 }
 
 // refresh reads the teams again, so that somebody just added to one does not
@@ -331,7 +556,7 @@ func (s *Server) refresh(ctx context.Context, parsed command.Command) string {
 	if what := strings.ToLower(strings.Join(parsed.Args, " ")); what != "" && what != "teams" {
 		return fmt.Sprintf("I can refresh `teams`, not %q.\n", what)
 	}
-	return command.TeamsReply(s.Teams.Refresh(ctx, s.Settings.Teams()...))
+	return command.TeamsReply(teamStates(s.Teams.Refresh(ctx, s.Settings.Teams()...)))
 }
 
 // version says which build is answering and which catalogue it judges by.

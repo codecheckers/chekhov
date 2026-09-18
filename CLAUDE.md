@@ -271,11 +271,23 @@ than a `switch`.
   can be an editor and the codechecker assigned to a check. Standing roles
   (`editor`, `codechecker`) come from the organisation's GitHub teams, read
   through `internal/people` and held in memory for a day; the per-check ones
-  (`assigned codechecker`, `author`) belong to one issue and are read from it.
+  (`handling editor`, `assigned codechecker`, `author`) belong to one issue and
+  are read from it.
   The settings file names *teams*, never people, so membership is maintained in
   one place. The cache is
   the transient copy; `Teams.Refresh` rebuilds it from the persistent one, at
   startup and whenever an editor runs `refresh teams`.
+- Per-check roles live in a **comment the bot posted**, found by its marker on
+  the comment's first line - not by position, and never in somebody else's
+  comment. A bot comment is safe from a passer-by, **not** from a repository
+  collaborator, who can edit it with the bot left as the author; signing the
+  record is codecheckers/chekhov#41. Nothing the bot posts may look like a
+  record, so `act` defuses every reply once, centrally.
+- **Roles that conflict are refused before they are granted**, in
+  `internal/command/roles.go`: the assigned codechecker may not be an author of
+  the paper, nor may the handling editor - CODECHECK exists so that somebody
+  other than the author runs the code. The standing roles never conflict, and
+  only an editor may be made the handling editor (`Role.Requires`).
 - **Fail closed.** A team the token cannot read has no members: the editor
   commands refuse and the listing does not offer them. The opposite - an
   unreadable team meaning everyone is an editor - would hand the register to
