@@ -12,5 +12,5 @@
 # See record-key.md. Never put a private key here - the private half lives only
 # in the deployment's configuration.
 
-codecheckers/testing-dev-register  noZFbyVy85ydV7qraoUBBc9wPbVqRbZ3Pj1DDqNA294=
+codecheckers/testing-dev-register  ynujENA0gGdTDk7uIBtT42qn/abwZU3/6233YZrzgig=
 codecheckers/register              (none yet: the bot does not run on the production register)

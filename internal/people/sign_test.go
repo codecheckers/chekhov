@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"github.com/codecheckers/chekhov/internal/command"
 	"strings"
 	"testing"
@@ -317,5 +318,25 @@ func TestTheRecordHasTheDocumentedShape(t *testing.T) {
 	}
 	if t.Failed() || testing.Verbose() {
 		t.Logf("a record as the bot writes it:\n%s", body)
+	}
+}
+
+// A refusal says what is wrong once, not twice: the note already opens with
+// "this record is not the one I wrote".
+func TestTheReasonDoesNotRepeatTheComplaint(t *testing.T) {
+	cases := map[error]string{
+		nil:         "",
+		ErrTampered: "the signature does not match",
+		fmt.Errorf("%w: the comment around it has been changed", ErrTampered): "the comment around it has been changed",
+		fmt.Errorf("%w: it carries no signature of mine", ErrTampered):        "it carries no signature of mine",
+	}
+	for err, want := range cases {
+		got := Why(err)
+		if got != want {
+			t.Errorf("Why(%v) = %q, want %q", err, got, want)
+		}
+		if strings.Contains(got, ErrTampered.Error()) {
+			t.Errorf("Why(%v) repeats the complaint: %q", err, got)
+		}
 	}
 }

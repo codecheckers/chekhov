@@ -518,15 +518,13 @@ func provenanceOf(reading people.Reading) command.Provenance {
 		Unsigned:   reading.Unsigned,
 		AcceptedBy: reading.AcceptedBy, AcceptedAt: reading.AcceptedAt,
 	}
-	if reading.Tampered != nil {
-		told.Why = reading.Tampered.Error()
-	}
+	told.Why = people.Why(reading.Tampered)
 	return told
 }
 
 // tamperedReply says what the bot will not do, and how to get past it.
 func tamperedReply(err error) string {
-	return command.TamperedNote(err.Error()) +
+	return command.TamperedNote(people.Why(err)) +
 		fmt.Sprintf("\n`%s roles` shows what the record says now.\n", command.Bot)
 }
 

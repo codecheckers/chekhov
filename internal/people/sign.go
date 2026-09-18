@@ -37,6 +37,19 @@ const recordVersion = 1
 // does not verify, it is missing, or the comment around it has been changed.
 var ErrTampered = errors.New("this record is not the one I wrote")
 
+// Why is what is wrong with a record, without the sentence a reply already
+// leads with: ErrTampered says "this record is not the one I wrote", and a
+// note that then repeats it reads as a stutter.
+func Why(err error) string {
+	if err == nil {
+		return ""
+	}
+	if reason := strings.TrimPrefix(err.Error(), ErrTampered.Error()+": "); reason != err.Error() {
+		return reason
+	}
+	return "the signature does not match"
+}
+
 // A Signer signs the records this bot writes and verifies the ones it reads.
 //
 // A Signer with no private key writes unsigned records and accepts them: that
