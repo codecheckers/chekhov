@@ -237,10 +237,10 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 
 // answer produces the reply to one command.
 func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) string {
-	role := s.roleOf(ctx, event)
+	roles := s.rolesOf(ctx, event)
 
-	if definition, found := command.Lookup(string(parsed.Name)); found && !definition.Permits(role) {
-		return fmt.Sprintf("`%s %s` is for editors.\n", command.Bot, parsed.Name)
+	if definition, found := command.Lookup(string(parsed.Name)); found && !definition.Permits(roles) {
+		return fmt.Sprintf("`%s %s` is for %s.\n", command.Bot, parsed.Name, definition.Role.Description())
 	}
 
 	// Every command reads the world afresh. A deployment keeps one Services for
@@ -250,7 +250,7 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 
 	switch parsed.Name {
 	case command.Commands:
-		return command.Listing(role)
+		return command.Listing(roles)
 	case command.Hello:
 		return s.Deployment.HelloReply()
 	case command.Thanks:
@@ -301,21 +301,25 @@ func (s *Server) teamState() map[string]any {
 	return state
 }
 
-// roleOf is what the person writing the comment may do.
+// rolesOf is everything the person writing the comment is, on this check.
 //
-// A standing role comes from the organisation's teams, read through the cache,
-// which fails closed: a team that cannot be read has no members, so the editor
-// commands refuse rather than open.
+// The standing roles come from the organisation's teams, read through the
+// cache, which fails closed: a team that cannot be read has no members, so the
+// commands that need it refuse rather than open.
 //
-// It takes the whole mention rather than the handle because the per-check
-// roles - who is checking this paper, who wrote it - are a property of the
-// issue, and are read from it when they arrive (#18). The single return value
-// is what will have to give then: a person may hold several roles at once.
-func (s *Server) roleOf(ctx context.Context, event mention) command.Role {
+// The per-check roles - the assigned codechecker, the authors - are a property
+// of this issue and are read from it, which is why this takes the whole
+// mention. That store is the next part of codecheckers/chekhov#18; until it
+// exists, an editor is an editor and everybody else is whatever the teams say.
+func (s *Server) rolesOf(ctx context.Context, event mention) command.Roles {
+	var roles command.Roles
 	if s.Teams.Has(ctx, s.Settings.EditorsTeam(), event.Author) {
-		return command.RoleEditor
+		roles = roles.With(command.RoleEditor)
 	}
-	return command.RoleAnyone
+	if s.Teams.Has(ctx, s.Settings.CodecheckersTeam(), event.Author) {
+		roles = roles.With(command.RoleCodechecker)
+	}
+	return roles
 }
 
 // refresh reads the teams again, so that somebody just added to one does not

@@ -127,9 +127,20 @@ The token expires. GitHub returns the date in the
 warning when it is within a fortnight, but do not rely on reading logs:
 
 1. Generate a replacement with the same settings as above.
-2. `runway app config set CHEKHOV_GH_ACCESS_TOKEN=...`, which redeploys.
-3. Check `GET /healthz`, which reports the new expiry date.
-4. Delete the old token.
+2. `runway app config set -a chekhov CHEKHOV_GH_ACCESS_TOKEN=...`
+3. **`runway app restart -a chekhov`.** Setting the value does not restart the
+   app - the running process keeps the token it started with, and goes on
+   answering 401 to everything until it is restarted.
+4. Check `GET /healthz`, which reports the new expiry date and, in
+   development, whether the teams could be read.
+5. Delete the old token.
+
+Editing an existing token's *permissions* leaves its value alone and needs none
+of this. Regenerating it produces a new value, and then a deployment still
+holding the old one fails completely: it cannot post a reply, so nothing on
+GitHub says anything is wrong. The startup log is where that shows up -
+`a team could not be read at startup` - which is one reason the bot reads the
+teams at boot rather than on first use.
 
 See [`deployment.md`](deployment.md) for where the deployment lives.
 

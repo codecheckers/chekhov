@@ -19,7 +19,7 @@ func TestThanksIsACommand(t *testing.T) {
 // thank the bot is not something anyone needs to be told.
 func TestThanksIsNotListed(t *testing.T) {
 	for _, role := range []Role{RoleAnyone, RoleEditor} {
-		if listing := Listing(role); strings.Contains(listing, "thanks") {
+		if listing := Listing(Roles{role}); strings.Contains(listing, "thanks") {
 			t.Errorf("the listing for %s shows thanks: %s", role, listing)
 		}
 	}

@@ -267,9 +267,13 @@ than a `switch`.
 
 - A command someone may not run is **absent** from the listing, not shown and
   refused.
-- Standing roles come from the organisation's GitHub teams, read through
-  `internal/people` and held in memory for a day. The settings file names
-  *teams*, never people, so membership is maintained in one place. The cache is
+- A person holds a *set* of roles, `command.Roles`, not one: the same person
+  can be an editor and the codechecker assigned to a check. Standing roles
+  (`editor`, `codechecker`) come from the organisation's GitHub teams, read
+  through `internal/people` and held in memory for a day; the per-check ones
+  (`assigned codechecker`, `author`) belong to one issue and are read from it.
+  The settings file names *teams*, never people, so membership is maintained in
+  one place. The cache is
   the transient copy; `Teams.Refresh` rebuilds it from the persistent one, at
   startup and whenever an editor runs `refresh teams`.
 - **Fail closed.** A team the token cannot read has no members: the editor

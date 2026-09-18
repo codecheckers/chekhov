@@ -65,11 +65,11 @@ func (d Deployment) Signature() string {
 
 // Listing is the reply to "@chekhovbot commands", generated from the registry
 // and filtered by what the asker may run.
-func Listing(role Role) string {
+func Listing(roles Roles) string {
 	var out strings.Builder
 	out.WriteString("**Commands I understand**\n")
 
-	visible := Visible(role)
+	visible := Visible(roles)
 	for _, group := range groups() {
 		inGroup := make([]Definition, 0, len(visible))
 		for _, definition := range visible {

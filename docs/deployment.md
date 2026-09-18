@@ -70,6 +70,12 @@ runway app exec -a chekhov -- chekhov check github::codecheckers/Piccolo-2020
 The binary listens on `$PORT`, which the platform sets. `chekhov serve --addr`
 overrides it for local runs.
 
+**Changing configuration does not restart the app.** `runway app config set`
+stores the value; the running process keeps what it started with. Follow it
+with `runway app restart -a chekhov` whenever the new value has to take effect
+now - a rotated token above all, where the symptom is 401 on everything and no
+reply for anyone to notice. A deploy restarts on its own.
+
 ### The build stamp
 
 `@chekhovbot version` and `/healthz` report the commit they are running, and on

@@ -75,7 +75,10 @@ func testServer(t *testing.T) (*Server, *recorder) {
 	// The standing roles come from the organisation; the tests stand in for it
 	// rather than reaching GitHub.
 	server.Teams = &people.Teams{
-		Reader:       teamList{settings.EditorsTeam(): {"nuest"}},
+		Reader: teamList{
+			settings.EditorsTeam():      {"nuest"},
+			settings.CodecheckersTeam(): {"nuest", "a-codechecker"},
+		},
 		Organisation: settings.TeamOrganisation(),
 		Logger:       server.Logger,
 	}
@@ -419,5 +422,42 @@ func TestRefreshSaysWhatItCanRefresh(t *testing.T) {
 		command.Command{Name: command.Refresh, Args: []string{"everything"}})
 	if !strings.Contains(reply, "`teams`") {
 		t.Errorf("the reply does not say what can be refreshed: %s", reply)
+	}
+}
+
+// A person is everything the organisation says they are, at once: the editor
+// who also performs checks holds both roles, and a command open to either is
+// open to them.
+func TestSomebodyCanHoldSeveralRoles(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1}
+
+	event.Author = "nuest"
+	roles := server.rolesOf(context.Background(), event)
+	if !roles.Has(command.RoleEditor) || !roles.Has(command.RoleCodechecker) {
+		t.Errorf("an editor who is also a codechecker holds %v", roles)
+	}
+
+	event.Author = "a-codechecker"
+	roles = server.rolesOf(context.Background(), event)
+	if roles.Has(command.RoleEditor) || !roles.Has(command.RoleCodechecker) {
+		t.Errorf("a codechecker who is not an editor holds %v", roles)
+	}
+
+	event.Author = "a-stranger"
+	if held := server.rolesOf(context.Background(), event); len(held) != 0 {
+		t.Errorf("somebody in no team holds %v", held)
+	}
+}
+
+// A refusal says what the asker would have to be, rather than always saying
+// "editors" whatever the command needs.
+func TestARefusalNamesTheRoleItNeeds(t *testing.T) {
+	server, _ := testServer(t)
+	reply := server.answer(context.Background(),
+		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
+		command.Command{Name: command.Refresh, Args: []string{"teams"}})
+	if !strings.Contains(reply, "is for editors") {
+		t.Errorf("the refusal does not name the role: %s", reply)
 	}
 }

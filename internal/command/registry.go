@@ -1,16 +1,22 @@
 package command
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
 
-// Role is what the person writing the comment is allowed to do.
+// Role is something the person writing the comment is, on this check.
 //
-// A standing role comes from the organisation's GitHub teams, which the bot
-// reads with the token's Members: read permission and holds in memory for a
-// day, see internal/people. A team that cannot be read means nobody holds that
-// role, never that everyone does.
+// Two kinds, stored differently on purpose. A standing role - editor,
+// codechecker - is a property of a person, and the organisation maintains it
+// as a GitHub team, which the bot reads with the token's Members: read
+// permission and holds in memory for a day, see internal/people. A per-check
+// role - the assigned codechecker, an author - is a property of a person *on
+// one issue*, and has nowhere to live but that issue.
+//
+// A team that cannot be read means nobody holds that role, never that everyone
+// does.
 type Role string
 
 const (
@@ -19,7 +25,66 @@ const (
 	// RoleEditor is a CODECHECK editor, who may run the commands that change
 	// the register.
 	RoleEditor Role = "editor"
+	// RoleCodechecker is somebody who performs CODECHECKs, whether or not they
+	// are doing this one.
+	RoleCodechecker Role = "codechecker"
+	// RoleAssignedCodechecker is the codechecker doing *this* check.
+	RoleAssignedCodechecker Role = "assigned codechecker"
+	// RoleAuthor wrote the paper under check.
+	RoleAuthor Role = "author"
 )
+
+// grantable are the roles a person can be given, in the order they are worth
+// reading - the standing ones first, then the ones a check grants - with the
+// words a refusal uses for each. One table, so that adding a role is one entry
+// rather than three lists to keep in step.
+var grantable = []struct {
+	Role        Role
+	Description string
+}{
+	{RoleEditor, "editors"},
+	{RoleCodechecker, "codecheckers"},
+	{RoleAssignedCodechecker, "the assigned codechecker"},
+	{RoleAuthor, "the paper's authors"},
+}
+
+// Description is the role in words, for a refusal that has to say what the
+// asker would have to be.
+func (r Role) Description() string {
+	for _, known := range grantable {
+		if known.Role == r {
+			return known.Description
+		}
+	}
+	return string(r)
+}
+
+// Roles are everything one person is on one check.
+//
+// A set rather than a single role: the same person can be an editor and the
+// codechecker assigned to this check, and a command either of them may run has
+// to be open to them once rather than twice. A slice because there are four
+// roles and never more: the order is the order they were granted in, and the
+// zero value is somebody nothing is known about.
+type Roles []Role
+
+// With returns the roles plus one more, leaving the original alone.
+//
+// Copied rather than appended in place: a resolver that works out the standing
+// roles once and adds a per-check role to them must not widen what every other
+// caller sees.
+func (r Roles) With(role Role) Roles {
+	if role == "" || role == RoleAnyone || r.Has(role) {
+		return r
+	}
+	return append(append(make(Roles, 0, len(r)+1), r...), role)
+}
+
+// Has reports whether the person holds a role. Everybody is RoleAnyone, and
+// somebody who holds nothing holds nothing else.
+func (r Roles) Has(role Role) bool {
+	return role == RoleAnyone || slices.Contains(r, role)
+}
 
 // Groups the listing is arranged in, in the order they are shown.
 const (
@@ -145,17 +210,17 @@ func normalize(word string) string {
 }
 
 // Permits reports whether a role may run the command.
-func (d Definition) Permits(role Role) bool {
-	return d.Role != RoleEditor || role == RoleEditor
+func (d Definition) Permits(roles Roles) bool {
+	return roles.Has(d.Role)
 }
 
 // Visible returns the commands a role should be told about: the ones they may
 // run, minus the hidden ones. A command someone may not run is absent rather
 // than shown and refused, so the listing is a list of what to do next.
-func Visible(role Role) []Definition {
+func Visible(roles Roles) []Definition {
 	var visible []Definition
 	for _, definition := range registry {
-		if !definition.Hidden && definition.Permits(role) {
+		if !definition.Hidden && definition.Permits(roles) {
 			visible = append(visible, definition)
 		}
 	}

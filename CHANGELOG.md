@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *Members: read* permission and held in memory for a day, refreshed lazily on
   read and rebuilt at startup. A team that cannot be read has no members, so
   the editor commands refuse rather than open (codecheckers/chekhov#18).
+- The bot knows a person may hold several roles at once: `editor`,
+  `codechecker` from the organisation's teams, and `assigned codechecker` and
+  `author` once a check records them. A refusal says which role the command
+  needs rather than always saying "editors" (codecheckers/chekhov#18).
 - `@chekhovbot refresh teams`, for an editor who has just changed a team and
   will not wait for the day's expiry; it reports what each team now holds
   (codecheckers/chekhov#18).

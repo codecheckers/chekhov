@@ -137,9 +137,8 @@ func (s *Settings) TeamOrganisation() string { return s.Chekhov.Teams.Organisati
 // EditorsTeam is the team whose members may run the editor-only commands.
 func (s *Settings) EditorsTeam() string { return s.Chekhov.Teams.Editors }
 
-// CodecheckersTeam is the team of people who perform CODECHECKs. Read and
-// cached but not yet consulted: the codechecker role arrives with the
-// per-check roles, codecheckers/chekhov#18.
+// CodecheckersTeam is the team of people who perform CODECHECKs, which grants
+// the codechecker role.
 func (s *Settings) CodecheckersTeam() string { return s.Chekhov.Teams.Codecheckers }
 
 // Teams are the teams the bot reads, in the order a listing should show them.

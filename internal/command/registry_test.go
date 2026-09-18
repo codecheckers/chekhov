@@ -36,15 +36,22 @@ func TestEveryCommandIsDescribed(t *testing.T) {
 		if definition.Group == "" {
 			t.Errorf("%s is in no group, so the listing would drop it", definition.Name)
 		}
+		// A command whose role was forgotten is refused to everybody, editors
+		// included, and refused with "is for ." Failing closed is right; doing
+		// it silently is not.
+		if definition.Role == "" {
+			t.Errorf("%s names no role, so nobody could run it and the refusal would name nothing",
+				definition.Name)
+		}
 	}
 }
 
 func TestListingShowsEveryVisibleCommand(t *testing.T) {
 	for _, role := range []Role{RoleAnyone, RoleEditor} {
-		listing := Listing(role)
+		listing := Listing(Roles{role})
 		for _, definition := range Definitions() {
 			mentioned := strings.Contains(listing, escapePipes(definition.Usage))
-			visible := !definition.Hidden && definition.Permits(role)
+			visible := !definition.Hidden && definition.Permits(Roles{role})
 			if !visible && mentioned {
 				t.Errorf("%s is listed for %s but should not be", definition.Name, role)
 			}
@@ -57,10 +64,10 @@ func TestListingShowsEveryVisibleCommand(t *testing.T) {
 
 // announce posts in the project's name, so only an editor is told about it.
 func TestAnnounceIsForEditors(t *testing.T) {
-	if strings.Contains(Listing(RoleAnyone), "announce") {
+	if strings.Contains(Listing(Roles{}), "announce") {
 		t.Error("announce is listed for everyone")
 	}
-	if !strings.Contains(Listing(RoleEditor), "announce <certificate> [confirm]") {
+	if !strings.Contains(Listing(Roles{RoleEditor}), "announce <certificate> [confirm]") {
 		t.Error("announce is not listed for an editor")
 	}
 }
@@ -68,7 +75,7 @@ func TestAnnounceIsForEditors(t *testing.T) {
 // A usage line with alternatives in it must not break the table it is listed
 // in: GitHub reads a pipe as a cell boundary even inside a code span.
 func TestListingTableIsNotBrokenByUsageLines(t *testing.T) {
-	for _, line := range strings.Split(Listing(RoleAnyone), "\n") {
+	for _, line := range strings.Split(Listing(Roles{}), "\n") {
 		if !strings.HasPrefix(line, "| `") {
 			continue
 		}
@@ -87,13 +94,13 @@ func TestEditorCommandsAreHiddenFromEveryoneElse(t *testing.T) {
 	registry = append(registry, editorOnly)
 	t.Cleanup(func() { registry = registry[:len(registry)-1] })
 
-	if names(Visible(RoleAnyone)) == names(Visible(RoleEditor)) {
+	if names(Visible(Roles{})) == names(Visible(Roles{RoleEditor})) {
 		t.Fatal("an editor and everyone else see the same commands")
 	}
-	if strings.Contains(Listing(RoleAnyone), "promote") {
+	if strings.Contains(Listing(Roles{}), "promote") {
 		t.Error("an editor-only command is listed for everyone")
 	}
-	if !strings.Contains(Listing(RoleEditor), "promote") {
+	if !strings.Contains(Listing(Roles{RoleEditor}), "promote") {
 		t.Error("an editor is not shown the editor-only command")
 	}
 }
@@ -240,5 +247,54 @@ func TestVersionReplyWithoutRulesProvenance(t *testing.T) {
 	}
 	if strings.Contains(reply, "validation rules") {
 		t.Errorf("the reply invents a rules provenance:\n%s", reply)
+	}
+}
+
+// Roles are a set: a person is whatever they are, and a command open to one of
+// those is open to them.
+func TestRolesAreASet(t *testing.T) {
+	roles := (Roles{}).With(RoleEditor).With(RoleCodechecker)
+
+	for _, role := range []Role{RoleEditor, RoleCodechecker, RoleAnyone} {
+		if !roles.Has(role) {
+			t.Errorf("%q is not held, but should be", role)
+		}
+	}
+	for _, role := range []Role{RoleAssignedCodechecker, RoleAuthor, ""} {
+		if roles.Has(role) {
+			t.Errorf("%q is held, but nothing granted it", role)
+		}
+	}
+	if len(roles) != 2 || roles[0] != RoleEditor {
+		t.Errorf("the roles are held in the order they were granted, got %v", roles)
+	}
+
+	// Somebody nothing is known about is still anyone, and nothing else.
+	var nobody Roles
+	if !nobody.Has(RoleAnyone) || nobody.Has(RoleEditor) {
+		t.Error("a person with no roles is anyone, and no more")
+	}
+
+	// Adding to a set leaves the set alone: a resolver that works out the
+	// standing roles once must not widen them for everybody who comes after.
+	standing := Roles{RoleEditor}
+	if onThisCheck := standing.With(RoleAssignedCodechecker); standing.Has(RoleAssignedCodechecker) ||
+		!onThisCheck.Has(RoleAssignedCodechecker) {
+		t.Errorf("With widened the original: %v became %v", standing, onThisCheck)
+	}
+	// Neither sentinel can be granted, or a set would satisfy a real role by
+	// accident.
+	if granted := (Roles{}).With("").With(RoleAnyone); len(granted) != 0 {
+		t.Errorf("a sentinel was granted: %v", granted)
+	}
+}
+
+// Every role a refusal can name has words for it, or the reply reads
+// "is for assigned codechecker".
+func TestEveryRoleCanBeNamed(t *testing.T) {
+	for _, known := range grantable {
+		if known.Description == "" || known.Description == string(known.Role) {
+			t.Errorf("%q is described as %q", known.Role, known.Description)
+		}
 	}
 }
