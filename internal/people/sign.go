@@ -33,13 +33,17 @@ import (
 // a record cannot be replayed into a reader that reads it differently.
 const recordVersion = 1
 
-// ErrTampered is a record that is not the one the bot wrote: the signature
-// does not verify, it is missing, or the comment around it has been changed.
-var ErrTampered = errors.New("this record is not the one I wrote")
+// ErrTampered is a record that no longer matches the bot's signature: it was
+// edited, the signature is missing, or the comment around it was changed.
+//
+// Deliberately not "edited by somebody else": the bot cannot tell who, and
+// there are honest causes - a key dropped from the accepted list during a
+// rotation, or a record written by another deployment. What it knows is that
+// the bytes are not the ones it signed, and that is what it says.
+var ErrTampered = errors.New("the roles record was edited after I wrote it")
 
 // Why is what is wrong with a record, without the sentence a reply already
-// leads with: ErrTampered says "this record is not the one I wrote", and a
-// note that then repeats it reads as a stutter.
+// leads with: a note that repeats the sentinel reads as a stutter.
 func Why(err error) string {
 	if err == nil {
 		return ""

@@ -322,7 +322,7 @@ func TestTheRecordHasTheDocumentedShape(t *testing.T) {
 }
 
 // A refusal says what is wrong once, not twice: the note already opens with
-// "this record is not the one I wrote".
+// "the roles record was edited after I wrote it".
 func TestTheReasonDoesNotRepeatTheComplaint(t *testing.T) {
 	cases := map[error]string{
 		nil:         "",

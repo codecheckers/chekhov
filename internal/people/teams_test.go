@@ -255,3 +255,22 @@ func TestAnUnnamedTeamIsNotAsked(t *testing.T) {
 		t.Errorf("an unnamed team was asked for %d times", source.count(""))
 	}
 }
+
+// A refresh says what it replaced, which is how an editor who has just changed
+// a team can tell whether the copy that was in hand already had their change.
+func TestARefreshSaysWhatItReplaced(t *testing.T) {
+	now := time.Now()
+	source := &reader{members: map[string][]string{"editors": {"nuest"}}}
+	teams := newTeams(t, source, &now)
+
+	if first := teams.Refresh(context.Background(), "editors")[0]; !first.Previous.IsZero() {
+		t.Errorf("the first read replaced something: %+v", first)
+	}
+
+	when := now
+	now = now.Add(2 * time.Hour)
+	second := teams.Refresh(context.Background(), "editors")[0]
+	if !second.Previous.Equal(when) {
+		t.Errorf("the refresh says it replaced the copy from %v, want %v", second.Previous, when)
+	}
+}

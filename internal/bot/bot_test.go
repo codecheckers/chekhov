@@ -527,7 +527,7 @@ func TestAssigningRecordsTheRoleInTheIssue(t *testing.T) {
 
 	// And `roles` says so, naming where each role comes from.
 	listing := server.answer(context.Background(), event, command.Command{Name: command.ListRoles})
-	if !strings.Contains(listing, "a-codechecker") || !strings.Contains(listing, "the organisation") {
+	if !strings.Contains(listing, "a-codechecker") || !strings.Contains(listing, "teams on GitHub") {
 		t.Errorf("the listing does not report the check: %s", listing)
 	}
 }
@@ -587,7 +587,7 @@ func TestRemovingSaysWhetherAnythingChanged(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Remove, Args: []string{"@nobody", "as", "author"}}); !strings.Contains(reply, "nothing to take away") {
+		command.Command{Name: command.Remove, Args: []string{"@nobody", "as", "author"}}); !strings.Contains(reply, "was not the author") {
 		t.Errorf("a role nobody held was removed: %s", reply)
 	}
 
@@ -606,7 +606,7 @@ func TestRolesNeedACheck(t *testing.T) {
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Author: "nuest"},
 		command.Command{Name: command.ListRoles})
-	if !strings.Contains(reply, "not one") {
+	if !strings.Contains(reply, "checks issue") {
 		t.Errorf("the reply does not say there is no check: %s", reply)
 	}
 }
@@ -674,13 +674,13 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 
 	reply := server.answer(ctx, event,
 		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}})
-	if !strings.Contains(reply, "accept roles") || !strings.Contains(reply, "not the one I wrote") {
+	if !strings.Contains(reply, "accept roles") || !strings.Contains(reply, "edited after I wrote it") {
 		t.Errorf("the refusal does not say what to do: %s", reply)
 	}
 
 	// `roles` still shows what it claims, with the warning.
 	listing := server.answer(ctx, event, command.Command{Name: command.ListRoles})
-	if !strings.Contains(listing, "mallory") || !strings.Contains(listing, "not the one I wrote") {
+	if !strings.Contains(listing, "mallory") || !strings.Contains(listing, "edited after I wrote it") {
 		t.Errorf("the listing hides the edited record: %s", listing)
 	}
 
@@ -703,5 +703,30 @@ func TestAcceptingIsForEditors(t *testing.T) {
 		command.Command{Name: command.Accept, Args: []string{"roles"}})
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a codechecker adopted a record: %s", reply)
+	}
+}
+
+// Every change to the roles is its own record in the thread: one comment that
+// both confirms what happened and says who asked for it. If the roles record
+// is ever deleted, these are what is left to reconstruct it from.
+func TestAChangeSaysWhoMadeIt(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	assigned := server.answer(context.Background(), event,
+		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "codechecker"}})
+	for _, expected := range []string{"a-codechecker", "assigned codechecker", "nuest", "assigned by"} {
+		if !strings.Contains(assigned, expected) {
+			t.Errorf("the confirmation does not say %q: %s", expected, assigned)
+		}
+	}
+	if !strings.Contains(assigned, time.Now().UTC().Format("2006-01-02")) {
+		t.Errorf("the confirmation does not say when: %s", assigned)
+	}
+
+	removed := server.answer(context.Background(), event,
+		command.Command{Name: command.Remove, Args: []string{"@a-codechecker", "as", "codechecker"}})
+	if !strings.Contains(removed, "nuest") || !strings.Contains(removed, "removed by") {
+		t.Errorf("the removal does not say who made it: %s", removed)
 	}
 }

@@ -70,6 +70,8 @@ type team struct {
 	mu      sync.Mutex
 	members map[string]bool
 	fetched time.Time
+	// previous is when the copy replaced by the last read was fetched.
+	previous time.Time
 	// attempted is when the team was last asked for, successfully or not, so
 	// that a team that cannot be read is not asked for again on every comment.
 	attempted time.Time
@@ -87,6 +89,10 @@ type State struct {
 	// with an Err and no Members was never read at all; one with both is the
 	// previous answer, still standing.
 	Err error
+	// Previous is when the copy this read replaced was fetched, zero when
+	// there was none. It is what tells an editor whether the change they just
+	// made to a team had already been picked up.
+	Previous time.Time
 }
 
 // Has reports whether a handle is in a team.
@@ -142,7 +148,7 @@ func stateOf(name string, cached *team) State {
 	cached.mu.Lock()
 	defer cached.mu.Unlock()
 	return State{Team: name, Members: len(cached.members),
-		Fetched: cached.fetched, Err: cached.failed}
+		Fetched: cached.fetched, Err: cached.failed, Previous: cached.previous}
 }
 
 // fetch reads one team when what is held has expired, and returns the cached
@@ -204,6 +210,9 @@ func (c *team) record(now time.Time, handles []string, err error) {
 	if err != nil {
 		return
 	}
+	// What this read replaces, for a reply that says so. Only a successful
+	// read replaces anything.
+	c.previous = c.fetched
 	c.members = make(map[string]bool, len(handles))
 	for _, handle := range handles {
 		c.members[normalize(handle)] = true

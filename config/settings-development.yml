@@ -54,6 +54,11 @@ chekhov:
     editors: editors
     codecheckers: codecheckers
 
+  # Who may run a command is NOT here: it is the Role of the command's entry in
+  # internal/command/registry.go, which also generates the help listing. buffy
+  # writes `only: editors` under a responder; this file used to carry that and
+  # nothing read it, which is two places able to disagree about who may run
+  # what. The registry decides, alone.
   responders:
     help:
     hello:
@@ -61,10 +66,8 @@ chekhov:
     welcome:
       message: "Hi! I'm @chekhovbot. If the research paper has code, it must run.\n\nType ```@chekhovbot commands``` to see how I can help."
     assign_codechecker:
-      only: editors
     check_config:
       # Validate codecheck.yml early, rather than at render time
       config_file: codecheck.yml
     register:
       # Open the PR adding a row to register.csv
-      only: editors

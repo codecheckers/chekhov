@@ -320,7 +320,8 @@ func TeamsFor(settings *config.Settings, reader people.Reader, logger *slog.Logg
 func teamStates(states []people.State) []command.TeamState {
 	reply := make([]command.TeamState, 0, len(states))
 	for _, state := range states {
-		shown := command.TeamState{Team: state.Team, Members: state.Members, Read: state.Fetched}
+		shown := command.TeamState{Team: state.Team, Members: state.Members,
+			Read: state.Fetched, Previous: state.Previous}
 		if state.Err != nil {
 			shown.Problem = state.Err.Error()
 		}
@@ -429,7 +430,7 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	if role == command.RoleAssignedCodechecker {
 		assigned = s.assignee(ctx, event, handle, replaced)
 	}
-	return command.AssignedReply(role, handle, replaced, assigned)
+	return command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now())
 }
 
 // remove takes a role away again.
@@ -448,7 +449,7 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 	})
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
-		return command.RemovedReply(role, handle, false)
+		return command.RemovedReply(role, handle, false, event.Author, time.Now())
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
@@ -458,7 +459,7 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 	if role == command.RoleAssignedCodechecker {
 		s.unassign(ctx, event, handle)
 	}
-	return command.RemovedReply(role, handle, true)
+	return command.RemovedReply(role, handle, true, event.Author, time.Now())
 }
 
 // roleCommand is the two things every role command needs before it starts:
@@ -509,7 +510,7 @@ func (s *Server) accept(ctx context.Context, event mention, parsed command.Comma
 	case err != nil:
 		return fmt.Sprintf("I could not adopt the roles of this check: %s\n", err)
 	}
-	return command.AcceptedReply(reading.Record.Holders(), event.Author, reading.Signed())
+	return command.AcceptedReply(reading.Record.Holders(), event.Author, reading.Signed(), time.Now())
 }
 
 // provenanceOf is what a reply says about where a record came from.
@@ -524,8 +525,7 @@ func provenanceOf(reading people.Reading) command.Provenance {
 
 // tamperedReply says what the bot will not do, and how to get past it.
 func tamperedReply(err error) string {
-	return command.TamperedNote(people.Why(err)) +
-		fmt.Sprintf("\n`%s roles` shows what the record says now.\n", command.Bot)
+	return command.TamperedNote(people.Why(err))
 }
 
 // noCheck refuses the commands that are about one check when there is no
@@ -534,7 +534,7 @@ func tamperedReply(err error) string {
 func (s *Server) noCheck(event mention) (string, bool) {
 	switch {
 	case event.Issue <= 0:
-		return "Roles belong to one check, and this is not one - ask me on the checks issue.\n", false
+		return "Roles belong to a check: ask me on a checks issue.\n", false
 	case s.Checks == nil:
 		return "I cannot read or record the roles of a check here.\n", false
 	default:

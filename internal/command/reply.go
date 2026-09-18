@@ -454,6 +454,10 @@ type TeamState struct {
 	Members int
 	// Read is when the membership in hand was read, zero when it never was.
 	Read time.Time
+	// Previous is when the copy this one replaced was read, zero when there
+	// was none. An editor who has just changed a team wants to know whether
+	// the copy being replaced already had their change in it.
+	Previous time.Time
 	// Problem is why the team could not be read, empty when it could.
 	Problem string
 }
@@ -481,8 +485,12 @@ func TeamsReply(states []TeamState) string {
 		case state.Problem != "":
 			fmt.Fprintf(&reply, "| `%s` | %d | could not be read, so the copy from %s still stands |\n",
 				state.Team, state.Members, state.Read.UTC().Format(time.RFC3339))
+		case state.Previous.IsZero():
+			fmt.Fprintf(&reply, "| `%s` | %d | just now, for the first time |\n",
+				state.Team, state.Members)
 		default:
-			fmt.Fprintf(&reply, "| `%s` | %d | just now |\n", state.Team, state.Members)
+			fmt.Fprintf(&reply, "| `%s` | %d | just now, replacing the copy from %s |\n",
+				state.Team, state.Members, state.Previous.UTC().Format(time.RFC3339))
 		}
 	}
 
@@ -529,8 +537,7 @@ func (p Provenance) Sentence() string {
 	case p.Why != "":
 		said.WriteString(TamperedNote(p.Why))
 	case p.Unsigned:
-		said.WriteString("\nThis record carries no signature of mine, because I have no key " +
-			"to sign with, so I cannot tell whether it has been edited.\n")
+		said.WriteString("\nThis record is unsigned: I have no key.\n")
 	}
 	said.WriteString(adoptionNote(p.AcceptedBy, p.AcceptedAt))
 	return said.String()
@@ -538,17 +545,16 @@ func (p Provenance) Sentence() string {
 
 // AcceptedReply says that an editor has adopted a record the bot did not
 // write.
-func AcceptedReply(holders Holders, editor string, signed bool) string {
+func AcceptedReply(holders Holders, editor string, signed bool, when time.Time) string {
 	var reply strings.Builder
-	fmt.Fprintf(&reply, "Adopted. `@%s` is answerable for what this record now says, "+
-		"and I have written that into it.\n\n", editor)
+	reply.WriteString("Adopted.\n\n")
 	reply.WriteString(RolesTable(holders))
 	if signed {
-		reply.WriteString("\nIt is signed again, so I will notice the next time it changes.\n")
+		reply.WriteString("\nSigned again.\n")
 	} else {
-		reply.WriteString("\nI have no key to sign it with, so I still cannot tell " +
-			"whether it changes again.\n")
+		reply.WriteString("\nStill unsigned: I have no key.\n")
 	}
+	reply.WriteString(entry("adopted", editor, when))
 	return reply.String()
 }
 
@@ -559,12 +565,11 @@ func AcceptedReply(holders Holders, editor string, signed bool) string {
 // record is here, and two wordings of the same fact drift.
 func RecordNote(acceptedBy, acceptedAt string, signed bool) string {
 	var note strings.Builder
-	note.WriteString("\nI keep this comment up to date, and I read the record at the top " +
-		"rather than the table")
+	note.WriteString("\nI read the record at the top, not this table.")
 	if signed {
-		note.WriteString(", which I sign, so I can tell when any of this has been changed.\n")
+		note.WriteString(" It is signed.\n")
 	} else {
-		note.WriteString(". It is unsigned, so I cannot tell whether it has been changed.\n")
+		note.WriteString(" It is unsigned.\n")
 	}
 	note.WriteString(adoptionNote(acceptedBy, acceptedAt))
 	return note.String()
@@ -576,16 +581,19 @@ func adoptionNote(by, at string) string {
 	if by == "" {
 		return ""
 	}
-	return fmt.Sprintf("\n`@%s` adopted this record after it was edited, on %s.\n", by, at)
+	return fmt.Sprintf("\nAdopted by `@%s`, %s.\n", by, at)
 }
 
-// TamperedNote is what the bot says about a record it did not write: in a
-// reply to a command it will not carry out, and under the roles it still
-// shows.
+// TamperedNote is what the bot says about a record that no longer matches its
+// signature: in a reply to a command it will not carry out, and under the
+// roles it still shows.
+//
+// It says what happened to the record, not who did it - the bot cannot tell,
+// and saying so would be a guess dressed as a fact.
 func TamperedNote(why string) string {
-	return fmt.Sprintf("\n⚠ **This record is not the one I wrote**: %s. Somebody with write "+
-		"access edited it. I will not change the roles of this check until an editor runs "+
-		"`%s accept roles`, which adopts it as it stands and records who did.\n", why, Bot)
+	return fmt.Sprintf("\n⚠ **The roles record was edited after I wrote it**: %s. "+
+		"I will not change the roles of this check until an editor runs `%s accept roles`.\n",
+		why, Bot)
 }
 
 // RolesTable is the per-check roles as a table. One renderer, used by the
@@ -607,8 +615,8 @@ func RolesReply(holders Holders, teams Teams, asker Roles, told Provenance) stri
 	var reply strings.Builder
 	reply.WriteString(RolesTable(holders))
 	reply.WriteString(told.Sentence())
-	fmt.Fprintf(&reply, "\nThe standing roles come from the organisation: "+
-		"the `%s` team, and the `%s` team.\n", teams.Editors, teams.Codecheckers)
+	fmt.Fprintf(&reply, "\nStanding roles: the `%s` and `%s` teams on GitHub.\n",
+		teams.Editors, teams.Codecheckers)
 
 	if len(asker) > 0 {
 		names := make([]string, 0, len(asker))
@@ -617,32 +625,45 @@ func RolesReply(holders Holders, teams Teams, asker Roles, told Provenance) stri
 		}
 		fmt.Fprintf(&reply, "\nYou are %s here.\n", strings.Join(names, " and "))
 	}
-	reply.WriteString("\nAn editor changes the roles above with `" + Bot +
-		" assign` and `" + Bot + " remove`; team membership is changed on GitHub.\n")
 	return reply.String()
 }
 
-// AssignedReply says what an assignment did.
-func AssignedReply(role Role, handle, replaced string, assignee bool) string {
+// AssignedReply says what an assignment did, and is the record of it.
+//
+// One comment, not two: the confirmation carries what a separate audit entry
+// would have said - who asked, what changed, and when. The roles comment above
+// always shows the current state, so the thread has to be what says how it got
+// there. It matters most when the record is gone: a comment somebody deleted
+// leaves these behind, and a check can be reconstructed from them.
+func AssignedReply(role Role, handle, replaced string, assignee bool, by string, when time.Time) string {
 	var reply strings.Builder
 	fmt.Fprintf(&reply, "%s is now the %s of this check.\n", mention(handle), role)
 	if replaced != "" {
-		fmt.Fprintf(&reply, "\nThat replaces %s, who held it until now.\n", mention(replaced))
+		fmt.Fprintf(&reply, "\nReplaces %s.\n", mention(replaced))
 	}
 	if assignee {
-		fmt.Fprintf(&reply, "\nI have also set %s as the assignee of this issue, so the role is "+
-			"visible where people look for it.\n", mention(handle))
+		reply.WriteString("\nAssignee of this issue set.\n")
 	}
+	reply.WriteString(entry("assigned", by, when))
 	return reply.String()
 }
 
-// RemovedReply says what a removal did.
-func RemovedReply(role Role, handle string, held bool) string {
+// RemovedReply says what a removal did, and is the record of it.
+func RemovedReply(role Role, handle string, held bool, by string, when time.Time) string {
 	if !held {
-		return fmt.Sprintf("%s was not the %s of this check, so there was nothing to take away.\n",
-			mention(handle), role)
+		return fmt.Sprintf("%s was not the %s of this check.\n", mention(handle), role)
 	}
-	return fmt.Sprintf("%s is no longer the %s of this check.\n", mention(handle), role)
+	return fmt.Sprintf("%s is no longer the %s of this check.\n", mention(handle), role) +
+		entry("removed", by, when)
+}
+
+// entry is what makes a reply the record of a change: who did it, and when.
+//
+// Terse on purpose. The reply is read by somebody who asked for the change and
+// knows what they asked for; explaining what a comment is for belongs in the
+// documentation, not in every comment.
+func entry(what, by string, when time.Time) string {
+	return fmt.Sprintf("\n— %s by %s, %s\n", what, mention(by), when.UTC().Format(time.RFC3339))
 }
 
 // mention writes a handle the way GitHub renders it, or an em dash for nobody.

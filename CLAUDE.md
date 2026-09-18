@@ -290,6 +290,9 @@ than a `switch`.
   the register - the people who could edit a record must not also be able to
   change the key it is checked against. See `docs/record-key.md`. Nothing the bot posts may look like a
   record, so `act` defuses every reply once, centrally.
+- **A reply to a role change is the record of it**: it names who asked and
+  when, so the thread is the history and the roles comment is the current
+  state. One comment, not two.
 - **Roles that conflict are refused before they are granted**, in
   `internal/command/roles.go`: the assigned codechecker may not be an author of
   the paper, nor may the handling editor - CODECHECK exists so that somebody

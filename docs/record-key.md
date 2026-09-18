@@ -91,8 +91,7 @@ and the code in step:
 | assigned codechecker | `@a-codechecker` |
 | author | `@an-author` |
 
-I keep this comment up to date, and I read the record at the top rather than
-the table, which I sign, so I can tell when any of this has been changed.
+I read the record at the top, not this table. It is signed.
 ```
 
 The signed message is the **first line in full** — from `<!-- ` through ` -->`,
@@ -124,8 +123,15 @@ under a genuine signature indefinitely.
 
 ## When a record does not verify
 
-The bot refuses to change the roles of that check, says so, and keeps showing
-what the record claims — hiding it helps nobody, and the reply is where an
+The bot says what it knows and no more: **the roles record was edited after I
+wrote it**, and the reason — the signature does not match, it carries none, the
+comment around it was changed, or it names a key that is not accepted. It does
+*not* say who edited it: it cannot tell, and a rotation that drops a key from
+the accepted list, or a record written by another deployment, produce the same
+evidence without anybody having touched anything.
+
+It refuses to change the roles of that check, and keeps showing what the record
+claims — hiding it helps nobody, and the reply is where an
 editor finds out that it was edited at all.
 
 An editor who is content with what it says adopts it:
@@ -165,7 +171,7 @@ roles, drop the `sig` line, and the bot would not only believe it but re-sign
 it on the next change, laundering the forgery into its own signature.
 
 So there is no legacy path. A record written before a key existed is read as
-"not the one I wrote", and an editor adopts it with `accept roles` — or deletes
+"edited after I wrote it", and an editor adopts it with `accept roles` — or deletes
 the comment and lets the bot start again.
 
 A deployment **without** a key writes unsigned records and reads them: the

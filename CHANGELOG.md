@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Every change to a check's roles is its own record in the thread: the reply
+  that confirms an assignment also says who asked for it and when, so the issue
+  keeps the history while the roles record keeps the current state - and a
+  deleted record can be reconstructed from the thread
+  (codecheckers/chekhov#18).
+
 - The bot signs the roles record it keeps in each check's issue, and refuses to
   change one it did not write: a comment by the bot can be edited by anyone
   with write access to the repository, which is what this notices. The
@@ -169,6 +175,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bot.
 
 ### Changed
+
+- The bot's replies state facts and stop: who changed a role and when, without
+  a sentence explaining what the comment is for. A record that does not verify
+  says what happened to it - "the roles record was edited after I wrote it" -
+  rather than naming an actor the bot cannot identify
+  (codecheckers/chekhov#18, codecheckers/chekhov#41).
+
+- `@chekhovbot refresh teams` says which copy each read replaced, so an editor
+  can tell whether the membership in hand already had their change in it
+  (codecheckers/chekhov#18).
+- The settings file no longer carries buffy's `only: editors` under a
+  responder. Nothing read it, and two places must not be able to disagree about
+  who may run a command: the command registry decides, alone
+  (codecheckers/chekhov#18).
 
 - A repository that answers 403, 429 or 5xx for a manifest file makes the check
   skip rather than report the file as missing; only "not there" is absence
