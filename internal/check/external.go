@@ -231,127 +231,194 @@ type crossrefWork struct {
 	} `json:"message"`
 }
 
-// Work is what Crossref says about a DOI, in the terms a caller outside this
-// package speaks: the rules compare the fields of crossrefWork, everybody else
-// wants the paper described.
+// Work is what a metadata source says about a DOI.
+//
+// One shape whichever source answered, so that the rules compare the same
+// fields either way and only one place knows which source was asked.
 type Work struct {
 	Title    string
 	Journal  string
 	Abstract string
+	// Subjects is what the paper is about, broadest first.
 	Subjects []string
-	Authors  []Person
+	Authors  []WorkAuthor
 }
 
-// CrossrefWork asks Crossref about one DOI.
+// A WorkAuthor is one author as a metadata source names them.
+type WorkAuthor struct {
+	Name string
+	// Family is the surname, which is what CC-MET-007 compares: Crossref
+	// gives it, OpenAlex gives one display name and it has to be taken from
+	// the end of it.
+	Family string
+	ORCID  string
+}
+
+// Work asks the configured source what a paper is.
 //
-// Exported for the commands that are about the paper rather than about a rule;
-// the rules reach the same response through crossrefWorkFor, so Crossref is
-// still asked in one place and answered out of one cache.
-func (s *Services) CrossrefWork(doi string) (Work, error) {
+// The one door: the rules reach it through workFor and the commands call it
+// directly, so a deployment that switches source switches everything at once
+// and nothing asks the other one by accident.
+func (s *Services) Work(doi string) (Work, error) {
 	doi = DOIIn(doi)
 	if doi == "" {
 		return Work{}, fmt.Errorf("that is not a DOI")
 	}
 	if !s.Enabled() {
-		return Work{}, fmt.Errorf("asking Crossref needs the external services")
+		return Work{}, fmt.Errorf("asking %s needs the external services", s.MetadataSource())
 	}
 
-	work, err := s.crossrefWorkOf(doi)
+	if s.crossref() {
+		work, err := s.crossrefWorkOf(doi)
+		if err != nil {
+			return Work{}, err
+		}
+		return work.work(), nil
+	}
+	work, err := s.openAlexWorkOf(doi)
 	if err != nil {
 		return Work{}, err
 	}
+	return work.work(), nil
+}
 
+// MetadataSource is where the bot asks what a paper is, named as a reply or a
+// report should credit it: OpenAlex unless a deployment says otherwise.
+//
+// The default lives here rather than at each call, so that a Services built by
+// hand - a test, a command line run - behaves like a deployment.
+func (s *Services) MetadataSource() string {
+	if s.crossref() {
+		return "Crossref"
+	}
+	return "OpenAlex"
+}
+
+// crossref reports whether this deployment asked for the old source. Matched
+// however it was written, because config.Load validates what a settings file
+// says but a Services built by hand - a test, a command - goes around it.
+func (s *Services) crossref() bool {
+	return s != nil && strings.EqualFold(strings.TrimSpace(s.Metadata), "crossref")
+}
+
+// work is the described paper, in the terms every caller speaks.
+func (w crossrefWork) work() Work {
 	described := Work{
-		Abstract: work.Message.Abstract,
-		Subjects: work.Message.Subject,
+		Abstract: w.Message.Abstract,
+		Subjects: w.Message.Subject,
 	}
-	if len(work.Message.Title) > 0 {
-		described.Title = work.Message.Title[0]
+	if len(w.Message.Title) > 0 {
+		described.Title = w.Message.Title[0]
 	}
-	if len(work.Message.ContainerTitle) > 0 {
-		described.Journal = work.Message.ContainerTitle[0]
+	if len(w.Message.ContainerTitle) > 0 {
+		described.Journal = w.Message.ContainerTitle[0]
 	}
-	for _, author := range work.Message.Author {
-		described.Authors = append(described.Authors, Person{
-			Name:  strings.TrimSpace(author.Given + " " + author.Family),
-			ORCID: ORCIDDigits(author.ORCID),
+	for _, author := range w.Message.Author {
+		described.Authors = append(described.Authors, WorkAuthor{
+			Name:   strings.TrimSpace(author.Given + " " + author.Family),
+			Family: author.Family,
+			ORCID:  ORCIDDigits(author.ORCID),
 		})
 	}
-	return described, nil
+	return described
 }
 
 // rule: CC-MET-005 crossref-title-match
+//
+// The identifiers keep the historic name - they are the register's, not this
+// bot's - while the source they read is now whichever config/settings names,
+// OpenAlex by default. The `codecheck` R package still asks Crossref for
+// CC-MET-005 to 008; that difference is deliberate, and codecheckers/chekhov
+// has an issue open for the R package to follow.
 func crossrefTitleMatch(c Context) Result {
-	work, result := crossrefWorkFor(c, "CC-MET-005")
+	work, result := workFor(c, "CC-MET-005")
 	if result != nil {
 		return *result
 	}
-	if len(work.Message.Title) == 0 {
-		return skip("Crossref records no title for this DOI")
+	source := c.Services.MetadataSource()
+	if work.Title == "" {
+		return skip(source + " records no title for this DOI")
 	}
-	if Normalise(work.Message.Title[0]) == Normalise(c.Config.Paper.Title) {
+	if Normalise(work.Title) == Normalise(c.Config.Paper.Title) {
 		return pass("")
 	}
-	return fail(fmt.Sprintf("the title is '%s' but Crossref says '%s'",
-		c.Config.Paper.Title, work.Message.Title[0]))
+	return fail(fmt.Sprintf("the title is '%s' but %s says '%s'",
+		c.Config.Paper.Title, source, work.Title))
 }
 
 // rule: CC-MET-006 crossref-author-count-match
 func crossrefAuthorCountMatch(c Context) Result {
-	work, result := crossrefWorkFor(c, "CC-MET-006")
+	work, result := workFor(c, "CC-MET-006")
 	if result != nil {
 		return *result
 	}
-	if len(work.Message.Author) == 0 {
-		return skip("Crossref records no authors for this DOI")
+	source := c.Services.MetadataSource()
+	if len(work.Authors) == 0 {
+		return skip(source + " records no authors for this DOI")
 	}
-	if len(work.Message.Author) == len(c.Config.Paper.Authors) {
-		return pass(fmt.Sprintf("%d author(s)", len(work.Message.Author)))
+	if len(work.Authors) == len(c.Config.Paper.Authors) {
+		return pass(fmt.Sprintf("%d author(s)", len(work.Authors)))
 	}
-	return fail(fmt.Sprintf("the file lists %d author(s), Crossref %d",
-		len(c.Config.Paper.Authors), len(work.Message.Author)))
+	return fail(fmt.Sprintf("the file lists %d author(s), %s %d",
+		len(c.Config.Paper.Authors), source, len(work.Authors)))
 }
 
 // rule: CC-MET-007 crossref-author-name-match
 func crossrefAuthorNameMatch(c Context) Result {
-	work, result := crossrefWorkFor(c, "CC-MET-007")
+	work, result := workFor(c, "CC-MET-007")
 	if result != nil {
 		return *result
 	}
-	if len(work.Message.Author) == 0 {
-		return skip("Crossref records no authors for this DOI")
+	source := c.Services.MetadataSource()
+	if len(work.Authors) == 0 {
+		return skip(source + " records no authors for this DOI")
 	}
 
 	names := normaliseAll(c.Config.Paper.Authors)
 	var missing []string
-	for _, author := range work.Message.Author {
+	for _, author := range work.Authors {
 		if author.Family == "" {
 			continue
 		}
-		found := false
-		for _, name := range names {
-			if strings.Contains(name, Normalise(author.Family)) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			missing = append(missing, strings.TrimSpace(author.Given+" "+author.Family))
+		if !namedIn(names, author) {
+			missing = append(missing, author.Name)
 		}
 	}
 	if len(missing) > 0 {
-		return fail("author(s) Crossref lists but the file does not: " +
-			strings.Join(missing, ", "))
+		return fail(fmt.Sprintf("author(s) %s lists but the file does not: %s",
+			source, strings.Join(missing, ", ")))
 	}
 	return pass("")
 }
 
+// namedIn reports whether the file lists an author the source names.
+//
+// Three ways, because the surname is a guess when the source gives one name
+// and it has to be taken from the end of it: OpenAlex's "Josiah Carberry Jr."
+// has the surname "Jr.", and a file that correctly says "Josiah Carberry"
+// must not be reported as missing an author it lists. The whole name either
+// way round catches that, and the middle name the file leaves out.
+func namedIn(names []string, author WorkAuthor) bool {
+	whole := Normalise(author.Name)
+	family := Normalise(author.Family)
+	for _, name := range names {
+		switch {
+		case family != "" && strings.Contains(name, family):
+			return true
+		case whole != "" && (strings.Contains(name, whole) || strings.Contains(whole, name)):
+			return true
+		}
+	}
+	return false
+}
+
 // rule: CC-MET-008 crossref-author-orcid-match
 func crossrefAuthorORCIDMatch(c Context) Result {
-	work, result := crossrefWorkFor(c, "CC-MET-008")
+	work, result := workFor(c, "CC-MET-008")
 	if result != nil {
 		return *result
 	}
+	source := c.Services.MetadataSource()
 
 	inFile := map[string]bool{}
 	for _, author := range c.Config.Paper.Authors {
@@ -362,43 +429,42 @@ func crossrefAuthorORCIDMatch(c Context) Result {
 
 	var missing []string
 	compared := 0
-	for _, author := range work.Message.Author {
+	for _, author := range work.Authors {
 		if author.ORCID == "" {
 			continue
 		}
 		compared++
-		if !inFile[ORCIDDigits(author.ORCID)] {
-			missing = append(missing, strings.TrimSpace(author.Given+" "+author.Family)+
-				" ("+author.ORCID+")")
+		if !inFile[author.ORCID] {
+			missing = append(missing, author.Name+" ("+author.ORCID+")")
 		}
 	}
 	if compared == 0 {
-		return skip("Crossref records no author ORCID for this DOI")
+		return skip(source + " records no author ORCID for this DOI")
 	}
 	if len(missing) > 0 {
-		return fail("ORCID(s) Crossref has but the file does not: " +
-			strings.Join(missing, ", "))
+		return fail(fmt.Sprintf("ORCID(s) %s has but the file does not: %s",
+			source, strings.Join(missing, ", ")))
 	}
 	return pass(fmt.Sprintf("%d ORCID(s) match", compared))
 }
 
-// crossrefWorkFor fetches the work once, and returns the result the caller
-// should report instead when there is nothing to compare against.
-func crossrefWorkFor(c Context, rule string) (crossrefWork, *Result) {
+// workFor fetches the paper once, and returns the result the caller should
+// report instead when there is nothing to compare against.
+func workFor(c Context, rule string) (Work, *Result) {
 	doi := DOIIn(c.Config.Paper.Reference)
 	if doi == "" {
 		result := skip("the paper reference is not a DOI")
-		return crossrefWork{}, &result
+		return Work{}, &result
 	}
 	if !c.Services.Enabled() {
 		result := needsServices(RequiresService[rule])
-		return crossrefWork{}, &result
+		return Work{}, &result
 	}
 
-	work, err := c.Services.crossrefWorkOf(doi)
+	work, err := c.Services.Work(doi)
 	if err != nil {
 		result := skip(err.Error())
-		return crossrefWork{}, &result
+		return Work{}, &result
 	}
 	return work, nil
 }

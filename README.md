@@ -51,7 +51,7 @@ echo '@chekhovbot announce 1970-001' | go run ./cmd/chekhov comment --as nuest -
 ```bash
 go build ./...
 go run ./cmd/chekhov check path/to/codecheck.yml   # the report, non-zero on failure
-go run ./cmd/chekhov check --online path/to/codecheck.yml     # also asks Crossref, ORCID, Zenodo
+go run ./cmd/chekhov check --online path/to/codecheck.yml     # also asks OpenAlex, ORCID, Zenodo
 go run ./cmd/chekhov check github::codecheckers/Piccolo-2020  # read it from the repository
 go run ./cmd/chekhov check codecheckers/Piccolo-2020          # the same, platform inferred
 go run ./cmd/chekhov check 2020-001                 # the certificate, looked up in the register
@@ -86,7 +86,7 @@ CHEKHOV_INTEGRATION=1 go test -run Integration ./internal/check/ # external serv
 ```
 
 The fast suite needs no network and covers every rule, including the ones that
-ask an external service: recorded cassettes replay what Crossref, ORCID, Zenodo,
+ask an external service: recorded cassettes replay what OpenAlex, ORCID, Zenodo,
 GitHub and the register really answered, and stubbed servers cover the answers a
 published CODECHECK never gives. CI runs it on every push and pull request.
 

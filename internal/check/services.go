@@ -29,6 +29,13 @@ type Services struct {
 	// this bot uses work without one, more slowly.
 	GitHubToken string
 
+	// Metadata is where to ask what a paper is, "openalex" or "crossref", and
+	// Mailto is the address OpenAlex asks for in return for its polite pool.
+	// Empty Metadata means OpenAlex: a deployment that says nothing gets the
+	// source that answers.
+	Metadata string
+	Mailto   string
+
 	// Register is the repository the register lives in, as owner/repo. The
 	// register-wide rules read register.csv and venues.csv from it.
 	Register string
@@ -39,6 +46,7 @@ type Services struct {
 	ZenodoSandbox string // https://sandbox.zenodo.org/api
 	ORCID         string // https://pub.orcid.org/v3.0
 	Crossref      string // https://api.crossref.org
+	OpenAlex      string // https://api.openalex.org
 	GitHub        string // https://api.github.com
 	RawContent    string // https://raw.githubusercontent.com
 	GitLab        string // https://gitlab.com
@@ -75,6 +83,10 @@ func Online() *Services {
 		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
 		Register:    targetRepository(),
 	}
+	if settings, err := config.Current(); err == nil {
+		services.Metadata = settings.MetadataSource()
+		services.Mailto = settings.MetadataMailto()
+	}
 	services.defaults()
 	return services
 }
@@ -103,6 +115,7 @@ func (s *Services) defaults() {
 		{&s.ZenodoSandbox, "https://sandbox.zenodo.org/api"},
 		{&s.ORCID, "https://pub.orcid.org/v3.0"},
 		{&s.Crossref, "https://api.crossref.org"},
+		{&s.OpenAlex, "https://api.openalex.org"},
 		{&s.GitHub, "https://api.github.com"},
 		{&s.RawContent, "https://raw.githubusercontent.com"},
 		{&s.GitLab, "https://gitlab.com"},
@@ -138,10 +151,17 @@ func (s *Services) Fresh() *Services {
 	if !s.Enabled() {
 		return s
 	}
+	// Every configured field, by hand, because the run state - the cache, the
+	// register read once - must not come with it. A field added above and
+	// forgotten here is silently empty for every command a deployment runs,
+	// which is what happened to the OpenAlex base URL; TestFreshCarriesEvery
+	// ConfiguredField is the guard against doing it again.
 	return &Services{
 		HTTP: s.HTTP, GitHubToken: s.GitHubToken, Register: s.Register,
+		Metadata: s.Metadata, Mailto: s.Mailto,
 		Zenodo: s.Zenodo, ZenodoSandbox: s.ZenodoSandbox, ORCID: s.ORCID, Crossref: s.Crossref,
-		GitHub: s.GitHub, RawContent: s.RawContent, GitLab: s.GitLab, OSF: s.OSF,
+		OpenAlex: s.OpenAlex,
+		GitHub:   s.GitHub, RawContent: s.RawContent, GitLab: s.GitLab, OSF: s.OSF,
 	}
 }
 
@@ -165,10 +185,10 @@ var RequiresService = map[string]string{
 	"CC-MET-002": "the ORCID API",
 	"CC-MET-003": "the ORCID API",
 	"CC-MET-004": "the paper reference",
-	"CC-MET-005": "Crossref",
-	"CC-MET-006": "Crossref",
-	"CC-MET-007": "Crossref",
-	"CC-MET-008": "Crossref",
+	"CC-MET-005": "the paper's metadata source",
+	"CC-MET-006": "the paper's metadata source",
+	"CC-MET-007": "the paper's metadata source",
+	"CC-MET-008": "the paper's metadata source",
 	"CC-MET-009": "the reference-other entries",
 	"CC-BUN-004": "the checked repository",
 	"CC-REP-001": "the Zenodo API",

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- OpenAlex replaces Crossref as the source for what a paper is. Of ten article
+  DOIs from the register, Crossref knew seven and OpenAlex nine (the arXiv DOIs
+  are DataCite, which Crossref does not hold); OpenAlex carried an abstract for
+  nine against four, ORCIDs for twenty authors of thirty-two against seven of
+  twenty-seven, and a subject for every record, while Crossref's `subject`
+  field came back empty on all seven. `CC-MET-005` to `CC-MET-008` read it too,
+  so they keep their names and change where they look. Crossref is still
+  implemented and one setting away, `chekhov.metadata.source`
+  (codecheckers/chekhov#24).
+- `suggest codecheckers` now has a subject to match on: what OpenAlex says a
+  paper is about goes into the fields it ranks by, which in ten real checks had
+  matched on languages alone (codecheckers/chekhov#24).
+
 ### Added
 
 - `@chekhovbot codecheckers` says where the lists of codecheckers are, linking

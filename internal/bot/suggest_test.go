@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -39,6 +40,7 @@ func listing(t *testing.T, server *Server) *testserver.Server {
 		Register: server.Settings.TargetRepository(),
 		GitHub:   stub.URL + "/github",
 		Crossref: stub.URL + "/crossref",
+		OpenAlex: stub.URL + "/openalex",
 	}
 	return stub
 }
@@ -249,5 +251,68 @@ func TestSuggestDoesNotTrustAnEditedRecord(t *testing.T) {
 	}
 	if !strings.Contains(reply, "could not trust the roles of this check") {
 		t.Errorf("the reply does not say the record could not be trusted:\n%s", reply)
+	}
+}
+
+// A metadata source names thirty things a paper is about; the reply names the
+// handful that decided the answer, not the gathering.
+func TestSuggestReportsWhatDecidedTheAnswer(t *testing.T) {
+	server, _ := testServer(t)
+	stub := listing(t, server)
+	stub.JSON("/openalex/works", `{"results": [{
+	  "display_name": "A paper", "primary_topic": {"field": {"display_name": "Neuroscience"}},
+	  "keywords": [{"display_name": "Melanopsin", "score": 0.9}],
+	  "concepts": [{"display_name": "Luminance", "score": 0.8},
+	    {"display_name": "Radiance", "score": 0.8}],
+	  "abstract_inverted_index": {"Written": [0], "in": [1], "R": [2]}}]}`)
+
+	reply := answer(t, server, command.SuggestCodecheckers,
+		[]string{"codecheckers", "10.1000/fake"}, "")
+	if !strings.Contains(reply, "Matched on languages `R`") {
+		t.Errorf("the reply does not name what was shared:\n%s", reply)
+	}
+	for _, unwanted := range []string{"Melanopsin", "Luminance", "Radiance"} {
+		if strings.Contains(reply, unwanted) {
+			t.Errorf("the reply names %q, which nobody declares and which decided nothing:\n%s",
+				unwanted, reply)
+		}
+	}
+}
+
+// A source that would not answer is the reply, not "nothing to go on": that
+// sends the editor looking for a better command rather than for the outage.
+func TestSuggestSaysWhenTheOnlySourceFailed(t *testing.T) {
+	server, _ := testServer(t)
+	stub := listing(t, server)
+	stub.Status("/openalex/works", http.StatusTooManyRequests)
+
+	reply := answer(t, server, command.SuggestCodecheckers,
+		[]string{"codecheckers", "10.1000/fake"}, "")
+	if !strings.Contains(reply, "could not read") || !strings.Contains(reply, "OpenAlex") {
+		t.Errorf("the reply hides why it has nothing:\n%s", reply)
+	}
+	if strings.Contains(reply, "nothing to go on") {
+		t.Errorf("a failed source is not the editor writing a bad command:\n%s", reply)
+	}
+}
+
+// When one source failed and another simply had nothing, the reply says both:
+// "I could not read the DOI" without "I read the repository" leaves the editor
+// unable to tell which of the two came back empty.
+func TestSuggestSaysWhatItReadEvenWhenItFoundNothing(t *testing.T) {
+	server, _ := testServer(t)
+	stub := listing(t, server)
+	// The repository is read and uses a language nobody on the lists declares;
+	// the DOI will not answer at all.
+	stub.JSON("/github/repos/codecheckers/demo/languages", `{"Fortran": 900}`)
+	stub.Status("/openalex/works", http.StatusTooManyRequests)
+
+	reply := answer(t, server, command.SuggestCodecheckers,
+		[]string{"codecheckers", "codecheckers/demo", "10.1000/fake"}, "")
+	if !strings.Contains(reply, "github::codecheckers/demo") {
+		t.Errorf("the reply does not say the repository was read:\n%s", reply)
+	}
+	if !strings.Contains(reply, "could not read") {
+		t.Errorf("the reply does not say the DOI failed:\n%s", reply)
 	}
 }

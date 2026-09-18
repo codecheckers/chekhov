@@ -49,6 +49,7 @@ func newWorld(t *testing.T) *world {
 			GitHub:   server.URL + "/github",
 			GitLab:   server.URL + "/gitlab",
 			Crossref: server.URL + "/crossref",
+			OpenAlex: server.URL + "/openalex",
 		},
 	}
 }
@@ -128,11 +129,16 @@ func TestGatherFollowsARepository(t *testing.T) {
 
 func TestGatherFollowsADOI(t *testing.T) {
 	world := newWorld(t)
-	world.JSON("/crossref/works/10.1000/fake", `{"message": {
-		"title": ["Containers for reproducible geospatial data analysis"],
-		"subject": ["Bioinformatics"],
-		"abstract": "The analysis was written in R.",
-		"author": [{"given": "A.", "family": "Da", "ORCID": "https://orcid.org/0000-0000-0000-0001"}]}}`)
+	world.JSON("/openalex/works", `{"results": [{
+		"display_name": "Containers for reproducible geospatial data analysis",
+		"primary_topic": {"display_name": "Reproducible Research Practices",
+		  "field": {"display_name": "Computer Science"}},
+		"keywords": [{"display_name": "Melanopsin", "score": 0.9}],
+		"concepts": [{"display_name": "Bioinformatics", "score": 0.7},
+		  {"display_name": "Incidental", "score": 0.1}],
+		"abstract_inverted_index": {"The": [0], "analysis": [1], "used": [2], "R.": [3]},
+		"authorships": [{"author": {"display_name": "A. Da",
+		  "orcid": "https://orcid.org/0000-0000-0000-0001"}}]}]}`)
 
 	codecheckers, _ := Load(world.services, world.settings)
 	evidence := Gather(world.services, VocabularyOf(codecheckers), Hints([]string{"10.1000/fake"}, ""))
@@ -140,8 +146,18 @@ func TestGatherFollowsADOI(t *testing.T) {
 	if !contains(evidence.Languages, "r") {
 		t.Errorf("languages %v, want R from the abstract", evidence.Languages)
 	}
-	if !contains(evidence.Fields, "geospatial data analysis") || !contains(evidence.Fields, "bioinformatics") {
-		t.Errorf("terms %v, want the title's field and Crossref's subject", evidence.Fields)
+	if !contains(evidence.Fields, "geospatial data analysis") {
+		t.Errorf("fields %v, want the field the title names", evidence.Fields)
+	}
+	// What the source says the paper is about is taken whether or not anybody
+	// declares it today: it is the term that finds the right person tomorrow.
+	for _, want := range []string{"Computer Science", "Melanopsin", "Bioinformatics"} {
+		if !contains(evidence.Fields, want) {
+			t.Errorf("fields %v, want %q from the source", evidence.Fields, want)
+		}
+	}
+	if contains(evidence.Fields, "Incidental") {
+		t.Errorf("fields %v, want a low-scoring concept left out", evidence.Fields)
 	}
 	if len(evidence.Authors) != 1 || evidence.Authors[0].ORCID != "0000-0000-0000-0001" {
 		t.Errorf("authors %+v", evidence.Authors)

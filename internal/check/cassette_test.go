@@ -36,7 +36,7 @@ var cassetteRules = map[string][]string{
 		"CC-REG-001", "CC-REG-002", "CC-REG-003", "CC-REG-004", "CC-REG-005",
 		"CC-REG-006", "CC-REG-007",
 	},
-	"crossref": {
+	"paper-metadata": {
 		"CC-MET-005", "CC-MET-006", "CC-MET-007", "CC-MET-008",
 	},
 	"reference-other": {
@@ -142,6 +142,10 @@ func replayServices(t *testing.T, name string) *Services {
 		// The register-wide rules need the register the fixture's certificate
 		// is actually in. Reads only; nothing here writes.
 		Register: "codecheckers/register",
+		// Named here rather than taken from the settings, so that a recorded
+		// URL cannot depend on the environment the recording ran in: a
+		// different mailto would be a different request and would not replay.
+		Mailto: "chekhov@cdchck.science",
 	}
 	services.defaults()
 	return services
@@ -226,16 +230,16 @@ func TestCassetteRegisterEntryOutcomes(t *testing.T) {
 	}
 }
 
-// Crossref's own metadata for a published paper, including the disagreement it
-// finds with an older certificate.
-func TestCassetteCrossrefOutcomes(t *testing.T) {
-	report := runCassetteFixture(t, "crossref")
+// The metadata source's own record of a published paper, including the
+// disagreement it finds with an older certificate.
+func TestCassettePaperMetadataOutcomes(t *testing.T) {
+	report := runCassetteFixture(t, "paper-metadata")
 
 	for id, want := range map[string]Outcome{
 		"CC-MET-005": OutcomeOK,
 		"CC-MET-006": OutcomeOK,
 		"CC-MET-007": OutcomeOK,
-		// The paper's authors have ORCIDs at Crossref that this 1.0-era
+		// The paper's authors have ORCIDs the source knows and this 1.0-era
 		// certificate never recorded.
 		"CC-MET-008": OutcomeWarning,
 	} {
@@ -244,8 +248,8 @@ func TestCassetteCrossrefOutcomes(t *testing.T) {
 			t.Errorf("%s: outcome %q, want %q (%s)", id, result.Outcome, want, result.Detail)
 		}
 	}
-	if detail := resultFor(t, report, "CC-MET-008").Detail; !strings.Contains(detail, "orcid.org") {
-		t.Errorf("CC-MET-008 should name the ORCIDs Crossref has: %q", detail)
+	if detail := resultFor(t, report, "CC-MET-008").Detail; !strings.Contains(detail, "0000-") {
+		t.Errorf("CC-MET-008 should name the ORCIDs the source has: %q", detail)
 	}
 }
 

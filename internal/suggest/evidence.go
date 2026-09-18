@@ -102,13 +102,18 @@ func Gather(services *check.Services, vocabulary Vocabulary, hints []Hint) Evide
 }
 
 func gatherDOI(services *check.Services, evidence *Evidence, vocabulary Vocabulary, doi string) {
-	work, err := services.CrossrefWork(doi)
+	work, err := services.Work(doi)
 	if err != nil {
 		evidence.couldNotRead(doi, err)
 		return
 	}
-	evidence.note("Crossref, for " + doi)
+	evidence.note(services.MetadataSource() + ", for " + doi)
 	evidence.Authors = append(evidence.Authors, work.Authors...)
+
+	// What the source says the paper is about is taken as it is written, and
+	// not only where the lists happen to use the same words: "melanopsin" is
+	// not in anybody's fields today and is exactly the word that would find
+	// the one person who could check that paper tomorrow.
 	evidence.addFields(work.Subjects...)
 
 	about := strings.Join([]string{work.Title, work.Journal, work.Abstract}, " ")

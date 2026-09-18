@@ -203,6 +203,31 @@ scheme in
   rule files have no way to express it yet, guarded by a test, and it goes away
   when codecheckers/register#216 lands. Do not add a second such list.
 
+### Where a paper's metadata comes from
+
+`chekhov.metadata.source` in `config/` names it: **`openalex`**, or `crossref`,
+which is kept and disabled rather than deleted. `Services.Work` is the one
+door, and `CC-MET-005` to `CC-MET-008` go through it, so a deployment that
+switches source switches the rules with it.
+
+The measurement behind the default, on ten article DOIs from the register:
+Crossref answered for seven and OpenAlex for nine - the `10.48550/arXiv.*` DOIs
+are DataCite, which Crossref does not hold - with an abstract for nine against
+four, author ORCIDs for twenty of thirty-two against seven of twenty-seven, and
+a subject for every record against **none**: Crossref returns `subject` present
+and empty now, which is why `suggest codecheckers` matched on languages alone
+in ten real checks.
+
+The four rule identifiers still read `crossref-*`. They are the register's
+names, not this bot's, and renaming them is register business; the R package
+still asks Crossref for them, which is a deliberate difference with an issue
+open against it. Say so in a comment when touching them.
+
+`Services.Fresh` copies the configured fields by hand. Anything added to
+`Services` has to be added there too, or it is silently empty for every command
+a deployment runs - which is exactly what happened to the OpenAlex base URL.
+`TestFreshCarriesEveryConfiguredField` is the guard.
+
 ### One function per rule
 
 `internal/check/config.go` holds one function per rule, tagged with its
@@ -435,7 +460,8 @@ internal/testserver/ the offline stub server and its local-only client, for test
 internal/rules/     the rule catalogue, embedded from the register
 internal/check/     one check function per rule, the runner and the formatting
   config.go         the checks that need only the file and its bundle
-  external.go       the checks that ask Crossref, ORCID or a repository
+  external.go       the checks that ask the metadata source, ORCID or a repository
+  openalex.go       what a paper is: title, authors, and what it is about
   zenodo.go         the certificate's archive record
   register.go       the register-wide rules and the checks issue
   services.go       the outside world: base URLs, cache, register.csv

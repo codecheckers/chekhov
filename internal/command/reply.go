@@ -769,7 +769,10 @@ type Suggestions struct {
 	// Unread is what could not be read, and why; the command answers with
 	// what it has rather than failing on one source.
 	Unread []string
-	// Languages and Fields are what the check was matched on.
+	// Languages and Fields are what the check was matched on: what the
+	// suggestions actually share with it, when there are any, and otherwise
+	// what was looked for. A metadata source can say thirty things a paper is
+	// about, and a reader wants the handful that decided the answer.
 	Languages []string
 	Fields    []string
 	// NotChecked names the exclusions that could not be applied - on the
@@ -854,10 +857,21 @@ func describeShortlist(shown, matched int) string {
 func describeMatch(s Suggestions) string {
 	var matched []string
 	if len(s.Languages) > 0 {
-		matched = append(matched, "languages "+codeList(s.Languages))
+		matched = append(matched, "languages "+codeListUpTo(s.Languages, mostTermsShown))
 	}
 	if len(s.Fields) > 0 {
-		matched = append(matched, "fields "+codeList(s.Fields))
+		matched = append(matched, "fields "+codeListUpTo(s.Fields, mostTermsShown))
 	}
 	return strings.Join(matched, " and ")
+}
+
+// mostTermsShown is how many matched terms a line names before it stops being
+// a sentence and becomes a dump.
+const mostTermsShown = 8
+
+func codeListUpTo(items []string, most int) string {
+	if len(items) <= most {
+		return codeList(items)
+	}
+	return fmt.Sprintf("%s and %d more", codeList(items[:most]), len(items)-most)
 }

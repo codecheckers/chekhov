@@ -76,12 +76,13 @@ func TestLanguagesNeedsTheServices(t *testing.T) {
 
 func TestCrossrefWork(t *testing.T) {
 	stub := newStub(t)
+	stub.services.Metadata = "crossref"
 	stub.JSON("/crossref/works/10.1000/fake", `{"message": {
 		"title": ["A paper"], "container-title": ["A journal"],
 		"subject": ["Neuroscience"], "abstract": "About R.",
 		"author": [{"given": "A.", "family": "Da", "ORCID": "https://orcid.org/0000-0000-0000-0001"}]}}`)
 
-	work, err := stub.services.CrossrefWork("https://doi.org/10.1000/fake")
+	work, err := stub.services.Work("https://doi.org/10.1000/fake")
 	if err != nil {
 		t.Fatalf("work: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestCrossrefWork(t *testing.T) {
 		work.Authors[0].Name != "A. Da" {
 		t.Errorf("authors %+v", work.Authors)
 	}
-	if _, err := stub.services.CrossrefWork("not a doi"); err == nil {
+	if _, err := stub.services.Work("not a doi"); err == nil {
 		t.Error("something that is not a DOI should be refused before Crossref is asked")
 	}
 }

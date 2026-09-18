@@ -53,7 +53,7 @@ binary as a single `web` process *with no command line arguments*, and
 `chekhov` with no arguments is a tool that prints its usage and exits - which
 the platform reads as a crash loop. The file says:
 
-```
+```txt
 web: chekhov serve
 ```
 
@@ -242,7 +242,7 @@ carry no footer naming the build.
 
 Then, on an issue of the testing register:
 
-```
+```txt
 @chekhovbot hello
 @chekhovbot commands
 @chekhovbot frobnicate

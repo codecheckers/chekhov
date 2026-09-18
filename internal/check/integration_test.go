@@ -115,7 +115,7 @@ func TestIntegrationRegisterEntry(t *testing.T) {
 // to compare the file against.
 func TestIntegrationCrossref(t *testing.T) {
 	services := integrationServices(t)
-	report := runIntegrationFixture(t, "crossref", services)
+	report := runIntegrationFixture(t, "paper-metadata", services)
 
 	requireVerdicts(t, report,
 		"CC-MET-005", "CC-MET-006", "CC-MET-007", "CC-MET-008",
@@ -145,7 +145,7 @@ func TestIntegrationFixturesCoverEveryServiceRule(t *testing.T) {
 	services := integrationServices(t)
 
 	covered := map[string]bool{}
-	for _, fixture := range []string{"register-entry", "crossref", "reference-other"} {
+	for _, fixture := range []string{"register-entry", "paper-metadata", "reference-other"} {
 		for id := range reached(runIntegrationFixture(t, fixture, services)) {
 			covered[id] = true
 		}

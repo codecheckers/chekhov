@@ -78,6 +78,18 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 	vocabulary := suggest.VocabularyOf(codecheckers)
 	evidence := suggest.Gather(services, vocabulary, hints)
 	if evidence.Empty() {
+		// What could not be read is the answer when there is no other: saying
+		// "nothing to go on" about a DOI that simply would not load sends the
+		// editor looking for a better command rather than for the outage.
+		if len(evidence.Unread) > 0 {
+			_, notChecked := s.exclusions(ctx, event)
+			return command.SuggestionsReply(command.Suggestions{
+				Read:       evidence.Sources,
+				Unread:     append(evidence.Unread, listsUnread(unread)...),
+				NotChecked: notChecked,
+				Considered: len(codecheckers),
+			})
+		}
 		return fmt.Sprintf("I have nothing to go on for this check. Name the repository, "+
 			"the paper's DOI or the certificate, or paste the abstract under the command:\n\n"+
 			"```\n%s suggest codecheckers github::owner/repo\n```\n", command.Bot)
@@ -86,11 +98,20 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 	excluded, notChecked := s.exclusions(ctx, event)
 	ranking := suggest.Rank(codecheckers, evidence, excluded, thisCheck(event))
 
+	// What the suggestions share with the check is the useful half of what was
+	// gathered: OpenAlex names thirty subjects for a paper, and the two that
+	// somebody declares are what decided the answer. With nobody to suggest,
+	// what was looked for is all there is to report.
+	languages, fields := ranking.SharedLanguages, ranking.SharedFields
+	if len(ranking.Suggested) == 0 {
+		languages, fields = evidence.Languages, evidence.Fields
+	}
+
 	reply := command.Suggestions{
 		Read:            evidence.Sources,
 		Unread:          append(evidence.Unread, listsUnread(unread)...),
-		Languages:       evidence.Languages,
-		Fields:          evidence.Fields,
+		Languages:       languages,
+		Fields:          fields,
 		NotChecked:      notChecked,
 		Matched:         ranking.Matched,
 		Considered:      len(codecheckers),

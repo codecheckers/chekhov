@@ -60,7 +60,7 @@ func TestRank(t *testing.T) {
 		{
 			name: "an author is found by ORCID, which is all the two lists share",
 			evidence: Evidence{Languages: []string{"r"},
-				Authors: []check.Person{{Name: "A. Da", ORCID: "https://orcid.org/0000-0000-0000-0001"}}},
+				Authors: []check.WorkAuthor{{Name: "A. Da", ORCID: "0000-0000-0000-0001"}}},
 			want: []string{"cy"},
 			left: []string{"ada"},
 		},
@@ -217,4 +217,71 @@ func TestAShortlistThatIsDistinguishedDoesNotApologise(t *testing.T) {
 		t.Errorf("candidates sharing different things were called indistinguishable: %v",
 			handlesOf(ranking.Suggested))
 	}
+}
+
+// The ranking says what the suggestions actually share with the check, which
+// is the handful that decided the answer rather than the thirty subjects a
+// metadata source names for one paper.
+func TestRankingReportsWhatWasShared(t *testing.T) {
+	ranking := Rank(candidates(), Evidence{
+		Languages: []string{"r", "python"},
+		Fields:    []string{"containers", "bioinformatics", "Melanopsin", "Luminance"},
+	}, Excluded{}, "x#1")
+
+	if !equal(ranking.SharedLanguages, []string{"R", "Python"}) {
+		t.Errorf("shared languages %v", ranking.SharedLanguages)
+	}
+	for _, want := range []string{"containers", "bioinformatics"} {
+		if !contains(ranking.SharedFields, want) {
+			t.Errorf("shared fields %v, want %q", ranking.SharedFields, want)
+		}
+	}
+	for _, unwanted := range []string{"Melanopsin", "Luminance"} {
+		if contains(ranking.SharedFields, unwanted) {
+			t.Errorf("shared fields %v name %q, which nobody declares", ranking.SharedFields, unwanted)
+		}
+	}
+}
+
+// A word can be a language and somebody else's field; counting them in one set
+// would drop the second silently.
+func TestRankingCountsLanguagesAndFieldsApart(t *testing.T) {
+	people := []Codechecker{
+		{Handle: "ada", Languages: terms("R")},
+		{Handle: "bo", Fields: terms("R")},
+	}
+	ranking := Rank(people, Evidence{Languages: []string{"R"}, Fields: []string{"R"}}, Excluded{}, "x#1")
+	if !contains(ranking.SharedLanguages, "R") || !contains(ranking.SharedFields, "R") {
+		t.Errorf("languages %v, fields %v - both should name R",
+			ranking.SharedLanguages, ranking.SharedFields)
+	}
+}
+
+// The "matched on" line explains the five names under it, so it is what they
+// share - not what the forty who did not make the list shared.
+func TestSharedTermsDescribeTheShortlist(t *testing.T) {
+	var many []Codechecker
+	for _, handle := range []string{"a", "b", "c", "d", "e"} {
+		many = append(many, Codechecker{Handle: handle, Languages: terms("Fortran")})
+	}
+	// Matches on a common language, so ranks below all five of the above.
+	many = append(many, Codechecker{Handle: "zoe", Languages: terms("Fortran, R")})
+
+	ranking := Rank(many, Evidence{Languages: []string{"Fortran", "R"}}, Excluded{}, "x#1")
+	if len(ranking.Suggested) != Most {
+		t.Fatalf("suggested %d", len(ranking.Suggested))
+	}
+	if contains(ranking.SharedLanguages, "R") && !suggests(ranking, "zoe") {
+		t.Errorf("shared languages %v name R, which nobody shown shares",
+			ranking.SharedLanguages)
+	}
+}
+
+func suggests(ranking Ranking, handle string) bool {
+	for _, suggestion := range ranking.Suggested {
+		if suggestion.Handle == handle {
+			return true
+		}
+	}
+	return false
 }

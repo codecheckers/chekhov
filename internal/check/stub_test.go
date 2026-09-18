@@ -38,6 +38,7 @@ func newStub(t *testing.T) *stub {
 		Zenodo:        url + "/zenodo",
 		ORCID:         url + "/orcid",
 		Crossref:      url + "/crossref",
+		OpenAlex:      url + "/openalex",
 		GitHub:        url + "/github",
 		RawContent:    url + "/raw",
 		GitLab:        url + "/gitlab",
@@ -167,6 +168,21 @@ const (
 	  "title": ["A paper whose code runs"],
 	  "author": [{"given": "Josiah", "family": "Carberry", "ORCID": "https://orcid.org/0000-0002-1825-0097"}]
 	}}`
+	openAlexJSON = `{"results": [{
+	  "display_name": "A paper whose code runs",
+	  "primary_location": {"source": {"display_name": "A Journal"}},
+	  "primary_topic": {"display_name": "Reproducible Research Practices",
+	    "subfield": {"display_name": "Library and Information Sciences"},
+	    "field": {"display_name": "Computer Science"},
+	    "domain": {"display_name": "Physical Sciences"}},
+	  "topics": [{"display_name": "Reproducible Research Practices"}],
+	  "keywords": [{"display_name": "Reproducibility", "score": 0.9}],
+	  "concepts": [{"display_name": "Computer science", "score": 0.6},
+	    {"display_name": "Incidental", "score": 0.1}],
+	  "abstract_inverted_index": {"The": [0], "code": [1], "runs": [2]},
+	  "authorships": [{"author": {"display_name": "Josiah Carberry",
+	    "orcid": "https://orcid.org/0000-0002-1825-0097"}}]
+	}]}`
 	registerRow = "Certificate,Repository,Type,Venue,Issue\n" +
 		"2026-001,github::codecheckers/demo,journal,GigaScience,42\n"
 	venuesRow = "name,longname\nGigaScience,GigaScience\n"
@@ -180,6 +196,7 @@ func (s *stub) serveEverythingWell() {
 	s.JSON("/orcid/0000-0001-8607-8025/person", orcidPersonJSON)
 	s.JSON("/orcid/0000-0002-1825-0097/person", carberryJSON)
 	s.JSON("/crossref/works/10.5555/preprint.1", crossrefJSON)
+	s.JSON("/openalex/works", openAlexJSON)
 	s.JSON("/github/repos/codecheckers/testing/issues/42", issueJSON)
 	s.Text("/raw/codecheckers/demo/HEAD/figure1.png", "PNG")
 	s.JSON("/github/repos/codecheckers/demo/contents/", `[
@@ -207,9 +224,12 @@ type stubCase struct {
 	// rules that look in the bundle around it. Empty means a configuration
 	// with no bundle at all.
 	repository string
-	routes     func(*stub)
-	want       Outcome
-	detail     string // a fragment the detail has to contain
+	// metadata names the source to ask about a paper, empty meaning the
+	// default, which is OpenAlex.
+	metadata string
+	routes   func(*stub)
+	want     Outcome
+	detail   string // a fragment the detail has to contain
 }
 
 var stubCases = []stubCase{
@@ -303,10 +323,81 @@ var stubCases = []stubCase{
 		detail: "could not read the Zenodo record",
 	},
 
-	// --- Crossref ---
+	// --- the metadata source ---
+	//
+	// CC-MET-005 to 008 read whichever source config/settings names, OpenAlex
+	// by default, so these cases answer as OpenAlex. The Crossref path is kept
+	// and still covered, by the last case here.
 	{
-		name: "Crossref has a different title",
+		name: "the source has a different title",
 		rule: "CC-MET-005",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/openalex/works", strings.Replace(openAlexJSON,
+				"A paper whose code runs", "A quite different paper", 1))
+		},
+		want:   OutcomeWarning,
+		detail: "OpenAlex says",
+	},
+	{
+		name: "the source lists more authors than the file",
+		rule: "CC-MET-006",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/openalex/works", strings.Replace(openAlexJSON,
+				`"authorships": [`, `"authorships": [{"author": {"display_name": "Ada Lovelace"}}, `, 1))
+		},
+		want:   OutcomeWarning,
+		detail: "the file lists 1 author(s), OpenAlex 2",
+	},
+	{
+		name: "the source names an author the file does not",
+		rule: "CC-MET-007",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/openalex/works", strings.Replace(openAlexJSON,
+				"Josiah Carberry", "Ada Lovelace", 1))
+		},
+		want:   OutcomeWarning,
+		detail: "Lovelace",
+	},
+	{
+		name: "the source has an author ORCID the file lacks",
+		rule: "CC-MET-008",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/openalex/works", strings.Replace(openAlexJSON,
+				"0000-0002-1825-0097", "0000-0002-1825-0098", 1))
+		},
+		want:   OutcomeWarning,
+		detail: "ORCID(s) OpenAlex has but the file does not",
+	},
+	{
+		name: "the source does not know the DOI",
+		rule: "CC-MET-005",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/openalex/works", `{"results": []}`)
+		},
+		want:   OutcomeSkipped,
+		detail: "OpenAlex does not know",
+	},
+	{
+		name: "OpenAlex having a bad day is a skip, not a finding",
+		rule: "CC-MET-005",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/openalex/works", http.StatusTooManyRequests)
+		},
+		want:   OutcomeSkipped,
+		detail: "could not ask OpenAlex",
+	},
+	{
+		// Crossref is disabled, not deleted: a deployment can still name it,
+		// and this is the case that says the code behind that word works.
+		name:     "Crossref still answers when a deployment asks for it",
+		rule:     "CC-MET-005",
+		metadata: "crossref",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
 			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
@@ -314,49 +405,6 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "Crossref says",
-	},
-	{
-		name: "Crossref lists more authors than the file",
-		rule: "CC-MET-006",
-		routes: func(s *stub) {
-			s.serveEverythingWell()
-			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
-				`"author": [`, `"author": [{"given": "Ada", "family": "Lovelace"}, `, 1))
-		},
-		want:   OutcomeWarning,
-		detail: "the file lists 1 author(s), Crossref 2",
-	},
-	{
-		name: "Crossref names an author the file does not",
-		rule: "CC-MET-007",
-		routes: func(s *stub) {
-			s.serveEverythingWell()
-			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
-				`"family": "Carberry"`, `"family": "Lovelace"`, 1))
-		},
-		want:   OutcomeWarning,
-		detail: "Lovelace",
-	},
-	{
-		name: "Crossref has an author ORCID the file lacks",
-		rule: "CC-MET-008",
-		routes: func(s *stub) {
-			s.serveEverythingWell()
-			s.JSON("/crossref/works/10.5555/preprint.1", strings.Replace(crossrefJSON,
-				"0000-0002-1825-0097", "0000-0002-1825-0098", 1))
-		},
-		want:   OutcomeWarning,
-		detail: "ORCID(s) Crossref has but the file does not",
-	},
-	{
-		name: "Crossref does not know the DOI",
-		rule: "CC-MET-005",
-		routes: func(s *stub) {
-			s.serveEverythingWell()
-			s.Status("/crossref/works/10.5555/preprint.1", http.StatusNotFound)
-		},
-		want:   OutcomeSkipped,
-		detail: "could not ask Crossref",
 	},
 
 	// --- ORCID ---
@@ -637,6 +685,7 @@ func TestStubbedServices(t *testing.T) {
 	for _, testCase := range stubCases {
 		t.Run(testCase.rule+" "+testCase.name, func(t *testing.T) {
 			server := newStub(t)
+			server.services.Metadata = testCase.metadata
 			testCase.routes(server)
 
 			configuration := testCase.configuration

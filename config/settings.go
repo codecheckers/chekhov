@@ -36,6 +36,7 @@ type Settings struct {
 			// CodecheckerLists are the URLs of the codechecker lists.
 			CodecheckerLists []string `yaml:"codechecker_lists"`
 		} `yaml:"env"`
+		Metadata Metadata `yaml:"metadata"`
 		Mastodon Mastodon `yaml:"mastodon"`
 		Teams    struct {
 			// Organisation the teams belong to.
@@ -50,6 +51,30 @@ type Settings struct {
 		} `yaml:"teams"`
 	} `yaml:"chekhov"`
 }
+
+// Metadata is where the bot asks what a paper is: its title, its authors and
+// what it is about.
+//
+// One source at a time, named here rather than decided in the code, because
+// which one answers changes what four validation rules compare against.
+type Metadata struct {
+	// Source is "openalex" or "crossref". OpenAlex is the default: of ten
+	// article DOIs taken from the register it answered for nine against
+	// Crossref's seven, carried an abstract for nine against four, and knew
+	// twenty of thirty-two author ORCIDs against seven of twenty-seven -
+	// and Crossref's `subject` field, which said what a paper was about, is
+	// empty on every record it returns now.
+	Source string `yaml:"source"`
+	// Mailto is the address OpenAlex asks for, which puts the bot in its
+	// polite pool. A shared project address, never a person's.
+	Mailto string `yaml:"mailto"`
+}
+
+// MetadataSource is where the bot asks what a paper is.
+func (s *Settings) MetadataSource() string { return s.Chekhov.Metadata.Source }
+
+// MetadataMailto is the address sent to OpenAlex for its polite pool.
+func (s *Settings) MetadataMailto() string { return s.Chekhov.Metadata.Mailto }
 
 // Mastodon is where the announcements go and what they are composed from.
 type Mastodon struct {
@@ -105,6 +130,14 @@ func Load(environment string) (*Settings, error) {
 	}
 	if settings.Chekhov.Env.TargetRepository == "" {
 		return nil, fmt.Errorf("%s names no target repository", name)
+	}
+	switch settings.Chekhov.Metadata.Source {
+	case "openalex", "crossref":
+	case "":
+		settings.Chekhov.Metadata.Source = "openalex"
+	default:
+		return nil, fmt.Errorf("%s: metadata source %q is neither openalex nor crossref",
+			name, settings.Chekhov.Metadata.Source)
 	}
 	switch settings.Chekhov.Mastodon.Visibility {
 	case "public", "unlisted", "private", "direct":

@@ -151,7 +151,7 @@ type Evidence struct {
 	Fields []string
 	// Authors are the people who wrote the paper, by ORCID and by name, so
 	// that a codechecker who is one of them can be left out.
-	Authors []check.Person
+	Authors []check.WorkAuthor
 	// Sources is what was read, in words, for the reply to say where the
 	// evidence came from.
 	Sources []string
@@ -192,15 +192,20 @@ func (e *Evidence) couldNotRead(what string, err error) {
 	e.Unread = append(e.Unread, fmt.Sprintf("%s: %s", what, err))
 }
 
-// contains compares terms the way the lists mean them: "Python" and "python"
-// are one language, written by two people.
-func contains(list []string, want string) bool {
-	for _, item := range list {
-		if strings.EqualFold(item, want) {
-			return true
+// contains compares terms the way the lists mean them, which is check's
+// definition of the same word written twice.
+func contains(list []string, want string) bool { return check.ContainsFold(list, want) }
+
+// Distinct is a list of terms with the repeats taken out, keeping the first
+// spelling of each and the order they arrived in.
+func Distinct(terms []string) []string {
+	var kept []string
+	for _, term := range terms {
+		if term = strings.TrimSpace(term); term != "" && !contains(kept, term) {
+			kept = append(kept, term)
 		}
 	}
-	return false
+	return kept
 }
 
 // PageOf is where a person should be sent to read a list.

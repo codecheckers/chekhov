@@ -27,13 +27,13 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7ef3eb41b44a-TXL
+                - a3d2ee316c756e5c-TXL
             Content-Type:
                 - text/html;charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:53 GMT
+                - Fri, 18 Sep 2026 19:59:19 GMT
             Expires:
-                - Wed, 16 Sep 2026 12:18:56 GMT
+                - Fri, 18 Sep 2026 20:19:04 GMT
             Location:
                 - https://zenodo.org/doi/10.5281/zenodo.18890103
             Nel:
@@ -41,7 +41,7 @@ interactions:
             Permissions-Policy:
                 - interest-cohort=(),browsing-topics=()
             Report-To:
-                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=YfFG%2FKb%2FBWaoZpSt%2BdsXdJiyHNUpnoBBmJUyNNzSbGZ0iLNLl4jdar7kbkqEvFHyRr6NJcBS4Ca5%2Fiiilddv%2B8VmP%2BIlLbGoVds%2BGA1Rw5XcBq0yG3CXIW8%3D"}]}'
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=3x3hzzNLNq3jY6QzI2DnTJ1vmFIpynXqbDp%2Bq0QfiANFxZtolguCUX8CL%2Be%2FpBvhGivtJOV%2BacLADFRdV3XNrK8R%2FyLhWO6G%2BECXLaUYHlrWNbyqbxCbVnk%3D"}]}'
             Server:
                 - cloudflare
             Strict-Transport-Security:
@@ -51,7 +51,7 @@ interactions:
                 - Accept
         status: 302 Found
         code: 302
-        duration: 140.062772ms
+        duration: 133.267364ms
     - id: 1
       request:
         proto: ""
@@ -85,7 +85,7 @@ interactions:
             Content-Type:
                 - text/html; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:53 GMT
+                - Fri, 18 Sep 2026 19:59:19 GMT
             Location:
                 - https://zenodo.org/records/18890103
             Permissions-Policy:
@@ -93,11 +93,11 @@ interactions:
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Retry-After:
-                - "28"
+                - "60"
             Server:
                 - nginx
             Set-Cookie:
-                - session=7584cd665c4eea2_6aaa7c0d.YPQNrhRTeDGbmC3cGi44o3NAmws; Expires=Mon, 21 Sep 2026 11:22:53 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+                - session=f7daee5566928443_6aad9817.StrMWIi5EOkxzPb4uPn9ZpuVaJQ; Expires=Wed, 23 Sep 2026 19:59:19 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
             Strict-Transport-Security:
                 - max-age=31556926; includeSubDomains
             X-Content-Type-Options:
@@ -107,16 +107,16 @@ interactions:
             X-Ratelimit-Limit:
                 - "133"
             X-Ratelimit-Remaining:
-                - "125"
+                - "132"
             X-Ratelimit-Reset:
-                - "1789557802"
+                - "1789761620"
             X-Source:
                 - ui
             X-Xss-Protection:
                 - 1; mode=block
         status: 302 FOUND
         code: 302
-        duration: 272.608303ms
+        duration: 284.292427ms
     - id: 2
       request:
         proto: ""
@@ -146,7 +146,7 @@ interactions:
             Content-Type:
                 - text/html; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:54 GMT
+                - Fri, 18 Sep 2026 19:59:20 GMT
             Link:
                 - <https://orcid.org/0009-0003-3725-9454> ; rel="author" , <https://orcid.org/0009-0005-9240-7370> ; rel="author" , <https://doi.org/10.5281/zenodo.18890103> ; rel="cite-as" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/dcat+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" ; profile="https://datapackage.org/profiles/2.0/datapackage.json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/marcxml+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.citationstyles.csl+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.geo+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.full+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.simple+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-bibtex" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-dc+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="text/x-bibliography" , <https://zenodo.org/records/18890103/files/CODECHECK_certificate_2026-001.pdf> ; rel="item" ; type="application/pdf" , <https://creativecommons.org/licenses/by/4.0/legalcode> ; rel="license" , <https://schema.org/ScholarlyArticle> ; rel="type" , <https://schema.org/AboutPage> ; rel="type" , <https://zenodo.org/api/records/18890103> ; rel="linkset" ; type="application/linkset+json"
             Permissions-Policy:
@@ -154,11 +154,11 @@ interactions:
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Retry-After:
-                - "27"
+                - "59"
             Server:
                 - nginx
             Set-Cookie:
-                - session=76c236f3897e5dd0_6aaa7c0e.LMBekpO6QNvFTonCJihV6dHrjzk; Expires=Mon, 21 Sep 2026 11:22:54 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+                - session=67d8dd636eb1d5e1_6aad9818.CnQGW1yskAdywnMj6kOkeJ3d5Ck; Expires=Wed, 23 Sep 2026 19:59:20 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
             Strict-Transport-Security:
                 - max-age=31556926; includeSubDomains
             Vary:
@@ -170,16 +170,16 @@ interactions:
             X-Ratelimit-Limit:
                 - "133"
             X-Ratelimit-Remaining:
-                - "124"
+                - "131"
             X-Ratelimit-Reset:
-                - "1789557802"
+                - "1789761620"
             X-Source:
                 - ui
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 348.424606ms
+        duration: 1.286812315s
     - id: 3
       request:
         proto: HTTP/1.1
@@ -211,11 +211,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7efdcc3de507-TXL
+                - a3d2ee3c4c8faf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:22:55 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
                 - "0"
             Pragma:
@@ -223,7 +223,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=ueUWwFatbSxgYfZMNe6hAZzd9mmlHm5xRkYIawUgyls-1789557775.0023682-1.0.1.1-mTHCnU1eXrFj.Z_YmbzZtER2lsvS.p7Fl8buMmEsdQ2U.yDl9LqccQceSf5pJNw_eEZKNdIUPCWfc8cB0j8StrTWUBoDuNNOFqVTOPs7bekpqUz7W0SIkkttplkcagFr; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:52:55 GMT
+                - __cf_bm=9JM4ZZt7u.7THvvXKM7BZPJd0xGxdNIjx7zDe4V65JY-1789761561.0056803-1.0.1.1-AKFhlHRmQUDgo156z_29kb6L_VuYZRF_hz4tkM7u7wZXpMbwxcm2qhkGae7AS8EcgOS5yMPzetntbWi11YIoxxHEWeh3BPqM6liJK4k7_McFYmTkhAZTMa3i2iymXpW6; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:21 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -240,7 +240,7 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 248.508406ms
+        duration: 239.713614ms
     - id: 4
       request:
         proto: HTTP/1.1
@@ -272,11 +272,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f006f4ee507-TXL
+                - a3d2ee3d3ffaaf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:22:55 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
                 - "0"
             Pragma:
@@ -284,7 +284,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=vmBTHOjmTr7bjRCMdl_xX.dY9inhsoQ4VdVLNRwH3Rc-1789557775.4243479-1.0.1.1-gfpyB_ySAPwcMw_YDb1bhHxBXggbjkIAGomOcFFSNaJKI0UI_i1yBGQF0gqGt30ygwOKV8preMys.2OcHnC2Wo.MoHi72aQjaWNWcBaJafmoWEGtPFIdnzk6nWVwyjgJ; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:52:55 GMT
+                - __cf_bm=fqKMNzqxp0GuHpytLxj1Lg.AUZ.OCl5Jie5GUyrmlCo-1789761561.1595004-1.0.1.1-rP.jSntCQDdMJK5yFh6dB.Xp2AcUWiKezR2PgU9AxngghTv3YUXibZaX7P2hj5azp0.gNzdBMBrjKa9fE0mLXkaQPPw7vDdndhEbC3uARv0hQWAUhZfo3GpS.ThlohyK; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:21 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -301,7 +301,7 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 155.639803ms
+        duration: 147.457118ms
     - id: 5
       request:
         proto: HTTP/1.1
@@ -333,11 +333,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f025ed0e507-TXL
+                - a3d2ee3e2ba0af15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:22:55 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
                 - "0"
             Pragma:
@@ -345,7 +345,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=CfsEBrw0YHtse0o.J_FIsPxP0z_tAqX4dyrkzCU8MV8-1789557775.7376385-1.0.1.1-zXnTnLAoEUTUY6hIMJpCOoDgZbRTTg.i2nMuUsfq0DL2M26X9yBo4N7j4kSHrf4CMzKbrin9tvilDkCBcyF2jeeZMpxP4ly329msOBzHy2I9fmQRoG1NmiLGcz9FqK4Y; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:52:55 GMT
+                - __cf_bm=JIfIKVkYlhA2fLhDhPVaYIypBWP8kD5MxDa6r4Gy8PM-1789761561.309332-1.0.1.1-TULZCVbfNGZl59D738RM0xzvD0WGgnVfsQharwke_CjdyT3pSKc2ALsIDGaWgM5NTRhsW5d4H_ZC15v8dZL9p5MNqcWyNR9s8DnpT.wzZjLbMrB9p8fT_pwvraFCJY9E; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:21 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -362,7 +362,7 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 165.575108ms
+        duration: 157.195543ms
     - id: 6
       request:
         proto: HTTP/1.1
@@ -394,11 +394,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f046e8ce507-TXL
+                - a3d2ee3f2fadaf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:22:56 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
                 - "0"
             Pragma:
@@ -406,7 +406,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=cVihCEvhThQWpCVBKGDoQLsBYdjHzvJeiP4VeVCnQl8-1789557776.0709562-1.0.1.1-DAPmycHil_8husZrd.l4M1G7g69pvwQ.gYVizdmAZBCmq54Mnh8Iilct6lE2MEfRvq_NluPMjCXFTYNOGTm_.lBT2tT8WhdsKVZOp4FDRts_95Sk_bO_OdrejJaJiY_l; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:52:56 GMT
+                - __cf_bm=YExFUHj0PWJvzY53DdrYZdztHNUh9tmEKkRW9YL5mZI-1789761561.468672-1.0.1.1-DeOeIgsvgIGa1c53euRTksBFCyavoTu.VcOF7HoCrR8eCG_h7TVb.Mbwcon6qNAa3Tev7tc5sdtNp3DxkXQGooqPWbYhYkulRkoJiKk762y5tpGGI8JkCD_YDPDyaplj; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:21 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -423,7 +423,7 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 155.228949ms
+        duration: 151.100205ms
     - id: 7
       request:
         proto: HTTP/1.1
@@ -455,11 +455,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f066e75e507-TXL
+                - a3d2ee401bb7af15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:22:56 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
                 - "0"
             Pragma:
@@ -467,7 +467,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=rWtEKNgs28bMaZokNzyYULgvFwCAssHDFvI6zeuxO7U-1789557776.3820696-1.0.1.1-IgjJ7tUB8V_hOaZJGKDpxYnWJCr2SQqaeywLuJMk2mA41C9a4V9OIrZhbynkylsvFHlAOwSCV2RRm_4L5a.YqGp..W894Lq2gaBr7uGsEVXxvEKa6YWtTz5Kj9MeiaCo; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:52:56 GMT
+                - __cf_bm=uTVYyG0H9.F.SghFC0SPHX3eOYXA.zvYGrxL1.7xEDo-1789761561.6196668-1.0.1.1-bFfMESk3V6ZCInHd_hd0HPx3dbtYCH3QBMfS0oP6wzXNH0hpz77E0.pI3SYY.2hT6Nwl1aibFDksC4dTSzJsoQy.m4XyXY94ZpOFST9MOZm78hQFixBui9ZxKOOvIKCL; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:21 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -484,7 +484,7 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 152.060701ms
+        duration: 146.090753ms
     - id: 8
       request:
         proto: HTTP/1.1
@@ -511,13 +511,13 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f084b56b44a-TXL
+                - a3d2ee4109f76e5c-TXL
             Content-Type:
                 - text/html;charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:56 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
-                - Wed, 16 Sep 2026 12:18:50 GMT
+                - Fri, 18 Sep 2026 20:23:04 GMT
             Location:
                 - https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html
             Nel:
@@ -525,7 +525,7 @@ interactions:
             Permissions-Policy:
                 - interest-cohort=(),browsing-topics=()
             Report-To:
-                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=h6BVlRHdX1sEfX7wNFX1W%2Fv%2FTIbbwddCQtmm0O3Z5tF1hHf%2FsQdXQ5POU%2Fbm0tMSAnqJ2f8p9m%2FsSH6bEpjlZ01ZjT6vCCJvcT7m%2BV7rQZCtfH62wtKlXX4%3D"}]}'
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=MOyBtb%2BfTgpaydGbMsIQUHBBEl9SlInp2LyM7htnwNAk7U7sqP%2F0WedmMbi%2F1E%2Fnp0HVD02RZP%2Bt%2FW8F5sk56V84ZGfrjgjR9RJ4UGUDUYyxxkzPNbAVHww%3D"}]}'
             Server:
                 - cloudflare
             Strict-Transport-Security:
@@ -535,7 +535,7 @@ interactions:
                 - Accept
         status: 302 Found
         code: 302
-        duration: 59.088212ms
+        duration: 55.664667ms
     - id: 9
       request:
         proto: ""
@@ -565,9 +565,9 @@ interactions:
             Content-Type:
                 - text/html
             Date:
-                - Wed, 16 Sep 2026 11:22:56 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Expires:
-                - Wed, 16 Sep 2026 11:22:56 GMT
+                - Fri, 18 Sep 2026 19:59:21 GMT
             Server:
                 - Apache/2.4.52 (Ubuntu)
             Strict-Transport-Security:
@@ -576,20 +576,25 @@ interactions:
                 - Accept-Encoding
         status: 200 OK
         code: 200
-        duration: 167.604881ms
+        duration: 104.327417ms
     - id: 10
       request:
         proto: HTTP/1.1
         proto_major: 1
         proto_minor: 1
         content_length: 0
-        host: api.crossref.org
+        host: api.openalex.org
+        form:
+            filter:
+                - doi:10.5194/wes-2025-217
+            mailto:
+                - chekhov@cdchck.science
         headers:
             Accept:
                 - application/json
             User-Agent:
                 - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://api.crossref.org/works/10.5194/wes-2025-217
+        url: https://api.openalex.org/works?filter=doi:10.5194%2Fwes-2025-217&mailto=chekhov%40cdchck.science
         method: GET
       response:
         proto: HTTP/2.0
@@ -597,300 +602,56 @@ interactions:
         proto_minor: 0
         content_length: -1
         uncompressed: true
-        body: '{"status":"ok","message-type":"work","message-version":"1.0.0","message":{"indexed":{"date-parts":[[2026,9,12]],"date-time":"2026-09-12T22:49:08Z","timestamp":1789253348044,"version":"build-2803163510"},"posted":{"date-parts":[[2025,10,30]]},"group-title":"Wind technologies\/Airborne technology","reference-count":0,"publisher":"Copernicus GmbH","license":[{"start":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T00:00:00Z","timestamp":1761782400000},"content-version":"vor","delay-in-days":0,"URL":"https:\/\/creativecommons.org\/licenses\/by\/4.0\/"}],"funder":[{"DOI":"10.13039\/100010661","name":"Horizon 2020 Framework Programme","doi-asserted-by":"publisher","award":["101084216"],"award-info":[{"award-number":["101084216"]}],"id":[{"id":"10.13039\/100010661","id-type":"DOI","asserted-by":"publisher"}]},{"DOI":"10.13039\/501100003246","name":"Nederlandse Organisatie voor Wetenschappelijk Onderzoek","doi-asserted-by":"publisher","award":["17628"],"award-info":[{"award-number":["17628"]}],"id":[{"id":"10.13039\/501100003246","id-type":"DOI","asserted-by":"publisher"}]}],"content-domain":{"domain":[],"crossmark-restriction":false},"short-container-title":[],"abstract":"<jats:p>Abstract. Leading-edge inflatable (LEI) kites are characterized by a pronounced downward curvature of the wing and flow recirculation zones on the pressure side. This study presents novel stereoscopic particle image velocimetry (PIV) measurements of a 1:6.5 rigid scale model of the TU Delft V3 LEI kite. The flow-field measurements were conducted in the Open Jet Facility of Delft University of Technology for two angles of attack and seven chordwise measurement planes positioned between mid-span and tip, and were compared with results from Reynolds-averaged Navier\u2013Stokes (RANS) simulations. The double-curved anhedral wing geometry presented several challenges, such as surface reflections that required careful data processing and the use of a lateral velocity filter. The circulation distribution was analyzed, using both elliptical and rectangular boundary curves, showing good agreement in trends between the vortex-step method (VSM), RANS, and PIV data. The lift and drag coefficients of each chordwise measurement plane were estimated using the Kutta\u2013Joukowski theorem, surface pressure integration of RANS CFD data, and Noca''s method \u2013 an inherently three-dimensional reformulation of the momentum conservation equations expressed solely as surface integrals over the control-volume boundary \u2013 applied here in two dimensions. While the mid-span to tip variation of lift coefficients was in accordance with the anhedral shape and tip-vortex effects, the drag measurements and predictions deviated from the expected behavior by exhibiting negative values. Especially near the tip region, significant discrepancies were observed, attributed to increased measurement uncertainty. The surface pressure integration revealed discrepancies at the strut junction, likely due to local three-dimensional strut-induced flow effects and increased airfoil thickness. This study provides comprehensive validation data for CFD simulations of LEI kites while highlighting the challenges in PIV measurements of double-curved anhedral wings and characterizing local aerodynamic phenomena.<\/jats:p>","DOI":"10.5194\/wes-2025-217","type":"posted-content","created":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T12:41:37Z","timestamp":1761828097000},"source":"Crossref","is-referenced-by-count":1,"title":["Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"],"prefix":"10.5194","author":[{"ORCID":"https:\/\/orcid.org\/0000-0003-3164-5648","authenticated-orcid":false,"given":"Jelle Agatho Wilhelm","family":"Poland","sequence":"first","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0003-1486-3643","authenticated-orcid":false,"given":"Erik","family":"Fritz","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0002-4112-841X","authenticated-orcid":false,"given":"Roland","family":"Schmehl","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]}],"member":"3145","container-title":[],"original-title":[],"deposited":{"date-parts":[[2026,5,26]],"date-time":"2026-05-26T10:07:33Z","timestamp":1779790053000},"score":1,"resource":{"primary":{"URL":"https:\/\/wes.copernicus.org\/articles\/11\/1461\/2026\/wes-11-1461-2026-discussion.html"}},"subtitle":[],"short-title":[],"issued":{"date-parts":[[2025,10,30]]},"references-count":0,"URL":"https:\/\/doi.org\/10.5194\/wes-2025-217","relation":{"has-comment":[{"id-type":"doi","id":"10.5194\/wes-2025-217-AC2","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-AC1","asserted-by":"subject"}],"has-review":[{"id-type":"doi","id":"10.5194\/wes-2025-217-RC1","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-RC2","asserted-by":"subject"}],"is-preprint-of":[{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"object"}]},"subject":[],"published":{"date-parts":[[2025,10,30]]},"subtype":"preprint"}}'
+        body: '{"meta": {"count": 0, "db_response_time_ms": 8, "page": 1, "per_page": 25, "groups_count": null, "x_query": {"oql": "works where DOI is (10.5194/wes-2025-217)", "oqo": {"get_rows": "works", "filter_rows": [{"column_id": "doi", "value": "10.5194/wes-2025-217"}]}, "url": "/works?filter=doi:10.5194%2Fwes-2025-217"}, "cost_usd": 0.0001}, "results": [], "group_by": []}'
         headers:
             Access-Control-Allow-Headers:
-                - X-Requested-With, Accept, Accept-Encoding, Accept-Charset, Accept-Language, Accept-Ranges, Cache-Control
+                - Accept, Accept-Language, Accept-Encoding, Authorization, Content-Type, X-OpenAlex-UI
+            Access-Control-Allow-Methods:
+                - GET, HEAD, POST, OPTIONS
             Access-Control-Allow-Origin:
                 - '*'
             Access-Control-Expose-Headers:
-                - Link
+                - Cache-Control, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Onetime-Remaining, X-RateLimit-Credits-Used, X-RateLimit-Credits-Required, X-RateLimit-Reset, X-RateLimit-Limit-USD, X-RateLimit-Remaining-USD, X-RateLimit-Prepaid-Remaining-USD, X-RateLimit-Cost-USD, X-RateLimit-Cost-Required-USD, Retry-After
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3d2ee427e6de522-TXL
             Content-Type:
                 - application/json
             Date:
-                - Wed, 16 Sep 2026 11:22:57 GMT
-            Permissions-Policy:
-                - interest-cohort=()
+                - Fri, 18 Sep 2026 19:59:22 GMT
+            Nel:
+                - '{"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}'
+            Report-To:
+                - '{"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=wVXyNhmCQOCzPFMlkwPpw4Z2A01xkSqdbe6LSuQzV94%3D\u0026sid=c46efe9b-d3d2-4a0c-8c76-bfafa16c5add\u0026ts=1789761562"}],"max_age":3600}'
+            Reporting-Endpoints:
+                - heroku-nel="https://nel.heroku.com/reports?s=wVXyNhmCQOCzPFMlkwPpw4Z2A01xkSqdbe6LSuQzV94%3D&sid=c46efe9b-d3d2-4a0c-8c76-bfafa16c5add&ts=1789761562"
             Server:
-                - Jetty(9.4.40.v20210413)
-            Vary:
-                - Accept-Encoding
-            X-Api-Pool:
-                - public-single
-            X-Concurrency-Limit:
+                - cloudflare
+            Via:
+                - 1.1 heroku-router
+            X-Ratelimit-Cost-Usd:
+                - "0.0001"
+            X-Ratelimit-Credits-Used:
                 - "1"
-            X-Rate-Limit-Interval:
-                - 1s
-            X-Rate-Limit-Limit:
-                - "5"
+            X-Ratelimit-Limit:
+                - "1000"
+            X-Ratelimit-Limit-Usd:
+                - "0.1"
+            X-Ratelimit-Onetime-Remaining:
+                - "0"
+            X-Ratelimit-Prepaid-Remaining-Usd:
+                - "0"
+            X-Ratelimit-Remaining:
+                - "900"
+            X-Ratelimit-Remaining-Usd:
+                - "0.09"
+            X-Ratelimit-Reset:
+                - "14438"
         status: 200 OK
         code: 200
-        duration: 440.796023ms
+        duration: 384.011057ms
     - id: 11
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig04_plane_location.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:22:58 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:27:58 GMT
-            Source-Age:
-                - "41"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "1"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - a5a16f308aff19be46a05f94b916123f2d7a588f
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 9BAC:29C1DE:FFD5D4:11E500A:6AAA7BE8
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557778.131516,VS0,VE1
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 76.225905ms
-    - id: 12
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig06_qualitative_comparison_CFD_PIV.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:22:58 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:27:58 GMT
-            Source-Age:
-                - "41"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "1"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - eaf7bfa2a438bcc446c354b5b7a28e680f78cac7
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 329E:3590DA:1066190:124DD17:6AAA7BE9
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557778.231534,VS0,VE1
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 21.911564ms
-    - id: 13
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig07_bounds_CFD_PIV_single_row.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:22:58 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:27:58 GMT
-            Source-Age:
-                - "40"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "1"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - 78695343b2a92142886a4b5c2100914cbace6ae6
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 9414:AAE0A:106D89D:1255110:6AAA7BE5
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557778.277886,VS0,VE1
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 23.580698ms
-    - id: 14
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig08_gamma_distribution_std.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:22:58 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:27:58 GMT
-            Source-Age:
-                - "40"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "1"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - 2a351d263eb8f13d35ca3addb73170730f4b90fa
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 57F4:2721A6:1082848:126A0D4:6AAA7BE9
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557778.323804,VS0,VE1
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 21.263954ms
-    - id: 15
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -915,21 +676,21 @@ interactions:
             Cache-Control:
                 - max-age=0, private, must-revalidate
             Content-Security-Policy:
-                - 'default-src ''none''; base-uri ''self''; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src ''self'' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com; font-src github.githubassets.com; form-action ''self'' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors ''none''; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src ''self'' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src ''self''; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com ''sha256-tSjmyPUky1KbRZ0fw9VUil3wFEbeM82rtbJDygGJAXw=''; style-src ''unsafe-inline'' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/'
+                - 'default-src ''none''; base-uri ''self''; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src ''self'' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com api.github.com/cmc_internal/api/; font-src github.githubassets.com; form-action ''self'' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors ''none''; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src ''self'' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src ''self''; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com ''sha256-tSjmyPUky1KbRZ0fw9VUil3wFEbeM82rtbJDygGJAXw=''; style-src ''unsafe-inline'' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/'
             Content-Type:
                 - text/html; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:35 GMT
+                - Fri, 18 Sep 2026 19:59:23 GMT
             Etag:
-                - W/"b8f2692be2049263b4193fcd151464ff"
+                - W/"5984fd7d42b46fe93bd069dd7c5e9673"
             Referrer-Policy:
                 - no-referrer-when-downgrade
             Server:
                 - github.com
             Set-Cookie:
-                - _gh_sess=zTb0E8f4ji4xJVUF55nLKHt0tHU8hjnYmWvjOml1cf%2FoxgD6dkpv%2F0GU63iCuVext2ZuqifsbJxKzhTTyORIh3iaM4Epm2gXRM9ZTJ%2BKPbbyA4oheQXGau23uVfd%2B%2F2Kro86oRpQw9zcAmwswApcuq6KBI6%2F3yMiUcbNL2nQ6aGhJ1DYnPaYlIDmdVpcChUFZHfAzyotWyK9PybiQoxETBrJ5TlnSIKLCnt96ib3O5qdtPHMusrjg1pOhwW0zSb5IUZe7%2BmP0mmR4t7%2BamLAIQ%3D%3D--nKW%2BFDWr8AINJYBJ--r0U0umNxOP3vxy31Pi%2FxlQ%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
-                - _octo=GH1.1.851293220.1789557778; expires=Thu, 16 Sep 2027 11:22:58 GMT; domain=.github.com; path=/; secure; SameSite=Lax
-                - logged_in=no; expires=Thu, 16 Sep 2027 11:22:58 GMT; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax
+                - _gh_sess=uy2o1oTnv1OuEJzR25rGiJW6Hs9Onau8%2FZLXKyn2b5XsFc%2FRVCSjS3iOhbequE7%2BYicmHUrhhlaC3JDUJEey4l2bygt8%2BOE89ufOryHUtFWynpfizcW9%2FRKHIVZ5oaAHmJ0WxapW8lXUJNkjezi7kCqQ9TZKk7U6hduGOrs4%2FnfNKHI3sG2kS%2F7x1jFlFU6bC%2BJzeHX9IOxGHB1sIkw%2FGE1DxwsS5Bjc93KYnOga7lOq3fMqVt9Qtj7WJb7P5AVMEwJ70phnXMO4N7PYLHA%2BCw%3D%3D--muUe%2BCHU%2BzimDv26--%2Brg77fV6GNMylGs5yWVsZQ%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
+                - _octo=GH1.1.400373209.1789761562; expires=Sat, 18 Sep 2027 19:59:22 GMT; domain=.github.com; path=/; secure; SameSite=Lax
+                - logged_in=no; expires=Sat, 18 Sep 2027 19:59:22 GMT; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax
             Strict-Transport-Security:
                 - max-age=31536000; includeSubdomains; preload
             Vary:
@@ -941,13 +702,13 @@ interactions:
             X-Github-Edge-Region:
                 - fra
             X-Github-Request-Id:
-                - D3C0:32F50:B774B60:A79124D:6AAA7C12
+                - E198:1C229:A4947:8D381:6AAD981A
             X-Xss-Protection:
                 - "0"
         status: 200 OK
         code: 200
-        duration: 123.510673ms
-    - id: 16
+        duration: 873.14484ms
+    - id: 12
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -969,7 +730,7 @@ interactions:
             - chunked
         content_length: -1
         uncompressed: true
-        body: '{"created": "2026-03-09T13:07:42.277005+00:00", "modified": "2026-03-09T13:07:42.659900+00:00", "id": 18890103, "conceptrecid": "18890102", "doi": "10.5281/zenodo.18890103", "conceptdoi": "10.5281/zenodo.18890102", "doi_url": "https://doi.org/10.5281/zenodo.18890103", "metadata": {"title": "CODECHECK Certificate 2026-001", "doi": "10.5281/zenodo.18890103", "publication_date": "2026-03-06", "description": "<p>CODECHECK certificate for publication <a href=\"https://doi.org/10.5194/wes-2025-217\"><span lang=\"EN-US\">Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry</span></a>.</p>\n<p><span lang=\"EN-US\">This codecheck resulted in a partial reproduction of the figures presented in the publication. The authors provided a GitHub repository containing all the necessary code and instructions for reproducing the figures. </span></p>\n<p><span lang=\"EN-US\">Given the runtime of the program is approximately 21 hours, the code was executed on an HPC cluster. Two minor changes were made to the code: 1) the NumPy function &ldquo;trapz&rdquo; was renamed &ldquo;trapezoid&rdquo;, and 2) LaTeX rendering was disabled, as suggested by the author, since it was not available on the HPC system used.</span></p>", "access_right": "open", "creators": [{"name": "Grguric, Josip", "affiliation": "Delft University of Technology", "orcid": "0009-0003-3725-9454"}, {"name": "Quintero, Yasel", "affiliation": "Delft University of Technology", "orcid": "0009-0005-9240-7370"}], "related_identifiers": [{"identifier": "10.5194/wes-2025-217", "relation": "reviews", "resource_type": "publication", "scheme": "doi"}, {"identifier": "https://github.com/codecheckers/kite_piv_analysis", "relation": "isDerivedFrom", "resource_type": "software", "scheme": "url"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2026-001"}, {"identifier": "cdchck.science/register/certs/2026-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "18890102"}}]}}, "title": "CODECHECK Certificate 2026-001", "links": {"self": "https://zenodo.org/api/records/18890103", "self_html": "https://zenodo.org/records/18890103", "preview_html": "https://zenodo.org/records/18890103?preview=1", "doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890103", "reserve_doi": "https://zenodo.org/api/records/18890103/draft/pids/doi", "parent": "https://zenodo.org/api/records/18890102", "parent_html": "https://zenodo.org/records/18890102", "parent_doi": "https://doi.org/10.5281/zenodo.18890102", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890102", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:18890103/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:18890103/sequence/default", "files": "https://zenodo.org/api/records/18890103/files", "media_files": "https://zenodo.org/api/records/18890103/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/18890103/files-archive", "archive_media": "https://zenodo.org/api/records/18890103/media-files-archive", "latest": "https://zenodo.org/api/records/18890103/versions/latest", "latest_html": "https://zenodo.org/records/18890103/latest", "versions": "https://zenodo.org/api/records/18890103/versions", "draft": "https://zenodo.org/api/records/18890103/draft", "access_links": "https://zenodo.org/api/records/18890103/access/links", "access_grants": "https://zenodo.org/api/records/18890103/access/grants", "access_users": "https://zenodo.org/api/records/18890103/access/users", "access_request": "https://zenodo.org/api/records/18890103/access/request", "access": "https://zenodo.org/api/records/18890103/access", "communities": "https://zenodo.org/api/records/18890103/communities", "communities-suggestions": "https://zenodo.org/api/records/18890103/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/18890103/request-deletion", "file_modification": "https://zenodo.org/api/records/18890103/file-modification", "quota_increase": "https://zenodo.org/api/records/18890103/quota-increase", "requests": "https://zenodo.org/api/records/18890103/requests"}, "updated": "2026-03-09T13:07:42.659900+00:00", "recid": "18890103", "revision": 4, "files": [{"id": "6249405c-8996-443e-8737-cec17241b5c1", "key": "CODECHECK_certificate_2026-001.pdf", "size": 1994144, "checksum": "md5:80f04e87ca73589adf3b466fbea1bb4a", "links": {"self": "https://zenodo.org/api/records/18890103/files/CODECHECK_certificate_2026-001.pdf/content"}}], "swh": {}, "owners": [{"id": "520116"}], "status": "published", "stats": {"downloads": 108, "unique_downloads": 99, "views": 414, "unique_views": 365, "version_downloads": 108, "version_unique_downloads": 99, "version_unique_views": 365, "version_views": 414}, "state": "done", "submitted": true}'
+        body: '{"created": "2026-03-09T13:07:42.277005+00:00", "modified": "2026-03-09T13:07:42.659900+00:00", "id": 18890103, "conceptrecid": "18890102", "doi": "10.5281/zenodo.18890103", "conceptdoi": "10.5281/zenodo.18890102", "doi_url": "https://doi.org/10.5281/zenodo.18890103", "metadata": {"title": "CODECHECK Certificate 2026-001", "doi": "10.5281/zenodo.18890103", "publication_date": "2026-03-06", "description": "<p>CODECHECK certificate for publication <a href=\"https://doi.org/10.5194/wes-2025-217\"><span lang=\"EN-US\">Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry</span></a>.</p>\n<p><span lang=\"EN-US\">This codecheck resulted in a partial reproduction of the figures presented in the publication. The authors provided a GitHub repository containing all the necessary code and instructions for reproducing the figures. </span></p>\n<p><span lang=\"EN-US\">Given the runtime of the program is approximately 21 hours, the code was executed on an HPC cluster. Two minor changes were made to the code: 1) the NumPy function &ldquo;trapz&rdquo; was renamed &ldquo;trapezoid&rdquo;, and 2) LaTeX rendering was disabled, as suggested by the author, since it was not available on the HPC system used.</span></p>", "access_right": "open", "creators": [{"name": "Grguric, Josip", "affiliation": "Delft University of Technology", "orcid": "0009-0003-3725-9454"}, {"name": "Quintero, Yasel", "affiliation": "Delft University of Technology", "orcid": "0009-0005-9240-7370"}], "related_identifiers": [{"identifier": "10.5194/wes-2025-217", "relation": "reviews", "resource_type": "publication", "scheme": "doi"}, {"identifier": "https://github.com/codecheckers/kite_piv_analysis", "relation": "isDerivedFrom", "resource_type": "software", "scheme": "url"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2026-001"}, {"identifier": "cdchck.science/register/certs/2026-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "18890102"}}]}}, "title": "CODECHECK Certificate 2026-001", "links": {"self": "https://zenodo.org/api/records/18890103", "self_html": "https://zenodo.org/records/18890103", "preview_html": "https://zenodo.org/records/18890103?preview=1", "doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890103", "reserve_doi": "https://zenodo.org/api/records/18890103/draft/pids/doi", "parent": "https://zenodo.org/api/records/18890102", "parent_html": "https://zenodo.org/records/18890102", "parent_doi": "https://doi.org/10.5281/zenodo.18890102", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890102", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:18890103/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:18890103/sequence/default", "files": "https://zenodo.org/api/records/18890103/files", "media_files": "https://zenodo.org/api/records/18890103/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/18890103/files-archive", "archive_media": "https://zenodo.org/api/records/18890103/media-files-archive", "latest": "https://zenodo.org/api/records/18890103/versions/latest", "latest_html": "https://zenodo.org/records/18890103/latest", "versions": "https://zenodo.org/api/records/18890103/versions", "draft": "https://zenodo.org/api/records/18890103/draft", "access_links": "https://zenodo.org/api/records/18890103/access/links", "access_grants": "https://zenodo.org/api/records/18890103/access/grants", "access_users": "https://zenodo.org/api/records/18890103/access/users", "access_request": "https://zenodo.org/api/records/18890103/access/request", "access": "https://zenodo.org/api/records/18890103/access", "communities": "https://zenodo.org/api/records/18890103/communities", "communities-suggestions": "https://zenodo.org/api/records/18890103/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/18890103/request-deletion", "file_modification": "https://zenodo.org/api/records/18890103/file-modification", "quota_increase": "https://zenodo.org/api/records/18890103/quota-increase", "requests": "https://zenodo.org/api/records/18890103/requests"}, "updated": "2026-03-09T13:07:42.659900+00:00", "recid": "18890103", "revision": 4, "files": [{"id": "6249405c-8996-443e-8737-cec17241b5c1", "key": "CODECHECK_certificate_2026-001.pdf", "size": 1994144, "checksum": "md5:80f04e87ca73589adf3b466fbea1bb4a", "links": {"self": "https://zenodo.org/api/records/18890103/files/CODECHECK_certificate_2026-001.pdf/content"}}], "swh": {}, "owners": [{"id": "520116"}], "status": "published", "stats": {"downloads": 109, "unique_downloads": 100, "views": 428, "unique_views": 379, "version_downloads": 109, "version_unique_downloads": 100, "version_unique_views": 379, "version_views": 428}, "state": "done", "submitted": true}'
         headers:
             Access-Control-Allow-Origin:
                 - '*'
@@ -980,7 +741,7 @@ interactions:
             Content-Type:
                 - application/json
             Date:
-                - Wed, 16 Sep 2026 11:22:59 GMT
+                - Fri, 18 Sep 2026 19:59:23 GMT
             Etag:
                 - W/"4"
             Link:
@@ -990,7 +751,7 @@ interactions:
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Retry-After:
-                - "22"
+                - "56"
             Server:
                 - nginx
             Strict-Transport-Security:
@@ -1004,17 +765,17 @@ interactions:
             X-Ratelimit-Limit:
                 - "133"
             X-Ratelimit-Remaining:
-                - "123"
+                - "130"
             X-Ratelimit-Reset:
-                - "1789557802"
+                - "1789761620"
             X-Source:
                 - api
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 812.240279ms
-    - id: 17
+        duration: 302.016312ms
+    - id: 13
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1183,13 +944,13 @@ interactions:
             Cross-Origin-Resource-Policy:
                 - cross-origin
             Date:
-                - Wed, 16 Sep 2026 11:23:00 GMT
+                - Fri, 18 Sep 2026 19:59:23 GMT
             Etag:
                 - W/"4a24dc513242cf377272710a661dce0199827ccb4f8cd124aa8c2929c20d986a"
             Expires:
-                - Wed, 16 Sep 2026 11:28:00 GMT
+                - Fri, 18 Sep 2026 20:04:23 GMT
             Source-Age:
-                - "173"
+                - "0"
             Strict-Transport-Security:
                 - max-age=31536000
             Vary:
@@ -1197,29 +958,29 @@ interactions:
             Via:
                 - 1.1 varnish
             X-Cache:
-                - HIT
+                - MISS
             X-Cache-Hits:
-                - "5"
+                - "0"
             X-Content-Type-Options:
                 - nosniff
             X-Fastly-Request-Id:
-                - 5b8ea13e3c91368c7701660a8604e0af4c55f086
+                - 38163aea4cedbbbc6fbaaa40114fc3d7ca6d13c4
             X-Frame-Options:
                 - deny
             X-Github-Edge-Region:
                 - fra
             X-Github-Request-Id:
-                - 636E:BD011:1033385:12173BB:6AAA79C2
+                - 5EF8:372794:128FC:14529:6AAD981B
             X-Served-By:
-                - cache-ber1080026-BER
+                - cache-fra-etou8220152-FRA
             X-Timer:
-                - S1789557780.275841,VS0,VE0
+                - S1789761564.600528,VS0,VE195
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 22.899254ms
-    - id: 18
+        duration: 282.362599ms
+    - id: 14
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1240,20 +1001,20 @@ interactions:
         content_length: -1
         uncompressed: true
         body: |
-            name,longname,label,logo_url,website_url,policy_url,publisher,contact_name,contact_email,description,identifiers,wikidata
-            GigaScience,GigaScience,journal,https://codecheck.org.uk/img/gigascience_logo.svg,https://academic.oup.com/gigascience,http://gigasciencejournal.com/blog/codecheck-certificate/,GigaScience Press,,,"GigaScience is an open-access, open-data journal published by Oxford University Press and GigaScience Press, focusing on ""big data"" research across computational biology, genomics, metagenomics and the life and biomedical sciences. Publication requires open and FAIR data, code and methods alongside the article, with reproducibility and usability as explicit review criteria. It runs an open peer-review process, supported by companion platforms such as the GigaDB dataset repository.","ISSN|fa-book|2047-217X|https://portal.issn.org/resource/ISSN/2047-217X",Q19969338
-            J Geogr Syst,Journal of Geographical Systems,journal,https://codecheck.org.uk/img/JGSY-logo.jpg,https://www.springer.com/journal/10109,https://link.springer.com/article/10.1007/s10109-021-00364-4,Springer,,,"The Journal of Geographical Systems is a quarterly peer-reviewed journal published by Springer, founded in 1999 by Manfred M. Fischer and Arthur Getis. It covers geographical information, mathematical modelling, spatial analysis, regional science, geography, environmental science, planning and decision-making. It is indexed in Scopus, Web of Science and EconLit.","ISSN (print)|fa-book|1435-5930|https://portal.issn.org/resource/ISSN/1435-5930;ISSN (online)|fa-book|1435-5949|https://portal.issn.org/resource/ISSN/1435-5949",Q15716507
-            J Archaeol Sci,Journal of Archaeological Science,journal,https://ars.els-cdn.com/content/image/X03054403.jpg,https://www.sciencedirect.com/journal/journal-of-archaeological-science,,Elsevier,,,"The Journal of Archaeological Science is a monthly peer-reviewed journal published by Elsevier, established in 1974, focused on the development and application of scientific techniques and methodologies across all areas of archaeology. It bridges scientific methods with archaeological inquiry, covering archaeometry, bioarchaeology, geoarchaeology and related computational approaches. It operates a hybrid open-access model and is indexed in Scopus and the Science Citation Index.","ISSN (print)|fa-book|0305-4403|https://portal.issn.org/resource/ISSN/0305-4403;ISSN (online)|fa-book|1095-9238|https://portal.issn.org/resource/ISSN/1095-9238",Q32246
-            GigaByte,GigaByte,journal,https://codecheck.org.uk/img/gigabyte_logo.svg,https://gigabytejournal.com/,http://gigasciencejournal.com/blog/frictionless-data-interactive-figures/,GigaScience Press,,,"GigaByte is an open-access journal from GigaScience Press covering complex, large-scale data research across the life sciences. Authors must make supporting data and source code publicly available, hosted alongside the article via the companion GigaDB database. The journal runs an open, transparent peer-review process built around the UNESCO Open Science Recommendation.","ISSN|fa-book|2709-4715|https://portal.issn.org/resource/ISSN/2709-4715",Q115250122
-            AGILEGIS,AGILE Conference on Geographic Information Science,conference,https://codecheck.org.uk/img/reproducible-AGILE-logo-square.svg,https://agile-gi.eu,https://reproducible-agile.github.io/,AGILE (Association of Geographic Information Laboratories in Europe),,,"AGILE is the Association of Geographic Information Laboratories in Europe, a membership organisation connecting geographic information researchers and educators across the continent. It runs an annual international conference on geographic information science, alongside PhD schools, research initiatives and open science programmes. AGILE places particular emphasis on reproducible research practice in GIScience.","ConfIDent|fa-calendar|AGILE-GI series|https://www.confident-conference.org/index.php/Event_Series:D4685b15-8c8f-4271-a527-6abca54205ec",Q105698413
-            codecheck,CODECHECK,community,https://codecheck.org.uk/img/codecheck_logo.svg,https://codecheck.org.uk,,,,,"CODECHECK is an initiative supporting the independent execution and verification of the code underlying scholarly research articles. Trained codecheckers rerun a paper's computations and award a certificate of executable computation when they succeed. The initiative partners with journals, conferences and institutions worldwide, including institutional programmes such as CODECHECK NL.",,Q141254550
-            codecheck NL,CODECHECK NL,check-nl,,,,,,,,,Q141254551
-            in press,In press,journal,,,,,,,,,
-            preprint,Preprint,preprint,,,,,,,,,Q580922
-            AUMC,Amsterdam UMC,institution,https://www.amsterdamumc.org/static/researchpresentation/images/logo-amsterdamumc.svg,,,,,,"Amsterdam UMC's computational reproducibility initiative documents work to understand and improve the reproducibility of computational research at the medical center. It centers on producing reproduction packages for published studies and on community engagement activities such as training and outreach. The report, led by researchers including Samuel Langton and Thomas Pronk, addresses version control, software management and replication practices, with the full report at <a href=""https://zenodo.org/records/15095022"" target=""_blank"" rel=""noopener"">https://zenodo.org/records/15095022</a>.","ROR|fa-university|05grdyy37|https://ror.org/05grdyy37",Q56682938
-            Lifecycle Journal,Lifecycle Journal,lifecycle journal,https://codecheck.org.uk/img/lifecyclejournal_logo.png,https://lifecyclejournal.org/,,,,,"Lifecycle Journal is a research-publishing pilot from the Center for Open Science that lets researchers share and publish outputs at any stage of the research lifecycle, not just the final paper. It puts publishing and peer review under community control, aiming to increase trustworthiness and reduce bias in scholarly communication. The pilot has since closed to new submissions.","ISSN|fa-book|3069-2229",Q141249936
-            TU Delft DCC,TU Delft Digital Competence Centre,institution,https://upload.wikimedia.org/wikipedia/de/b/b5/TU_Delft_Logo.svg,https://www.tudelft.nl/digital-competence-centre,,,,,"The Digital Competence Centre (DCC) is TU Delft's institutional hub supporting researchers across all disciplines with data management, research software development and computational workflows. It offers hands-on project support, office hours, training workshops and reproducibility assessments. Its FAIR4RS mentoring programme helps researchers make their software outputs findable, accessible, interoperable and reusable.","Wikidata|fa-database|Q141254549|https://www.wikidata.org/wiki/Q141254549",Q141254549
-            JOSIS,Journal of Spatial Information Science,journal,https://ram.raumplanung.tu-dortmund.de/storages/ram-raumplanung/_processed_/1/b/csm_josis_cover_2023_2_385aad9109.png,https://josis.org,,University of Maine,,,"The Journal of Spatial Information Science (JOSIS) is an international, open-access, volunteer-run journal publishing original research in spatial and geographic information science. Its scope spans theoretical foundations through to computational methods and practical applications of geospatial technology. All published articles are freely accessible at no cost to authors or readers.","ISSN|fa-book|1948-660X|https://portal.issn.org/resource/ISSN/1948-660X",Q50814880
+            name,longname,label,logo_url,website_url,policy_url,publisher,contact_name,contact_email,description,identifiers,wikidata,fediverse,hashtags
+            GigaScience,GigaScience,journal,https://codecheck.org.uk/img/gigascience_logo.svg,https://academic.oup.com/gigascience,http://gigasciencejournal.com/blog/codecheck-certificate/,GigaScience Press,,,"GigaScience is an open-access, open-data journal published by Oxford University Press and GigaScience Press, focusing on ""big data"" research across computational biology, genomics, metagenomics and the life and biomedical sciences. Publication requires open and FAIR data, code and methods alongside the article, with reproducibility and usability as explicit review criteria. It runs an open peer-review process, supported by companion platforms such as the GigaDB dataset repository.","ISSN|fa-book|2047-217X|https://portal.issn.org/resource/ISSN/2047-217X",Q19969338,@GigaScience@mastodon.social,
+            J Geogr Syst,Journal of Geographical Systems,journal,https://codecheck.org.uk/img/JGSY-logo.jpg,https://www.springer.com/journal/10109,https://link.springer.com/article/10.1007/s10109-021-00364-4,Springer,,,"The Journal of Geographical Systems is a quarterly peer-reviewed journal published by Springer, founded in 1999 by Manfred M. Fischer and Arthur Getis. It covers geographical information, mathematical modelling, spatial analysis, regional science, geography, environmental science, planning and decision-making. It is indexed in Scopus, Web of Science and EconLit.","ISSN (print)|fa-book|1435-5930|https://portal.issn.org/resource/ISSN/1435-5930;ISSN (online)|fa-book|1435-5949|https://portal.issn.org/resource/ISSN/1435-5949",Q15716507,@JGeoSys@mapstodon.space,
+            J Archaeol Sci,Journal of Archaeological Science,journal,https://ars.els-cdn.com/content/image/X03054403.jpg,https://www.sciencedirect.com/journal/journal-of-archaeological-science,,Elsevier,,,"The Journal of Archaeological Science is a monthly peer-reviewed journal published by Elsevier, established in 1974, focused on the development and application of scientific techniques and methodologies across all areas of archaeology. It bridges scientific methods with archaeological inquiry, covering archaeometry, bioarchaeology, geoarchaeology and related computational approaches. It operates a hybrid open-access model and is indexed in Scopus and the Science Citation Index.","ISSN (print)|fa-book|0305-4403|https://portal.issn.org/resource/ISSN/0305-4403;ISSN (online)|fa-book|1095-9238|https://portal.issn.org/resource/ISSN/1095-9238",Q32246,,
+            GigaByte,GigaByte,journal,https://codecheck.org.uk/img/gigabyte_logo.svg,https://gigabytejournal.com/,http://gigasciencejournal.com/blog/frictionless-data-interactive-figures/,GigaScience Press,,,"GigaByte is an open-access journal from GigaScience Press covering complex, large-scale data research across the life sciences. Authors must make supporting data and source code publicly available, hosted alongside the article via the companion GigaDB database. The journal runs an open, transparent peer-review process built around the UNESCO Open Science Recommendation.","ISSN|fa-book|2709-4715|https://portal.issn.org/resource/ISSN/2709-4715",Q115250122,@GigaByte@mas.to,
+            AGILEGIS,AGILE Conference on Geographic Information Science,conference,https://codecheck.org.uk/img/reproducible-AGILE-logo-square.svg,https://agile-gi.eu,https://reproducible-agile.github.io/,AGILE (Association of Geographic Information Laboratories in Europe),,,"AGILE is the Association of Geographic Information Laboratories in Europe, a membership organisation connecting geographic information researchers and educators across the continent. It runs an annual international conference on geographic information science, alongside PhD schools, research initiatives and open science programmes. AGILE places particular emphasis on reproducible research practice in GIScience.","ConfIDent|fa-calendar|AGILE-GI series|https://www.confident-conference.org/index.php/Event_Series:D4685b15-8c8f-4271-a527-6abca54205ec",Q105698413,,
+            codecheck,CODECHECK,community,https://codecheck.org.uk/img/codecheck_logo.svg,https://codecheck.org.uk,,,,,"CODECHECK is an initiative supporting the independent execution and verification of the code underlying scholarly research articles. Trained codecheckers rerun a paper's computations and award a certificate of executable computation when they succeed. The initiative partners with journals, conferences and institutions worldwide, including institutional programmes such as CODECHECK NL.",,Q141254550,@codecheck@fediscience.org,
+            codecheck NL,CODECHECK NL,check-nl,,,,,,,,,Q141254551,,
+            in press,In press,journal,,,,,,,,,,,
+            preprint,Preprint,preprint,,,,,,,,,Q580922,,
+            AUMC,Amsterdam UMC,institution,https://www.amsterdamumc.org/static/researchpresentation/images/logo-amsterdamumc.svg,,,,,,"Amsterdam UMC's computational reproducibility initiative documents work to understand and improve the reproducibility of computational research at the medical center. It centers on producing reproduction packages for published studies and on community engagement activities such as training and outreach. The report, led by researchers including Samuel Langton and Thomas Pronk, addresses version control, software management and replication practices, with the full report at <a href=""https://zenodo.org/records/15095022"" target=""_blank"" rel=""noopener"">https://zenodo.org/records/15095022</a>.","ROR|fa-university|05grdyy37|https://ror.org/05grdyy37",Q56682938,,
+            Lifecycle Journal,Lifecycle Journal,lifecycle journal,https://codecheck.org.uk/img/lifecyclejournal_logo.png,https://lifecyclejournal.org/,,,,,"Lifecycle Journal is a research-publishing pilot from the Center for Open Science that lets researchers share and publish outputs at any stage of the research lifecycle, not just the final paper. It puts publishing and peer review under community control, aiming to increase trustworthiness and reduce bias in scholarly communication. The pilot has since closed to new submissions.","ISSN|fa-book|3069-2229",Q141249936,@CenterforOpenScience@fosstodon.org,
+            TU Delft DCC,TU Delft Digital Competence Centre,institution,https://upload.wikimedia.org/wikipedia/de/b/b5/TU_Delft_Logo.svg,https://www.tudelft.nl/digital-competence-centre,,,,,"The Digital Competence Centre (DCC) is TU Delft's institutional hub supporting researchers across all disciplines with data management, research software development and computational workflows. It offers hands-on project support, office hours, training workshops and reproducibility assessments. Its FAIR4RS mentoring programme helps researchers make their software outputs findable, accessible, interoperable and reusable.","Wikidata|fa-database|Q141254549|https://www.wikidata.org/wiki/Q141254549",Q141254549,@tudelft@social.edu.nl,
+            JOSIS,Journal of Spatial Information Science,journal,https://ram.raumplanung.tu-dortmund.de/storages/ram-raumplanung/_processed_/1/b/csm_josis_cover_2023_2_385aad9109.png,https://josis.org,,University of Maine,,,"The Journal of Spatial Information Science (JOSIS) is an international, open-access, volunteer-run journal publishing original research in spatial and geographic information science. Its scope spans theoretical foundations through to computational methods and practical applications of geospatial technology. All published articles are freely accessible at no cost to authors or readers.","ISSN|fa-book|1948-660X|https://portal.issn.org/resource/ISSN/1948-660X",Q50814880,,
         headers:
             Accept-Ranges:
                 - bytes
@@ -1268,13 +1029,13 @@ interactions:
             Cross-Origin-Resource-Policy:
                 - cross-origin
             Date:
-                - Wed, 16 Sep 2026 11:23:00 GMT
+                - Fri, 18 Sep 2026 19:59:24 GMT
             Etag:
-                - W/"c78d2bf2a231fefca67d97074a78b5b0f8db791fcee71744095201413a4982a8"
+                - W/"5399534e5a8c3512cd0a0868a47894afb55b3aad094dfc5161d93e49f77d3554"
             Expires:
-                - Wed, 16 Sep 2026 11:28:00 GMT
+                - Fri, 18 Sep 2026 20:04:24 GMT
             Source-Age:
-                - "172"
+                - "0"
             Strict-Transport-Security:
                 - max-age=31536000
             Vary:
@@ -1282,29 +1043,29 @@ interactions:
             Via:
                 - 1.1 varnish
             X-Cache:
-                - HIT
+                - MISS
             X-Cache-Hits:
-                - "1"
+                - "0"
             X-Content-Type-Options:
                 - nosniff
             X-Fastly-Request-Id:
-                - b0b6f94df31fb1e755fe5af59bae7a768231deb6
+                - 96daf38863bb903a1b3ef231ef1fa3e94fecd2a3
             X-Frame-Options:
                 - deny
             X-Github-Edge-Region:
                 - fra
             X-Github-Request-Id:
-                - 42B4:33533:1014B93:11F8933:6AAA79C1
+                - A07A:17BB:1077B:121E2:6AAD981A
             X-Served-By:
-                - cache-ber1080026-BER
+                - cache-fra-etou8220152-FRA
             X-Timer:
-                - S1789557780.324049,VS0,VE1
+                - S1789761564.815868,VS0,VE200
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 24.181771ms
-    - id: 19
+        duration: 218.917607ms
+    - id: 15
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1324,26 +1085,26 @@ interactions:
         proto_minor: 0
         content_length: -1
         uncompressed: true
-        body: '{"url":"https://api.github.com/repos/codecheckers/register/issues/187","repository_url":"https://api.github.com/repos/codecheckers/register","labels_url":"https://api.github.com/repos/codecheckers/register/issues/187/labels{/name}","comments_url":"https://api.github.com/repos/codecheckers/register/issues/187/comments","events_url":"https://api.github.com/repos/codecheckers/register/issues/187/events","html_url":"https://github.com/codecheckers/register/issues/187","id":4000723026,"node_id":"I_kwDODmS3O87udjBS","number":187,"title":"Jelle Poland, Erik Fritz and Roland Schmehl | 2026-001","user":{"login":"yiquintero","id":126678808,"node_id":"U_kgDOB4z3GA","avatar_url":"https://avatars.githubusercontent.com/u/126678808?v=4","gravatar_id":"","url":"https://api.github.com/users/yiquintero","html_url":"https://github.com/yiquintero","followers_url":"https://api.github.com/users/yiquintero/followers","following_url":"https://api.github.com/users/yiquintero/following{/other_user}","gists_url":"https://api.github.com/users/yiquintero/gists{/gist_id}","starred_url":"https://api.github.com/users/yiquintero/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/yiquintero/subscriptions","organizations_url":"https://api.github.com/users/yiquintero/orgs","repos_url":"https://api.github.com/users/yiquintero/repos","events_url":"https://api.github.com/users/yiquintero/events{/privacy}","received_events_url":"https://api.github.com/users/yiquintero/received_events","type":"User","user_view_type":"public","site_admin":false},"labels":[{"id":2104386107,"node_id":"MDU6TGFiZWwyMTA0Mzg2MTA3","url":"https://api.github.com/repos/codecheckers/register/labels/id%20assigned","name":"id assigned","color":"ba5e21","default":false,"description":"CODECHECK ID is assigned, please note when assigning new ones","archived_at":null,"archived_by":null}],"state":"closed","locked":false,"assignees":[{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false}],"milestone":null,"comments":1,"created_at":"2026-02-27T12:08:06Z","updated_at":"2026-03-09T13:21:54Z","closed_at":"2026-03-09T13:21:54Z","assignee":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"author_association":"NONE","issue_field_values":[],"type":null,"active_lock_reason":null,"sub_issues_summary":{"total":0,"completed":0,"percent_completed":0},"issue_dependencies_summary":{"blocked_by":0,"total_blocked_by":0,"blocking":0,"total_blocking":0},"body":"**Work**: https://doi.org/10.5194/wes-2025-217\n**Repository**: https://github.com/jellepoland/kite_piv_analysis\n**Data**: https://doi.org/10.5281/zenodo.17395913\n\nThis CodeCheck is part of the [TU Delft Digital Competence Centre (DCC)](https://github.com/codecheckers/register/issues/dcc.tudelft.nl) and [4TU.ResearchData](https://data.4tu.nl/) collaboration. The codecheck will be carried out by members of the DCC.","closed_by":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"reactions":{"url":"https://api.github.com/repos/codecheckers/register/issues/187/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"https://api.github.com/repos/codecheckers/register/issues/187/timeline","performed_via_github_app":null,"state_reason":"completed","pinned_comment":null}'
+        body: '{"url":"https://api.github.com/repos/codecheckers/register/issues/187","repository_url":"https://api.github.com/repos/codecheckers/register","labels_url":"https://api.github.com/repos/codecheckers/register/issues/187/labels{/name}","comments_url":"https://api.github.com/repos/codecheckers/register/issues/187/comments","events_url":"https://api.github.com/repos/codecheckers/register/issues/187/events","html_url":"https://github.com/codecheckers/register/issues/187","id":4000723026,"node_id":"I_kwDODmS3O87udjBS","number":187,"title":"Jelle Poland, Erik Fritz and Roland Schmehl | 2026-001","user":{"login":"yiquintero","id":126678808,"node_id":"U_kgDOB4z3GA","avatar_url":"https://avatars.githubusercontent.com/u/126678808?v=4","gravatar_id":"","url":"https://api.github.com/users/yiquintero","html_url":"https://github.com/yiquintero","followers_url":"https://api.github.com/users/yiquintero/followers","following_url":"https://api.github.com/users/yiquintero/following{/other_user}","gists_url":"https://api.github.com/users/yiquintero/gists{/gist_id}","starred_url":"https://api.github.com/users/yiquintero/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/yiquintero/subscriptions","organizations_url":"https://api.github.com/users/yiquintero/orgs","repos_url":"https://api.github.com/users/yiquintero/repos","events_url":"https://api.github.com/users/yiquintero/events{/privacy}","received_events_url":"https://api.github.com/users/yiquintero/received_events","type":"User","user_view_type":"public","site_admin":false},"labels":[{"id":2104386107,"node_id":"MDU6TGFiZWwyMTA0Mzg2MTA3","url":"https://api.github.com/repos/codecheckers/register/labels/id%20assigned","name":"id assigned","color":"ba5e21","default":false,"description":"CODECHECK ID is assigned, please note when assigning new ones","archived_at":null,"archived_by":null}],"state":"closed","locked":false,"assignees":[{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false}],"milestone":null,"comments":1,"created_at":"2026-02-27T12:08:06Z","updated_at":"2026-03-09T13:21:54Z","closed_at":"2026-03-09T13:21:54Z","assignee":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"author_association":"MEMBER","issue_field_values":[],"type":null,"active_lock_reason":null,"sub_issues_summary":{"total":0,"completed":0,"percent_completed":0},"issue_dependencies_summary":{"blocked_by":0,"total_blocked_by":0,"blocking":0,"total_blocking":0},"body":"**Work**: https://doi.org/10.5194/wes-2025-217\n**Repository**: https://github.com/jellepoland/kite_piv_analysis\n**Data**: https://doi.org/10.5281/zenodo.17395913\n\nThis CodeCheck is part of the [TU Delft Digital Competence Centre (DCC)](https://github.com/codecheckers/register/issues/dcc.tudelft.nl) and [4TU.ResearchData](https://data.4tu.nl/) collaboration. The codecheck will be carried out by members of the DCC.","closed_by":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"reactions":{"url":"https://api.github.com/repos/codecheckers/register/issues/187/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"https://api.github.com/repos/codecheckers/register/issues/187/timeline","performed_via_github_app":null,"state_reason":"completed","pinned_comment":null}'
         headers:
-            Accept-Ranges:
-                - bytes
             Access-Control-Allow-Origin:
                 - '*'
             Access-Control-Expose-Headers:
                 - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning
             Cache-Control:
-                - public, max-age=60, s-maxage=60
+                - private, max-age=60, s-maxage=60
             Content-Security-Policy:
                 - default-src 'none'
             Content-Type:
                 - application/json; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:36 GMT
+                - Fri, 18 Sep 2026 19:59:24 GMT
             Etag:
-                - '"36f9a8ac125a3f518edaac21732dd5875cbc9b496c519f7dce86c75920263974"'
+                - W/"bb827dd612c28431353185873a0486eb0d84710e14f69868880d55def751c849"
+            Github-Authentication-Token-Expiration:
+                - 2027-09-19 09:47:28 UTC
             Last-Modified:
-                - Tue, 15 Sep 2026 09:18:27 GMT
+                - Wed, 16 Sep 2026 15:40:54 GMT
             Referrer-Policy:
                 - origin-when-cross-origin, strict-origin-when-cross-origin
             Server:
@@ -1351,7 +1112,9 @@ interactions:
             Strict-Transport-Security:
                 - max-age=31536000; includeSubdomains; preload
             Vary:
-                - Accept,Accept-Encoding, Accept, X-Requested-With
+                - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+            X-Accepted-Github-Permissions:
+                - issues=read
             X-Content-Type-Options:
                 - nosniff
             X-Frame-Options:
@@ -1363,23 +1126,23 @@ interactions:
             X-Github-Media-Type:
                 - github.v3; format=json
             X-Github-Request-Id:
-                - D39A:27222D:9CC7470:98AAB1E:6AAA7C14
+                - ED8C:24FD4F:970B3:91A4F:6AAD981C
             X-Ratelimit-Limit:
-                - "60"
+                - "5000"
             X-Ratelimit-Remaining:
-                - "39"
+                - "4935"
             X-Ratelimit-Reset:
-                - "1789560507"
+                - "1789762924"
             X-Ratelimit-Resource:
                 - core
             X-Ratelimit-Used:
-                - "21"
+                - "65"
             X-Xss-Protection:
                 - "0"
         status: 200 OK
         code: 200
-        duration: 115.318621ms
-    - id: 20
+        duration: 545.836768ms
+    - id: 16
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1405,13 +1168,13 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f4b0da8b44a-TXL
+                - a3d2ee702f546e5c-TXL
             Content-Type:
                 - text/html;charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:23:07 GMT
+                - Fri, 18 Sep 2026 19:59:29 GMT
             Expires:
-                - Wed, 16 Sep 2026 11:23:09 GMT
+                - Fri, 18 Sep 2026 20:19:04 GMT
             Location:
                 - https://zenodo.org/doi/10.5281/zenodo.18890103
             Nel:
@@ -1419,7 +1182,7 @@ interactions:
             Permissions-Policy:
                 - interest-cohort=(),browsing-topics=()
             Report-To:
-                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=yGGqf1ycfKeWS%2BH8y2UlXlfw6OnMY4IPxf3qzjjmztEadmZQfXLNkobVgu8q2JG9FoLDQrfhydC0ZTxztPoV2%2FQzKbjE4uRb7UrQZOJUa1%2F2XPGksoYDO90%3D"}]}'
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vNhVN3Wv1OL5wAEwhdyAvNJrtnbJh3Ky1%2Bq6eP3HWo0qqcJK8tqMy4njYjR69Z2CS5y2OLHaEjVhvY%2FVo5mLEwfXvYu1GzyohEy2P%2BlCt%2FGUpfWUH%2BqTKN4%3D"}]}'
             Server:
                 - cloudflare
             Strict-Transport-Security:
@@ -1429,8 +1192,8 @@ interactions:
                 - Accept
         status: 302 Found
         code: 302
-        duration: 63.924533ms
-    - id: 21
+        duration: 48.988554ms
+    - id: 17
       request:
         proto: ""
         proto_major: 0
@@ -1463,7 +1226,7 @@ interactions:
             Content-Type:
                 - text/html; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:23:07 GMT
+                - Fri, 18 Sep 2026 19:59:29 GMT
             Location:
                 - https://zenodo.org/records/18890103
             Permissions-Policy:
@@ -1471,11 +1234,11 @@ interactions:
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Retry-After:
-                - "14"
+                - "50"
             Server:
                 - nginx
             Set-Cookie:
-                - session=f3027c8d8e72523b_6aaa7c1b.e81i-0VpaSFW_oHVrIiIsLbQfc4; Expires=Mon, 21 Sep 2026 11:23:07 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+                - session=ec44d512b2ba0b4a_6aad9821.i70XbX_DIuCR6-hHf513Z_iUiyg; Expires=Wed, 23 Sep 2026 19:59:29 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
             Strict-Transport-Security:
                 - max-age=31556926; includeSubDomains
             X-Content-Type-Options:
@@ -1485,17 +1248,17 @@ interactions:
             X-Ratelimit-Limit:
                 - "133"
             X-Ratelimit-Remaining:
-                - "116"
+                - "123"
             X-Ratelimit-Reset:
-                - "1789557802"
+                - "1789761620"
             X-Source:
                 - ui
             X-Xss-Protection:
                 - 1; mode=block
         status: 302 FOUND
         code: 302
-        duration: 154.771628ms
-    - id: 22
+        duration: 375.751529ms
+    - id: 18
       request:
         proto: ""
         proto_major: 0
@@ -1524,7 +1287,7 @@ interactions:
             Content-Type:
                 - text/html; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:23:08 GMT
+                - Fri, 18 Sep 2026 19:59:30 GMT
             Link:
                 - <https://orcid.org/0009-0003-3725-9454> ; rel="author" , <https://orcid.org/0009-0005-9240-7370> ; rel="author" , <https://doi.org/10.5281/zenodo.18890103> ; rel="cite-as" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/dcat+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/ld+json" ; profile="https://datapackage.org/profiles/2.0/datapackage.json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/marcxml+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.citationstyles.csl+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.datacite.datacite+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.geo+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1+json" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.full+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/vnd.inveniordm.v1.simple+csv" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-bibtex" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="application/x-dc+xml" , <https://zenodo.org/api/records/18890103> ; rel="describedby" ; type="text/x-bibliography" , <https://zenodo.org/records/18890103/files/CODECHECK_certificate_2026-001.pdf> ; rel="item" ; type="application/pdf" , <https://creativecommons.org/licenses/by/4.0/legalcode> ; rel="license" , <https://schema.org/ScholarlyArticle> ; rel="type" , <https://schema.org/AboutPage> ; rel="type" , <https://zenodo.org/api/records/18890103> ; rel="linkset" ; type="application/linkset+json"
             Permissions-Policy:
@@ -1532,11 +1295,11 @@ interactions:
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Retry-After:
-                - "13"
+                - "49"
             Server:
                 - nginx
             Set-Cookie:
-                - session=dbcd90391fbb69ce_6aaa7c1c.PT01Fc92dwpC3t45hD84cvTr4oA; Expires=Mon, 21 Sep 2026 11:23:08 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
+                - session=2cd37e890fc6994d_6aad9822.4vWmZQJbYJX-C8eGdyoNbJY9Uww; Expires=Wed, 23 Sep 2026 19:59:30 GMT; Secure; HttpOnly; Path=/; SameSite=Lax
             Strict-Transport-Security:
                 - max-age=31556926; includeSubDomains
             Vary:
@@ -1548,17 +1311,17 @@ interactions:
             X-Ratelimit-Limit:
                 - "133"
             X-Ratelimit-Remaining:
-                - "115"
+                - "122"
             X-Ratelimit-Reset:
-                - "1789557802"
+                - "1789761620"
             X-Source:
                 - ui
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 326.050469ms
-    - id: 23
+        duration: 608.330206ms
+    - id: 19
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1589,11 +1352,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f523897e507-TXL
+                - a3d2ee76cf3faf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:23:08 GMT
+                - Fri, 18 Sep 2026 19:59:30 GMT
             Expires:
                 - "0"
             Pragma:
@@ -1601,7 +1364,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=lsAprI_VcS0Y3.MZmS5bEidLNcSN2DgsGs6aiUdCZ7w-1789557788.5160415-1.0.1.1-dgzcGKrlSX9fsD0XDkqV_2ZM4B3jGscbOHKYR4nViCgit5NBGmfUDLiguOEDQNOlkvrgtBdI4SMYuJFfjwknmZ_YBG4v0XZPw3dhRkzZEamRmTfp8NI2abM2RsRK_95L; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:08 GMT
+                - __cf_bm=JEfxJOKOqDiSof8rDKcDYrXDYxpzhuafsI2GWJUpSys-1789761570.3652017-1.0.1.1-cNxGS3feRMarapfWf2bk2R.05q1jsFUQcRmz7PG5EuEE_Su3fcOJi_VKOa80waGyif3F1_PwOeVAT4D6KqEaxx3gopHMQnhP1y41hvK6xNS0ndVngvtz_NZycWHAdbOz; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:30 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -1618,8 +1381,8 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 156.390337ms
-    - id: 24
+        duration: 133.161684ms
+    - id: 20
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1650,11 +1413,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f54288de507-TXL
+                - a3d2ee779affaf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:23:08 GMT
+                - Fri, 18 Sep 2026 19:59:30 GMT
             Expires:
                 - "0"
             Pragma:
@@ -1662,7 +1425,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=9bnfOOR_79L8ebKd4aRvoL0Nu8KiaVM81uhQLLvmBdM-1789557788.8245592-1.0.1.1-ucwreLH3DgONRqImLPuUMUzc0zr3fY4viTaUZNOexnMrsKhbteHzqxl4feqXr9pvn_2UgI1CkrbO2tXJV10bSFo2nnvYb3SXp1xe3PiEUUEilMIzy1h8Ly5zESZrtUpD; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:08 GMT
+                - __cf_bm=cc63xfaY3mU4gytEi_2Zpy.Lsoc61WQqmNzT1mk9flM-1789761570.499547-1.0.1.1-38O3lGMP9FIjnoVsHlheJqcTwTytMIofurQldDu16.udYvM5gxLkSayPX5Tfu0OPtp2.9wBcaPI7VoOOmH5j8wHApW1hO6DXyG2Ad37Gm4HC8w3YqBXjQY0g82BnEf57; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:30 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -1679,8 +1442,8 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 155.642598ms
-    - id: 25
+        duration: 134.296934ms
+    - id: 21
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1711,11 +1474,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f56186fe507-TXL
+                - a3d2ee787eedaf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:23:09 GMT
+                - Fri, 18 Sep 2026 19:59:30 GMT
             Expires:
                 - "0"
             Pragma:
@@ -1723,7 +1486,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=0zTPntFQzIkDl4yKTdCf2plPh0G1CKrKsr_kPEv.2ZI-1789557789.1391513-1.0.1.1-65TSfpGSqjdROdB7FLypM27J8dnGwVqKLrz82X.RXET9zxHlUwYkbmUUPXtgoapzBBGpat971P7WlUnzHuNSgZGFLJdKLwliJYKG.Vn6SnV.tDzx2716dvczjSNMYY8S; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:09 GMT
+                - __cf_bm=Vc2tXutTBVkqZ4Xnu0EJrLRpVodr4Id2JKQUD7VvU9c-1789761570.631905-1.0.1.1-3cGEPuLDDGn9zt1GpKNgz343CuVJbKdHsYqSIhXeY17KUGRwSK9GIjtE_KqjMAfcE0add3aoWz7n.sVaKPkACuePKfuLCAwo.PfRYROAa62N1AprE4o7eavPvUT.dFHJ; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:30 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -1740,8 +1503,8 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 155.130814ms
-    - id: 26
+        duration: 136.126041ms
+    - id: 22
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1772,11 +1535,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f580831e507-TXL
+                - a3d2ee794ab5af15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:23:09 GMT
+                - Fri, 18 Sep 2026 19:59:30 GMT
             Expires:
                 - "0"
             Pragma:
@@ -1784,7 +1547,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=1T37Uc4.8aGcDml2YxdJerKiQOvxl9E6dNmnQYmarYU-1789557789.452196-1.0.1.1-X9xs3hGKwZKQUxeS3xWAxxE6Hdi3PPhuXMviy1yPBa4FiVjB_QuLyvizG76P6cXTOHcDSO.U.O73PxgpoU4.O0PNUOxAaCIl604.E_9GL.X0c6ceU4dOqdtrS5hvsVQk; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:09 GMT
+                - __cf_bm=upsQaCfpdqvmFAXKFFcq3rwnTzZe8MA8_gh4goeRRuk-1789761570.7687669-1.0.1.1-N35ObjFUdkPFZQUU_f_I5N1cyM46kSBatARMpTeYuJ7zPUUQq925OYDiGnJxk0tytz_bVczzVAf0h9mFWPXnWseCY1sVl8Bo4..1oRD.K4zcLvcUYg0NeOaz0oXryq0_; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:30 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -1801,8 +1564,8 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 152.209151ms
-    - id: 27
+        duration: 127.154031ms
+    - id: 23
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1833,11 +1596,11 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f59ff94e507-TXL
+                - a3d2ee7a1e2aaf15-TXL
             Content-Type:
                 - application/json;charset=UTF-8
             Date:
-                - Wed, 16 Sep 2026 11:23:09 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Expires:
                 - "0"
             Pragma:
@@ -1845,7 +1608,7 @@ interactions:
             Server:
                 - cloudflare
             Set-Cookie:
-                - __cf_bm=drOaRTA_UUEeKGqhmfIq8sOmTpA_jJpbQH2Umvjow18-1789557789.7589886-1.0.1.1-qDueBublgvPhecb_fTbDdPZnLq9HCTWU1ROKfE_oRzYArnNLvkg1AMul_uZ3kLPg.GQtJe69z8koSSrTNt8PzqWHsWssCcfPNLHo0zPUQudunNnmgrXOuVWpyZc2fgnc; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Wed, 16 Sep 2026 11:53:09 GMT
+                - __cf_bm=2Gy_CIqwpC.gsfCr8ZD4LbdP4YYhFd5OOxQNy4Uw604-1789761570.8982923-1.0.1.1-yZh92047XIVZ.GMHlGUQ41tmEjUJwm4rK5C14bHyZLtuDUUdYc2aIbC.hFQ0e3Z32nBueLj0LlNxP1URxUaCdr0lerxm2p3sqYNPJVBKzO1ioMiZU_jmOd.oyBGumovQ; HttpOnly; SameSite=None; Secure; Path=/; Domain=orcid.org; Expires=Fri, 18 Sep 2026 20:29:31 GMT
             Strict-Transport-Security:
                 - max-age=31536000 ; includeSubDomains
             Vary:
@@ -1862,8 +1625,8 @@ interactions:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 156.467241ms
-    - id: 28
+        duration: 132.869694ms
+    - id: 24
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -1889,13 +1652,13 @@ interactions:
             Cf-Cache-Status:
                 - DYNAMIC
             Cf-Ray:
-                - a3bf7f5be846b44a-TXL
+                - a3d2ee7af9fb6e5c-TXL
             Content-Type:
                 - text/html;charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Expires:
-                - Wed, 16 Sep 2026 12:23:02 GMT
+                - Fri, 18 Sep 2026 20:18:52 GMT
             Location:
                 - https://wes.copernicus.org/articles/11/1461/2026/wes-11-1461-2026-discussion.html
             Nel:
@@ -1903,7 +1666,7 @@ interactions:
             Permissions-Policy:
                 - interest-cohort=(),browsing-topics=()
             Report-To:
-                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=fp8be5wKkOdh8Y6DjSKcLviPPMFFVUJEEBQU4ejQUNo67Ozog%2FwcssgFu0SJPOfGmb8acdlJ965LYMqE82cEAzSsyFjVV%2FW2fX1HkqMi20xBLyPTQNp6Hns%3D"}]}'
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CjZ2r03cEsrXI3aku0x0M9K46gmVuqVD1eI38Y6I2Uh7fuJxthdAuIy9KAHm%2Fdq56fhwij9RIWmzRVRTbcbtaIvUzSIHJ81UKlQ4cR%2BJu%2FqocvSCvajw%2BBg%3D"}]}'
             Server:
                 - cloudflare
             Strict-Transport-Security:
@@ -1913,8 +1676,8 @@ interactions:
                 - Accept
         status: 302 Found
         code: 302
-        duration: 181.058724ms
-    - id: 29
+        duration: 120.047937ms
+    - id: 25
       request:
         proto: ""
         proto_major: 0
@@ -1943,9 +1706,9 @@ interactions:
             Content-Type:
                 - text/html
             Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Expires:
-                - Wed, 16 Sep 2026 11:23:10 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Server:
                 - Apache/2.4.52 (Ubuntu)
             Strict-Transport-Security:
@@ -1954,20 +1717,25 @@ interactions:
                 - Accept-Encoding
         status: 200 OK
         code: 200
-        duration: 37.345937ms
-    - id: 30
+        duration: 24.873702ms
+    - id: 26
       request:
         proto: HTTP/1.1
         proto_major: 1
         proto_minor: 1
         content_length: 0
-        host: api.crossref.org
+        host: api.openalex.org
+        form:
+            filter:
+                - doi:10.5194/wes-2025-217
+            mailto:
+                - chekhov@cdchck.science
         headers:
             Accept:
                 - application/json
             User-Agent:
                 - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://api.crossref.org/works/10.5194/wes-2025-217
+        url: https://api.openalex.org/works?filter=doi:10.5194%2Fwes-2025-217&mailto=chekhov%40cdchck.science
         method: GET
       response:
         proto: HTTP/2.0
@@ -1975,300 +1743,56 @@ interactions:
         proto_minor: 0
         content_length: -1
         uncompressed: true
-        body: '{"status":"ok","message-type":"work","message-version":"1.0.0","message":{"indexed":{"date-parts":[[2026,9,12]],"date-time":"2026-09-12T22:49:08Z","timestamp":1789253348044,"version":"build-2803163510"},"posted":{"date-parts":[[2025,10,30]]},"group-title":"Wind technologies\/Airborne technology","reference-count":0,"publisher":"Copernicus GmbH","license":[{"start":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T00:00:00Z","timestamp":1761782400000},"content-version":"vor","delay-in-days":0,"URL":"https:\/\/creativecommons.org\/licenses\/by\/4.0\/"}],"funder":[{"DOI":"10.13039\/100010661","name":"Horizon 2020 Framework Programme","doi-asserted-by":"publisher","award":["101084216"],"award-info":[{"award-number":["101084216"]}],"id":[{"id":"10.13039\/100010661","id-type":"DOI","asserted-by":"publisher"}]},{"DOI":"10.13039\/501100003246","name":"Nederlandse Organisatie voor Wetenschappelijk Onderzoek","doi-asserted-by":"publisher","award":["17628"],"award-info":[{"award-number":["17628"]}],"id":[{"id":"10.13039\/501100003246","id-type":"DOI","asserted-by":"publisher"}]}],"content-domain":{"domain":[],"crossmark-restriction":false},"short-container-title":[],"abstract":"<jats:p>Abstract. Leading-edge inflatable (LEI) kites are characterized by a pronounced downward curvature of the wing and flow recirculation zones on the pressure side. This study presents novel stereoscopic particle image velocimetry (PIV) measurements of a 1:6.5 rigid scale model of the TU Delft V3 LEI kite. The flow-field measurements were conducted in the Open Jet Facility of Delft University of Technology for two angles of attack and seven chordwise measurement planes positioned between mid-span and tip, and were compared with results from Reynolds-averaged Navier\u2013Stokes (RANS) simulations. The double-curved anhedral wing geometry presented several challenges, such as surface reflections that required careful data processing and the use of a lateral velocity filter. The circulation distribution was analyzed, using both elliptical and rectangular boundary curves, showing good agreement in trends between the vortex-step method (VSM), RANS, and PIV data. The lift and drag coefficients of each chordwise measurement plane were estimated using the Kutta\u2013Joukowski theorem, surface pressure integration of RANS CFD data, and Noca''s method \u2013 an inherently three-dimensional reformulation of the momentum conservation equations expressed solely as surface integrals over the control-volume boundary \u2013 applied here in two dimensions. While the mid-span to tip variation of lift coefficients was in accordance with the anhedral shape and tip-vortex effects, the drag measurements and predictions deviated from the expected behavior by exhibiting negative values. Especially near the tip region, significant discrepancies were observed, attributed to increased measurement uncertainty. The surface pressure integration revealed discrepancies at the strut junction, likely due to local three-dimensional strut-induced flow effects and increased airfoil thickness. This study provides comprehensive validation data for CFD simulations of LEI kites while highlighting the challenges in PIV measurements of double-curved anhedral wings and characterizing local aerodynamic phenomena.<\/jats:p>","DOI":"10.5194\/wes-2025-217","type":"posted-content","created":{"date-parts":[[2025,10,30]],"date-time":"2025-10-30T12:41:37Z","timestamp":1761828097000},"source":"Crossref","is-referenced-by-count":1,"title":["Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry"],"prefix":"10.5194","author":[{"ORCID":"https:\/\/orcid.org\/0000-0003-3164-5648","authenticated-orcid":false,"given":"Jelle Agatho Wilhelm","family":"Poland","sequence":"first","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0003-1486-3643","authenticated-orcid":false,"given":"Erik","family":"Fritz","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]},{"ORCID":"https:\/\/orcid.org\/0000-0002-4112-841X","authenticated-orcid":false,"given":"Roland","family":"Schmehl","sequence":"additional","affiliation":[],"role":[{"vocabulary":"crossref","role":"author"}]}],"member":"3145","container-title":[],"original-title":[],"deposited":{"date-parts":[[2026,5,26]],"date-time":"2026-05-26T10:07:33Z","timestamp":1779790053000},"score":1,"resource":{"primary":{"URL":"https:\/\/wes.copernicus.org\/articles\/11\/1461\/2026\/wes-11-1461-2026-discussion.html"}},"subtitle":[],"short-title":[],"issued":{"date-parts":[[2025,10,30]]},"references-count":0,"URL":"https:\/\/doi.org\/10.5194\/wes-2025-217","relation":{"has-comment":[{"id-type":"doi","id":"10.5194\/wes-2025-217-AC2","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-AC1","asserted-by":"subject"}],"has-review":[{"id-type":"doi","id":"10.5194\/wes-2025-217-RC1","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-2025-217-RC2","asserted-by":"subject"}],"is-preprint-of":[{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"subject"},{"id-type":"doi","id":"10.5194\/wes-11-1461-2026","asserted-by":"object"}]},"subject":[],"published":{"date-parts":[[2025,10,30]]},"subtype":"preprint"}}'
+        body: '{"meta": {"count": 0, "db_response_time_ms": 8, "page": 1, "per_page": 25, "groups_count": null, "x_query": {"oql": "works where DOI is (10.5194/wes-2025-217)", "oqo": {"get_rows": "works", "filter_rows": [{"column_id": "doi", "value": "10.5194/wes-2025-217"}]}, "url": "/works?filter=doi:10.5194%2Fwes-2025-217"}, "cost_usd": 0.0001}, "results": [], "group_by": []}'
         headers:
             Access-Control-Allow-Headers:
-                - X-Requested-With, Accept, Accept-Encoding, Accept-Charset, Accept-Language, Accept-Ranges, Cache-Control
+                - Accept, Accept-Language, Accept-Encoding, Authorization, Content-Type, X-OpenAlex-UI
+            Access-Control-Allow-Methods:
+                - GET, HEAD, POST, OPTIONS
             Access-Control-Allow-Origin:
                 - '*'
             Access-Control-Expose-Headers:
-                - Link
+                - Cache-Control, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Onetime-Remaining, X-RateLimit-Credits-Used, X-RateLimit-Credits-Required, X-RateLimit-Reset, X-RateLimit-Limit-USD, X-RateLimit-Remaining-USD, X-RateLimit-Prepaid-Remaining-USD, X-RateLimit-Cost-USD, X-RateLimit-Cost-Required-USD, Retry-After
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a3d2ee7bfcfee522-TXL
             Content-Type:
                 - application/json
             Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
-            Permissions-Policy:
-                - interest-cohort=()
+                - Fri, 18 Sep 2026 19:59:31 GMT
+            Nel:
+                - '{"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}'
+            Report-To:
+                - '{"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=sJ7oVZd6Qzodm8Gbz4RBbyCvXUUctt4XjRS5GGyJoTA%3D\u0026sid=c46efe9b-d3d2-4a0c-8c76-bfafa16c5add\u0026ts=1789761571"}],"max_age":3600}'
+            Reporting-Endpoints:
+                - heroku-nel="https://nel.heroku.com/reports?s=sJ7oVZd6Qzodm8Gbz4RBbyCvXUUctt4XjRS5GGyJoTA%3D&sid=c46efe9b-d3d2-4a0c-8c76-bfafa16c5add&ts=1789761571"
             Server:
-                - Jetty(9.4.40.v20210413)
-            Vary:
-                - Accept-Encoding
-            X-Api-Pool:
-                - public-single
-            X-Concurrency-Limit:
+                - cloudflare
+            Via:
+                - 1.1 heroku-router
+            X-Ratelimit-Cost-Usd:
+                - "0.0001"
+            X-Ratelimit-Credits-Used:
                 - "1"
-            X-Rate-Limit-Interval:
-                - 1s
-            X-Rate-Limit-Limit:
-                - "5"
+            X-Ratelimit-Limit:
+                - "1000"
+            X-Ratelimit-Limit-Usd:
+                - "0.1"
+            X-Ratelimit-Onetime-Remaining:
+                - "0"
+            X-Ratelimit-Prepaid-Remaining-Usd:
+                - "0"
+            X-Ratelimit-Remaining:
+                - "897"
+            X-Ratelimit-Remaining-Usd:
+                - "0.0897"
+            X-Ratelimit-Reset:
+                - "14429"
         status: 200 OK
         code: 200
-        duration: 138.101306ms
-    - id: 31
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig04_plane_location.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:28:10 GMT
-            Source-Age:
-                - "54"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "3"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - ee7d0de569110869e45a245f14725e499b564c40
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 9BAC:29C1DE:FFD5D4:11E500A:6AAA7BE8
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557791.823261,VS0,VE0
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 24.044492ms
-    - id: 32
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig06_qualitative_comparison_CFD_PIV.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:28:10 GMT
-            Source-Age:
-                - "54"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "2"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - cdfb91fd0ea8fa393d0b59d6db977bab14c20fd3
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 329E:3590DA:1066190:124DD17:6AAA7BE9
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557791.871096,VS0,VE0
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 22.948267ms
-    - id: 33
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig07_bounds_CFD_PIV_single_row.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:28:10 GMT
-            Source-Age:
-                - "53"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "2"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - a1eac2962546aa806833db293b2235817f27f476
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 9414:AAE0A:106D89D:1255110:6AAA7BE5
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557791.919439,VS0,VE0
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 25.430412ms
-    - id: 34
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: raw.githubusercontent.com
-        headers:
-            User-Agent:
-                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
-        url: https://raw.githubusercontent.com/codecheckers/kite_piv_analysis/HEAD/fig08_gamma_distribution_std.pdf
-        method: GET
-      response:
-        proto: HTTP/2.0
-        proto_major: 2
-        proto_minor: 0
-        content_length: 14
-        body: '404: Not Found'
-        headers:
-            Accept-Ranges:
-                - bytes
-            Access-Control-Allow-Origin:
-                - '*'
-            Content-Length:
-                - "14"
-            Content-Security-Policy:
-                - default-src 'none'; style-src 'unsafe-inline'; sandbox
-            Content-Type:
-                - text/plain; charset=utf-8
-            Cross-Origin-Resource-Policy:
-                - cross-origin
-            Date:
-                - Wed, 16 Sep 2026 11:23:10 GMT
-            Expires:
-                - Wed, 16 Sep 2026 11:28:10 GMT
-            Source-Age:
-                - "53"
-            Strict-Transport-Security:
-                - max-age=31536000
-            Vary:
-                - Authorization,Accept-Encoding
-            Via:
-                - 1.1 varnish
-            X-Cache:
-                - HIT
-            X-Cache-Hits:
-                - "2"
-            X-Content-Type-Options:
-                - nosniff
-            X-Fastly-Request-Id:
-                - 6a7d4235ddca807fa5a1eac8251407dd31ea6700
-            X-Frame-Options:
-                - deny
-            X-Github-Edge-Region:
-                - fra
-            X-Github-Request-Id:
-                - 57F4:2721A6:1082848:126A0D4:6AAA7BE9
-            X-Served-By:
-                - cache-ber1080026-BER
-            X-Timer:
-                - S1789557791.971361,VS0,VE0
-            X-Xss-Protection:
-                - 1; mode=block
-        status: 404 Not Found
-        code: 404
-        duration: 25.934632ms
-    - id: 35
+        duration: 159.997986ms
+    - id: 27
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -2293,21 +1817,21 @@ interactions:
             Cache-Control:
                 - max-age=0, private, must-revalidate
             Content-Security-Policy:
-                - 'default-src ''none''; base-uri ''self''; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src ''self'' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com; font-src github.githubassets.com; form-action ''self'' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors ''none''; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src ''self'' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src ''self''; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com ''sha256-tSjmyPUky1KbRZ0fw9VUil3wFEbeM82rtbJDygGJAXw=''; style-src ''unsafe-inline'' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/'
+                - 'default-src ''none''; base-uri ''self''; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src ''self'' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com api.github.com/cmc_internal/api/; font-src github.githubassets.com; form-action ''self'' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors ''none''; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src ''self'' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com *.googleusercontent.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src ''self''; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com ''sha256-tSjmyPUky1KbRZ0fw9VUil3wFEbeM82rtbJDygGJAXw=''; style-src ''unsafe-inline'' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/'
             Content-Type:
                 - text/html; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:22:58 GMT
+                - Fri, 18 Sep 2026 19:59:23 GMT
             Etag:
-                - W/"1f4ce0aebb7d3c5a8206680451ed783e"
+                - W/"5984fd7d42b46fe93bd069dd7c5e9673"
             Referrer-Policy:
                 - no-referrer-when-downgrade
             Server:
                 - github.com
             Set-Cookie:
-                - _gh_sess=tvBuKgUxGDmx5tApSPAOqlCQBGUr3LOrfRMt1Vh%2BCBvFGtijuazPI9pCCKWm5xenrj3KPO890BFJNaQ6azP4Ybph0cbOWlcNzMrw%2BYNHkwfY1t%2BO8dzJCqGQNJtgLq1RoGeQiIL%2BTh%2BXy9sBAisUgk67olxapL5P0DS6509Otsu190xZllFANUHOiYG0cf3X1BuEkgzf7Npbkz%2FA0SyXsSpWSfWamHwTqmIoxmmlnCmsIdnKdZh2A%2FeV02948h9YKLjdKrvD7HvdmlxOYDIe1g%3D%3D--cg5TSiVaRuBf9ytN--j05KcIij4s5QfJhQGBVChw%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
-                - _octo=GH1.1.529495816.1789557791; expires=Thu, 16 Sep 2027 11:23:11 GMT; domain=.github.com; path=/; secure; SameSite=Lax
-                - logged_in=no; expires=Thu, 16 Sep 2027 11:23:11 GMT; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax
+                - _gh_sess=T%2FmAH%2FUQER2Q3ZoO8IjJe3IJfNPIr9UjmRiy4DpQ8i6XrKmsmDguHFzqgHgQzaA38PGz3WGxrcTt6E%2F5J1iFamBjxs4qrOzUk70LDqHBtHv9ap%2Fu7MkLoNAUh4MuLduWQJQnW2qGN%2B%2Fx5psvwUGihdo6AyhCScTPkWOFFr84bA6fsJI6PFXCSvT4Yr94D8mabV6cxDdwFSwVzM8efOeDHvrxQld4NkCYUQdDA9BhWmmFRF0Z6l9vQLJP53wSkSE9%2Fp4EPK7nefR84BRJ8Ehj%2BQ%3D%3D--Ohx4S8zWXiQ3qDGd--lPPYJOEy7Og1%2Bn%2Bx8y9ehw%3D%3D; path=/; HttpOnly; secure; SameSite=Lax
+                - _octo=GH1.1.1271456662.1789761571; expires=Sat, 18 Sep 2027 19:59:31 GMT; domain=.github.com; path=/; secure; SameSite=Lax
+                - logged_in=no; expires=Sat, 18 Sep 2027 19:59:31 GMT; domain=.github.com; path=/; HttpOnly; secure; SameSite=Lax
             Strict-Transport-Security:
                 - max-age=31536000; includeSubdomains; preload
             Vary:
@@ -2319,13 +1843,13 @@ interactions:
             X-Github-Edge-Region:
                 - fra
             X-Github-Request-Id:
-                - D3C0:32F50:B78178D:A79D0A6:6AAA7C1A
+                - E198:1C229:AAD60:929B9:6AAD9820
             X-Xss-Protection:
                 - "0"
         status: 200 OK
         code: 200
-        duration: 32.607642ms
-    - id: 36
+        duration: 19.61481ms
+    - id: 28
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -2347,7 +1871,7 @@ interactions:
             - chunked
         content_length: -1
         uncompressed: true
-        body: '{"created": "2026-03-09T13:07:42.277005+00:00", "modified": "2026-03-09T13:07:42.659900+00:00", "id": 18890103, "conceptrecid": "18890102", "doi": "10.5281/zenodo.18890103", "conceptdoi": "10.5281/zenodo.18890102", "doi_url": "https://doi.org/10.5281/zenodo.18890103", "metadata": {"title": "CODECHECK Certificate 2026-001", "doi": "10.5281/zenodo.18890103", "publication_date": "2026-03-06", "description": "<p>CODECHECK certificate for publication <a href=\"https://doi.org/10.5194/wes-2025-217\"><span lang=\"EN-US\">Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry</span></a>.</p>\n<p><span lang=\"EN-US\">This codecheck resulted in a partial reproduction of the figures presented in the publication. The authors provided a GitHub repository containing all the necessary code and instructions for reproducing the figures. </span></p>\n<p><span lang=\"EN-US\">Given the runtime of the program is approximately 21 hours, the code was executed on an HPC cluster. Two minor changes were made to the code: 1) the NumPy function &ldquo;trapz&rdquo; was renamed &ldquo;trapezoid&rdquo;, and 2) LaTeX rendering was disabled, as suggested by the author, since it was not available on the HPC system used.</span></p>", "access_right": "open", "creators": [{"name": "Grguric, Josip", "affiliation": "Delft University of Technology", "orcid": "0009-0003-3725-9454"}, {"name": "Quintero, Yasel", "affiliation": "Delft University of Technology", "orcid": "0009-0005-9240-7370"}], "related_identifiers": [{"identifier": "10.5194/wes-2025-217", "relation": "reviews", "resource_type": "publication", "scheme": "doi"}, {"identifier": "https://github.com/codecheckers/kite_piv_analysis", "relation": "isDerivedFrom", "resource_type": "software", "scheme": "url"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2026-001"}, {"identifier": "cdchck.science/register/certs/2026-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "18890102"}}]}}, "title": "CODECHECK Certificate 2026-001", "links": {"self": "https://zenodo.org/api/records/18890103", "self_html": "https://zenodo.org/records/18890103", "preview_html": "https://zenodo.org/records/18890103?preview=1", "doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890103", "reserve_doi": "https://zenodo.org/api/records/18890103/draft/pids/doi", "parent": "https://zenodo.org/api/records/18890102", "parent_html": "https://zenodo.org/records/18890102", "parent_doi": "https://doi.org/10.5281/zenodo.18890102", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890102", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:18890103/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:18890103/sequence/default", "files": "https://zenodo.org/api/records/18890103/files", "media_files": "https://zenodo.org/api/records/18890103/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/18890103/files-archive", "archive_media": "https://zenodo.org/api/records/18890103/media-files-archive", "latest": "https://zenodo.org/api/records/18890103/versions/latest", "latest_html": "https://zenodo.org/records/18890103/latest", "versions": "https://zenodo.org/api/records/18890103/versions", "draft": "https://zenodo.org/api/records/18890103/draft", "access_links": "https://zenodo.org/api/records/18890103/access/links", "access_grants": "https://zenodo.org/api/records/18890103/access/grants", "access_users": "https://zenodo.org/api/records/18890103/access/users", "access_request": "https://zenodo.org/api/records/18890103/access/request", "access": "https://zenodo.org/api/records/18890103/access", "communities": "https://zenodo.org/api/records/18890103/communities", "communities-suggestions": "https://zenodo.org/api/records/18890103/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/18890103/request-deletion", "file_modification": "https://zenodo.org/api/records/18890103/file-modification", "quota_increase": "https://zenodo.org/api/records/18890103/quota-increase", "requests": "https://zenodo.org/api/records/18890103/requests"}, "updated": "2026-03-09T13:07:42.659900+00:00", "recid": "18890103", "revision": 4, "files": [{"id": "6249405c-8996-443e-8737-cec17241b5c1", "key": "CODECHECK_certificate_2026-001.pdf", "size": 1994144, "checksum": "md5:80f04e87ca73589adf3b466fbea1bb4a", "links": {"self": "https://zenodo.org/api/records/18890103/files/CODECHECK_certificate_2026-001.pdf/content"}}], "swh": {}, "owners": [{"id": "520116"}], "status": "published", "stats": {"downloads": 108, "unique_downloads": 99, "views": 414, "unique_views": 365, "version_downloads": 108, "version_unique_downloads": 99, "version_unique_views": 365, "version_views": 414}, "state": "done", "submitted": true}'
+        body: '{"created": "2026-03-09T13:07:42.277005+00:00", "modified": "2026-03-09T13:07:42.659900+00:00", "id": 18890103, "conceptrecid": "18890102", "doi": "10.5281/zenodo.18890103", "conceptdoi": "10.5281/zenodo.18890102", "doi_url": "https://doi.org/10.5281/zenodo.18890103", "metadata": {"title": "CODECHECK Certificate 2026-001", "doi": "10.5281/zenodo.18890103", "publication_date": "2026-03-06", "description": "<p>CODECHECK certificate for publication <a href=\"https://doi.org/10.5194/wes-2025-217\"><span lang=\"EN-US\">Flow Field Analysis of a Leading-Edge Inflatable Kite Rigid Scale Model Using Stereoscopic Particle Image Velocimetry</span></a>.</p>\n<p><span lang=\"EN-US\">This codecheck resulted in a partial reproduction of the figures presented in the publication. The authors provided a GitHub repository containing all the necessary code and instructions for reproducing the figures. </span></p>\n<p><span lang=\"EN-US\">Given the runtime of the program is approximately 21 hours, the code was executed on an HPC cluster. Two minor changes were made to the code: 1) the NumPy function &ldquo;trapz&rdquo; was renamed &ldquo;trapezoid&rdquo;, and 2) LaTeX rendering was disabled, as suggested by the author, since it was not available on the HPC system used.</span></p>", "access_right": "open", "creators": [{"name": "Grguric, Josip", "affiliation": "Delft University of Technology", "orcid": "0009-0003-3725-9454"}, {"name": "Quintero, Yasel", "affiliation": "Delft University of Technology", "orcid": "0009-0005-9240-7370"}], "related_identifiers": [{"identifier": "10.5194/wes-2025-217", "relation": "reviews", "resource_type": "publication", "scheme": "doi"}, {"identifier": "https://github.com/codecheckers/kite_piv_analysis", "relation": "isDerivedFrom", "resource_type": "software", "scheme": "url"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2026-001"}, {"identifier": "cdchck.science/register/certs/2026-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "18890102"}}]}}, "title": "CODECHECK Certificate 2026-001", "links": {"self": "https://zenodo.org/api/records/18890103", "self_html": "https://zenodo.org/records/18890103", "preview_html": "https://zenodo.org/records/18890103?preview=1", "doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi": "https://doi.org/10.5281/zenodo.18890103", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890103", "reserve_doi": "https://zenodo.org/api/records/18890103/draft/pids/doi", "parent": "https://zenodo.org/api/records/18890102", "parent_html": "https://zenodo.org/records/18890102", "parent_doi": "https://doi.org/10.5281/zenodo.18890102", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.18890102", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:18890103/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:18890103/sequence/default", "files": "https://zenodo.org/api/records/18890103/files", "media_files": "https://zenodo.org/api/records/18890103/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:18890103:CODECHECK_certificate_2026-001.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/18890103/files-archive", "archive_media": "https://zenodo.org/api/records/18890103/media-files-archive", "latest": "https://zenodo.org/api/records/18890103/versions/latest", "latest_html": "https://zenodo.org/records/18890103/latest", "versions": "https://zenodo.org/api/records/18890103/versions", "draft": "https://zenodo.org/api/records/18890103/draft", "access_links": "https://zenodo.org/api/records/18890103/access/links", "access_grants": "https://zenodo.org/api/records/18890103/access/grants", "access_users": "https://zenodo.org/api/records/18890103/access/users", "access_request": "https://zenodo.org/api/records/18890103/access/request", "access": "https://zenodo.org/api/records/18890103/access", "communities": "https://zenodo.org/api/records/18890103/communities", "communities-suggestions": "https://zenodo.org/api/records/18890103/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/18890103/request-deletion", "file_modification": "https://zenodo.org/api/records/18890103/file-modification", "quota_increase": "https://zenodo.org/api/records/18890103/quota-increase", "requests": "https://zenodo.org/api/records/18890103/requests"}, "updated": "2026-03-09T13:07:42.659900+00:00", "recid": "18890103", "revision": 4, "files": [{"id": "6249405c-8996-443e-8737-cec17241b5c1", "key": "CODECHECK_certificate_2026-001.pdf", "size": 1994144, "checksum": "md5:80f04e87ca73589adf3b466fbea1bb4a", "links": {"self": "https://zenodo.org/api/records/18890103/files/CODECHECK_certificate_2026-001.pdf/content"}}], "swh": {}, "owners": [{"id": "520116"}], "status": "published", "stats": {"downloads": 109, "unique_downloads": 100, "views": 428, "unique_views": 379, "version_downloads": 109, "version_unique_downloads": 100, "version_unique_views": 379, "version_views": 428}, "state": "done", "submitted": true}'
         headers:
             Access-Control-Allow-Origin:
                 - '*'
@@ -2358,7 +1882,7 @@ interactions:
             Content-Type:
                 - application/json
             Date:
-                - Wed, 16 Sep 2026 11:23:11 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Etag:
                 - W/"4"
             Link:
@@ -2368,7 +1892,7 @@ interactions:
             Referrer-Policy:
                 - strict-origin-when-cross-origin
             Retry-After:
-                - "10"
+                - "48"
             Server:
                 - nginx
             Strict-Transport-Security:
@@ -2382,17 +1906,17 @@ interactions:
             X-Ratelimit-Limit:
                 - "133"
             X-Ratelimit-Remaining:
-                - "114"
+                - "121"
             X-Ratelimit-Reset:
-                - "1789557802"
+                - "1789761620"
             X-Source:
                 - api
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 201.00217ms
-    - id: 37
+        duration: 106.697654ms
+    - id: 29
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -2561,13 +2085,13 @@ interactions:
             Cross-Origin-Resource-Policy:
                 - cross-origin
             Date:
-                - Wed, 16 Sep 2026 11:23:11 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Etag:
                 - W/"4a24dc513242cf377272710a661dce0199827ccb4f8cd124aa8c2929c20d986a"
             Expires:
-                - Wed, 16 Sep 2026 11:28:11 GMT
+                - Fri, 18 Sep 2026 20:04:31 GMT
             Source-Age:
-                - "184"
+                - "7"
             Strict-Transport-Security:
                 - max-age=31536000
             Vary:
@@ -2577,27 +2101,27 @@ interactions:
             X-Cache:
                 - HIT
             X-Cache-Hits:
-                - "8"
+                - "3"
             X-Content-Type-Options:
                 - nosniff
             X-Fastly-Request-Id:
-                - d6e6066c257318d49aa12db25f6f292ff7faf341
+                - dd98eb02c0a406ce63364c110c8415595e845dfd
             X-Frame-Options:
                 - deny
             X-Github-Edge-Region:
                 - fra
             X-Github-Request-Id:
-                - 636E:BD011:1033385:12173BB:6AAA79C2
+                - 5EF8:372794:128FC:14529:6AAD981B
             X-Served-By:
-                - cache-ber1080026-BER
+                - cache-fra-etou8220152-FRA
             X-Timer:
-                - S1789557792.502882,VS0,VE0
+                - S1789761571.499670,VS0,VE0
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 23.164985ms
-    - id: 38
+        duration: 23.139424ms
+    - id: 30
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -2618,20 +2142,20 @@ interactions:
         content_length: -1
         uncompressed: true
         body: |
-            name,longname,label,logo_url,website_url,policy_url,publisher,contact_name,contact_email,description,identifiers,wikidata
-            GigaScience,GigaScience,journal,https://codecheck.org.uk/img/gigascience_logo.svg,https://academic.oup.com/gigascience,http://gigasciencejournal.com/blog/codecheck-certificate/,GigaScience Press,,,"GigaScience is an open-access, open-data journal published by Oxford University Press and GigaScience Press, focusing on ""big data"" research across computational biology, genomics, metagenomics and the life and biomedical sciences. Publication requires open and FAIR data, code and methods alongside the article, with reproducibility and usability as explicit review criteria. It runs an open peer-review process, supported by companion platforms such as the GigaDB dataset repository.","ISSN|fa-book|2047-217X|https://portal.issn.org/resource/ISSN/2047-217X",Q19969338
-            J Geogr Syst,Journal of Geographical Systems,journal,https://codecheck.org.uk/img/JGSY-logo.jpg,https://www.springer.com/journal/10109,https://link.springer.com/article/10.1007/s10109-021-00364-4,Springer,,,"The Journal of Geographical Systems is a quarterly peer-reviewed journal published by Springer, founded in 1999 by Manfred M. Fischer and Arthur Getis. It covers geographical information, mathematical modelling, spatial analysis, regional science, geography, environmental science, planning and decision-making. It is indexed in Scopus, Web of Science and EconLit.","ISSN (print)|fa-book|1435-5930|https://portal.issn.org/resource/ISSN/1435-5930;ISSN (online)|fa-book|1435-5949|https://portal.issn.org/resource/ISSN/1435-5949",Q15716507
-            J Archaeol Sci,Journal of Archaeological Science,journal,https://ars.els-cdn.com/content/image/X03054403.jpg,https://www.sciencedirect.com/journal/journal-of-archaeological-science,,Elsevier,,,"The Journal of Archaeological Science is a monthly peer-reviewed journal published by Elsevier, established in 1974, focused on the development and application of scientific techniques and methodologies across all areas of archaeology. It bridges scientific methods with archaeological inquiry, covering archaeometry, bioarchaeology, geoarchaeology and related computational approaches. It operates a hybrid open-access model and is indexed in Scopus and the Science Citation Index.","ISSN (print)|fa-book|0305-4403|https://portal.issn.org/resource/ISSN/0305-4403;ISSN (online)|fa-book|1095-9238|https://portal.issn.org/resource/ISSN/1095-9238",Q32246
-            GigaByte,GigaByte,journal,https://codecheck.org.uk/img/gigabyte_logo.svg,https://gigabytejournal.com/,http://gigasciencejournal.com/blog/frictionless-data-interactive-figures/,GigaScience Press,,,"GigaByte is an open-access journal from GigaScience Press covering complex, large-scale data research across the life sciences. Authors must make supporting data and source code publicly available, hosted alongside the article via the companion GigaDB database. The journal runs an open, transparent peer-review process built around the UNESCO Open Science Recommendation.","ISSN|fa-book|2709-4715|https://portal.issn.org/resource/ISSN/2709-4715",Q115250122
-            AGILEGIS,AGILE Conference on Geographic Information Science,conference,https://codecheck.org.uk/img/reproducible-AGILE-logo-square.svg,https://agile-gi.eu,https://reproducible-agile.github.io/,AGILE (Association of Geographic Information Laboratories in Europe),,,"AGILE is the Association of Geographic Information Laboratories in Europe, a membership organisation connecting geographic information researchers and educators across the continent. It runs an annual international conference on geographic information science, alongside PhD schools, research initiatives and open science programmes. AGILE places particular emphasis on reproducible research practice in GIScience.","ConfIDent|fa-calendar|AGILE-GI series|https://www.confident-conference.org/index.php/Event_Series:D4685b15-8c8f-4271-a527-6abca54205ec",Q105698413
-            codecheck,CODECHECK,community,https://codecheck.org.uk/img/codecheck_logo.svg,https://codecheck.org.uk,,,,,"CODECHECK is an initiative supporting the independent execution and verification of the code underlying scholarly research articles. Trained codecheckers rerun a paper's computations and award a certificate of executable computation when they succeed. The initiative partners with journals, conferences and institutions worldwide, including institutional programmes such as CODECHECK NL.",,Q141254550
-            codecheck NL,CODECHECK NL,check-nl,,,,,,,,,Q141254551
-            in press,In press,journal,,,,,,,,,
-            preprint,Preprint,preprint,,,,,,,,,Q580922
-            AUMC,Amsterdam UMC,institution,https://www.amsterdamumc.org/static/researchpresentation/images/logo-amsterdamumc.svg,,,,,,"Amsterdam UMC's computational reproducibility initiative documents work to understand and improve the reproducibility of computational research at the medical center. It centers on producing reproduction packages for published studies and on community engagement activities such as training and outreach. The report, led by researchers including Samuel Langton and Thomas Pronk, addresses version control, software management and replication practices, with the full report at <a href=""https://zenodo.org/records/15095022"" target=""_blank"" rel=""noopener"">https://zenodo.org/records/15095022</a>.","ROR|fa-university|05grdyy37|https://ror.org/05grdyy37",Q56682938
-            Lifecycle Journal,Lifecycle Journal,lifecycle journal,https://codecheck.org.uk/img/lifecyclejournal_logo.png,https://lifecyclejournal.org/,,,,,"Lifecycle Journal is a research-publishing pilot from the Center for Open Science that lets researchers share and publish outputs at any stage of the research lifecycle, not just the final paper. It puts publishing and peer review under community control, aiming to increase trustworthiness and reduce bias in scholarly communication. The pilot has since closed to new submissions.","ISSN|fa-book|3069-2229",Q141249936
-            TU Delft DCC,TU Delft Digital Competence Centre,institution,https://upload.wikimedia.org/wikipedia/de/b/b5/TU_Delft_Logo.svg,https://www.tudelft.nl/digital-competence-centre,,,,,"The Digital Competence Centre (DCC) is TU Delft's institutional hub supporting researchers across all disciplines with data management, research software development and computational workflows. It offers hands-on project support, office hours, training workshops and reproducibility assessments. Its FAIR4RS mentoring programme helps researchers make their software outputs findable, accessible, interoperable and reusable.","Wikidata|fa-database|Q141254549|https://www.wikidata.org/wiki/Q141254549",Q141254549
-            JOSIS,Journal of Spatial Information Science,journal,https://ram.raumplanung.tu-dortmund.de/storages/ram-raumplanung/_processed_/1/b/csm_josis_cover_2023_2_385aad9109.png,https://josis.org,,University of Maine,,,"The Journal of Spatial Information Science (JOSIS) is an international, open-access, volunteer-run journal publishing original research in spatial and geographic information science. Its scope spans theoretical foundations through to computational methods and practical applications of geospatial technology. All published articles are freely accessible at no cost to authors or readers.","ISSN|fa-book|1948-660X|https://portal.issn.org/resource/ISSN/1948-660X",Q50814880
+            name,longname,label,logo_url,website_url,policy_url,publisher,contact_name,contact_email,description,identifiers,wikidata,fediverse,hashtags
+            GigaScience,GigaScience,journal,https://codecheck.org.uk/img/gigascience_logo.svg,https://academic.oup.com/gigascience,http://gigasciencejournal.com/blog/codecheck-certificate/,GigaScience Press,,,"GigaScience is an open-access, open-data journal published by Oxford University Press and GigaScience Press, focusing on ""big data"" research across computational biology, genomics, metagenomics and the life and biomedical sciences. Publication requires open and FAIR data, code and methods alongside the article, with reproducibility and usability as explicit review criteria. It runs an open peer-review process, supported by companion platforms such as the GigaDB dataset repository.","ISSN|fa-book|2047-217X|https://portal.issn.org/resource/ISSN/2047-217X",Q19969338,@GigaScience@mastodon.social,
+            J Geogr Syst,Journal of Geographical Systems,journal,https://codecheck.org.uk/img/JGSY-logo.jpg,https://www.springer.com/journal/10109,https://link.springer.com/article/10.1007/s10109-021-00364-4,Springer,,,"The Journal of Geographical Systems is a quarterly peer-reviewed journal published by Springer, founded in 1999 by Manfred M. Fischer and Arthur Getis. It covers geographical information, mathematical modelling, spatial analysis, regional science, geography, environmental science, planning and decision-making. It is indexed in Scopus, Web of Science and EconLit.","ISSN (print)|fa-book|1435-5930|https://portal.issn.org/resource/ISSN/1435-5930;ISSN (online)|fa-book|1435-5949|https://portal.issn.org/resource/ISSN/1435-5949",Q15716507,@JGeoSys@mapstodon.space,
+            J Archaeol Sci,Journal of Archaeological Science,journal,https://ars.els-cdn.com/content/image/X03054403.jpg,https://www.sciencedirect.com/journal/journal-of-archaeological-science,,Elsevier,,,"The Journal of Archaeological Science is a monthly peer-reviewed journal published by Elsevier, established in 1974, focused on the development and application of scientific techniques and methodologies across all areas of archaeology. It bridges scientific methods with archaeological inquiry, covering archaeometry, bioarchaeology, geoarchaeology and related computational approaches. It operates a hybrid open-access model and is indexed in Scopus and the Science Citation Index.","ISSN (print)|fa-book|0305-4403|https://portal.issn.org/resource/ISSN/0305-4403;ISSN (online)|fa-book|1095-9238|https://portal.issn.org/resource/ISSN/1095-9238",Q32246,,
+            GigaByte,GigaByte,journal,https://codecheck.org.uk/img/gigabyte_logo.svg,https://gigabytejournal.com/,http://gigasciencejournal.com/blog/frictionless-data-interactive-figures/,GigaScience Press,,,"GigaByte is an open-access journal from GigaScience Press covering complex, large-scale data research across the life sciences. Authors must make supporting data and source code publicly available, hosted alongside the article via the companion GigaDB database. The journal runs an open, transparent peer-review process built around the UNESCO Open Science Recommendation.","ISSN|fa-book|2709-4715|https://portal.issn.org/resource/ISSN/2709-4715",Q115250122,@GigaByte@mas.to,
+            AGILEGIS,AGILE Conference on Geographic Information Science,conference,https://codecheck.org.uk/img/reproducible-AGILE-logo-square.svg,https://agile-gi.eu,https://reproducible-agile.github.io/,AGILE (Association of Geographic Information Laboratories in Europe),,,"AGILE is the Association of Geographic Information Laboratories in Europe, a membership organisation connecting geographic information researchers and educators across the continent. It runs an annual international conference on geographic information science, alongside PhD schools, research initiatives and open science programmes. AGILE places particular emphasis on reproducible research practice in GIScience.","ConfIDent|fa-calendar|AGILE-GI series|https://www.confident-conference.org/index.php/Event_Series:D4685b15-8c8f-4271-a527-6abca54205ec",Q105698413,,
+            codecheck,CODECHECK,community,https://codecheck.org.uk/img/codecheck_logo.svg,https://codecheck.org.uk,,,,,"CODECHECK is an initiative supporting the independent execution and verification of the code underlying scholarly research articles. Trained codecheckers rerun a paper's computations and award a certificate of executable computation when they succeed. The initiative partners with journals, conferences and institutions worldwide, including institutional programmes such as CODECHECK NL.",,Q141254550,@codecheck@fediscience.org,
+            codecheck NL,CODECHECK NL,check-nl,,,,,,,,,Q141254551,,
+            in press,In press,journal,,,,,,,,,,,
+            preprint,Preprint,preprint,,,,,,,,,Q580922,,
+            AUMC,Amsterdam UMC,institution,https://www.amsterdamumc.org/static/researchpresentation/images/logo-amsterdamumc.svg,,,,,,"Amsterdam UMC's computational reproducibility initiative documents work to understand and improve the reproducibility of computational research at the medical center. It centers on producing reproduction packages for published studies and on community engagement activities such as training and outreach. The report, led by researchers including Samuel Langton and Thomas Pronk, addresses version control, software management and replication practices, with the full report at <a href=""https://zenodo.org/records/15095022"" target=""_blank"" rel=""noopener"">https://zenodo.org/records/15095022</a>.","ROR|fa-university|05grdyy37|https://ror.org/05grdyy37",Q56682938,,
+            Lifecycle Journal,Lifecycle Journal,lifecycle journal,https://codecheck.org.uk/img/lifecyclejournal_logo.png,https://lifecyclejournal.org/,,,,,"Lifecycle Journal is a research-publishing pilot from the Center for Open Science that lets researchers share and publish outputs at any stage of the research lifecycle, not just the final paper. It puts publishing and peer review under community control, aiming to increase trustworthiness and reduce bias in scholarly communication. The pilot has since closed to new submissions.","ISSN|fa-book|3069-2229",Q141249936,@CenterforOpenScience@fosstodon.org,
+            TU Delft DCC,TU Delft Digital Competence Centre,institution,https://upload.wikimedia.org/wikipedia/de/b/b5/TU_Delft_Logo.svg,https://www.tudelft.nl/digital-competence-centre,,,,,"The Digital Competence Centre (DCC) is TU Delft's institutional hub supporting researchers across all disciplines with data management, research software development and computational workflows. It offers hands-on project support, office hours, training workshops and reproducibility assessments. Its FAIR4RS mentoring programme helps researchers make their software outputs findable, accessible, interoperable and reusable.","Wikidata|fa-database|Q141254549|https://www.wikidata.org/wiki/Q141254549",Q141254549,@tudelft@social.edu.nl,
+            JOSIS,Journal of Spatial Information Science,journal,https://ram.raumplanung.tu-dortmund.de/storages/ram-raumplanung/_processed_/1/b/csm_josis_cover_2023_2_385aad9109.png,https://josis.org,,University of Maine,,,"The Journal of Spatial Information Science (JOSIS) is an international, open-access, volunteer-run journal publishing original research in spatial and geographic information science. Its scope spans theoretical foundations through to computational methods and practical applications of geospatial technology. All published articles are freely accessible at no cost to authors or readers.","ISSN|fa-book|1948-660X|https://portal.issn.org/resource/ISSN/1948-660X",Q50814880,,
         headers:
             Accept-Ranges:
                 - bytes
@@ -2646,13 +2170,13 @@ interactions:
             Cross-Origin-Resource-Policy:
                 - cross-origin
             Date:
-                - Wed, 16 Sep 2026 11:23:11 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Etag:
-                - W/"c78d2bf2a231fefca67d97074a78b5b0f8db791fcee71744095201413a4982a8"
+                - W/"5399534e5a8c3512cd0a0868a47894afb55b3aad094dfc5161d93e49f77d3554"
             Expires:
-                - Wed, 16 Sep 2026 11:28:11 GMT
+                - Fri, 18 Sep 2026 20:04:31 GMT
             Source-Age:
-                - "183"
+                - "7"
             Strict-Transport-Security:
                 - max-age=31536000
             Vary:
@@ -2662,27 +2186,27 @@ interactions:
             X-Cache:
                 - HIT
             X-Cache-Hits:
-                - "4"
+                - "3"
             X-Content-Type-Options:
                 - nosniff
             X-Fastly-Request-Id:
-                - 971b4dadc8e0ec22f70284f91919b04c14303e00
+                - 6cc94906f24f634f849a0c4b42910b27adcf74cb
             X-Frame-Options:
                 - deny
             X-Github-Edge-Region:
                 - fra
             X-Github-Request-Id:
-                - 42B4:33533:1014B93:11F8933:6AAA79C1
+                - A07A:17BB:1077B:121E2:6AAD981A
             X-Served-By:
-                - cache-ber1080026-BER
+                - cache-fra-etou8220152-FRA
             X-Timer:
-                - S1789557792.555643,VS0,VE0
+                - S1789761572.524376,VS0,VE0
             X-Xss-Protection:
                 - 1; mode=block
         status: 200 OK
         code: 200
-        duration: 26.86243ms
-    - id: 39
+        duration: 26.28915ms
+    - id: 31
       request:
         proto: HTTP/1.1
         proto_major: 1
@@ -2702,26 +2226,26 @@ interactions:
         proto_minor: 0
         content_length: -1
         uncompressed: true
-        body: '{"url":"https://api.github.com/repos/codecheckers/register/issues/187","repository_url":"https://api.github.com/repos/codecheckers/register","labels_url":"https://api.github.com/repos/codecheckers/register/issues/187/labels{/name}","comments_url":"https://api.github.com/repos/codecheckers/register/issues/187/comments","events_url":"https://api.github.com/repos/codecheckers/register/issues/187/events","html_url":"https://github.com/codecheckers/register/issues/187","id":4000723026,"node_id":"I_kwDODmS3O87udjBS","number":187,"title":"Jelle Poland, Erik Fritz and Roland Schmehl | 2026-001","user":{"login":"yiquintero","id":126678808,"node_id":"U_kgDOB4z3GA","avatar_url":"https://avatars.githubusercontent.com/u/126678808?v=4","gravatar_id":"","url":"https://api.github.com/users/yiquintero","html_url":"https://github.com/yiquintero","followers_url":"https://api.github.com/users/yiquintero/followers","following_url":"https://api.github.com/users/yiquintero/following{/other_user}","gists_url":"https://api.github.com/users/yiquintero/gists{/gist_id}","starred_url":"https://api.github.com/users/yiquintero/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/yiquintero/subscriptions","organizations_url":"https://api.github.com/users/yiquintero/orgs","repos_url":"https://api.github.com/users/yiquintero/repos","events_url":"https://api.github.com/users/yiquintero/events{/privacy}","received_events_url":"https://api.github.com/users/yiquintero/received_events","type":"User","user_view_type":"public","site_admin":false},"labels":[{"id":2104386107,"node_id":"MDU6TGFiZWwyMTA0Mzg2MTA3","url":"https://api.github.com/repos/codecheckers/register/labels/id%20assigned","name":"id assigned","color":"ba5e21","default":false,"description":"CODECHECK ID is assigned, please note when assigning new ones","archived_at":null,"archived_by":null}],"state":"closed","locked":false,"assignees":[{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false}],"milestone":null,"comments":1,"created_at":"2026-02-27T12:08:06Z","updated_at":"2026-03-09T13:21:54Z","closed_at":"2026-03-09T13:21:54Z","assignee":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"author_association":"NONE","issue_field_values":[],"type":null,"active_lock_reason":null,"sub_issues_summary":{"total":0,"completed":0,"percent_completed":0},"issue_dependencies_summary":{"blocked_by":0,"total_blocked_by":0,"blocking":0,"total_blocking":0},"body":"**Work**: https://doi.org/10.5194/wes-2025-217\n**Repository**: https://github.com/jellepoland/kite_piv_analysis\n**Data**: https://doi.org/10.5281/zenodo.17395913\n\nThis CodeCheck is part of the [TU Delft Digital Competence Centre (DCC)](https://github.com/codecheckers/register/issues/dcc.tudelft.nl) and [4TU.ResearchData](https://data.4tu.nl/) collaboration. The codecheck will be carried out by members of the DCC.","closed_by":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"reactions":{"url":"https://api.github.com/repos/codecheckers/register/issues/187/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"https://api.github.com/repos/codecheckers/register/issues/187/timeline","performed_via_github_app":null,"state_reason":"completed","pinned_comment":null}'
+        body: '{"url":"https://api.github.com/repos/codecheckers/register/issues/187","repository_url":"https://api.github.com/repos/codecheckers/register","labels_url":"https://api.github.com/repos/codecheckers/register/issues/187/labels{/name}","comments_url":"https://api.github.com/repos/codecheckers/register/issues/187/comments","events_url":"https://api.github.com/repos/codecheckers/register/issues/187/events","html_url":"https://github.com/codecheckers/register/issues/187","id":4000723026,"node_id":"I_kwDODmS3O87udjBS","number":187,"title":"Jelle Poland, Erik Fritz and Roland Schmehl | 2026-001","user":{"login":"yiquintero","id":126678808,"node_id":"U_kgDOB4z3GA","avatar_url":"https://avatars.githubusercontent.com/u/126678808?v=4","gravatar_id":"","url":"https://api.github.com/users/yiquintero","html_url":"https://github.com/yiquintero","followers_url":"https://api.github.com/users/yiquintero/followers","following_url":"https://api.github.com/users/yiquintero/following{/other_user}","gists_url":"https://api.github.com/users/yiquintero/gists{/gist_id}","starred_url":"https://api.github.com/users/yiquintero/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/yiquintero/subscriptions","organizations_url":"https://api.github.com/users/yiquintero/orgs","repos_url":"https://api.github.com/users/yiquintero/repos","events_url":"https://api.github.com/users/yiquintero/events{/privacy}","received_events_url":"https://api.github.com/users/yiquintero/received_events","type":"User","user_view_type":"public","site_admin":false},"labels":[{"id":2104386107,"node_id":"MDU6TGFiZWwyMTA0Mzg2MTA3","url":"https://api.github.com/repos/codecheckers/register/labels/id%20assigned","name":"id assigned","color":"ba5e21","default":false,"description":"CODECHECK ID is assigned, please note when assigning new ones","archived_at":null,"archived_by":null}],"state":"closed","locked":false,"assignees":[{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false}],"milestone":null,"comments":1,"created_at":"2026-02-27T12:08:06Z","updated_at":"2026-03-09T13:21:54Z","closed_at":"2026-03-09T13:21:54Z","assignee":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"author_association":"MEMBER","issue_field_values":[],"type":null,"active_lock_reason":null,"sub_issues_summary":{"total":0,"completed":0,"percent_completed":0},"issue_dependencies_summary":{"blocked_by":0,"total_blocked_by":0,"blocking":0,"total_blocking":0},"body":"**Work**: https://doi.org/10.5194/wes-2025-217\n**Repository**: https://github.com/jellepoland/kite_piv_analysis\n**Data**: https://doi.org/10.5281/zenodo.17395913\n\nThis CodeCheck is part of the [TU Delft Digital Competence Centre (DCC)](https://github.com/codecheckers/register/issues/dcc.tudelft.nl) and [4TU.ResearchData](https://data.4tu.nl/) collaboration. The codecheck will be carried out by members of the DCC.","closed_by":{"login":"nuest","id":1325054,"node_id":"MDQ6VXNlcjEzMjUwNTQ=","avatar_url":"https://avatars.githubusercontent.com/u/1325054?v=4","gravatar_id":"","url":"https://api.github.com/users/nuest","html_url":"https://github.com/nuest","followers_url":"https://api.github.com/users/nuest/followers","following_url":"https://api.github.com/users/nuest/following{/other_user}","gists_url":"https://api.github.com/users/nuest/gists{/gist_id}","starred_url":"https://api.github.com/users/nuest/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/nuest/subscriptions","organizations_url":"https://api.github.com/users/nuest/orgs","repos_url":"https://api.github.com/users/nuest/repos","events_url":"https://api.github.com/users/nuest/events{/privacy}","received_events_url":"https://api.github.com/users/nuest/received_events","type":"User","user_view_type":"public","site_admin":false},"reactions":{"url":"https://api.github.com/repos/codecheckers/register/issues/187/reactions","total_count":0,"+1":0,"-1":0,"laugh":0,"hooray":0,"confused":0,"heart":0,"rocket":0,"eyes":0},"timeline_url":"https://api.github.com/repos/codecheckers/register/issues/187/timeline","performed_via_github_app":null,"state_reason":"completed","pinned_comment":null}'
         headers:
-            Accept-Ranges:
-                - bytes
             Access-Control-Allow-Origin:
                 - '*'
             Access-Control-Expose-Headers:
                 - ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning
             Cache-Control:
-                - public, max-age=60, s-maxage=60
+                - private, max-age=60, s-maxage=60
             Content-Security-Policy:
                 - default-src 'none'
             Content-Type:
                 - application/json; charset=utf-8
             Date:
-                - Wed, 16 Sep 2026 11:23:00 GMT
+                - Fri, 18 Sep 2026 19:59:31 GMT
             Etag:
-                - '"36f9a8ac125a3f518edaac21732dd5875cbc9b496c519f7dce86c75920263974"'
+                - W/"bb827dd612c28431353185873a0486eb0d84710e14f69868880d55def751c849"
+            Github-Authentication-Token-Expiration:
+                - 2027-09-19 09:47:28 UTC
             Last-Modified:
-                - Tue, 15 Sep 2026 09:18:27 GMT
+                - Wed, 16 Sep 2026 15:40:54 GMT
             Referrer-Policy:
                 - origin-when-cross-origin, strict-origin-when-cross-origin
             Server:
@@ -2729,7 +2253,9 @@ interactions:
             Strict-Transport-Security:
                 - max-age=31536000; includeSubdomains; preload
             Vary:
-                - Accept,Accept-Encoding, Accept, X-Requested-With
+                - Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+            X-Accepted-Github-Permissions:
+                - issues=read
             X-Content-Type-Options:
                 - nosniff
             X-Frame-Options:
@@ -2741,19 +2267,19 @@ interactions:
             X-Github-Media-Type:
                 - github.v3; format=json
             X-Github-Request-Id:
-                - D39A:27222D:9CD0C38:98B3E41:6AAA7C1B
+                - ED8C:24FD4F:9B624:95CDC:6AAD9821
             X-Ratelimit-Limit:
-                - "60"
+                - "5000"
             X-Ratelimit-Remaining:
-                - "36"
+                - "4933"
             X-Ratelimit-Reset:
-                - "1789560507"
+                - "1789762924"
             X-Ratelimit-Resource:
                 - core
             X-Ratelimit-Used:
-                - "24"
+                - "67"
             X-Xss-Protection:
                 - "0"
         status: 200 OK
         code: 200
-        duration: 32.891066ms
+        duration: 326.179626ms

@@ -100,6 +100,11 @@ type Ranking struct {
 	Suggested []Suggestion
 	Matched   int
 	LeftOut   []Exclusion
+	// SharedLanguages and SharedFields are what the suggestions actually have
+	// in common with the check - the handful that decided the answer, out of
+	// the thirty subjects a metadata source can name for one paper.
+	SharedLanguages []string
+	SharedFields    []string
 	// Undistinguished says every suggestion shares exactly the same thing
 	// with the check, so their order is not a recommendation. A paper written
 	// in plain R matches half the community equally, and pretending the first
@@ -204,6 +209,19 @@ func Rank(codecheckers []Codechecker, evidence Evidence, excluded Excluded, seed
 		ranked = ranked[:Most]
 	}
 	ranking.Suggested = ranked
+	// What the people actually shown share, not what every match did: the
+	// line is there to explain the five names under it, and terms only the
+	// forty who did not make the list share would explain nothing.
+	//
+	// Languages and fields counted apart: a word can be both - "R" is a
+	// language, and somebody's field is "R packages" - and one set across the
+	// two would drop the second silently.
+	for _, suggestion := range ranking.Suggested {
+		ranking.SharedLanguages = append(ranking.SharedLanguages, suggestion.Languages...)
+		ranking.SharedFields = append(ranking.SharedFields, suggestion.Fields...)
+	}
+	ranking.SharedLanguages = Distinct(ranking.SharedLanguages)
+	ranking.SharedFields = Distinct(ranking.SharedFields)
 	sort.SliceStable(left, func(i, j int) bool { return left[i].Handle < left[j].Handle })
 	return ranking
 }

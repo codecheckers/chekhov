@@ -28,6 +28,15 @@ chekhov:
       - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/codecheckers.csv
       - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/institutional-codecheckers.csv
 
+  metadata:
+    # Where the bot asks what a paper is: its title, its authors and what it is
+    # about. "openalex" or "crossref"; see config/settings.go for why OpenAlex
+    # is the default. Crossref is still implemented and one word away.
+    source: ${CHEKHOV_METADATA_SOURCE:-openalex}
+    # OpenAlex asks callers to identify themselves, and puts those who do in a
+    # faster pool. A project address, never a person's.
+    mailto: ${CHEKHOV_METADATA_MAILTO:-chekhov@cdchck.science}
+
   mastodon:
     # Where "@chekhovbot announce"/"follow" act. The token is
     # CHEKHOV_MASTODON_TOKEN; without it both are switched off. See
