@@ -34,7 +34,7 @@ Permissions, under Repository permissions:
 | Permission | Level | Needed for |
 |---|---|---|
 | Metadata | Read | Mandatory, selected automatically |
-| Issues | **Read and write** | Posting the reply; later labels and assignees |
+| Issues | **Read and write** | Posting the reply; reading a check's issue and the register's open issues for `suggest codecheckers`; later labels and assignees |
 | Contents | Read | Reading `register.csv` and `venues.csv` through the API |
 | Pull requests | Read and write | Only for `@chekhovbot register`, which opens the PR against `register.csv` |
 

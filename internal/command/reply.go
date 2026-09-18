@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -686,4 +687,156 @@ func mentions(handles []string) string {
 		written = append(written, mention(handle))
 	}
 	return strings.Join(written, ", ")
+}
+
+// A CodecheckerList is one of the lists people register themselves on, as the
+// reply names it: where it is, and how many people are on it.
+type CodecheckerList struct {
+	// Page is where a person should be sent to read the list.
+	Page string
+	// Count is how many entries it has, negative when it was not counted -
+	// an offline bot links the lists without pretending to know their length.
+	Count int
+	// Problem is why it could not be read, empty when it could or when it was
+	// never tried.
+	Problem string
+}
+
+// CodecheckerListsReply answers "@chekhovbot codecheckers" with a link to each
+// list rather than a copy of it.
+//
+// A copy in an issue is out of date the day somebody registers, while the file
+// stays current; and the lists are long enough that pasting one would bury the
+// conversation it was pasted into.
+func CodecheckerListsReply(lists []CodecheckerList) string {
+	if len(lists) == 0 {
+		return "I have no codechecker lists configured, so I cannot say where they are.\n"
+	}
+
+	var reply strings.Builder
+	reply.WriteString("The codecheckers are listed here - the lists are the current ones, " +
+		"so read them rather than a copy:\n\n")
+	for _, list := range lists {
+		page := list.Page
+		switch {
+		case list.Problem != "":
+			fmt.Fprintf(&reply, "- [%s](%s) — I could not read it just now: %s\n",
+				nameOfList(page), page, oneLine(list.Problem))
+		case list.Count < 0:
+			fmt.Fprintf(&reply, "- [%s](%s)\n", nameOfList(page), page)
+		default:
+			fmt.Fprintf(&reply, "- [%s](%s) — %d entr%s\n",
+				nameOfList(page), page, list.Count, entryPlural(list.Count))
+		}
+	}
+	fmt.Fprintf(&reply, "\nTo be listed, register at [codecheckers/codecheckers]"+
+		"(https://github.com/codecheckers/codecheckers). To find somebody for this check, "+
+		"an editor can ask me: `%s suggest codecheckers`.\n", Bot)
+	return reply.String()
+}
+
+// nameOfList is the file a list URL ends in, which is what people call it.
+func nameOfList(url string) string { return path.Base(url) }
+
+func entryPlural(n int) string {
+	if n == 1 {
+		return "y"
+	}
+	return "ies"
+}
+
+// A Candidate is one suggested codechecker, as the reply shows them. The
+// ranking itself is internal/suggest; this is what a comment says out loud.
+type Candidate struct {
+	Handle string
+	Name   string
+	// Why is what they share with this check, in words.
+	Why string
+}
+
+// A LeftOut is somebody deliberately not suggested, and the reason.
+type LeftOut struct {
+	Handle string
+	Why    string
+}
+
+// Suggestions is the answer to "@chekhovbot suggest codecheckers".
+type Suggestions struct {
+	Candidates []Candidate
+	LeftOut    []LeftOut
+	// Read is what the evidence was taken from, in words.
+	Read []string
+	// Unread is what could not be read, and why; the command answers with
+	// what it has rather than failing on one source.
+	Unread []string
+	// Languages and Fields are what the check was matched on.
+	Languages []string
+	Fields    []string
+	// NotChecked names the exclusions that could not be applied - on the
+	// command line there is no issue, so this check's roles are unknown.
+	NotChecked []string
+	// Considered is how many codecheckers were ranked.
+	Considered int
+}
+
+// SuggestionsReply names the candidates without mentioning them.
+//
+// Every handle is in backticks, deliberately: asking me who could check a paper
+// must not notify half the community. The editor mentions whom they choose.
+func SuggestionsReply(s Suggestions) string {
+	var reply strings.Builder
+
+	if len(s.Candidates) == 0 {
+		reply.WriteString("I have nobody to suggest for this check.\n")
+	} else {
+		fmt.Fprintf(&reply, "Codecheckers who could check this, out of %d on the lists:\n\n",
+			s.Considered)
+		reply.WriteString("| Handle | Codechecker | Declares |\n|---|---|---|\n")
+		for _, candidate := range s.Candidates {
+			fmt.Fprintf(&reply, "| `@%s` | %s | %s |\n", candidate.Handle,
+				oneLine(withoutMentions(candidate.Name)), oneLine(candidate.Why))
+		}
+		reply.WriteString("\nThe handles are written so that nobody is notified by my asking: " +
+			"mention whom you choose, and `" + Bot + " assign @user as codechecker` records it.\n")
+	}
+
+	if matched := describeMatch(s); matched != "" {
+		fmt.Fprintf(&reply, "\nMatched on %s.\n", matched)
+	}
+	if len(s.Read) > 0 {
+		fmt.Fprintf(&reply, "\nRead: %s.\n", strings.Join(s.Read, "; "))
+	}
+	if len(s.LeftOut) > 0 {
+		left := make([]string, 0, len(s.LeftOut))
+		for _, out := range s.LeftOut {
+			left = append(left, fmt.Sprintf("`@%s` (%s)", out.Handle, out.Why))
+		}
+		fmt.Fprintf(&reply, "\nLeft out: %s.\n", strings.Join(left, ", "))
+	}
+	for _, note := range s.NotChecked {
+		fmt.Fprintf(&reply, "\n%s\n", oneLine(note))
+	}
+	for _, problem := range s.Unread {
+		fmt.Fprintf(&reply, "\nI could not read %s.\n", oneLine(problem))
+	}
+	return reply.String()
+}
+
+// withoutMentions writes an at sign so that it cannot notify anybody.
+//
+// A name comes out of a list people fill in about themselves, and a name with
+// an @ in it would mention whoever owns that handle from a reply whose whole
+// promise is that asking me notifies nobody. The entity renders as an @ and
+// links to nothing.
+func withoutMentions(text string) string { return strings.ReplaceAll(text, "@", "&#64;") }
+
+func describeMatch(s Suggestions) string {
+	var matched []string
+	if len(s.Languages) > 0 {
+		matched = append(matched, "languages "+codeList(s.Languages))
+	}
+	if len(s.Fields) > 0 {
+		matched = append(matched, "fields "+codeList(s.Fields))
+	}
+	return strings.Join(matched, " and ")
 }

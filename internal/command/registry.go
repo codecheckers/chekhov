@@ -105,6 +105,20 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    ListCodecheckers,
+		Summary: "Say where the lists of codecheckers are",
+		Usage:   "codecheckers",
+		Group:   GroupPeople,
+		Role:    RoleAnyone,
+	},
+	{
+		Name:    SuggestCodecheckers,
+		Summary: "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
+		Usage:   "suggest codecheckers [<repository>|<DOI>|<certificate>]",
+		Group:   GroupPeople,
+		Role:    RoleEditor,
+	},
+	{
 		Name:    Check,
 		Summary: "Validate a `codecheck.yml` against the CODECHECK rules",
 		Usage:   "check [config|metadata|bundle|references|report|register] <repository, or certificate>",

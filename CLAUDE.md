@@ -394,6 +394,7 @@ exists; read the issues for what does not.
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
 | #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
+| #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
 The `codecheck` R package is the sibling implementation; its own remaining work
@@ -429,6 +430,7 @@ internal/github/    the reply path: the one place that writes to GitHub
 internal/people/    who holds a role: the teams cache, and the per-check record
 internal/mastodon/  the one place that writes to Mastodon
 internal/announce/  the toot about a certificate: data, mentions, length, the GIF
+internal/suggest/   finding a codechecker: the lists, the evidence, the ranking
 internal/testserver/ the offline stub server and its local-only client, for tests
 internal/rules/     the rule catalogue, embedded from the register
 internal/check/     one check function per rule, the runner and the formatting

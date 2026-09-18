@@ -201,6 +201,15 @@ func assignableRoles() string {
 // reader, and one with an HTML comment in it would be worse.
 var gitHubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$`)
 
+// Handle is how a GitHub handle is written wherever this bot keeps one:
+// lowercased, and without the @ somebody typed in front of it. GitHub handles
+// are case-insensitive, and the @ belongs to the sentence rather than to the
+// name. One normaliser, because a handle written two ways is two people to
+// every comparison that matters - a role, a team, an exclusion.
+func Handle(written string) string {
+	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(written), "@"))
+}
+
 // ParseAssignment reads `@user as <role>`, the arguments of assign and remove.
 //
 // "as" is optional, because half the people who write the command will leave
@@ -210,7 +219,7 @@ func ParseAssignment(args []string) (handle string, role Role, err error) {
 	if len(args) == 0 {
 		return "", "", fmt.Errorf("who, and as what? For example `%s assign @octocat as codechecker`", Bot)
 	}
-	handle = strings.TrimPrefix(strings.TrimSpace(args[0]), "@")
+	handle = Handle(args[0])
 	if !gitHubHandle.MatchString(handle) {
 		return "", "", fmt.Errorf("%q is not a GitHub handle", args[0])
 	}

@@ -14,6 +14,7 @@ goes on the first line of the comment, one command per comment.**
 ```bash
 @chekhovbot commands
 @chekhovbot assign @user as codechecker
+@chekhovbot suggest codecheckers
 @chekhovbot check codecheck.yml
 @chekhovbot register
 ```
@@ -33,7 +34,10 @@ register**, and validates a `codecheck.yml` when a comment names the repository
 to read it from. Editors can announce a published certificate on Mastodon with
 `@chekhovbot announce <certificate>`, which previews the toot, and
 `@chekhovbot announce <certificate> confirm`, which posts it; in development
-the toot is a direct message with every mention defused. It runs against
+the toot is a direct message with every mention defused. `@chekhovbot
+codecheckers` says where the codechecker lists are, and an editor can ask
+`@chekhovbot suggest codecheckers` for candidates, named without notifying
+them. It runs against
 [`codecheckers/testing-dev-register`](https://github.com/codecheckers/testing-dev-register)
 only; the production register is not configured anywhere. See
 [`docs/deployment.md`](docs/deployment.md).

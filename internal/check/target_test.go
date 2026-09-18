@@ -157,3 +157,43 @@ func TestAnUnreadableTargetNamesWhatItResolvedTo(t *testing.T) {
 		t.Errorf("the repository the caller just named is repeated back: %v", err)
 	}
 }
+
+func TestTargetIn(t *testing.T) {
+	cases := []struct{ written, target string }{
+		{"github::codecheckers/demo", "github::codecheckers/demo"},
+		{"codecheckers/demo", "codecheckers/demo"},
+		// A link says which platform it is, and says so in the answer.
+		{"https://github.com/codecheckers/demo", "github::codecheckers/demo"},
+		{"https://github.com/codecheckers/demo/tree/HEAD/sub", "github::codecheckers/demo"},
+		{"https://gitlab.com/someorg/project", "gitlab::someorg/project"},
+		{"https://gitlab.com/cdchck/demo.git", "gitlab::cdchck/demo"},
+		{"https://zenodo.org/records/3674056", "zenodo::3674056"},
+		{"https://zenodo.org/record/3674056/files/data.zip", "zenodo::3674056"},
+		{"https://osf.io/abcde/", "osf::abcde"},
+		{"https://osf.io/abcde/files/osfstorage", "osf::abcde"},
+		{"https://osf.io/dashboard", ""},
+		{"https://github.com/codecheckers", ""},
+		{"2020-001", "2020-001"},
+		// A DOI reads as owner/repo and is not one.
+		{"10.5281/zenodo.3674056", ""},
+		{"https://doi.org/10.5281/zenodo.3674056", ""},
+		// In prose a five-letter word is a word, not an OSF project.
+		{"paper", ""},
+		{"12345", ""},
+		{"", ""},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.written, func(t *testing.T) {
+			got := TargetIn(testCase.written)
+			if got != testCase.target {
+				t.Fatalf("TargetIn(%q) = %q, want %q", testCase.written, got, testCase.target)
+			}
+			// Whatever it answers has to be something ResolveTarget reads.
+			if got != "" && !IsCertificateID(got) {
+				if _, err := ResolveTarget(got, nil); err != nil {
+					t.Errorf("ResolveTarget(%q): %v", got, err)
+				}
+			}
+		})
+	}
+}

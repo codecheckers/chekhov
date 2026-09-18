@@ -1,0 +1,211 @@
+package bot
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/codecheckers/chekhov/internal/check"
+	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/suggest"
+)
+
+// Finding a codechecker: where the lists are, and who on them fits this check.
+//
+// See codecheckers/chekhov#24. The ranking itself is internal/suggest; what is
+// here is the reading of the world it ranks on, and the refusals for what this
+// deployment cannot reach.
+
+// Issues is the part of the reply path that reads the register's issues: what
+// a check is about when nobody said, and who is already busy. A Poster that
+// cannot read them - the test recorder, or the command line preview - simply
+// does not, and the reply says which exclusions it could not apply.
+type Issues interface {
+	Issue(ctx context.Context, repository string, issue int) (github.Issue, error)
+	OpenIssues(ctx context.Context, repository string) ([]github.Issue, error)
+}
+
+// The reply path a deployment uses reads them, which a type assertion would
+// otherwise only discover at runtime, as a missing exclusion.
+var _ Issues = (*github.Client)(nil)
+
+// codecheckers says where the lists are, and how long each one is.
+func (s *Server) codecheckers(services *check.Services) string {
+	configured := s.Settings.CodecheckerLists()
+	lists := make([]command.CodecheckerList, 0, len(configured))
+	for _, url := range configured {
+		// The links are worth having offline; the count is the only part of
+		// the answer that needs the network.
+		list := command.CodecheckerList{Page: suggest.PageOf(url), Count: -1}
+		if services.Enabled() {
+			rows, err := services.CSV(url)
+			if err != nil {
+				list.Problem = err.Error()
+			} else {
+				list.Count = len(rows)
+			}
+		}
+		lists = append(lists, list)
+	}
+	return command.CodecheckerListsReply(lists)
+}
+
+// suggestCodecheckers proposes who could check this paper.
+func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed command.Command,
+	services *check.Services) string {
+	hintWords, err := command.ParseSuggestion(parsed.Args)
+	if err != nil {
+		return fmt.Sprintf("%s\n", err)
+	}
+	if !services.Enabled() {
+		return "Suggesting a codechecker means reading the lists, and this bot is not online.\n"
+	}
+
+	codecheckers, unread := suggest.Load(services, s.Settings)
+	if len(codecheckers) == 0 {
+		return "I could not read any codechecker list, so I have nobody to suggest from.\n"
+	}
+
+	text := command.BodyText(event.Body)
+	hints := suggest.Hints(hintWords, text)
+	// With nothing named and nothing pasted, the issue itself is the check.
+	if onlyEmptyText(hints) {
+		hints = append(hints, s.issueAsHints(ctx, event)...)
+	}
+
+	vocabulary := suggest.VocabularyOf(codecheckers)
+	evidence := suggest.Gather(services, vocabulary, hints)
+	if evidence.Empty() {
+		return fmt.Sprintf("I have nothing to go on for this check. Name the repository, "+
+			"the paper's DOI or the certificate, or paste the abstract under the command:\n\n"+
+			"```\n%s suggest codecheckers github::owner/repo\n```\n", command.Bot)
+	}
+
+	excluded, notChecked := s.exclusions(ctx, event)
+	ranked, left := suggest.Rank(codecheckers, evidence, excluded)
+
+	reply := command.Suggestions{
+		Read:       evidence.Sources,
+		Unread:     append(evidence.Unread, listsUnread(unread)...),
+		Languages:  evidence.Languages,
+		Fields:     evidence.Fields,
+		NotChecked: notChecked,
+		Considered: len(codecheckers),
+	}
+	for _, candidate := range ranked {
+		reply.Candidates = append(reply.Candidates, command.Candidate{
+			Handle: candidate.Handle, Name: candidate.Name, Why: candidate.Why(),
+		})
+	}
+	for _, out := range left {
+		reply.LeftOut = append(reply.LeftOut, command.LeftOut{Handle: out.Handle, Why: out.Why})
+	}
+	return command.SuggestionsReply(reply)
+}
+
+// onlyEmptyText reports that the editor named nothing at all.
+func onlyEmptyText(hints []suggest.Hint) bool {
+	for _, hint := range hints {
+		if hint.Kind != "text" || strings.TrimSpace(hint.Value) != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// issueAsHints reads the checks issue as the evidence: its title and its first
+// comment are where the paper and its repository are named.
+func (s *Server) issueAsHints(ctx context.Context, event mention) []suggest.Hint {
+	if event.Issue <= 0 {
+		return nil
+	}
+	reader, ok := s.Replies.(Issues)
+	if !ok {
+		return nil
+	}
+	issue, err := reader.Issue(ctx, event.Repository, event.Issue)
+	if err != nil {
+		s.Logger.Warn("the checks issue could not be read for a suggestion",
+			"issue", event.Issue, "error", err)
+		return nil
+	}
+	return []suggest.Hint{{Kind: "text", Value: issue.Title + "\n" + issue.Body,
+		From: fmt.Sprintf("this check's issue, #%d", event.Issue)}}
+}
+
+// exclusions is who may not be suggested, and what could not be asked.
+//
+// Each part fails softly and says so: an editor is better served by a list
+// with a caveat than by a refusal, as long as the caveat is in the reply.
+func (s *Server) exclusions(ctx context.Context, event mention) (suggest.Excluded, []string) {
+	var excluded suggest.Excluded
+	var notChecked []string
+
+	switch {
+	case event.Issue <= 0 || s.Checks == nil:
+		notChecked = append(notChecked,
+			"I have no check to read here, so I have not left out this paper's authors "+
+				"or anyone already assigned to it.")
+	default:
+		reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+		// A record somebody edited names nobody, exactly as it grants nobody a
+		// role in checkRoles: whoever edited it could have deleted the author
+		// line of the paper they wrote, and being suggested to check it is the
+		// prize for doing so.
+		if err != nil || reading.Tampered != nil {
+			notChecked = append(notChecked,
+				"I could not trust the roles of this check, so I have not left out its authors: "+
+					errors.Join(err, reading.Tampered).Error())
+			break
+		}
+		holders := reading.Record.Holders()
+		excluded.Authors = holders.Authors
+		excluded.OnThisCheck = nonEmpty(holders.AssignedCodechecker, holders.HandlingEditor)
+	}
+
+	reader, ok := s.Replies.(Issues)
+	if !ok {
+		notChecked = append(notChecked,
+			"I cannot read the register's open issues here, so I do not know who is already busy.")
+		return excluded, notChecked
+	}
+	issues, err := reader.OpenIssues(ctx, s.Settings.TargetRepository())
+	if err != nil {
+		notChecked = append(notChecked,
+			"I could not read the register's open issues, so I do not know who is already busy: "+
+				err.Error())
+		return excluded, notChecked
+	}
+	excluded.OpenChecks = map[string]int{}
+	for _, issue := range issues {
+		if issue.Number == event.Issue {
+			// Being assigned to the check somebody is being sought for is not
+			// being busy elsewhere.
+			continue
+		}
+		for _, assignee := range issue.Assignees {
+			excluded.OpenChecks[command.Handle(assignee)]++
+		}
+	}
+	return excluded, notChecked
+}
+
+func listsUnread(lists []string) []string {
+	unread := make([]string, 0, len(lists))
+	for _, list := range lists {
+		unread = append(unread, "the list at "+list)
+	}
+	return unread
+}
+
+func nonEmpty(handles ...string) []string {
+	var kept []string
+	for _, handle := range handles {
+		if strings.TrimSpace(handle) != "" {
+			kept = append(kept, handle)
+		}
+	}
+	return kept
+}

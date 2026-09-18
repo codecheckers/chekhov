@@ -33,8 +33,8 @@ for completeness of the conversational set.
 | `@chekhovbot assign @user as codechecker` | Set the codechecker, assign the issue, record it | MVP |
 | `@chekhovbot remove @user as codechecker` | Unassign and clear the recorded codechecker | MVP |
 | `@chekhovbot assign @user as editor` | Set the editor handling this check | high |
-| `@chekhovbot list codecheckers` | List registered codecheckers from the register | high |
-| `@chekhovbot suggest codecheckers` | Propose candidates by declared expertise vs. the repo's languages | high |
+| `@chekhovbot codecheckers` | Link the lists of registered codecheckers, rather than copy them | high |
+| `@chekhovbot suggest codecheckers` | Propose candidates by declared expertise vs. the repository, the DOI, or a pasted abstract | high |
 | `@chekhovbot invite @user` | Send an org/team invitation to a new codechecker | medium |
 | `@chekhovbot list team <name>` | List members of a codecheckers team | medium |
 | `@chekhovbot add/remove assignee @user` | Manage GitHub assignees without role semantics | medium |

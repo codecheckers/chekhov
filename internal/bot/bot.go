@@ -297,6 +297,10 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.remove(ctx, event, parsed)
 	case command.ListRoles:
 		return s.listRoles(ctx, event, roles)
+	case command.ListCodecheckers:
+		return s.codecheckers(services)
+	case command.SuggestCodecheckers:
+		return s.suggestCodecheckers(ctx, event, parsed, services)
 	case command.Accept:
 		return s.accept(ctx, event, parsed)
 	default:
@@ -1121,5 +1125,8 @@ func Preview(settings *config.Settings, version, commit string, services *check.
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
-	return server.answer(ctx, mention{Author: author}, parsed), true
+	// The body travels with the mention: a command may be followed by prose -
+	// an abstract, an availability statement - and the preview has to read the
+	// same comment a deployment would.
+	return server.answer(ctx, mention{Author: author, Body: body}, parsed), true
 }

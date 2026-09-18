@@ -39,6 +39,13 @@ const (
 	ListRoles Name = "roles"
 	// Accept adopts a roles record the bot did not write.
 	Accept Name = "accept"
+	// ListCodecheckers points at the lists of codecheckers. Named for what it
+	// does rather than for the word people type, as ListRoles is.
+	ListCodecheckers Name = "codecheckers"
+	// SuggestCodecheckers proposes who could check this paper. The word people
+	// type is `suggest`, with what to suggest as an argument, so that the
+	// parser stays one word per command - as `refresh teams` does.
+	SuggestCodecheckers Name = "suggest"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Announce toots about a published certificate.

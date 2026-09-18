@@ -222,7 +222,62 @@ type crossrefWork struct {
 			Family string `json:"family"`
 			ORCID  string `json:"ORCID"`
 		} `json:"author"`
+		// Subject, Abstract and ContainerTitle say what the paper is about.
+		// No rule reads them - they are what `suggest codecheckers` matches a
+		// codechecker's declared fields against, see internal/suggest.
+		Subject        []string `json:"subject"`
+		Abstract       string   `json:"abstract"`
+		ContainerTitle []string `json:"container-title"`
 	} `json:"message"`
+}
+
+// Work is what Crossref says about a DOI, in the terms a caller outside this
+// package speaks: the rules compare the fields of crossrefWork, everybody else
+// wants the paper described.
+type Work struct {
+	Title    string
+	Journal  string
+	Abstract string
+	Subjects []string
+	Authors  []Person
+}
+
+// CrossrefWork asks Crossref about one DOI.
+//
+// Exported for the commands that are about the paper rather than about a rule;
+// the rules reach the same response through crossrefWorkFor, so Crossref is
+// still asked in one place and answered out of one cache.
+func (s *Services) CrossrefWork(doi string) (Work, error) {
+	doi = DOIIn(doi)
+	if doi == "" {
+		return Work{}, fmt.Errorf("that is not a DOI")
+	}
+	if !s.Enabled() {
+		return Work{}, fmt.Errorf("asking Crossref needs the external services")
+	}
+
+	work, err := s.crossrefWorkOf(doi)
+	if err != nil {
+		return Work{}, err
+	}
+
+	described := Work{
+		Abstract: work.Message.Abstract,
+		Subjects: work.Message.Subject,
+	}
+	if len(work.Message.Title) > 0 {
+		described.Title = work.Message.Title[0]
+	}
+	if len(work.Message.ContainerTitle) > 0 {
+		described.Journal = work.Message.ContainerTitle[0]
+	}
+	for _, author := range work.Message.Author {
+		described.Authors = append(described.Authors, Person{
+			Name:  strings.TrimSpace(author.Given + " " + author.Family),
+			ORCID: ORCIDDigits(author.ORCID),
+		})
+	}
+	return described, nil
 }
 
 // rule: CC-MET-005 crossref-title-match
@@ -330,7 +385,7 @@ func crossrefAuthorORCIDMatch(c Context) Result {
 // crossrefWorkFor fetches the work once, and returns the result the caller
 // should report instead when there is nothing to compare against.
 func crossrefWorkFor(c Context, rule string) (crossrefWork, *Result) {
-	doi := doiIn(c.Config.Paper.Reference)
+	doi := DOIIn(c.Config.Paper.Reference)
 	if doi == "" {
 		result := skip("the paper reference is not a DOI")
 		return crossrefWork{}, &result
@@ -340,10 +395,20 @@ func crossrefWorkFor(c Context, rule string) (crossrefWork, *Result) {
 		return crossrefWork{}, &result
 	}
 
-	var work crossrefWork
-	if err := c.Services.getJSON(c.Services.Crossref+"/works/"+doi, nil, &work); err != nil {
-		result := skip(fmt.Sprintf("could not ask Crossref about %s: %s", doi, err))
+	work, err := c.Services.crossrefWorkOf(doi)
+	if err != nil {
+		result := skip(err.Error())
 		return crossrefWork{}, &result
+	}
+	return work, nil
+}
+
+// crossrefWorkOf is the one request to Crossref, for the rules and for
+// CrossrefWork alike.
+func (s *Services) crossrefWorkOf(doi string) (crossrefWork, error) {
+	var work crossrefWork
+	if err := s.getJSON(s.Crossref+"/works/"+doi, nil, &work); err != nil {
+		return crossrefWork{}, fmt.Errorf("could not ask Crossref about %s: %w", doi, err)
 	}
 	return work, nil
 }
@@ -357,9 +422,9 @@ var (
 	notLetters  = regexp.MustCompile(`[^\p{L}\p{N} ]+`)
 )
 
-// doiIn pulls the DOI out of a reference, which may be a bare DOI, a
+// DOIIn pulls the DOI out of a reference, which may be a bare DOI, a
 // doi.org URL, or a URL that carries one.
-func doiIn(reference string) string {
+func DOIIn(reference string) string {
 	match := doiInText.FindString(reference)
 	return strings.TrimRight(match, ".,;)")
 }

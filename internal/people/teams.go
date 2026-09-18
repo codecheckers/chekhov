@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/codecheckers/chekhov/internal/command"
 )
 
 // DefaultTTL is how long a membership list is trusted before it is read again.
@@ -253,8 +255,6 @@ func (t *Teams) log() *slog.Logger {
 	return slog.Default()
 }
 
-// normalize is how a handle is written here: lowercased and without the @
-// somebody typed in front of it. GitHub handles are case-insensitive.
-func normalize(handle string) string {
-	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(handle), "@"))
-}
+// normalize is command.Handle, named short because this package writes it on
+// every read of a membership list.
+func normalize(handle string) string { return command.Handle(handle) }

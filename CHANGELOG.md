@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot codecheckers` says where the lists of codecheckers are, linking
+  each one and naming how many entries it has rather than copying it into the
+  issue, where it would go out of date (codecheckers/chekhov#24).
+- `@chekhovbot suggest codecheckers` proposes at most five codecheckers for a
+  check, ranked by the languages and fields they declare against what the check
+  is about: a repository, the paper's DOI, a certificate identifier, or the
+  abstract or availability statement pasted under the command. Authors of the
+  paper, anyone already on this check and anyone with an open check are left
+  out and named as such, and every handle is written so that asking notifies
+  nobody (codecheckers/chekhov#24).
+
 - Every change to a check's roles is its own record in the thread: the reply
   that confirms an assignment also says who asked for it and when, so the issue
   keeps the history while the roles record keeps the current state - and a

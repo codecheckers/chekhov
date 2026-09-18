@@ -73,6 +73,83 @@ func ResolveTarget(target string, services *Services) (RepositorySpec, error) {
 	return spec, nil
 }
 
+// repositoryURL is a repository named as a link, which is how a person writes
+// one in a comment rather than in register.csv.
+var repositoryURL = regexp.MustCompile(
+	`^https?://(?:www\.)?(github\.com|gitlab\.com|osf\.io|zenodo\.org)/([^\s?#]+)`)
+
+// TargetIn reads a repository out of one word of what somebody wrote: a link
+// to one of the four platforms, a `type::path` spec, an `owner/repo`, or a
+// certificate identifier. It answers empty when the word is only a word.
+//
+// ResolveTarget turns the answer into a RepositorySpec; this is the question
+// before it - is this a target at all? - which a command has to ask of every
+// word in a comment. The two live together so that the forms a person may
+// write are recognised in one place.
+//
+// A bare OSF or Zenodo identifier is deliberately not one of them: every
+// five-letter word in a sentence would be an OSF project. Named on its own to
+// ResolveTarget it still is; found in prose it is not.
+func TargetIn(word string) string {
+	word = strings.TrimSpace(word)
+	if word == "" {
+		return ""
+	}
+	if match := repositoryURL.FindStringSubmatch(word); match != nil {
+		return targetOfURL(match[1], strings.Trim(match[2], "/"))
+	}
+	// Before owner/repo, which a DOI otherwise looks exactly like:
+	// 10.5281/zenodo.3674056 is not a repository called zenodo.3674056.
+	if DOIIn(word) != "" {
+		return ""
+	}
+	if IsRepositorySpec(word) || certificateID.MatchString(word) || ownerRepo.MatchString(word) {
+		return word
+	}
+	return ""
+}
+
+// targetOfURL is the repository a link names, as a `type::path` spec.
+//
+// The platform is written out rather than left to be inferred: a link says
+// which platform it is, and a gitlab.com URL reduced to `owner/repo` would be
+// read as GitHub by everything downstream.
+func targetOfURL(host, path string) string {
+	pieces := strings.Split(path, "/")
+	switch host {
+	case "zenodo.org":
+		// https://zenodo.org/records/3674056, and whatever is under it.
+		for i, piece := range pieces {
+			if (piece == "record" || piece == "records") && i+1 < len(pieces) {
+				return "zenodo::" + pieces[i+1]
+			}
+		}
+		if zenodoNumber.MatchString(pieces[0]) {
+			return "zenodo::" + pieces[0]
+		}
+		return ""
+	case "osf.io":
+		// https://osf.io/abcde, and its files, wiki and registrations.
+		if osfNode.MatchString(pieces[0]) {
+			return "osf::" + pieces[0]
+		}
+		return ""
+	case "gitlab.com":
+		return specOfPath("gitlab", pieces)
+	default:
+		return specOfPath("github", pieces)
+	}
+}
+
+// specOfPath is the owner and the repository of a git platform's URL. What is
+// deeper in it - a file, a tree, a release - is the same repository.
+func specOfPath(platform string, pieces []string) string {
+	if len(pieces) < 2 {
+		return ""
+	}
+	return platform + "::" + pieces[0] + "/" + strings.TrimSuffix(pieces[1], ".git")
+}
+
 // repositoryOfCertificate looks a certificate identifier up in the register
 // the bot works on, which is the only thing that knows where a finished
 // CODECHECK lives.

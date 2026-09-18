@@ -267,7 +267,7 @@ func zenodoRecordFor(c Context, rule string) (zenodoRecord, *Result) {
 var zenodoRecordID = regexp.MustCompile(`zenodo\.([0-9]+)`)
 
 func sameDOI(a, b string) bool {
-	return Normalise(doiIn(a)) != "" && Normalise(doiIn(a)) == Normalise(doiIn(b))
+	return Normalise(DOIIn(a)) != "" && Normalise(DOIIn(a)) == Normalise(DOIIn(b))
 }
 
 // namesOverlap compares two ways of writing the same person, by the longest
