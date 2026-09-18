@@ -508,6 +508,86 @@ type Teams struct {
 	Codecheckers string
 }
 
+// Provenance is what a reply says about where a record came from: whether the
+// bot wrote what it just read, and whether anybody has adopted an edit of it.
+type Provenance struct {
+	// Unsigned says the record carries no signature, which only a deployment
+	// with no key of its own accepts.
+	Unsigned bool
+	// Why is what is wrong with the record, empty when nothing is.
+	Why string
+	// AcceptedBy and AcceptedAt are set when an editor has adopted an edited
+	// record.
+	AcceptedBy, AcceptedAt string
+}
+
+// Sentence is the provenance in words, for the foot of a reply. Empty when
+// there is nothing worth saying: a record the bot wrote and nobody touched.
+func (p Provenance) Sentence() string {
+	var said strings.Builder
+	switch {
+	case p.Why != "":
+		said.WriteString(TamperedNote(p.Why))
+	case p.Unsigned:
+		said.WriteString("\nThis record carries no signature of mine, because I have no key " +
+			"to sign with, so I cannot tell whether it has been edited.\n")
+	}
+	said.WriteString(adoptionNote(p.AcceptedBy, p.AcceptedAt))
+	return said.String()
+}
+
+// AcceptedReply says that an editor has adopted a record the bot did not
+// write.
+func AcceptedReply(holders Holders, editor string, signed bool) string {
+	var reply strings.Builder
+	fmt.Fprintf(&reply, "Adopted. `@%s` is answerable for what this record now says, "+
+		"and I have written that into it.\n\n", editor)
+	reply.WriteString(RolesTable(holders))
+	if signed {
+		reply.WriteString("\nIt is signed again, so I will notice the next time it changes.\n")
+	} else {
+		reply.WriteString("\nI have no key to sign it with, so I still cannot tell " +
+			"whether it changes again.\n")
+	}
+	return reply.String()
+}
+
+// RecordNote is the foot of the comment the bot keeps a check's roles in: what
+// the comment is, and what editing it by hand would and would not do.
+//
+// Here rather than in internal/people because every other rendering of a
+// record is here, and two wordings of the same fact drift.
+func RecordNote(acceptedBy, acceptedAt string, signed bool) string {
+	var note strings.Builder
+	note.WriteString("\nI keep this comment up to date, and I read the record at the top " +
+		"rather than the table")
+	if signed {
+		note.WriteString(", which I sign, so I can tell when any of this has been changed.\n")
+	} else {
+		note.WriteString(". It is unsigned, so I cannot tell whether it has been changed.\n")
+	}
+	note.WriteString(adoptionNote(acceptedBy, acceptedAt))
+	return note.String()
+}
+
+// adoptionNote says that an editor adopted a record the bot did not write. One
+// wording, used in the record comment and in a reply.
+func adoptionNote(by, at string) string {
+	if by == "" {
+		return ""
+	}
+	return fmt.Sprintf("\n`@%s` adopted this record after it was edited, on %s.\n", by, at)
+}
+
+// TamperedNote is what the bot says about a record it did not write: in a
+// reply to a command it will not carry out, and under the roles it still
+// shows.
+func TamperedNote(why string) string {
+	return fmt.Sprintf("\n⚠ **This record is not the one I wrote**: %s. Somebody with write "+
+		"access edited it. I will not change the roles of this check until an editor runs "+
+		"`%s accept roles`, which adopts it as it stands and records who did.\n", why, Bot)
+}
+
 // RolesTable is the per-check roles as a table. One renderer, used by the
 // `roles` reply and by the record comment the bot keeps in the issue, so that
 // the two readings of the same fact cannot drift apart.
@@ -523,9 +603,10 @@ func RolesTable(holders Holders) string {
 
 // RolesReply says who holds which role on this check, and where each role
 // comes from - the issue, or a team the organisation maintains.
-func RolesReply(holders Holders, teams Teams, asker Roles) string {
+func RolesReply(holders Holders, teams Teams, asker Roles, told Provenance) string {
 	var reply strings.Builder
 	reply.WriteString(RolesTable(holders))
+	reply.WriteString(told.Sentence())
 	fmt.Fprintf(&reply, "\nThe standing roles come from the organisation: "+
 		"the `%s` team, and the `%s` team.\n", teams.Editors, teams.Codecheckers)
 

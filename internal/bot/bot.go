@@ -297,6 +297,8 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.remove(ctx, event, parsed)
 	case command.ListRoles:
 		return s.listRoles(ctx, event, roles)
+	case command.Accept:
+		return s.accept(ctx, event, parsed)
 	default:
 		return command.UnknownReply(parsed)
 	}
@@ -377,13 +379,16 @@ func (s *Server) checkRoles(ctx context.Context, event mention, roles command.Ro
 	if event.Issue <= 0 || s.Checks == nil {
 		return roles
 	}
-	record, _, err := s.Checks.Read(ctx, event.Repository, event.Issue)
-	if err != nil {
-		s.Logger.Warn("the roles of this check could not be read",
-			"repository", event.Repository, "issue", event.Issue, "error", err)
+	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	if err != nil || reading.Tampered != nil {
+		// A record somebody edited grants nothing: the roles it names may be
+		// theirs rather than an editor's. The command that needs it says so.
+		s.Logger.Warn("the roles of this check could not be trusted",
+			"repository", event.Repository, "issue", event.Issue,
+			"error", errors.Join(err, reading.Tampered))
 		return roles
 	}
-	for _, role := range record.RolesOf(event.Author) {
+	for _, role := range reading.Record.RolesOf(event.Author) {
 		roles = roles.With(role)
 	}
 	return roles
@@ -412,6 +417,8 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
 		return fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role)
+	case errors.Is(err, people.ErrTampered):
+		return tamperedReply(err)
 	case err != nil:
 		return fmt.Sprintf("%s\n", err)
 	}
@@ -442,6 +449,8 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
 		return command.RemovedReply(role, handle, false)
+	case errors.Is(err, people.ErrTampered):
+		return tamperedReply(err)
 	case err != nil:
 		return fmt.Sprintf("%s\n", err)
 	}
@@ -469,17 +478,56 @@ func (s *Server) listRoles(ctx context.Context, event mention, roles command.Rol
 	if reply, ok := s.noCheck(event); !ok {
 		return reply
 	}
-	record, _, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
 	if err != nil {
 		return fmt.Sprintf("I could not read the roles of this check: %s\n", err)
 	}
-	for _, role := range record.RolesOf(event.Author) {
+	for _, role := range reading.Record.RolesOf(event.Author) {
 		roles = roles.With(role)
 	}
-	return command.RolesReply(record.Holders(), command.Teams{
+	// Shown even when the record cannot be trusted: hiding what it says helps
+	// nobody, and this reply is where an editor finds out it was edited.
+	return command.RolesReply(reading.Record.Holders(), command.Teams{
 		Editors:      s.Settings.EditorsTeam(),
 		Codecheckers: s.Settings.CodecheckersTeam(),
-	}, roles)
+	}, roles, provenanceOf(reading))
+}
+
+// accept adopts a record the bot did not write, so that work can go on.
+func (s *Server) accept(ctx context.Context, event mention, parsed command.Command) string {
+	if reply, ok := s.noCheck(event); !ok {
+		return reply
+	}
+	if what := strings.ToLower(strings.Join(parsed.Args, " ")); what != "" && what != "roles" {
+		return fmt.Sprintf("I can accept `roles`, not %q.\n", what)
+	}
+
+	reading, err := s.Checks.Accept(ctx, event.Repository, event.Issue, event.Author, time.Now())
+	switch {
+	case errors.Is(err, people.ErrUnchanged):
+		return "This record is the one I wrote, so there is nothing to adopt.\n"
+	case err != nil:
+		return fmt.Sprintf("I could not adopt the roles of this check: %s\n", err)
+	}
+	return command.AcceptedReply(reading.Record.Holders(), event.Author, reading.Signed())
+}
+
+// provenanceOf is what a reply says about where a record came from.
+func provenanceOf(reading people.Reading) command.Provenance {
+	told := command.Provenance{
+		Unsigned:   reading.Unsigned,
+		AcceptedBy: reading.AcceptedBy, AcceptedAt: reading.AcceptedAt,
+	}
+	if reading.Tampered != nil {
+		told.Why = reading.Tampered.Error()
+	}
+	return told
+}
+
+// tamperedReply says what the bot will not do, and how to get past it.
+func tamperedReply(err error) string {
+	return command.TamperedNote(err.Error()) +
+		fmt.Sprintf("\n`%s roles` shows what the record says now.\n", command.Bot)
 }
 
 // noCheck refuses the commands that are about one check when there is no
@@ -1033,6 +1081,9 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 			state["token_expires"] = client.TokenExpiry()
 		}
 		state["teams"] = s.teamState()
+		if s.Checks != nil {
+			state["record_key"] = s.Checks.Signer.PublicKey()
+		}
 		state["announce"] = map[string]any{
 			"configured": s.Toots != nil,
 			"account":    s.Settings.Mastodon().Account,

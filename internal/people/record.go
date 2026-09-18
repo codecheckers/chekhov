@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
@@ -33,8 +34,7 @@ import (
 // The comment carries a table for people and a machine-readable block for the
 // bot, inside an HTML comment so a reader sees only the table.
 
-// marker opens the block the record is read back from, and a record comment
-// begins with it.
+// marker opens the record, and a record comment begins with it.
 //
 // Being a comment by the bot is not enough to be the record. The bot quotes
 // people - an unknown command is echoed back, a check report carries strings
@@ -49,6 +49,17 @@ import (
 const marker = "<!-- chekhov:roles "
 
 const markerEnd = " -->"
+
+// signature is the line under the record carrying the bot's signature over it.
+//
+// Outside the payload rather than a field within it, so that what is signed is
+// exactly the bytes between the marker and its end - as they stand in the
+// comment, not as Go would marshal them again. A signature over a re-marshal
+// covers an equivalence class of blocks rather than the one a reader sees:
+// duplicate JSON keys, unknown fields and different spellings of a handle all
+// verify, and an independent verifier has to reproduce Go's encoder to check
+// anything. See docs/record-key.md.
+const signatureMarker = "<!-- chekhov:sig "
 
 // A Record is who holds which per-check role on one issue.
 //
@@ -166,6 +177,16 @@ func (r Record) Revoke(role command.Role, handle string) (Record, bool) {
 	return r, true
 }
 
+// normalized is the record with every handle written the one way.
+func (r Record) normalized() Record {
+	r.HandlingEditor = normalize(r.HandlingEditor)
+	r.AssignedCodechecker = normalize(r.AssignedCodechecker)
+	for i, author := range r.Authors {
+		r.Authors[i] = normalize(author)
+	}
+	return r
+}
+
 // Empty reports whether the check has given out no roles at all.
 func (r Record) Empty() bool {
 	return r.HandlingEditor == "" && r.AssignedCodechecker == "" && len(r.Authors) == 0
@@ -177,60 +198,106 @@ func (r Record) Empty() bool {
 // The block comes first because that is how a record is recognised - see
 // marker. The table is written from the same record, by the same renderer the
 // `roles` reply uses, so the two cannot drift.
-func (r Record) Comment() string {
-	encoded, err := json.Marshal(r)
-	if err != nil {
-		// The record is three strings and a list of strings; this cannot fail
-		// without the type changing, and an empty block reads as "no roles"
-		// rather than as corruption.
-		encoded = []byte("{}")
-	}
-
+func (c content) Comment() string {
 	var body strings.Builder
-	body.WriteString(marker + string(encoded) + markerEnd + "\n\n")
-	body.WriteString(command.RolesTable(r.Holders()))
-	body.WriteString("\nI keep this comment up to date. Editing it by hand changes nothing: " +
-		"I read the block at the top, not the table.\n")
+	body.Write(c.payload)
+	body.WriteString("\n")
+	if c.Signature != "" {
+		body.WriteString(signatureMarker + c.Signature + markerEnd + "\n")
+	}
+	body.WriteString("\n")
+	body.WriteString(command.RolesTable(c.Roles.Holders()))
+	body.WriteString(command.RecordNote(c.AcceptedBy, c.AcceptedAt, c.Signature != ""))
 	return body.String()
 }
 
-// parseRecord reads the block out of a comment the bot wrote.
+// content is a record as a comment carries it: the payload exactly as written,
+// what it decodes to, and the signature over those bytes.
+type content struct {
+	payload []byte
+	record
+	Signature string
+}
+
+// record is what the payload says. Its JSON is what the signature covers, so
+// its field names and shape are part of the record format rather than an
+// implementation detail: see docs/record-key.md.
+type record struct {
+	Version int    `json:"v"`
+	Check   string `json:"check"`
+	Roles   Record `json:"roles"`
+	// AcceptedBy and AcceptedAt record an editor knowingly adopting a record
+	// the bot did not write. Inside the signed payload, so that adopting an
+	// edit is part of the record rather than an invisible reset.
+	AcceptedBy string `json:"accepted_by,omitempty"`
+	AcceptedAt string `json:"accepted_at,omitempty"`
+}
+
+// render writes a record and signs it as written.
+func render(what record, signer *Signer) (content, error) {
+	payload, err := json.Marshal(what)
+	if err != nil {
+		return content{}, err
+	}
+	whole := []byte(marker + string(payload) + markerEnd)
+	return content{payload: whole, record: what, Signature: signer.sign(whole)}, nil
+}
+
+// parseContent reads a record out of a comment the bot wrote.
 //
 // The marker has to open the comment - see marker for why - and appear once.
 // Anything else is a comment that merely mentions the record, which is not the
 // same thing at all.
-func parseRecord(body string) (Record, error) {
+func parseContent(body string) (content, error) {
 	body = strings.TrimLeft(body, " \t\r\n")
 	if !strings.HasPrefix(body, marker) {
-		return Record{}, errNoRecord
+		return content{}, errNoRecord
 	}
 	if strings.Count(body, marker) > 1 {
-		return Record{}, fmt.Errorf("the comment carries more than one roles block")
+		return content{}, fmt.Errorf("the comment carries more than one roles record")
 	}
 
-	rest := body[len(marker):]
+	end := strings.Index(body, markerEnd)
+	if end < 0 {
+		return content{}, fmt.Errorf("the roles record is not closed")
+	}
+	// Exactly the bytes the signature covers, as they stand here.
+	whole := []byte(body[:end+len(markerEnd)])
+	read := content{payload: whole}
+
+	if err := json.Unmarshal([]byte(strings.TrimSpace(body[len(marker):end])), &read.record); err != nil {
+		return content{}, fmt.Errorf("the roles record could not be read: %w", err)
+	}
+	if read.Version > recordVersion {
+		return content{}, fmt.Errorf("this record was written by a newer version of me (%d), "+
+			"and I will not guess at what it means", read.Version)
+	}
+	read.Roles = read.Roles.normalized()
+	read.Signature = signatureIn(body[end:])
+	return read, nil
+}
+
+// signatureIn finds the signature line under the record.
+func signatureIn(body string) string {
+	start := strings.Index(body, signatureMarker)
+	if start < 0 {
+		return ""
+	}
+	rest := body[start+len(signatureMarker):]
 	end := strings.Index(rest, markerEnd)
 	if end < 0 {
-		return Record{}, fmt.Errorf("the roles block is not closed")
+		return ""
 	}
-
-	var record Record
-	if err := json.Unmarshal([]byte(strings.TrimSpace(rest[:end])), &record); err != nil {
-		return Record{}, fmt.Errorf("the roles block could not be read: %w", err)
-	}
-	record.HandlingEditor = normalize(record.HandlingEditor)
-	record.AssignedCodechecker = normalize(record.AssignedCodechecker)
-	for i, author := range record.Authors {
-		record.Authors[i] = normalize(author)
-	}
-	return record, nil
+	return strings.TrimSpace(rest[:end])
 }
 
 // Comments is what the store reads and writes the record through,
 // internal/github in production.
 type Comments interface {
 	Comments(ctx context.Context, repository string, issue int) ([]Comment, error)
-	Comment(ctx context.Context, repository string, issue int, body string) (int64, error)
+	// Post writes a comment exactly: the record is read back byte for byte,
+	// so nothing may be appended to it.
+	Post(ctx context.Context, repository string, issue int, body string) (int64, error)
 	Edit(ctx context.Context, repository string, comment int64, body string) error
 }
 
@@ -245,6 +312,10 @@ type Comment = github.Comment
 // a stream of them.
 type Checks struct {
 	Comments Comments
+	// Signer signs what is written and checks what is read. Nil writes
+	// unsigned records and accepts them, which is a deployment without a key.
+	Signer *Signer
+
 	// Bot is the account whose comment is the record. A comment by anybody
 	// else carrying the marker is somebody quoting the bot, and is ignored.
 	Bot string
@@ -257,47 +328,6 @@ type Checks struct {
 	writing sync.Map // repository#issue -> *sync.Mutex
 }
 
-// Read returns the roles of one check, and the comment they are kept in.
-//
-// A check with no record yet is not an error: it is a check nobody has been
-// assigned to. A record that cannot be read is an error, and the caller
-// refuses rather than acting on half-understood state.
-func (c *Checks) Read(ctx context.Context, repository string, issue int) (Record, int64, error) {
-	if c == nil || c.Comments == nil {
-		return Record{}, 0, errNoComments
-	}
-	if strings.TrimSpace(c.Bot) == "" {
-		// Without the bot's own name there is no way to tell its comments from
-		// anybody else's, and every check would look unassigned while every
-		// assignment posted a fresh record.
-		return Record{}, 0, fmt.Errorf("I do not know my own account name, so I cannot find my record")
-	}
-	comments, err := c.Comments.Comments(ctx, repository, issue)
-	if err != nil {
-		return Record{}, 0, err
-	}
-
-	// The oldest comment by the bot that carries the marker wins. Somebody may
-	// have quoted the bot, and the bot may - through some accident - have
-	// posted two; the first one it wrote is the record, and the rest are text.
-	for _, comment := range comments {
-		if !strings.EqualFold(comment.Author, c.Bot) {
-			continue
-		}
-		record, err := parseRecord(comment.Body)
-		if errors.Is(err, errNoRecord) {
-			continue
-		}
-		if err != nil {
-			return Record{}, comment.ID, fmt.Errorf(
-				"the roles of %s#%d could not be read: %w (comment %d is the one to fix)",
-				repository, issue, err, comment.ID)
-		}
-		return record, comment.ID, nil
-	}
-	return Record{}, 0, nil
-}
-
 // errNoRecord is a comment that is not the record: most of them.
 var errNoRecord = errors.New("not a roles record")
 
@@ -308,12 +338,115 @@ var errNoComments = errors.New("no GitHub access to read the check's roles with"
 // asked for: nothing is written, and the caller reports it as such.
 var ErrUnchanged = errors.New("the record already says that")
 
+// A Reading is what one look at a check's roles found.
+//
+// Signed says the block carried a signature the bot accepts. Unsigned says it
+// carried none - a record written before signing existed, or by a deployment
+// with no key - which is not a failure and is put right the next time the
+// record is written. Tampered is a signature that did not verify: somebody
+// with write access edited the record, and the bot will not act on it until an
+// editor adopts it.
+type Reading struct {
+	Record   Record
+	Comment  int64
+	Unsigned bool
+	Tampered error
+	// AcceptedBy and AcceptedAt are set when an editor has adopted an edited
+	// record before.
+	AcceptedBy, AcceptedAt string
+}
+
+// Signed reports that the bot wrote this record and nobody has touched it
+// since. Derived rather than stored: it is exactly "carries a signature, and
+// nothing is wrong with it".
+func (r Reading) Signed() bool { return r.Tampered == nil && !r.Unsigned }
+
+// Read returns the roles of one check, and what is known about where they came
+// from.
+//
+// A check with no record yet is not an error: it is a check nobody has been
+// assigned to. A record that cannot be parsed is an error, and the caller
+// refuses rather than acting on half-understood state.
+func (c *Checks) Read(ctx context.Context, repository string, issue int) (Reading, error) {
+	if c == nil || c.Comments == nil {
+		return Reading{}, errNoComments
+	}
+	if strings.TrimSpace(c.Bot) == "" {
+		// Without the bot's own name there is no way to tell its comments from
+		// anybody else's, and every check would look unassigned while every
+		// assignment posted a fresh record.
+		return Reading{}, fmt.Errorf("I do not know my own account name, so I cannot find my record")
+	}
+	comments, err := c.Comments.Comments(ctx, repository, issue)
+	if err != nil {
+		return Reading{}, err
+	}
+
+	// The oldest comment by the bot that carries the marker wins. Somebody may
+	// have quoted the bot, and the bot may - through some accident - have
+	// posted two; the first one it wrote is the record, and the rest are text.
+	for _, comment := range comments {
+		if !strings.EqualFold(comment.Author, c.Bot) {
+			continue
+		}
+		read, err := parseContent(comment.Body)
+		if errors.Is(err, errNoRecord) {
+			continue
+		}
+		if err != nil {
+			return Reading{Comment: comment.ID}, fmt.Errorf(
+				"the roles of %s#%d could not be read: %w (comment %d is the one to fix)",
+				repository, issue, err, comment.ID)
+		}
+
+		reading := Reading{
+			Record: read.Roles, Comment: comment.ID,
+			Unsigned:   read.Signature == "",
+			AcceptedBy: read.AcceptedBy, AcceptedAt: read.AcceptedAt,
+		}
+		reading.Tampered = c.check(read, comment.Body, repository, issue)
+		return reading, nil
+	}
+	return Reading{}, nil
+}
+
+// check is everything that has to be true of a record before the bot will act
+// on it: it belongs to this check, it carries this bot's signature over the
+// bytes it is written in, and the comment around it is the one the bot would
+// write from it.
+func (c *Checks) check(read content, body, repository string, issue int) error {
+	// The signature covers which check the record belongs to, so a record
+	// lifted from another issue is refused rather than read as somebody
+	// else's roles. Compared case-insensitively: GitHub's names are.
+	if !strings.EqualFold(read.Check, checkOf(repository, issue)) {
+		return fmt.Errorf("%w: it says it belongs to %s", ErrTampered, read.Check)
+	}
+	if err := c.Signer.verify(read.payload, read.Signature); err != nil {
+		return err
+	}
+	// The table under the record is what people read, and it is not covered by
+	// the signature. Rather than sign it too - which would make the payload
+	// depend on how a table is rendered - the bot checks that the comment is
+	// the one it would write from this record. Anything else is an edit, even
+	// when the record itself is untouched.
+	if rewritten := read.Comment(); strings.TrimSpace(rewritten) != strings.TrimSpace(body) {
+		return fmt.Errorf("%w: the comment around it has been changed", ErrTampered)
+	}
+	return nil
+}
+
+// checkOf names the issue a record belongs to, as the signature covers it.
+func checkOf(repository string, issue int) string {
+	return fmt.Sprintf("%s#%d", repository, issue)
+}
+
 // Update reads the roles of a check, gives them to change, and records the
 // result - one operation, because every caller wants all three and because
 // doing them separately is how two assignments at once lose one of them.
 //
-// change may refuse, and then nothing is written. The record it returns is
-// what was stored, and the comment it was stored in.
+// A record the bot did not write is refused: acting on roles somebody edited
+// would make the signature decorative. An editor adopts such a record with
+// Accept, and then it can be changed like any other.
 func (c *Checks) Update(ctx context.Context, repository string, issue int,
 	change func(Record) (Record, error)) (Record, error) {
 	if c == nil || c.Comments == nil {
@@ -323,37 +456,87 @@ func (c *Checks) Update(ctx context.Context, repository string, issue int,
 	unlock := c.lock(repository, issue)
 	defer unlock()
 
-	record, comment, err := c.Read(ctx, repository, issue)
+	reading, err := c.Read(ctx, repository, issue)
 	if err != nil {
 		return Record{}, err
 	}
-	updated, err := change(record)
+	if reading.Tampered != nil {
+		return reading.Record, reading.Tampered
+	}
+	updated, err := change(reading.Record)
 	switch {
 	case errors.Is(err, ErrUnchanged):
 		// The record already says what the caller wanted. Nothing is written -
 		// a comment edited to itself is noise in the issue - and the sentinel
 		// is passed on, because the reply has to say "there was nothing to do"
 		// rather than "done".
-		return record, err
+		return reading.Record, err
 	case err != nil:
-		return record, err
+		return reading.Record, err
+	}
+	return updated, c.write(ctx, repository, issue, record{
+		Roles: updated, AcceptedBy: reading.AcceptedBy, AcceptedAt: reading.AcceptedAt,
+	}, reading.Comment)
+}
+
+// Accept adopts a record the bot did not write, and signs it as it stands.
+//
+// People fix things by hand, and refusing a record forever because somebody
+// tidied it is worse than adopting it knowingly. Who adopted it, and when, is
+// written into the block and signed with the rest, so the adoption is part of
+// the record rather than a reset nobody can see afterwards.
+func (c *Checks) Accept(ctx context.Context, repository string, issue int,
+	editor string, when time.Time) (Reading, error) {
+	if c == nil || c.Comments == nil {
+		return Reading{}, errNoComments
 	}
 
+	unlock := c.lock(repository, issue)
+	defer unlock()
+
+	reading, err := c.Read(ctx, repository, issue)
+	if err != nil {
+		return reading, err
+	}
+	if reading.Comment == 0 {
+		return reading, fmt.Errorf("there is no roles record here to adopt")
+	}
+	if reading.Tampered == nil && !reading.Unsigned {
+		return reading, ErrUnchanged
+	}
+
+	adopted := record{
+		Roles:      reading.Record,
+		AcceptedBy: normalize(editor), AcceptedAt: when.UTC().Format(time.RFC3339),
+	}
+	if err := c.write(ctx, repository, issue, adopted, reading.Comment); err != nil {
+		return reading, err
+	}
+	reading.Unsigned, reading.Tampered = !c.Signer.Signs(), nil
+	reading.AcceptedBy, reading.AcceptedAt = adopted.AcceptedBy, adopted.AcceptedAt
+	return reading, nil
+}
+
+// write signs the block and puts it in the issue, editing the record comment
+// or posting one when there is none yet.
+func (c *Checks) write(ctx context.Context, repository string, issue int, what record, comment int64) error {
+	// The identity of the record is the store's to fill in, not the caller's:
+	// it is what the signature binds the roles to.
+	what.Version, what.Check = recordVersion, checkOf(repository, issue)
+	written, err := render(what, c.Signer)
+	if err != nil {
+		return err
+	}
 	if comment > 0 {
-		if err := c.Comments.Edit(ctx, repository, comment, updated.Comment()); err != nil {
-			return record, err
-		}
-		return updated, nil
+		return c.Comments.Edit(ctx, repository, comment, written.Comment())
 	}
-	if _, err := c.Comments.Comment(ctx, repository, issue, updated.Comment()); err != nil {
-		return record, err
-	}
-	return updated, nil
+	_, err = c.Comments.Post(ctx, repository, issue, written.Comment())
+	return err
 }
 
 // lock serialises writes to one issue's record.
 func (c *Checks) lock(repository string, issue int) func() {
-	key := fmt.Sprintf("%s#%d", repository, issue)
+	key := checkOf(repository, issue)
 	held, _ := c.writing.LoadOrStore(key, &sync.Mutex{})
 	mutex := held.(*sync.Mutex)
 	mutex.Lock()

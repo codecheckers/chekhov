@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -60,7 +61,16 @@ func Serve(address, version, commit string) error {
 	server.Teams = TeamsFor(settings, replies, slog.Default())
 	// The per-check roles live in each issue, in a comment only the bot can
 	// edit. Nothing caches them: the issue is the record.
-	server.Checks = &people.Checks{Comments: replies, Bot: settings.BotUser()}
+	signer, err := people.NewSigner(os.Getenv("CHEKHOV_RECORD_KEY"),
+		strings.Split(os.Getenv("CHEKHOV_RECORD_KEYS_RETIRED"), ",")...)
+	if err != nil {
+		return fmt.Errorf("the record key could not be read: %w", err)
+	}
+	server.Checks = &people.Checks{Comments: replies, Bot: settings.BotUser(), Signer: signer}
+	if !signer.Signs() {
+		slog.Warn("no record key: the roles of a check will be written unsigned, " +
+			"and an edit of them will go unnoticed. See docs/record-key.md")
+	}
 	reloadTeams(server, settings)
 
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,

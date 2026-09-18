@@ -37,6 +37,8 @@ const (
 	// does rather than for the word people type, because Roles is the set of
 	// roles one person holds.
 	ListRoles Name = "roles"
+	// Accept adopts a roles record the bot did not write.
+	Accept Name = "accept"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Announce toots about a published certificate.

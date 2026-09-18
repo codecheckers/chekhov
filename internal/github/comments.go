@@ -54,6 +54,38 @@ func (c *Client) Comments(ctx context.Context, repository string, issue int) ([]
 	return comments, nil
 }
 
+// Post writes a comment exactly, without the signature a reply carries and
+// without truncating it.
+//
+// The roles record is read back byte for byte, so nothing may be appended to
+// it or cut off it; Comment is for replies, which are read by people.
+func (c *Client) Post(ctx context.Context, repository string, issue int, body string) (int64, error) {
+	if err := c.mine(repository, "comment"); err != nil {
+		return 0, err
+	}
+	if issue <= 0 {
+		return 0, fmt.Errorf("refusing to comment on issue number %d", issue)
+	}
+	if len(body) > MaxCommentLength {
+		return 0, fmt.Errorf("refusing to post %d characters, over GitHub's limit of %d",
+			len(body), MaxCommentLength)
+	}
+	payload, err := json.Marshal(map[string]string{"body": body})
+	if err != nil {
+		return 0, err
+	}
+	url := fmt.Sprintf("%s/repos/%s/issues/%d/comments",
+		strings.TrimSuffix(c.BaseURL, "/"), repository, issue)
+
+	var id int64
+	err = c.attempt(ctx, fmt.Sprintf("posting a record on %s#%d", repository, issue), func() error {
+		var err error
+		id, err = c.post(ctx, url, payload)
+		return err
+	})
+	return id, err
+}
+
 // Edit rewrites a comment the bot posted, exactly.
 //
 // Unlike a reply, this does not truncate: what it writes is read back as a

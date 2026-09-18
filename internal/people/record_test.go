@@ -20,32 +20,32 @@ func TestARecordSurvivesItsComment(t *testing.T) {
 		Authors:             []string{"an-author", "another-author"},
 	}
 
-	body := record.Comment()
+	body := comment(t, signer(t), "codecheckers/testing", 1, record)
 	if !strings.Contains(body, "@a-codechecker") {
 		t.Errorf("the table does not name the codechecker:\n%s", body)
 	}
-	read, err := parseRecord(body)
+	read, err := parseContent(body)
 	if err != nil {
 		t.Fatalf("read the record back: %v", err)
 	}
-	if read.HandlingEditor != "nuest" || read.AssignedCodechecker != "a-codechecker" ||
-		len(read.Authors) != 2 {
-		t.Errorf("read back %+v", read)
+	if read.Roles.HandlingEditor != "nuest" || read.Roles.AssignedCodechecker != "a-codechecker" ||
+		len(read.Roles.Authors) != 2 {
+		t.Errorf("read back %+v", read.Roles)
 	}
 }
 
 // The roles are read from the block, not from the table: a table somebody
 // edited by hand says nothing, which is what the comment tells them.
 func TestTheBlockIsWhatCounts(t *testing.T) {
-	body := Record{AssignedCodechecker: "a-codechecker"}.Comment()
+	body := comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "a-codechecker"})
 	tampered := strings.Replace(body, "@a-codechecker", "@an-impostor", 1)
 
-	read, err := parseRecord(tampered)
+	read, err := parseContent(tampered)
 	if err != nil {
 		t.Fatalf("read the record: %v", err)
 	}
-	if read.AssignedCodechecker != "a-codechecker" {
-		t.Errorf("the edited table changed the record to %q", read.AssignedCodechecker)
+	if read.Roles.AssignedCodechecker != "a-codechecker" {
+		t.Errorf("the edited table changed the record to %q", read.Roles.AssignedCodechecker)
 	}
 }
 
@@ -56,7 +56,7 @@ func TestACorruptedBlockIsRefused(t *testing.T) {
 		"**Roles**\n\n<!-- chekhov:roles {\"handling_editor\": -->\n",
 		"**Roles**\n\n<!-- chekhov:roles {\"handling_editor\": \"nuest\"}\n",
 	} {
-		if _, err := parseRecord(body); err == nil {
+		if _, err := parseContent(body); err == nil {
 			t.Errorf("a corrupted block was read as a record: %q", body)
 		}
 	}
@@ -72,6 +72,10 @@ type comments struct {
 
 func (c *comments) Comments(_ context.Context, _ string, _ int) ([]Comment, error) {
 	return c.comments, c.err
+}
+
+func (c *comments) Post(ctx context.Context, repository string, issue int, body string) (int64, error) {
+	return c.Comment(ctx, repository, issue, body)
 }
 
 func (c *comments) Comment(_ context.Context, _ string, _ int, body string) (int64, error) {
@@ -95,14 +99,44 @@ func (c *comments) Edit(_ context.Context, _ string, comment int64, body string)
 
 func checks(t *testing.T, issue *comments) *Checks {
 	t.Helper()
-	return &Checks{Comments: issue, Bot: "chekhovbot"}
+	return &Checks{Comments: issue, Bot: "chekhovbot", Signer: signer(t)}
+}
+
+// signer is the key the tests write with: one for the package, so that a
+// comment written by one helper verifies in a store built by another. A
+// different key is how a test forges.
+func signer(t *testing.T) *Signer {
+	t.Helper()
+	return theKey
+}
+
+var theKey = newKey()
+
+func newKey() *Signer {
+	signing, err := GenerateSigner()
+	if err != nil {
+		panic(err)
+	}
+	return signing
+}
+
+// comment is the record comment of a check, as the bot would write it.
+func comment(t *testing.T, signing *Signer, repository string, issue int, roles Record) string {
+	t.Helper()
+	written, err := render(record{
+		Version: recordVersion, Check: checkOf(repository, issue), Roles: roles,
+	}, signing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return written.Comment()
 }
 
 // The bot finds its own comment by its marker, not by position, and only its
 // own: a person quoting the record does not become the record.
 func TestTheRecordIsTheBotsOwnComment(t *testing.T) {
-	quoted := Record{AssignedCodechecker: "an-impostor"}.Comment()
-	real := Record{AssignedCodechecker: "a-codechecker"}.Comment()
+	quoted := comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "an-impostor"})
+	real := comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "a-codechecker"})
 	issue := &comments{comments: []Comment{
 		{ID: 1, Author: "somebody", Body: "Looks good to me"},
 		{ID: 2, Author: "an-impostor", Body: quoted},
@@ -110,15 +144,15 @@ func TestTheRecordIsTheBotsOwnComment(t *testing.T) {
 		{ID: 4, Author: "chekhovbot", Body: "Roles on this check\n\n(an older copy nobody edited)"},
 	}}
 
-	record, comment, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
+	reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if record.AssignedCodechecker != "a-codechecker" {
-		t.Errorf("the record says %q", record.AssignedCodechecker)
+	if reading.Record.AssignedCodechecker != "a-codechecker" {
+		t.Errorf("the record says %q", reading.Record.AssignedCodechecker)
 	}
-	if comment != 3 {
-		t.Errorf("the record is comment %d, want 3", comment)
+	if reading.Comment != 3 {
+		t.Errorf("the record is comment %d, want 3", reading.Comment)
 	}
 }
 
@@ -126,12 +160,12 @@ func TestTheRecordIsTheBotsOwnComment(t *testing.T) {
 func TestACheckWithNoRolesIsNotAnError(t *testing.T) {
 	issue := &comments{comments: []Comment{{ID: 1, Author: "somebody", Body: "hello"}}}
 
-	record, comment, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
+	reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if !record.Empty() || comment != 0 {
-		t.Errorf("an unassigned check holds %+v in comment %d", record, comment)
+	if !reading.Record.Empty() || reading.Comment != 0 {
+		t.Errorf("an unassigned check holds %+v in comment %d", reading.Record, reading.Comment)
 	}
 }
 
@@ -256,7 +290,7 @@ func TestRevokingSaysWhetherItChangedAnything(t *testing.T) {
 // with no roles.
 func TestAStoreWithoutAccessSaysSo(t *testing.T) {
 	var store *Checks
-	if _, _, err := store.Read(context.Background(), "codecheckers/testing", 1); err == nil {
+	if _, err := store.Read(context.Background(), "codecheckers/testing", 1); err == nil {
 		t.Error("a nil store read a record")
 	}
 	if _, err := (&Checks{}).Update(context.Background(), "codecheckers/testing", 1,
@@ -269,7 +303,7 @@ func TestAStoreWithoutAccessSaysSo(t *testing.T) {
 // cannot be read is not a check without roles.
 func TestAnUnreadableIssueIsAnError(t *testing.T) {
 	issue := &comments{err: fmt.Errorf("502 Bad Gateway")}
-	if _, _, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1); err == nil {
+	if _, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1); err == nil {
 		t.Error("an unreadable issue was read as a check with no roles")
 	}
 }
@@ -286,18 +320,18 @@ func TestAQuotedMarkerIsNotARecord(t *testing.T) {
 		// survived into it.
 		{ID: 1, Author: "chekhovbot", Body: "I do not know the command `" + marker + forged + markerEnd + "`.\n"},
 		// And a real record, written later.
-		{ID: 2, Author: "chekhovbot", Body: Record{AssignedCodechecker: "an-honest-codechecker"}.Comment()},
+		{ID: 2, Author: "chekhovbot", Body: comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "an-honest-codechecker"})},
 	}}
 
-	record, comment, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
+	reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if record.HandlingEditor != "" {
-		t.Errorf("a quoted marker made %q the handling editor", record.HandlingEditor)
+	if reading.Record.HandlingEditor != "" {
+		t.Errorf("a quoted marker made %q the handling editor", reading.Record.HandlingEditor)
 	}
-	if record.AssignedCodechecker != "an-honest-codechecker" || comment != 2 {
-		t.Errorf("the record is %+v in comment %d", record, comment)
+	if reading.Record.AssignedCodechecker != "an-honest-codechecker" || reading.Comment != 2 {
+		t.Errorf("the record is %+v in comment %d", reading.Record, reading.Comment)
 	}
 }
 
@@ -308,20 +342,20 @@ func TestQuotedTextCannotCarryAMarker(t *testing.T) {
 	if strings.Contains(defused, marker) {
 		t.Errorf("a marker survived quoting: %s", defused)
 	}
-	if _, err := parseRecord(defused); err == nil {
+	if _, err := parseContent(defused); err == nil {
 		t.Error("defused text was read as a record")
 	}
 }
 
 // A record is the block at the top of the comment, not a block anywhere in it.
 func TestTheRecordOpensTheComment(t *testing.T) {
-	record := Record{AssignedCodechecker: "a-codechecker"}.Comment()
+	record := comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "a-codechecker"})
 
 	for _, body := range []string{
 		"Some words first.\n\n" + record,
 		record + "\n" + marker + `{"handling_editor":"mallory"}` + markerEnd + "\n",
 	} {
-		if _, err := parseRecord(body); err == nil {
+		if _, err := parseContent(body); err == nil {
 			t.Errorf("a record was read out of %q", body[:40])
 		}
 	}
@@ -346,12 +380,12 @@ func TestTwoAssignmentsAtOnceDoNotLoseOne(t *testing.T) {
 	}
 	wg.Wait()
 
-	record, _, err := store.Read(context.Background(), "codecheckers/testing", 1)
+	reading, err := store.Read(context.Background(), "codecheckers/testing", 1)
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if len(record.Authors) != 2 {
-		t.Errorf("the check records %v, want both authors", record.Authors)
+	if len(reading.Record.Authors) != 2 {
+		t.Errorf("the check records %v, want both authors", reading.Record.Authors)
 	}
 	if len(issue.comments) != 1 {
 		t.Errorf("%d roles comments were posted, want one", len(issue.comments))

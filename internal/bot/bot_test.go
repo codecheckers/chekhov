@@ -83,8 +83,22 @@ func testServer(t *testing.T) (*Server, *recorder) {
 		Logger:       server.Logger,
 	}
 	// The per-check roles live in the issue; the test stands in for it.
-	server.Checks = &people.Checks{Comments: &issueComments{bot: settings.BotUser()}, Bot: settings.BotUser()}
+	server.Checks = &people.Checks{
+		Comments: &issueComments{bot: settings.BotUser()},
+		Bot:      settings.BotUser(),
+		Signer:   mustSign(t),
+	}
 	return server, replies
+}
+
+// mustSign is a key for a test bot that signs what it records.
+func mustSign(t *testing.T) *people.Signer {
+	t.Helper()
+	signer, err := people.GenerateSigner()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return signer
 }
 
 // issueComments is one issue's comments, as a test knows them.
@@ -95,6 +109,10 @@ type issueComments struct {
 
 func (c *issueComments) Comments(context.Context, string, int) ([]people.Comment, error) {
 	return c.comments, nil
+}
+
+func (c *issueComments) Post(ctx context.Context, repository string, issue int, body string) (int64, error) {
+	return c.Comment(ctx, repository, issue, body)
 }
 
 func (c *issueComments) Comment(_ context.Context, _ string, _ int, body string) (int64, error) {
@@ -635,5 +653,55 @@ func TestEverythingThePostedReplySaysIsDefused(t *testing.T) {
 	}
 	if strings.Contains(replies.comments[0].Body, "<!-- chekhov:roles") {
 		t.Errorf("a forged record reached a comment by the bot: %s", replies.comments[0].Body)
+	}
+}
+
+// An edited record stops the commands that change roles, and the reply says
+// how an editor gets past it.
+func TestAnEditedRecordStopsAssignment(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+	ctx := context.Background()
+
+	// A record signed by somebody else: what a collaborator's edit produces.
+	forged := &issueComments{bot: server.Settings.BotUser()}
+	server.Checks = &people.Checks{Comments: forged, Bot: server.Settings.BotUser(), Signer: mustSign(t)}
+	_, _ = server.Checks.Update(ctx, event.Repository, 1, func(record people.Record) (people.Record, error) {
+		record, _, err := record.Grant(command.RoleAuthor, "an-author")
+		return record, err
+	})
+	forged.comments[0].Body = strings.Replace(forged.comments[0].Body, "an-author", "mallory", 1)
+
+	reply := server.answer(ctx, event,
+		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}})
+	if !strings.Contains(reply, "accept roles") || !strings.Contains(reply, "not the one I wrote") {
+		t.Errorf("the refusal does not say what to do: %s", reply)
+	}
+
+	// `roles` still shows what it claims, with the warning.
+	listing := server.answer(ctx, event, command.Command{Name: command.ListRoles})
+	if !strings.Contains(listing, "mallory") || !strings.Contains(listing, "not the one I wrote") {
+		t.Errorf("the listing hides the edited record: %s", listing)
+	}
+
+	// And an editor can adopt it, after which work goes on.
+	adopted := server.answer(ctx, event, command.Command{Name: command.Accept, Args: []string{"roles"}})
+	if !strings.Contains(adopted, "Adopted") || !strings.Contains(adopted, "nuest") {
+		t.Errorf("the adoption does not say who did it: %s", adopted)
+	}
+	if reply := server.answer(ctx, event,
+		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}); !strings.Contains(reply, "is now the author") {
+		t.Errorf("assignment is still refused after adoption: %s", reply)
+	}
+}
+
+// Adopting is an editor's to do.
+func TestAcceptingIsForEditors(t *testing.T) {
+	server, _ := testServer(t)
+	reply := server.answer(context.Background(),
+		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
+		command.Command{Name: command.Accept, Args: []string{"roles"}})
+	if !strings.Contains(reply, "is for editors") {
+		t.Errorf("a codechecker adopted a record: %s", reply)
 	}
 }

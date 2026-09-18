@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The bot signs the roles record it keeps in each check's issue, and refuses to
+  change one it did not write: a comment by the bot can be edited by anyone
+  with write access to the repository, which is what this notices. The
+  signature covers the record's bytes as they stand in the comment, the
+  repository and the issue, so a record cannot be rewritten or moved between
+  checks; the table under it is checked against the record, so an edited table
+  is an edited record; and a record with no signature is refused as firmly as
+  one with a wrong signature, because otherwise deleting a signature would be
+  the easier forgery. `@chekhovbot accept roles` lets an editor adopt an edited
+  record, recording who adopted it inside the signed payload
+  (codecheckers/chekhov#41).
+- `chekhov record-key` makes the signing key; the public half is meant to be
+  published, so a roles record can be verified without asking the bot
+  (codecheckers/chekhov#41).
+
 - `@chekhovbot assign @user as codechecker|author|handling editor`, `remove`
   the same way, and `roles`, which says who holds which role on this check and
   where each role comes from. The per-check roles are kept in a comment the bot

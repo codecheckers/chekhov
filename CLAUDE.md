@@ -280,8 +280,12 @@ than a `switch`.
 - Per-check roles live in a **comment the bot posted**, found by its marker on
   the comment's first line - not by position, and never in somebody else's
   comment. A bot comment is safe from a passer-by, **not** from a repository
-  collaborator, who can edit it with the bot left as the author; signing the
-  record is codecheckers/chekhov#41. Nothing the bot posts may look like a
+  collaborator, who can edit it with the bot left as the author - so **the bot
+  signs the record** (Ed25519, `internal/people/sign.go`) and refuses to change
+  one it did not write. The signature covers the repository and issue too, so a
+  valid record cannot be lifted between checks. An editor adopts an edited
+  record with `accept roles`, and who adopted it is written into the signed
+  block. See `docs/record-key.md`. Nothing the bot posts may look like a
   record, so `act` defuses every reply once, centrally.
 - **Roles that conflict are refused before they are granted**, in
   `internal/command/roles.go`: the assigned codechecker may not be an author of
@@ -388,7 +392,7 @@ Procfile            what the deployment runs: `web: chekhov serve`
 config/             the settings file, and the code that reads it
 internal/bot/       the listener: webhook, signature, dispatch, /healthz
 internal/github/    the reply path: the one place that writes to GitHub
-internal/people/    who holds a standing role, cached from the org's teams
+internal/people/    who holds a role: the teams cache, and the per-check record
 internal/mastodon/  the one place that writes to Mastodon
 internal/announce/  the toot about a certificate: data, mentions, length, the GIF
 internal/testserver/ the offline stub server and its local-only client, for tests

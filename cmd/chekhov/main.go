@@ -16,6 +16,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/bot"
 	"github.com/codecheckers/chekhov/internal/build"
 	"github.com/codecheckers/chekhov/internal/check"
+	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
@@ -37,6 +38,7 @@ Usage:
   chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
   chekhov version
+  chekhov record-key
 
 Options: --spec <version>, --strict, --markdown, --online
 
@@ -81,6 +83,8 @@ func run(args []string, out io.Writer) error {
 		return runRules(args[1:], out)
 	case "version":
 		return runVersion(out)
+	case "record-key":
+		return runRecordKey(out)
 	case "help", "-h", "--help":
 		fmt.Fprint(out, usage)
 		return nil
@@ -228,6 +232,25 @@ func runRules(args []string, out io.Writer) error {
 	}
 	fmt.Fprintf(out, "\n%d rules for specification %s, [x] = checked by this bot\n",
 		len(catalogue), specVersion)
+	return nil
+}
+
+// runRecordKey makes the key the bot signs a check's roles with.
+//
+// Printed rather than written anywhere: the private half goes into the
+// deployment's configuration, and the public half into the register, so that
+// anybody can verify a roles record without asking the bot. See
+// docs/record-key.md.
+func runRecordKey(out io.Writer) error {
+	signer, err := people.GenerateSigner()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "CHEKHOV_RECORD_KEY=%s\n", signer.PrivateKey())
+	fmt.Fprintf(out, "public key: %s\n", signer.PublicKey())
+	fmt.Fprint(out, "\nThe first line is a secret: it goes in the deployment's configuration, "+
+		"and nowhere else.\nThe public key is for publishing, so that a roles record can be "+
+		"verified by anyone.\n")
 	return nil
 }
 
