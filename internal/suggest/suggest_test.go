@@ -43,14 +43,14 @@ func newWorld(t *testing.T) *world {
 	return &world{
 		Server:   server,
 		settings: settings,
-		services: &check.Services{
+		services: &check.Services{Access: check.Access{
 			HTTP:     server.Client(),
 			Register: "codecheckers/testing",
 			GitHub:   server.URL + "/github",
 			GitLab:   server.URL + "/gitlab",
 			Crossref: server.URL + "/crossref",
 			OpenAlex: server.URL + "/openalex",
-		},
+		}},
 	}
 }
 

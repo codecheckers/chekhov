@@ -223,10 +223,12 @@ names, not this bot's, and renaming them is register business; the R package
 still asks Crossref for them, which is a deliberate difference with an issue
 open against it. Say so in a comment when touching them.
 
-`Services.Fresh` copies the configured fields by hand. Anything added to
-`Services` has to be added there too, or it is silently empty for every command
-a deployment runs - which is exactly what happened to the OpenAlex base URL.
-`TestFreshCarriesEveryConfiguredField` is the guard.
+Everything a deployment configures lives in `Services.Access`, and `Fresh`
+copies that struct whole. It used to write the fields out by hand, and the
+OpenAlex base URL was left off the list, which left every command in a
+deployment talking to nowhere. Add configuration to `Access`, never beside it;
+the run state - the cache, the register read once - stays on `Services` and is
+deliberately not carried over.
 
 ### One function per rule
 

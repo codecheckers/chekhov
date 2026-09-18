@@ -23,6 +23,24 @@ import (
 // silently passes when it could not run is worse than one that says it did not
 // run. Enable it with CHEKHOV_INTEGRATION=1.
 type Services struct {
+	// Access is everything a deployment configures. It is a field rather than
+	// a scattering of them so that Fresh can copy it whole: the list used to
+	// be written out by hand, and a field added above and forgotten there was
+	// silently empty for every command a deployment ran - which is what
+	// happened to the OpenAlex base URL.
+	Access
+
+	once     sync.Once
+	register *registerData
+	loadErr  error
+
+	cache sync.Map // url -> *cachedResponse
+}
+
+// Access is how this deployment reaches the outside world: the client, the
+// credentials, which source to ask about a paper, and where each service
+// lives. Everything configured, and nothing a run accumulates.
+type Access struct {
 	HTTP *http.Client
 
 	// GitHubToken lifts the rate limit on the GitHub API. The public endpoints
@@ -51,12 +69,6 @@ type Services struct {
 	RawContent    string // https://raw.githubusercontent.com
 	GitLab        string // https://gitlab.com
 	OSF           string // https://api.osf.io/v2
-
-	once     sync.Once
-	register *registerData
-	loadErr  error
-
-	cache sync.Map // url -> *cachedResponse
 }
 
 // ServicesFromEnv builds the services from the environment, or returns nil
@@ -78,11 +90,11 @@ func ServicesFromEnv() *Services {
 // decided to go online rather than reading it out of the environment - the
 // `--online` flag of the check command.
 func Online() *Services {
-	services := &Services{
+	services := &Services{Access: Access{
 		HTTP:        &http.Client{Timeout: 30 * time.Second},
 		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
 		Register:    targetRepository(),
-	}
+	}}
 	if settings, err := config.Current(); err == nil {
 		services.Metadata = settings.MetadataSource()
 		services.Mailto = settings.MetadataMailto()
@@ -143,26 +155,18 @@ func (s *Services) RegisterFile(name string) string {
 	return s.RawContent + "/" + s.Register + "/HEAD/" + name
 }
 
-// Fresh is a copy that has seen nothing yet: the same client, register and
-// base URLs, an empty cache. The cache is meant for one run; a deployment
-// that keeps one Services for its whole life gives each command a fresh copy.
-// A nil or disabled Services stays as it is.
+// Fresh is a copy that has seen nothing yet: the same access, an empty cache.
+// The cache is meant for one run; a deployment that keeps one Services for its
+// whole life gives each command a fresh copy. A nil or disabled Services stays
+// as it is.
+//
+// The whole of Access goes across, so adding a field to it cannot leave a
+// deployment quietly talking to nowhere.
 func (s *Services) Fresh() *Services {
 	if !s.Enabled() {
 		return s
 	}
-	// Every configured field, by hand, because the run state - the cache, the
-	// register read once - must not come with it. A field added above and
-	// forgotten here is silently empty for every command a deployment runs,
-	// which is what happened to the OpenAlex base URL; TestFreshCarriesEvery
-	// ConfiguredField is the guard against doing it again.
-	return &Services{
-		HTTP: s.HTTP, GitHubToken: s.GitHubToken, Register: s.Register,
-		Metadata: s.Metadata, Mailto: s.Mailto,
-		Zenodo: s.Zenodo, ZenodoSandbox: s.ZenodoSandbox, ORCID: s.ORCID, Crossref: s.Crossref,
-		OpenAlex: s.OpenAlex,
-		GitHub:   s.GitHub, RawContent: s.RawContent, GitLab: s.GitLab, OSF: s.OSF,
-	}
+	return &Services{Access: s.Access}
 }
 
 // IsCertificateID reports whether a word is a certificate identifier, YYYY-NNN.

@@ -32,7 +32,7 @@ func newStub(t *testing.T) *stub {
 
 	server := &stub{Server: testserver.New(t)}
 	url := server.URL
-	server.services = &Services{
+	server.services = &Services{Access: Access{
 		HTTP:          server.Client(),
 		Register:      "codecheckers/testing",
 		Zenodo:        url + "/zenodo",
@@ -44,7 +44,7 @@ func newStub(t *testing.T) *stub {
 		GitLab:        url + "/gitlab",
 		OSF:           url + "/osf",
 		ZenodoSandbox: url + "/zenodo-sandbox",
-	}
+	}}
 	return server
 }
 

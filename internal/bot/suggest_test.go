@@ -35,13 +35,13 @@ func listing(t *testing.T, server *Server) *testserver.Server {
 	stub.JSON("/github/repos/codecheckers/demo/languages", `{"R": 900}`)
 
 	server.Settings.Chekhov.Env.CodecheckerLists = []string{stub.At(listPath), stub.At(institutionPath)}
-	server.Services = &check.Services{
+	server.Services = &check.Services{Access: check.Access{
 		HTTP:     stub.Client(),
 		Register: server.Settings.TargetRepository(),
 		GitHub:   stub.URL + "/github",
 		Crossref: stub.URL + "/crossref",
 		OpenAlex: stub.URL + "/openalex",
-	}
+	}}
 	return stub
 }
 

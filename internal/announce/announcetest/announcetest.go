@@ -65,8 +65,9 @@ func New(t testing.TB) *Published {
 		"name,handle,ORCID,institution,fediverse\nFake Institutional Codechecker,@inst,NA,Lab,inst@example.social\n")
 
 	return &Published{
-		Server:   server,
-		Services: &check.Services{HTTP: server.Client(), Register: "codecheckers/testing", RawContent: server.URL + "/raw"},
+		Server: server,
+		Services: &check.Services{Access: check.Access{
+			HTTP: server.Client(), Register: "codecheckers/testing", RawContent: server.URL + "/raw"}},
 		Settings: settings,
 	}
 }

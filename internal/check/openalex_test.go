@@ -201,13 +201,13 @@ func TestOpenAlexFailureDoesNotPublishTheAddress(t *testing.T) {
 // goes around it, and "Crossref" must not silently mean OpenAlex.
 func TestMetadataSourceIsMatchedHoweverItIsWritten(t *testing.T) {
 	for _, written := range []string{"crossref", "Crossref", " CROSSREF "} {
-		services := &Services{Metadata: written}
+		services := &Services{Access: Access{Metadata: written}}
 		if got := services.MetadataSource(); got != "Crossref" {
 			t.Errorf("Metadata %q read as %q", written, got)
 		}
 	}
 	for _, written := range []string{"", "openalex", "something else"} {
-		services := &Services{Metadata: written}
+		services := &Services{Access: Access{Metadata: written}}
 		if got := services.MetadataSource(); got != "OpenAlex" {
 			t.Errorf("Metadata %q read as %q", written, got)
 		}

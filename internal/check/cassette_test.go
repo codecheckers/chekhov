@@ -136,7 +136,7 @@ func replayServices(t *testing.T, name string) *Services {
 	t.Helper()
 	rec := cassetteRecorder(t, name)
 
-	services := &Services{
+	services := &Services{Access: Access{
 		HTTP:        rec.GetDefaultClient(),
 		GitHubToken: os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"),
 		// The register-wide rules need the register the fixture's certificate
@@ -146,7 +146,7 @@ func replayServices(t *testing.T, name string) *Services {
 		// URL cannot depend on the environment the recording ran in: a
 		// different mailto would be a different request and would not replay.
 		Mailto: "chekhov@cdchck.science",
-	}
+	}}
 	services.defaults()
 	return services
 }

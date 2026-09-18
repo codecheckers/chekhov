@@ -2,35 +2,38 @@ package check
 
 import (
 	"net/http"
-	"reflect"
 	"testing"
 )
 
-// Fresh copies the configured fields by hand, and a field added to Services
-// and forgotten there is empty for every command a deployment runs - which is
-// exactly how the OpenAlex base URL went missing. Reflection, so that the next
-// field cannot be forgotten quietly.
-func TestFreshCarriesEveryConfiguredField(t *testing.T) {
-	services := &Services{HTTP: http.DefaultClient}
-	value := reflect.ValueOf(services).Elem()
-	for i := 0; i < value.NumField(); i++ {
-		field := value.Field(i)
-		if field.Kind() == reflect.String && field.CanSet() {
-			field.SetString("set-" + value.Type().Field(i).Name)
-		}
-	}
+// Fresh carries the whole of Access across, so a field added to it cannot be
+// left behind - which is what happened when the list was written out by hand
+// and the OpenAlex base URL went missing, leaving every command in a
+// deployment talking to nowhere.
+//
+// One comparison rather than a field-by-field check, because Access is
+// comparable and that is the point of the split: the test cannot fall behind
+// the struct either.
+func TestFreshCarriesTheWholeOfAccess(t *testing.T) {
+	services := &Services{Access: Access{
+		HTTP: http.DefaultClient, GitHubToken: "token", Metadata: "crossref",
+		Mailto: "chekhov@cdchck.science", Register: "codecheckers/testing",
+		Zenodo: "zenodo", ZenodoSandbox: "sandbox", ORCID: "orcid",
+		Crossref: "crossref", OpenAlex: "openalex", GitHub: "github",
+		RawContent: "raw", GitLab: "gitlab", OSF: "osf",
+	}}
 
-	fresh := reflect.ValueOf(services.Fresh()).Elem()
-	for i := 0; i < value.NumField(); i++ {
-		name := value.Type().Field(i).Name
-		if value.Field(i).Kind() != reflect.String || !value.Field(i).CanSet() {
-			continue
-		}
-		if got := fresh.Field(i).String(); got != "set-"+name {
-			t.Errorf("Fresh() dropped %s: %q", name, got)
-		}
+	if fresh := services.Fresh(); fresh.Access != services.Access {
+		t.Errorf("Fresh() changed the access:\n got %+v\nwant %+v", fresh.Access, services.Access)
 	}
-	if fresh.FieldByName("HTTP").IsNil() {
-		t.Error("Fresh() dropped the HTTP client")
+}
+
+// And it carries nothing else: the cache is one run's, and a command that
+// inherited it would answer from what was published before it ran.
+func TestFreshCarriesNothingOfTheRun(t *testing.T) {
+	services := &Services{Access: Access{HTTP: http.DefaultClient}}
+	services.cache.Store("GET https://example.invalid ", &cachedResponse{status: 200})
+
+	if _, seen := services.Fresh().cache.Load("GET https://example.invalid "); seen {
+		t.Error("Fresh() inherited the response cache")
 	}
 }
