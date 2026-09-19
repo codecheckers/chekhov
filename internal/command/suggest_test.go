@@ -69,7 +69,7 @@ func TestCodecheckerListsReplyLinksRatherThanCopies(t *testing.T) {
 	for _, want := range []string{
 		"[codecheckers.csv](https://example.invalid/codecheckers.csv) — 12 entries",
 		"[institutional.csv](https://example.invalid/institutional.csv)\n",
-		"could not read it just now: answered 404",
+		"could not read it: answered 404",
 	} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the reply does not say %q:\n%s", want, reply)
@@ -79,7 +79,7 @@ func TestCodecheckerListsReplyLinksRatherThanCopies(t *testing.T) {
 
 func TestSuggestionsReplyWithNobodyToSuggest(t *testing.T) {
 	reply := SuggestionsReply(Suggestions{Considered: 3, Languages: []string{"Fortran"}})
-	if !strings.Contains(reply, "nobody to suggest") {
+	if !strings.Contains(reply, "No codechecker to suggest") {
 		t.Errorf("reply:\n%s", reply)
 	}
 	if !strings.Contains(reply, "Matched on languages `Fortran`") {

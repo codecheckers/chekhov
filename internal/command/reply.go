@@ -710,17 +710,16 @@ type CodecheckerList struct {
 // conversation it was pasted into.
 func CodecheckerListsReply(lists []CodecheckerList) string {
 	if len(lists) == 0 {
-		return "I have no codechecker lists configured, so I cannot say where they are.\n"
+		return "No codechecker lists are configured.\n"
 	}
 
 	var reply strings.Builder
-	reply.WriteString("The codecheckers are listed here - the lists are the current ones, " +
-		"so read them rather than a copy:\n\n")
+	reply.WriteString("Codechecker lists, current as of now - read these rather than a copy:\n\n")
 	for _, list := range lists {
 		page := list.Page
 		switch {
 		case list.Problem != "":
-			fmt.Fprintf(&reply, "- [%s](%s) — I could not read it just now: %s\n",
+			fmt.Fprintf(&reply, "- [%s](%s) — could not read it: %s\n",
 				nameOfList(page), page, oneLine(list.Problem))
 		case list.Count < 0:
 			fmt.Fprintf(&reply, "- [%s](%s)\n", nameOfList(page), page)
@@ -730,8 +729,7 @@ func CodecheckerListsReply(lists []CodecheckerList) string {
 		}
 	}
 	fmt.Fprintf(&reply, "\nTo be listed, register at [codecheckers/codecheckers]"+
-		"(https://github.com/codecheckers/codecheckers). To find somebody for this check, "+
-		"an editor can ask me: `%s suggest codecheckers`.\n", Bot)
+		"(https://github.com/codecheckers/codecheckers). Editors: `%s suggest codecheckers`.\n", Bot)
 	return reply.String()
 }
 
@@ -796,9 +794,9 @@ func SuggestionsReply(s Suggestions) string {
 	var reply strings.Builder
 
 	if len(s.Candidates) == 0 {
-		reply.WriteString("I have nobody to suggest for this check.\n")
+		reply.WriteString("No codechecker to suggest.\n")
 	} else {
-		fmt.Fprintf(&reply, "%s, of the %d on the lists:\n\n",
+		fmt.Fprintf(&reply, "%s, of %d listed:\n\n",
 			describeShortlist(len(s.Candidates), s.Matched), s.Considered)
 		reply.WriteString("| Handle | Codechecker | Declares |\n|---|---|---|\n")
 		for _, candidate := range s.Candidates {
@@ -806,12 +804,11 @@ func SuggestionsReply(s Suggestions) string {
 				oneLine(withoutMentions(candidate.Name)), oneLine(candidate.Why))
 		}
 		if s.Undistinguished {
-			reply.WriteString("\nThey share exactly the same thing with this check, so this is a " +
-				"slice of a long list rather than the best of it. Naming the paper's DOI, or " +
-				"pasting its abstract, gives me something to tell them apart by.\n")
+			reply.WriteString("\nAll matches share the same terms. " +
+				"Please provide work DOI or abstract for better matches.\n")
 		}
-		reply.WriteString("\nThe handles are written so that nobody is notified by my asking: " +
-			"mention whom you choose, and `" + Bot + " assign @user as codechecker` records it.\n")
+		reply.WriteString("\nHandles are in backticks, so nobody is notified. " +
+			"`" + Bot + " assign @user as codechecker` records your choice.\n")
 	}
 
 	if matched := describeMatch(s); matched != "" {
@@ -831,7 +828,7 @@ func SuggestionsReply(s Suggestions) string {
 		fmt.Fprintf(&reply, "\n%s\n", oneLine(note))
 	}
 	for _, problem := range s.Unread {
-		fmt.Fprintf(&reply, "\nI could not read %s.\n", oneLine(problem))
+		fmt.Fprintf(&reply, "\nCould not read %s.\n", oneLine(problem))
 	}
 	return reply.String()
 }
@@ -849,9 +846,9 @@ func withoutMentions(text string) string { return strings.ReplaceAll(text, "@", 
 // editor choosing between them should be told which they are reading.
 func describeShortlist(shown, matched int) string {
 	if matched > shown {
-		return fmt.Sprintf("%d of the %d codecheckers who could check this", shown, matched)
+		return fmt.Sprintf("%d of %d matching codecheckers", shown, matched)
 	}
-	return fmt.Sprintf("%d codechecker%s who could check this", shown, plural(shown))
+	return fmt.Sprintf("%d matching codechecker%s", shown, plural(shown))
 }
 
 func describeMatch(s Suggestions) string {

@@ -60,12 +60,12 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 		return fmt.Sprintf("%s\n", err)
 	}
 	if !services.Enabled() {
-		return "Suggesting a codechecker means reading the lists, and this bot is not online.\n"
+		return "Not online, so I cannot read the codechecker lists.\n"
 	}
 
 	codecheckers, unread := suggest.Load(services, s.Settings)
 	if len(codecheckers) == 0 {
-		return "I could not read any codechecker list, so I have nobody to suggest from.\n"
+		return "No codechecker list could be read.\n"
 	}
 
 	text := command.BodyText(event.Body)
@@ -90,8 +90,8 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 				Considered: len(codecheckers),
 			})
 		}
-		return fmt.Sprintf("I have nothing to go on for this check. Name the repository, "+
-			"the paper's DOI or the certificate, or paste the abstract under the command:\n\n"+
+		return fmt.Sprintf("Nothing to match on. Please provide a repository, work DOI or "+
+			"certificate, or paste the abstract under the command:\n\n"+
 			"```\n%s suggest codecheckers github::owner/repo\n```\n", command.Bot)
 	}
 
@@ -180,8 +180,7 @@ func (s *Server) exclusions(ctx context.Context, event mention) (suggest.Exclude
 	switch {
 	case event.Issue <= 0 || s.Checks == nil:
 		notChecked = append(notChecked,
-			"I have no check to read here, so I have not left out this paper's authors "+
-				"or anyone already assigned to it.")
+			"No check here, so authors and current assignees are not excluded.")
 	default:
 		reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
 		// A record somebody edited names nobody, exactly as it grants nobody a
@@ -190,7 +189,7 @@ func (s *Server) exclusions(ctx context.Context, event mention) (suggest.Exclude
 		// prize for doing so.
 		if err != nil || reading.Tampered != nil {
 			notChecked = append(notChecked,
-				"I could not trust the roles of this check, so I have not left out its authors: "+
+				"Roles record not trusted, so authors are not excluded: "+
 					errors.Join(err, reading.Tampered).Error())
 			break
 		}
@@ -202,14 +201,13 @@ func (s *Server) exclusions(ctx context.Context, event mention) (suggest.Exclude
 	reader, ok := s.Replies.(Issues)
 	if !ok {
 		notChecked = append(notChecked,
-			"I cannot read the register's open issues here, so I do not know who is already busy.")
+			"Open issues not read here, so I do not know who is busy.")
 		return excluded, notChecked
 	}
 	issues, err := reader.OpenIssues(ctx, s.Settings.TargetRepository())
 	if err != nil {
 		notChecked = append(notChecked,
-			"I could not read the register's open issues, so I do not know who is already busy: "+
-				err.Error())
+			"Could not read the open issues, so I do not know who is busy: "+err.Error())
 		return excluded, notChecked
 	}
 	excluded.OpenChecks = map[string]int{}

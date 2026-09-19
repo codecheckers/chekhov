@@ -74,7 +74,7 @@ func TestCodecheckersSaysWhichListItCouldNotRead(t *testing.T) {
 	stub.Remove(institutionPath)
 
 	reply := answer(t, server, command.ListCodecheckers, nil, "")
-	if !strings.Contains(reply, "could not read it just now") {
+	if !strings.Contains(reply, "could not read it") {
 		t.Errorf("a list that answered 404 should be named as such:\n%s", reply)
 	}
 }
@@ -130,7 +130,7 @@ func TestSuggestSaysWhenItHasNothingToGoOn(t *testing.T) {
 	listing(t, server)
 
 	reply := answer(t, server, command.SuggestCodecheckers, []string{"codecheckers"}, "")
-	if !strings.Contains(reply, "nothing to go on") {
+	if !strings.Contains(reply, "Nothing to match on") {
 		t.Errorf("a suggestion out of nothing is an arbitrary list of people:\n%s", reply)
 	}
 }
@@ -143,10 +143,10 @@ func TestSuggestSaysWhatItCouldNotCheck(t *testing.T) {
 	// register's open issues are both out of reach.
 	reply := server.answer(context.Background(), mention{Author: "nuest"},
 		command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers", "codecheckers/demo"}})
-	if !strings.Contains(reply, "no check to read here") {
+	if !strings.Contains(reply, "No check here") {
 		t.Errorf("the reply does not say which exclusions it could not apply:\n%s", reply)
 	}
-	if !strings.Contains(reply, "who is already busy") {
+	if !strings.Contains(reply, "who is busy") {
 		t.Errorf("the reply does not say it could not read the open issues:\n%s", reply)
 	}
 }
@@ -249,7 +249,7 @@ func TestSuggestDoesNotTrustAnEditedRecord(t *testing.T) {
 	if strings.Contains(reply, "Left out: `@a-codechecker` (author of the paper)") {
 		t.Errorf("an edited record was trusted:\n%s", reply)
 	}
-	if !strings.Contains(reply, "could not trust the roles of this check") {
+	if !strings.Contains(reply, "Roles record not trusted") {
 		t.Errorf("the reply does not say the record could not be trusted:\n%s", reply)
 	}
 }
@@ -288,10 +288,10 @@ func TestSuggestSaysWhenTheOnlySourceFailed(t *testing.T) {
 
 	reply := answer(t, server, command.SuggestCodecheckers,
 		[]string{"codecheckers", "10.1000/fake"}, "")
-	if !strings.Contains(reply, "could not read") || !strings.Contains(reply, "OpenAlex") {
+	if !strings.Contains(reply, "Could not read") || !strings.Contains(reply, "OpenAlex") {
 		t.Errorf("the reply hides why it has nothing:\n%s", reply)
 	}
-	if strings.Contains(reply, "nothing to go on") {
+	if strings.Contains(reply, "Nothing to match on") {
 		t.Errorf("a failed source is not the editor writing a bad command:\n%s", reply)
 	}
 }
@@ -312,7 +312,7 @@ func TestSuggestSaysWhatItReadEvenWhenItFoundNothing(t *testing.T) {
 	if !strings.Contains(reply, "github::codecheckers/demo") {
 		t.Errorf("the reply does not say the repository was read:\n%s", reply)
 	}
-	if !strings.Contains(reply, "could not read") {
+	if !strings.Contains(reply, "Could not read") {
 		t.Errorf("the reply does not say the DOI failed:\n%s", reply)
 	}
 }
