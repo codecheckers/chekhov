@@ -1,24 +1,24 @@
 {
   "comment": "Written by scripts/update-rules.sh. The rules themselves are maintained in the register, see https://github.com/codecheckers/register/blob/master/RULES.md",
   "source": "https://raw.githubusercontent.com/codecheckers/register/master/",
-  "retrieved": "2026-09-16T20:38:45+0000",
+  "retrieved": "2026-09-19T17:31:17+0000",
   "via": "download",
   "files": [
     {
       "file": "rules-1.0.yml",
       "spec_version": "1.0",
       "rules": 55,
-      "commit": "825ab78966b9581ad9fd314de45788ae38efccb3",
-      "commit_date": "2026-09-16T20:32:50Z",
-      "md5": "eab4729e8ec4d0eb69c56346c9441b42"
+      "commit": "f1e8b12b1056fa8f8be89dd2118ac2629305cfd8",
+      "commit_date": "2026-09-18T20:36:01Z",
+      "md5": "b53dca488bc12d219e98e54b62285c6b"
     },
     {
       "file": "rules-2.0.yml",
       "spec_version": "2.0",
       "rules": 58,
-      "commit": "825ab78966b9581ad9fd314de45788ae38efccb3",
-      "commit_date": "2026-09-16T20:32:50Z",
-      "md5": "a8d3fb6c107b88ab4b7eccdc4982da81"
+      "commit": "f1e8b12b1056fa8f8be89dd2118ac2629305cfd8",
+      "commit_date": "2026-09-18T20:36:01Z",
+      "md5": "885d116fcbb3a0460282ec6859f46080"
     }
   ]
 }

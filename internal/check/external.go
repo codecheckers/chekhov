@@ -323,14 +323,13 @@ func (w crossrefWork) work() Work {
 	return described
 }
 
-// rule: CC-MET-005 crossref-title-match
+// rule: CC-MET-005 paper-title-match
 //
-// The identifiers keep the historic name - they are the register's, not this
-// bot's - while the source they read is now whichever config/settings names,
-// OpenAlex by default. The `codecheck` R package still asks Crossref for
-// CC-MET-005 to 008; that difference is deliberate, and codecheckers/chekhov
-// has an issue open for the R package to follow.
-func crossrefTitleMatch(c Context) Result {
+// CC-MET-005 to 008 read whichever source config/settings names, OpenAlex by
+// default; codecheckers/register#220 took the vendor out of their names for
+// that reason. The `codecheck` R package still asks Crossref for the same four
+// - a deliberate difference, with codecheckers/codecheck#92 open to close it.
+func paperTitleMatch(c Context) Result {
 	work, result := workFor(c, "CC-MET-005")
 	if result != nil {
 		return *result
@@ -346,8 +345,8 @@ func crossrefTitleMatch(c Context) Result {
 		c.Config.Paper.Title, source, work.Title))
 }
 
-// rule: CC-MET-006 crossref-author-count-match
-func crossrefAuthorCountMatch(c Context) Result {
+// rule: CC-MET-006 paper-author-count-match
+func paperAuthorCountMatch(c Context) Result {
 	work, result := workFor(c, "CC-MET-006")
 	if result != nil {
 		return *result
@@ -363,8 +362,8 @@ func crossrefAuthorCountMatch(c Context) Result {
 		len(c.Config.Paper.Authors), source, len(work.Authors)))
 }
 
-// rule: CC-MET-007 crossref-author-name-match
-func crossrefAuthorNameMatch(c Context) Result {
+// rule: CC-MET-007 paper-author-name-match
+func paperAuthorNameMatch(c Context) Result {
 	work, result := workFor(c, "CC-MET-007")
 	if result != nil {
 		return *result
@@ -412,8 +411,8 @@ func namedIn(names []string, author WorkAuthor) bool {
 	return false
 }
 
-// rule: CC-MET-008 crossref-author-orcid-match
-func crossrefAuthorORCIDMatch(c Context) Result {
+// rule: CC-MET-008 paper-author-orcid-match
+func paperAuthorORCIDMatch(c Context) Result {
 	work, result := workFor(c, "CC-MET-008")
 	if result != nil {
 		return *result

@@ -218,10 +218,11 @@ a subject for every record against **none**: Crossref returns `subject` present
 and empty now, which is why `suggest codecheckers` matched on languages alone
 in ten real checks.
 
-The four rule identifiers still read `crossref-*`. They are the register's
-names, not this bot's, and renaming them is register business; the R package
-still asks Crossref for them, which is a deliberate difference with an issue
-open against it. Say so in a comment when touching them.
+The four rules used to be named `crossref-*`; codecheckers/register#220 renamed
+them to `paper-*` because the source is an implementation's choice, and the
+identifiers - which is what both implementations key on - never moved. The R
+package still asks Crossref for them, a deliberate difference with
+codecheckers/codecheck#92 open to close it.
 
 Everything a deployment configures lives in `Services.Access`, and `Fresh`
 copies that struct whole. It used to write the fields out by hand, and the

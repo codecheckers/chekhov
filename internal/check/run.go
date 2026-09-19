@@ -270,10 +270,10 @@ var referenceRules = map[string]bool{
 	"CC-CFG-030": true, // reference-other-item-form
 	"CC-CFG-031": true, // reference-pdf-is-archived
 	"CC-MET-004": true, // paper-reference-resolves
-	"CC-MET-005": true, // crossref-title-match
-	"CC-MET-006": true, // crossref-author-count-match
-	"CC-MET-007": true, // crossref-author-name-match
-	"CC-MET-008": true, // crossref-author-orcid-match
+	"CC-MET-005": true, // paper-title-match
+	"CC-MET-006": true, // paper-author-count-match
+	"CC-MET-007": true, // paper-author-name-match
+	"CC-MET-008": true, // paper-author-orcid-match
 	"CC-MET-009": true, // reference-other-resolves
 }
 
