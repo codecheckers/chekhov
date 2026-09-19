@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot check repository` describes the repository under check before a
+  codechecker is assigned: the languages, the licence it states, whether there
+  is a `codecheck.yml`, and how many files and bytes the bundle holds, with a
+  word when it is large enough to be awkward to check. It is a description
+  rather than a verdict - nothing in it passes or fails - and a fact the source
+  cannot give is reported as "could not check" rather than as an absence
+  (codecheckers/chekhov#8).
 - `@chekhovbot codecheckers` says where the lists of codecheckers are, linking
   each one and naming how many entries it has rather than copying it into the
   issue, where it would go out of date (codecheckers/chekhov#24).

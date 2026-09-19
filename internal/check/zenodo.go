@@ -74,6 +74,7 @@ func (r zenodoRecord) licence() string {
 type zenodoFile struct {
 	Key      string `json:"key"`
 	Filename string `json:"filename"`
+	Size     int64  `json:"size"`
 	Links    struct {
 		Self     string `json:"self"`
 		Download string `json:"download"`

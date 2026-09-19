@@ -29,11 +29,11 @@ var (
 	commit  = ""
 )
 
-const usage = `chekhov - the CODECHECK register bot
+var usage = fmt.Sprintf(`chekhov - the CODECHECK register bot
 
 Usage:
   chekhov check [options] <path to codecheck.yml, a repository, or a certificate>
-  chekhov check [options] [config|metadata|bundle|references|report|register] <target>
+  chekhov check [options] [<part>|repository] <target>
   chekhov comment [--as <handle>] [--online] <path to a comment file, or - for stdin>
   chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
@@ -41,6 +41,8 @@ Usage:
   chekhov record-key
 
 Options: --spec <version>, --strict, --markdown, --online
+
+A part of the catalogue is one of: %s.
 
 The target is a path, or a repository the way register.csv names one:
 github::org/repo, github::org/repo|sub/dir, gitlab::group/project, osf::<id>,
@@ -50,13 +52,16 @@ certificate identifier like 2020-001 is looked up in the register. Reading a
 repository implies --online.
 
 Naming a part of the catalogue checks only that part, which is what the bot's
-"@chekhovbot check bundle" asks for.
+"@chekhovbot check bundle" asks for. "check repository" is not a part: it
+describes the repository under check - languages, licence, size, whether there
+is a codecheck.yml - rather than judging one, and nothing in it passes or
+fails.
 
 The check command exits non-zero when a rule failed as an error. Without
 --online it reads nothing but the file and its bundle, and the rules that need
 Crossref, ORCID, Zenodo, the GitHub API or the register report that they were
 not checked.
-`
+`, strings.Join(check.Parts(), ", "))
 
 func main() {
 	version, commit = build.Stamp(version, commit)
@@ -93,6 +98,22 @@ func run(args []string, out io.Writer) error {
 	}
 }
 
+// describeRepository answers "check repository", which reports what the
+// repository is rather than whether its configuration is valid - so it has no
+// verdict and cannot exit non-zero.
+func describeRepository(target string, services *check.Services, markdown bool, out io.Writer) error {
+	description, err := check.DescribeRepository(target, true, services)
+	if err != nil {
+		return err
+	}
+	if markdown {
+		fmt.Fprint(out, description.Markdown())
+	} else {
+		fmt.Fprint(out, description.Text())
+	}
+	return nil
+}
+
 func runCheck(args []string, out io.Writer) error {
 	specVersion := ""
 	strict := false
@@ -115,7 +136,7 @@ func runCheck(args []string, out io.Writer) error {
 			markdown = true
 		case argument == "--online":
 			online = true
-		case check.IsPart(argument) && argument != "":
+		case check.IsWord(argument):
 			part = argument
 		case target != "":
 			return fmt.Errorf("check takes one target, but got %q and %q", target, argument)
@@ -127,7 +148,14 @@ func runCheck(args []string, out io.Writer) error {
 		return fmt.Errorf("check needs a path to a codecheck.yml, a repository, or a certificate identifier")
 	}
 
-	context, err := loadTarget(target, online)
+	// Whether the target is a path or a repository, and whether that needs the
+	// services, is check's to decide.
+	services := check.ServicesFor(target, online)
+	if part == check.AboutRepository {
+		return describeRepository(target, services, markdown, out)
+	}
+
+	context, err := check.Load(target, true, services)
 	if err != nil {
 		return err
 	}
@@ -146,12 +174,6 @@ func runCheck(args []string, out io.Writer) error {
 		return fmt.Errorf("%s", report.FailureMessage())
 	}
 	return nil
-}
-
-// loadTarget reads a codecheck.yml from a path or from a repository. Which of
-// the two, and whether that needs the services, is check's to decide.
-func loadTarget(target string, online bool) (check.Context, error) {
-	return check.Load(target, true, check.ServicesFor(target, online))
 }
 
 // runComment shows what the bot would reply to a comment, which is how the

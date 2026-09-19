@@ -632,7 +632,7 @@ func (s *Server) check(parsed command.Command, services *check.Services) string 
 		if argument == "" {
 			continue
 		}
-		if check.IsPart(argument) {
+		if check.IsWord(argument) {
 			part = argument
 		} else if target == "" {
 			// The first target wins. A comment is prose, and "check 2020-001
@@ -647,6 +647,17 @@ func (s *Server) check(parsed command.Command, services *check.Services) string 
 			"A repository may also be named the way `register.csv` does, "+
 			"`github::owner/repo`, with `|sub/dir` when the configuration is not at the root.\n",
 			command.Bot, command.Bot)
+	}
+
+	// Not a part of the catalogue but a description of the repository the
+	// configuration would come from, which is asked before there is one to
+	// check. See check.AboutRepository.
+	if part == check.AboutRepository {
+		description, err := check.DescribeRepository(target, s.LocalPaths, services)
+		if err != nil {
+			return fmt.Sprintf("I could not look at `%s`: %s\n", target, err)
+		}
+		return description.Markdown()
 	}
 
 	context, err := s.read(target, services)

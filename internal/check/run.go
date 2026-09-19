@@ -280,6 +280,21 @@ var referenceRules = map[string]bool{
 // Parts are the names a check may be narrowed to.
 func Parts() []string { return partNames }
 
+// Words are what `check` takes before its target: the parts of the catalogue,
+// and AboutRepository, which is a description rather than a part.
+//
+// One list, so that a caller parsing a command has no vocabulary of its own to
+// keep in step - and so that the usage a reader is shown is the one the parser
+// actually uses.
+func Words() []string { return append(slices.Clone(partNames), AboutRepository) }
+
+// IsWord reports whether an argument says what to answer rather than what to
+// read. The empty string is not one: only IsPart treats it as "all of them",
+// and a caller reading a comment word by word must not.
+func IsWord(name string) bool {
+	return name != "" && (IsPart(name) || name == AboutRepository)
+}
+
 // IsPart reports whether a name selects part of the catalogue. "all" and the
 // empty string mean the whole of it, so that a caller has no vocabulary of its
 // own to keep in step.

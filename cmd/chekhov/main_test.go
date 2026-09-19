@@ -140,3 +140,18 @@ func TestCommentChecksOnePart(t *testing.T) {
 		t.Errorf("the reply should cover the bundle only:\n%s", out.String())
 	}
 }
+
+// "check repository" describes rather than judges, so it has no verdict to
+// exit non-zero on - not even for a bundle whose configuration is invalid.
+func TestCheckRepositoryDescribesADirectory(t *testing.T) {
+	var out bytes.Buffer
+	if err := run([]string{"check", "repository", filepath.Join("..", "..", "testdata", "placeholders")},
+		&out); err != nil {
+		t.Fatalf("a description has no verdict to fail on: %v", err)
+	}
+	for _, want := range []string{"codecheck.yml: present", "size:", "languages: could not check"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the description does not say %q:\n%s", want, out.String())
+		}
+	}
+}

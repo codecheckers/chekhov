@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"github.com/codecheckers/chekhov/config"
+	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/people"
+	"github.com/codecheckers/chekhov/internal/testserver"
 )
 
 const secret = "a-test-webhook-secret"
@@ -728,5 +730,61 @@ func TestAChangeSaysWhoMadeIt(t *testing.T) {
 		command.Command{Name: command.Remove, Args: []string{"@a-codechecker", "as", "codechecker"}})
 	if !strings.Contains(removed, "nuest") || !strings.Contains(removed, "removed by") {
 		t.Errorf("the removal does not say who made it: %s", removed)
+	}
+}
+
+// "check repository" is not a part of the rule catalogue: it describes the
+// repository under check rather than judging its configuration, and it
+// answers before there is a codecheck.yml to judge (chekhov#8).
+func TestCheckRepositoryDescribesRatherThanJudges(t *testing.T) {
+	server, _ := testServer(t)
+	stub := testserver.New(t)
+	stub.JSON("/github/repos/codecheckers/demo/languages", `{"R": 900}`)
+	stub.JSON("/github/repos/codecheckers/demo/contents/", `[{"name": "analysis.R", "type": "file", "size": 20}]`)
+	stub.Status("/raw/codecheckers/demo/HEAD/codecheck.yml", http.StatusNotFound)
+	server.Services = &check.Services{Access: check.Access{
+		HTTP: stub.Client(), Register: server.Settings.TargetRepository(),
+		GitHub: stub.URL + "/github", RawContent: stub.URL + "/raw",
+	}}
+
+	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
+		command.Command{Name: command.Check, Args: []string{"repository", "codecheckers/demo"}})
+
+	for _, want := range []string{"github.com/codecheckers/demo", "languages", "R",
+		"no `codecheck.yml` yet", "not a verdict"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the description does not say %q: %s", want, reply)
+		}
+	}
+	if strings.Contains(reply, "CC-") {
+		t.Errorf("a description should report no rules: %s", reply)
+	}
+}
+
+// The same guard as every other target: a deployment does not describe its
+// own disk either.
+func TestCheckRepositoryRefusesALocalPath(t *testing.T) {
+	server, _ := testServer(t)
+
+	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
+		command.Command{Name: command.Check, Args: []string{"repository", "/etc/passwd"}})
+	if !strings.Contains(reply, "I could not look at") {
+		t.Errorf("a path was described: %s", reply)
+	}
+}
+
+// The registry generates the help listing, so the words it offers after
+// `check` have to be the words the parser accepts. They are written out in
+// the usage line rather than generated, because internal/command speaks about
+// replies and does not import the checking - so a test holds them together.
+func TestTheListingOffersEveryWordCheckAccepts(t *testing.T) {
+	definition, found := command.Lookup(string(command.Check))
+	if !found {
+		t.Fatal("check is not in the registry")
+	}
+	for _, word := range check.Words() {
+		if !strings.Contains(definition.Usage, word) {
+			t.Errorf("`check %s` works but is not offered in the listing: %s", word, definition.Usage)
+		}
 	}
 }

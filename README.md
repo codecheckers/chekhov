@@ -56,6 +56,7 @@ go run ./cmd/chekhov check github::codecheckers/Piccolo-2020  # read it from the
 go run ./cmd/chekhov check codecheckers/Piccolo-2020          # the same, platform inferred
 go run ./cmd/chekhov check 2020-001                 # the certificate, looked up in the register
 go run ./cmd/chekhov check bundle github::codecheckers/demo   # one part of the catalogue
+go run ./cmd/chekhov check repository codecheckers/demo       # what the repository is, not a verdict
 go run ./cmd/chekhov check --markdown path/to/codecheck.yml   # the reply the bot posts
 go run ./cmd/chekhov rules                          # the rules, and which are checked
 ```

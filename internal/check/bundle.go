@@ -52,7 +52,14 @@ const listingPageSize = 100
 type BundleEntry struct {
 	Name  string
 	IsDir bool
+	// Size is the file in bytes, or SizeUnknown when the listing does not
+	// say - GitLab's tree gives names and nothing else. Zero is a real
+	// answer: an empty file is not an unmeasured one.
+	Size int64
 }
+
+// SizeUnknown is a BundleEntry the listing gave no size for.
+const SizeUnknown int64 = -1
 
 // errNoServices is what a repository bundle answers when the outside world is
 // switched off. The rules turn it into their own skip, so that "could not
@@ -63,6 +70,29 @@ var errNoServices = errors.New("external services not enabled")
 // under it is absent, which is a finding about that entry rather than a reason
 // to give up on the whole manifest.
 var errNoSuchDirectory = errors.New("no such directory in the bundle")
+
+// bundleOf resolves what somebody wrote to the repository it names and the
+// bundle its files are in.
+//
+// The one place that does it: reading a configuration out of a repository and
+// describing the repository itself both start here, so a target cannot be
+// understood one way by `check` and another by `check repository`.
+func bundleOf(target string, services *Services) (RepositorySpec, Bundle, error) {
+	// Resolved before the services are asked for, so that a target nobody can
+	// make sense of is answered as such rather than as an outage.
+	spec, err := ResolveTarget(target, services)
+	if err != nil {
+		return RepositorySpec{}, nil, err
+	}
+	if !services.Enabled() {
+		return spec, nil, fmt.Errorf("reading %s needs the external services", spec)
+	}
+	bundle := bundleFor(spec, services)
+	if bundle == nil {
+		return spec, nil, fmt.Errorf("unsupported repository type %q", spec.Type)
+	}
+	return spec, bundle, nil
+}
 
 // bundleFor is the bundle of a repository, nil for a kind of repository this
 // bot cannot read. Which service to ask is decided here, once, rather than at
@@ -162,7 +192,8 @@ func (b *localBundle) entries(dir string) ([]BundleEntry, error) {
 	}
 	listing := make([]BundleEntry, 0, len(entries))
 	for _, entry := range entries {
-		listing = append(listing, BundleEntry{Name: entry.Name(), IsDir: entry.IsDir()})
+		info, err := entry.Info()
+		listing = append(listing, fileEntry(entry.Name(), entry.IsDir(), sizeOf(info, err)))
 	}
 	return listing, nil
 }
@@ -255,7 +286,7 @@ func (b *githubBundle) tree(dir string) ([]BundleEntry, error) {
 	if err := b.services.github(url, &listing); err != nil {
 		return nil, err
 	}
-	return entriesOf(listing, "dir"), nil
+	return entriesOf(listing, "dir", true), nil
 }
 
 // --- GitLab ---
@@ -335,7 +366,8 @@ func (b *gitlabBundle) tree(dir string) ([]BundleEntry, error) {
 			break
 		}
 	}
-	return entriesOf(listing, "tree"), nil
+	// GitLab's tree gives names and no sizes.
+	return entriesOf(listing, "tree", false), nil
 }
 
 // --- OSF ---
@@ -409,10 +441,7 @@ func (b *osfBundle) tree(dir string) ([]BundleEntry, error) {
 	}
 	entries := make([]BundleEntry, 0, len(listing.Data))
 	for _, item := range listing.Data {
-		entries = append(entries, BundleEntry{
-			Name:  item.Attributes.Name,
-			IsDir: item.folder(),
-		})
+		entries = append(entries, fileEntry(item.Attributes.Name, item.folder(), item.Attributes.Size))
 	}
 	return entries, nil
 }
@@ -533,7 +562,7 @@ func (b *zenodoBundle) tree(dir string) ([]BundleEntry, error) {
 			continue
 		}
 		seen[child] = true
-		entries = append(entries, BundleEntry{Name: child, IsDir: nested})
+		entries = append(entries, fileEntry(child, nested, file.Size))
 	}
 	return entries, nil
 }
@@ -546,14 +575,40 @@ func (b *zenodoBundle) tree(dir string) ([]BundleEntry, error) {
 type treeEntry struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
+	Size int64  `json:"size"`
 }
 
-func entriesOf(listing []treeEntry, directory string) []BundleEntry {
+// entriesOf reads a listing. sized says whether this platform's listing
+// carries file sizes at all: GitHub's does, GitLab's does not, and reading
+// GitLab's absent size as a zero would report a gigabyte of data as nothing.
+func entriesOf(listing []treeEntry, directory string, sized bool) []BundleEntry {
 	entries := make([]BundleEntry, 0, len(listing))
 	for _, item := range listing {
-		entries = append(entries, BundleEntry{Name: item.Name, IsDir: item.Type == directory})
+		size := SizeUnknown
+		if sized {
+			size = item.Size
+		}
+		entries = append(entries, fileEntry(item.Name, item.Type == directory, size))
 	}
 	return entries
+}
+
+// fileEntry is one listing entry with the one rule about sizes applied: a
+// directory has no size of its own, whatever the listing said about it.
+func fileEntry(name string, isDir bool, size int64) BundleEntry {
+	if isDir {
+		size = SizeUnknown
+	}
+	return BundleEntry{Name: name, IsDir: isDir, Size: size}
+}
+
+// sizeOf is what a directory entry on disk weighs, unknown when it could not
+// be stat'ed.
+func sizeOf(info os.FileInfo, err error) int64 {
+	if err != nil {
+		return SizeUnknown
+	}
+	return info.Size()
 }
 
 // licenceFileIn is how a git repository states its licence: a file at the root

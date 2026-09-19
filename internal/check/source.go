@@ -63,19 +63,9 @@ func IsRepositorySpec(candidate string) bool {
 // on the context: the rules about the bundle look in the same place the file
 // came from, rather than saying they could not look.
 func FromRepository(spec string, services *Services) (Context, error) {
-	// Resolved before the services are asked for, so that a target nobody can
-	// make sense of is answered as such rather than as an outage.
-	parsed, err := ResolveTarget(spec, services)
+	parsed, bundle, err := bundleOf(spec, services)
 	if err != nil {
 		return Context{}, err
-	}
-	if !services.Enabled() {
-		return Context{}, fmt.Errorf("reading %s needs the external services", parsed)
-	}
-
-	bundle := bundleFor(parsed, services)
-	if bundle == nil {
-		return Context{}, fmt.Errorf("unsupported repository type %q", parsed.Type)
 	}
 	raw, err := bundle.Read("codecheck.yml")
 	if err != nil {
@@ -204,6 +194,9 @@ type osfItem struct {
 	Attributes struct {
 		Name string `json:"name"`
 		Kind string `json:"kind"`
+		// Size is null for a folder, which decodes to zero and is never read:
+		// only a file is measured.
+		Size int64 `json:"size"`
 	} `json:"attributes"`
 	Links struct {
 		Download string `json:"download"`
