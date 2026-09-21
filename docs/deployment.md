@@ -108,33 +108,43 @@ that name, and nothing distinguishes the two. Reading it would report a hand-set
 value as though the build had proved it - the 2026-09-21 failure with a better
 disguise.
 
-So if this builder has no `.git`, the deployment reports no commit, and the fix
-is at build time rather than at runtime: `BP_GO_BUILD_LDFLAGS`, which the Go
-buildpack does read.
+**This builder has no `.git`, and the deployment therefore reports no commit.**
+Settled on 2026-09-21 by reading the build log of a real deploy, which this
+file had twice guessed at instead:
 
-**Whether this platform can stamp the commit properly is an open question, not
-a settled no.** This file used to say `-ldflags` and the VCS stamp were both
-impossible here. Neither claim was tested:
-[`paketo-buildpacks/go-build`](https://github.com/paketo-buildpacks/go-build)
-does read `BP_GO_BUILD_LDFLAGS`, and it never passes `-buildvcs=false`, so
-Go would stamp the revision if `.git` reached the build. Whether it does is
-undocumented - runway says only that it "builds from git, not from your working
-tree".
-
-Runway's Go buildpack order includes
-[`paketo-buildpacks/git`](https://github.com/paketo-buildpacks/git), which only
-runs when it finds a `.git` directory - so whether it ran is itself the answer
-to whether `.git` is there. One command:
-
-```sh
-runway app exec -a chekhov      # then, in the shell: printenv REVISION
+```
+[builder] Paketo Buildpack for Go Distribution 2.10.27
+[builder] Paketo Buildpack for Go Mod Vendor 1.1.38
+[builder] Paketo Buildpack for Go Build 2.4.38
+[builder]     Running 'go build -o … -buildmode pie -trimpath ./cmd/chekhov'
+[builder] Paketo Buildpack for Procfile 5.13.7
 ```
 
-A SHA means `.git` reaches the build, and the bot's own VCS stamp should then be
-there too - check with `chekhov version` in the same shell, which prints the
-commit when there is one. Empty means it does not, and the question becomes one
-for runway: their own Go stack ships a buildpack that is dead code without it.
-Either way the bot does not read `REVISION` itself, for the reason above. See
+Two things there are conclusive.
+[`paketo-buildpacks/git`](https://github.com/paketo-buildpacks/git) **is not in
+the list**, and it detects on finding a `.git` directory - so there is none,
+which also closes the `REVISION` route for good. And the `go build` line
+carries no `-buildvcs=false`, so Go's automatic stamping would have written the
+revision had there been a repository to read. `/healthz` on that release
+reports `version 0.1.1` with no `commit` field, which is the design working: no
+commit rather than a guess.
+
+The platform does know the commit - it tags the image `chekhov:git-369b08c6` -
+it simply does not hand it to the builder.
+
+What remains is the one channel the buildpack reads:
+
+```sh
+runway app config set -a chekhov "BP_GO_BUILD_LDFLAGS=-X main.commit=$(git rev-parse HEAD)"
+```
+
+[`paketo-buildpacks/go-build`](https://github.com/paketo-buildpacks/go-build)
+adds `-ldflags` to the compiler's command line only when that variable is set,
+which is why the line above shows none. The catch is the one `CHEKHOV_COMMIT`
+failed on: somebody has to set it beside each deploy. It is better than
+`CHEKHOV_COMMIT` was - injected at build time, so the value cannot outlive the
+binary it describes - and it is still a step that can be skipped, which is why
+it is not done here yet. See
 [chekhov#4](https://github.com/codecheckers/chekhov/issues/4).
 
 ### SSH keys, and the snap

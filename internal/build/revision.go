@@ -21,10 +21,13 @@ import "runtime/debug"
 // it finds a .git, is a build product but is *also* an environment variable:
 // the same name a deployment's configuration can set, with no way to tell the
 // two apart. Reading it would report a hand-set value as though the build had
-// proved it, which is the first failure with a better disguise. If the
-// platform's builder has no .git the honest answer is no commit, and the fix
-// is at build time - `BP_GO_BUILD_LDFLAGS`, which the Go buildpack does read -
-// not at runtime. See chekhov#4 and docs/deployment.md -> The version.
+// proved it, which is the first failure with a better disguise. It is moot
+// besides: the deployment's builder has no .git at all, so that buildpack
+// never runs there - a build log settled it on 2026-09-21. The deployment
+// therefore reports no commit, which is the honest answer, and the remaining
+// way to give it one is at build time (`BP_GO_BUILD_LDFLAGS`, which the Go
+// buildpack does read) rather than at runtime. See chekhov#4 and
+// docs/deployment.md -> The version.
 
 // Uncommitted is what to say about a build whose tree had changes in it. One
 // phrase, because the terminal and the posted reply should not describe the

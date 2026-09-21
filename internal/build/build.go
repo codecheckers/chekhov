@@ -8,12 +8,13 @@
 //
 // Go's own answer is used for the commit and not for the version. Since Go
 // 1.24 `go build` stamps the module version from the VCS tag, free and correct
-// wherever .git is present - but whether it is present in the deployment's
-// builder is not established, and a version that is sometimes a semantic
-// version and sometimes a pseudo-version is worse than one that is always the
-// same shape. revision.go reads the commit from that same stamp, and reports
-// nothing when there is none, which is also how somebody finds out whether the
-// builder has a .git: see chekhov#4 and docs/deployment.md.
+// wherever .git is present - and the deployment's builder has none, which a
+// build log settled on 2026-09-21: the git buildpack, which detects on finding
+// a .git, does not run there. So the stamp is empty exactly where the question
+// is asked, and a version that is sometimes a semantic version and sometimes a
+// pseudo-version is worse than one that is always the same shape. revision.go
+// reads the commit from that same stamp and reports nothing when there is
+// none. See chekhov#4 and docs/deployment.md.
 package build
 
 // Version is the version of the bot, as semantic versioning applies it to what
