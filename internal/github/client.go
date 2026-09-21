@@ -36,6 +36,12 @@ type Client struct {
 	BaseURL string
 	// Repository is the only repository this client will write to, owner/repo.
 	Repository string
+	// Organisation is the only organisation whose membership this client will
+	// change, and InviteTeam the only team within it that it will add anybody
+	// to. Both empty unless a deployment turns inviting on, and inviting is
+	// then refused rather than aimed somewhere else. See invite.go.
+	Organisation string
+	InviteTeam   string
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string
@@ -192,6 +198,14 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]
 		}
 	}
 	return raw, nil
+}
+
+// isStatus reports whether an error from do is a particular HTTP status. Here
+// rather than beside its first caller, so that the next one does not write a
+// second errors.As of its own.
+func isStatus(err error, status int) bool {
+	var failure *statusError
+	return errors.As(err, &failure) && failure.Status == status
 }
 
 // attempt runs a request twice at most, waiting as GitHub asks between the

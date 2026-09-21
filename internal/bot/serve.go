@@ -40,6 +40,11 @@ func Serve(address, version, commit string) error {
 	// Only a development deployment signs its comments with what it is; see
 	// command.Deployment.
 	replies := github.New(token, settings.TargetRepository(), deployment.Signature())
+	// The one organisation whose membership this deployment may change, and
+	// the one team within it it may add anybody to. Naming the editors team
+	// here would let the bot hand out its own permissions; see
+	// internal/github/invite.go.
+	replies.Organisation, replies.InviteTeam = settings.TeamOrganisation(), settings.CodecheckersTeam()
 
 	server := New(settings, secret, replies, deployment)
 	// A deployment is always online: the checks it runs read repositories and

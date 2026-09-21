@@ -46,6 +46,8 @@ const (
 	// type is `suggest`, with what to suggest as an argument, so that the
 	// parser stays one word per command - as `refresh teams` does.
 	SuggestCodecheckers Name = "suggest"
+	// Invite asks the organisation to add somebody to the codecheckers team.
+	Invite Name = "invite"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Rules says which rule catalogue this build judges by, and whether it is

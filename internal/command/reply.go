@@ -872,3 +872,103 @@ func codeListUpTo(items []string, most int) string {
 	}
 	return fmt.Sprintf("%s and %d more", codeList(items[:most]), len(items)-most)
 }
+
+// An Invitation is what came of inviting somebody to the codecheckers team,
+// as a reply says it.
+//
+// Handles are written in backticks throughout, as everywhere else the bot
+// names somebody: a reply is not the place to notify a person who has not
+// asked to be in this thread. The invitation itself is what reaches them.
+type Invitation struct {
+	// Handle is the account, as GitHub capitalises it.
+	Handle string
+	// Team is where they were added, as organisation/team.
+	Team string
+	// Outcome is which of the three things happened.
+	Outcome Outcome
+	// OnList is whether they are already a row in a codechecker list. A
+	// member who is not on one is a different problem from a stranger, and
+	// the reply says which.
+	OnList bool
+	// Lists is where the rows are kept, for the reply to point at.
+	Lists []string
+	// Unread is what could not be read while answering, in words. Without it
+	// an unreachable list would read as somebody having no row, and the reply
+	// would state that as fact.
+	Unread []string
+}
+
+// Outcome of inviting somebody: the three things that can happen, as one
+// value rather than as a pair of flags with an impossible combination.
+type Outcome string
+
+const (
+	// AlreadyAMember needed no invitation.
+	AlreadyAMember Outcome = "already a member"
+	// Invited has been sent an invitation and has to accept it.
+	Invited Outcome = "invited"
+	// Added was already in the organisation, so the membership is immediate.
+	Added Outcome = "added"
+	// Unclear is a write that went through and an answer that named neither
+	// state. Its own outcome, because the alternative is a default branch
+	// that reports the happiest of the three.
+	Unclear Outcome = "unclear"
+)
+
+// InvitedReply says what happened, and what is left for a person to do.
+func InvitedReply(invitation Invitation) string {
+	handle, team := invitation.Handle, "`"+invitation.Team+"`"
+	if invitation.Outcome == AlreadyAMember && invitation.OnList {
+		return fmt.Sprintf("`@%s` is already in %s and on the codechecker list, "+
+			"so there is nothing to do.\n", handle, team)
+	}
+
+	var out strings.Builder
+	switch invitation.Outcome {
+	case AlreadyAMember:
+		// Only said as a fact when every list was read; an unreadable one
+		// makes this "I did not see a row", which the tail says.
+		if len(invitation.Unread) > 0 {
+			fmt.Fprintf(&out, "`@%s` is already in %s. I did not find a row for them on a "+
+				"codechecker list, which would be a different problem - without one nobody "+
+				"can be suggested for a check.\n", handle, team)
+			break
+		}
+		fmt.Fprintf(&out, "`@%s` is already in %s, but is not on any codechecker list - "+
+			"which is a different problem, and the one worth fixing: without a row nobody "+
+			"can be suggested for a check.\n", handle, team)
+	case Invited:
+		fmt.Fprintf(&out, "I have invited `@%s` to %s. "+
+			"GitHub has sent them an invitation, and they are not in the team until they accept it.\n",
+			handle, team)
+	case Added:
+		fmt.Fprintf(&out, "I have added `@%s` to %s. "+
+			"They were already in the organisation, so the membership is immediate.\n",
+			handle, team)
+	default:
+		fmt.Fprintf(&out, "I asked for `@%s` to be added to %s. GitHub accepted it but did not "+
+			"say whether the membership is immediate or an invitation to accept, so please "+
+			"check the team.\n", handle, team)
+	}
+
+	if !invitation.OnList {
+		out.WriteString("\nThe row in the codechecker list is still a person's job - " +
+			"it carries their name, ORCID, fields and languages, which I have no way to know")
+		if len(invitation.Lists) > 0 {
+			out.WriteString(":\n\n")
+			for _, list := range invitation.Lists {
+				fmt.Fprintf(&out, "- [%s](%s)\n", nameOfList(list), list)
+			}
+		} else {
+			out.WriteString(".\n")
+		}
+	}
+	// Said after the rest, because it qualifies it: whether somebody has a row
+	// is what separates these replies, and this is the case where that could
+	// not be established. Worded as the suggestion reply words it.
+	for _, problem := range invitation.Unread {
+		fmt.Fprintf(&out, "\nCould not read %s, so they may have a row I did not see.\n",
+			oneLine(problem))
+	}
+	return out.String()
+}

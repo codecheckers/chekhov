@@ -31,14 +31,27 @@ type Issues interface {
 // otherwise only discover at runtime, as a missing exclusion.
 var _ Issues = (*github.Client)(nil)
 
+// codecheckerListPages is where the lists are, as a person opens them. The
+// one place that maps a configured list URL to its page, so that every reply
+// naming a list names the same thing.
+func (s *Server) codecheckerListPages() []string {
+	configured := s.Settings.CodecheckerLists()
+	pages := make([]string, 0, len(configured))
+	for _, url := range configured {
+		pages = append(pages, suggest.PageOf(url))
+	}
+	return pages
+}
+
 // codecheckers says where the lists are, and how long each one is.
 func (s *Server) codecheckers(services *check.Services) string {
 	configured := s.Settings.CodecheckerLists()
+	pages := s.codecheckerListPages()
 	lists := make([]command.CodecheckerList, 0, len(configured))
-	for _, url := range configured {
+	for i, url := range configured {
 		// The links are worth having offline; the count is the only part of
 		// the answer that needs the network.
-		list := command.CodecheckerList{Page: suggest.PageOf(url), Count: -1}
+		list := command.CodecheckerList{Page: pages[i], Count: -1}
 		if services.Enabled() {
 			rows, err := services.CSV(url)
 			if err != nil {

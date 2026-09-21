@@ -131,3 +131,30 @@ func TestTheMastodonAccountComesFromTheEnvironment(t *testing.T) {
 		t.Errorf("account %q on %q, want the ones from the environment", mastodon.Account, mastodon.Instance)
 	}
 }
+
+// The bot may add people to the codecheckers team and no other, and the guard
+// that keeps `invite` from handing out the bot's own permissions compares team
+// names. Naming the same team twice would leave that guard holding while
+// meaning nothing.
+func TestTheEditorsAndCodecheckersTeamsMayNotBeTheSame(t *testing.T) {
+	settings := &Settings{}
+	settings.Chekhov.Env.TargetRepository = "codecheckers/testing-dev-register"
+	settings.Chekhov.Mastodon.Visibility = "direct"
+	settings.Chekhov.Teams.Organisation = "codecheckers"
+	settings.Chekhov.Teams.Editors = "editors"
+	// The same team, written as somebody would write it by accident.
+	settings.Chekhov.Teams.Codecheckers = "Editors"
+
+	err := validate("settings-test.yml", settings)
+	if err == nil {
+		t.Fatal("inviting a codechecker into the editors team was allowed")
+	}
+	if !strings.Contains(err.Error(), "they must differ") {
+		t.Errorf("error %q, want it to say why", err)
+	}
+
+	settings.Chekhov.Teams.Codecheckers = "codecheckers"
+	if err := validate("settings-test.yml", settings); err != nil {
+		t.Errorf("two different teams should be accepted: %v", err)
+	}
+}

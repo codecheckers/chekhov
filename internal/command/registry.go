@@ -112,6 +112,13 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    Invite,
+		Summary: "Invite somebody to the codecheckers team",
+		Usage:   "invite @user",
+		Group:   GroupPeople,
+		Role:    RoleEditor,
+	},
+	{
 		Name:    SuggestCodecheckers,
 		Summary: "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
 		Usage:   "suggest codecheckers [<repository>|<DOI>|<certificate>]",

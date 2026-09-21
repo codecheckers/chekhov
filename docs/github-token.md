@@ -42,9 +42,9 @@ Organisation permissions:
 
 | Permission | Level | Needed for |
 |---|---|---|
-| Members | Read | Reading the `editors` and `codecheckers` teams, which is where the standing roles come from |
+| Members | Read, or read and write | Read: the `editors` and `codecheckers` teams, which is where the standing roles come from. Write: only for `@chekhovbot invite` |
 
-*Members: read* is organisation-wide rather than repository-scoped, and it is
+*Members* is organisation-wide rather than repository-scoped, and it is
 the one permission here that reaches beyond the single repository. It is the
 price of not keeping a second list of people by hand: membership is maintained
 once, by the organisation, and the bot reads it. See "One token, or two" below
@@ -55,6 +55,42 @@ for why this does not warrant a second credential.
 has no members, the editor-only commands refuse, and the listing does not offer
 them. The startup log says so at boot - `a team could not be read at startup` -
 so the cause is visible before an editor is told they are not one.
+
+### Members: write, and what stops it being more than inviting
+
+*Members: write* is the largest permission this bot asks for, and it is
+optional: without it everything works except `invite`, which refuses and says
+why. The permission itself allows more than inviting - the same scope can set
+a person's **organisation** role, including owner - so the limits are in the
+code rather than in the token, and they are tested rather than asserted:
+
+- `internal/github/invite.go` is the only file that writes membership. It calls
+  `PUT /orgs/{org}/teams/{team}/memberships/{user}` and nothing else. It never
+  calls `PUT /orgs/{org}/memberships/{user}`, the endpoint one segment away
+  that sets the organisation role.
+- The role sent is always `member`, written as a literal, and **no function
+  there takes a role argument** - so no caller can ask for `maintainer`, who
+  could add and remove others.
+- The team must be the configured `codecheckers` team. Adding to `editors`
+  would let the bot hand out its own permissions, and is refused before any
+  request. That guard compares team names, so `config` refuses at load if the
+  two teams are named the same - otherwise the fence would hold while meaning
+  nothing.
+- The organisation must be the configured one, as the repository must be for
+  every other write.
+- The handle is checked against a strict shape and then against GitHub itself
+  before a path is built from it: a handle carrying a slash or a dot segment
+  would move the request to another endpoint. The organisation and team slugs
+  are checked the same way, for the same reason.
+- Every handle in an error from that file is written in backticks, because the
+  errors are spliced into comments the bot posts and a bare `@` notifies a real
+  person.
+- Nothing there removes anybody. Taking a role away is done by a person, in the
+  organisation's settings, where it is logged against their name.
+
+`internal/github/invite_test.go` records every request that leaves and fails if
+any of the above stops being true. A reviewer checking this claim should read
+that file first.
 
 If the resource owner is the organisation, the request may land in
 Organization settings → Third-party Access → Personal access tokens for an

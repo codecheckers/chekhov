@@ -29,6 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `@chekhovbot invite @user` adds somebody to the `codecheckers` team, for an
+  editor who has found a codechecker outside it. It says whether GitHub sent an
+  invitation or the membership was immediate, tells somebody already in the
+  team from somebody in the team but not on a codechecker list, and refuses
+  with the reason when the token may not manage membership - never silently,
+  and never as though an invitation had been sent. The row in the codechecker
+  list stays a person's job, and the reply says so. Adding to any other team,
+  asking for any role but plain `member`, and the organisation-role endpoint
+  next door are all refused in code and covered by tests. A settings file that
+  names the editors and codecheckers teams the same is refused at load, because
+  the guard that keeps inviting out of the editors team compares their names
+  (codecheckers/chekhov#42).
 - `@chekhovbot rules` says which rule catalogue this build judges by and
   whether it is the register's current one, naming the bundled commit, the
   register's commit and the day the bundle was taken - so "behind" can be told

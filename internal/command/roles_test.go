@@ -1,6 +1,9 @@
 package command
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // Roles are a set: a person is whatever they are, and a command open to one of
 // those is open to them.
@@ -168,6 +171,22 @@ func TestConflictsNameKnownRoles(t *testing.T) {
 		}
 		if pair.Because == "" {
 			t.Errorf("the conflict between %q and %q says no reason", pair.A, pair.B)
+		}
+	}
+}
+
+// The parser's handle shape and internal/github's are separate on purpose,
+// and have to agree on what a handle is. Written as the same table on both
+// sides rather than as an import, so that neither guard depends on the other.
+func TestTheParserAgreesOnWhatAHandleIs(t *testing.T) {
+	for _, written := range []string{"@a-codechecker", "nuest", "@a1", "a"} {
+		if _, err := parseHandle(written); err != nil {
+			t.Errorf("%q should be a handle: %v", written, err)
+		}
+	}
+	for _, written := range []string{"", "@-a", "a-", "a--b", "a/b", "..", strings.Repeat("a", 40)} {
+		if handle, err := parseHandle(written); err == nil {
+			t.Errorf("%q was accepted as %q", written, handle)
 		}
 	}
 }

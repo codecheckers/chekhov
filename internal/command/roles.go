@@ -193,14 +193,6 @@ func assignableRoles() string {
 	return strings.Join(names, ", ")
 }
 
-// gitHubHandle is what GitHub allows: letters, digits and single hyphens, up
-// to 39 characters, and not starting or ending with one.
-//
-// Checked before a handle is stored, because the record is a markdown table in
-// a comment: a handle with a pipe in it would break the row for every later
-// reader, and one with an HTML comment in it would be worse.
-var gitHubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$`)
-
 // Handle is how a GitHub handle is written wherever this bot keeps one:
 // lowercased, and without the @ somebody typed in front of it. GitHub handles
 // are case-insensitive, and the @ belongs to the sentence rather than to the
@@ -209,6 +201,46 @@ var gitHubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$`)
 func Handle(written string) string {
 	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(written), "@"))
 }
+
+// ParseInvite reads `@user`, the one argument of invite.
+//
+// The shape is checked here, before anything is written: a handle carrying a
+// slash or a dot segment would not merely fail to resolve, it would move the
+// request that uses it to a different endpoint.
+func ParseInvite(args []string) (string, error) {
+	switch {
+	case len(args) == 0:
+		return "", fmt.Errorf("who should I invite? For example `%s invite @a-codechecker`", Bot)
+	case len(args) > 1:
+		return "", fmt.Errorf("I can invite one person at a time, and %q is more than one",
+			strings.Join(args, " "))
+	}
+	return parseHandle(args[0])
+}
+
+// parseHandle is how every command reads the person it was given: normalised,
+// and refused in one wording when it is not a handle at all.
+func parseHandle(written string) (string, error) {
+	handle := Handle(written)
+	if !gitHubHandle.MatchString(handle) {
+		return "", fmt.Errorf("%q is not a GitHub handle", written)
+	}
+	return handle, nil
+}
+
+// gitHubHandle is what GitHub allows: letters, digits and single hyphens, up
+// to 39 characters, and not starting or ending with one.
+//
+// Checked before a handle is stored, because the record is a markdown table in
+// a comment: a handle with a pipe in it would break the row for every later
+// reader, and one with an HTML comment in it would be worse.
+//
+// internal/github has the same pattern, deliberately, and neither should be
+// made to depend on the other. That one guards a request path, where a slash
+// or a dot segment moves the request to a different endpoint; this one guards
+// a comment. Each has to fail closed on its own, and this package has no
+// business importing the thing that writes to GitHub.
+var gitHubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$`)
 
 // ParseAssignment reads `@user as <role>`, the arguments of assign and remove.
 //
@@ -219,9 +251,9 @@ func ParseAssignment(args []string) (handle string, role Role, err error) {
 	if len(args) == 0 {
 		return "", "", fmt.Errorf("who, and as what? For example `%s assign @octocat as codechecker`", Bot)
 	}
-	handle = Handle(args[0])
-	if !gitHubHandle.MatchString(handle) {
-		return "", "", fmt.Errorf("%q is not a GitHub handle", args[0])
+	handle, err = parseHandle(args[0])
+	if err != nil {
+		return "", "", err
 	}
 
 	rest := args[1:]

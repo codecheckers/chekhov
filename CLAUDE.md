@@ -364,6 +364,20 @@ than a `switch`.
   the paper, nor may the handling editor - CODECHECK exists so that somebody
   other than the author runs the code. The standing roles never conflict, and
   only an editor may be made the handling editor (`Role.Requires`).
+- **Inviting writes outside the register, and is fenced in code.**
+  `internal/github/invite.go` is the only thing that changes membership: one
+  endpoint (`PUT /orgs/{org}/teams/{team}/memberships/{user}`), always
+  `role: member` written as a literal, no role argument on any function, the
+  configured organisation only, and the `codecheckers` team only - adding to
+  `editors` would let the bot hand out its own permissions - and because that
+  guard compares names, `config.validate` refuses a settings file that names
+  the two teams the same. It never touches
+  `PUT /orgs/{org}/memberships/{user}`, which sets the organisation role and
+  can make an owner. Nothing there removes anybody. `invite_test.go` records
+  every request that leaves and fails if any of that stops being true; add to
+  it rather than trusting the comments. Its errors reach a posted comment, so
+  every handle in one is in backticks. Needs *Members: write*, which is
+  optional - without it `invite` refuses and says why.
 - **Fail closed.** A team the token cannot read has no members: the editor
   commands refuse and the listing does not offer them. The opposite - an
   unreadable team meaning everyone is an editor - would hand the register to

@@ -128,24 +128,47 @@ func Load(environment string) (*Settings, error) {
 	if err := yaml.Unmarshal([]byte(expand(string(raw))), &settings); err != nil {
 		return nil, fmt.Errorf("could not read %s: %w", name, err)
 	}
-	if settings.Chekhov.Env.TargetRepository == "" {
-		return nil, fmt.Errorf("%s names no target repository", name)
-	}
-	switch settings.Chekhov.Metadata.Source {
-	case "openalex", "crossref":
-	case "":
-		settings.Chekhov.Metadata.Source = "openalex"
-	default:
-		return nil, fmt.Errorf("%s: metadata source %q is neither openalex nor crossref",
-			name, settings.Chekhov.Metadata.Source)
-	}
-	switch settings.Chekhov.Mastodon.Visibility {
-	case "public", "unlisted", "private", "direct":
-	default:
-		return nil, fmt.Errorf("%s: mastodon visibility %q is none of public, unlisted, private, direct",
-			name, settings.Chekhov.Mastodon.Visibility)
+	if err := validate(name, &settings); err != nil {
+		return nil, err
 	}
 	return &settings, nil
+}
+
+// validate is what a settings file has to say before the bot will run on it.
+//
+// Its own function so that each refusal can be tested: the file itself is
+// embedded, so a test cannot write one, and these are the rules worth having
+// a test for rather than a comment.
+func validate(name string, s *Settings) error {
+	if s.Chekhov.Env.TargetRepository == "" {
+		return fmt.Errorf("%s names no target repository", name)
+	}
+	switch s.Chekhov.Metadata.Source {
+	case "openalex", "crossref":
+	case "":
+		s.Chekhov.Metadata.Source = "openalex"
+	default:
+		return fmt.Errorf("%s: metadata source %q is neither openalex nor crossref",
+			name, s.Chekhov.Metadata.Source)
+	}
+	// The bot may add people to the codecheckers team and no other, which is
+	// what keeps `invite` from handing out the bot's own permissions - see
+	// internal/github/invite.go. That guard compares team names, so it only
+	// holds while the two names differ, and nothing else would notice if they
+	// stopped. Refused here rather than trusted there.
+	editors, codecheckers := s.EditorsTeam(), s.CodecheckersTeam()
+	if codecheckers != "" && strings.EqualFold(editors, codecheckers) {
+		return fmt.Errorf("%s: the editors and codecheckers teams are both %q; "+
+			"they must differ, or inviting a codechecker would make them an editor",
+			name, codecheckers)
+	}
+	switch s.Chekhov.Mastodon.Visibility {
+	case "public", "unlisted", "private", "direct":
+	default:
+		return fmt.Errorf("%s: mastodon visibility %q is none of public, unlisted, private, direct",
+			name, s.Chekhov.Mastodon.Visibility)
+	}
+	return nil
 }
 
 // Current loads the settings for the current environment.
@@ -165,20 +188,24 @@ func (s *Settings) CodecheckerLists() []string { return s.Chekhov.Env.Codechecke
 func (s *Settings) Mastodon() Mastodon { return s.Chekhov.Mastodon }
 
 // TeamOrganisation is the organisation the standing roles are read from.
-func (s *Settings) TeamOrganisation() string { return s.Chekhov.Teams.Organisation }
+//
+// Trimmed, as the team names are: these go into request paths and into the
+// guard that keeps `invite` out of the editors team, and a stray space would
+// make that comparison pass while the two names mean the same team.
+func (s *Settings) TeamOrganisation() string { return strings.TrimSpace(s.Chekhov.Teams.Organisation) }
 
 // EditorsTeam is the team whose members may run the editor-only commands.
-func (s *Settings) EditorsTeam() string { return s.Chekhov.Teams.Editors }
+func (s *Settings) EditorsTeam() string { return strings.TrimSpace(s.Chekhov.Teams.Editors) }
 
 // CodecheckersTeam is the team of people who perform CODECHECKs, which grants
 // the codechecker role.
-func (s *Settings) CodecheckersTeam() string { return s.Chekhov.Teams.Codecheckers }
+func (s *Settings) CodecheckersTeam() string { return strings.TrimSpace(s.Chekhov.Teams.Codecheckers) }
 
 // Teams are the teams the bot reads, in the order a listing should show them.
 func (s *Settings) Teams() []string {
 	var teams []string
 	for _, team := range []string{s.EditorsTeam(), s.CodecheckersTeam()} {
-		if strings.TrimSpace(team) != "" {
+		if team != "" {
 			teams = append(teams, team)
 		}
 	}

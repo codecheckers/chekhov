@@ -287,6 +287,8 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.check(parsed, services)
 	case command.Rules:
 		return s.rules(services)
+	case command.Invite:
+		return s.invite(ctx, parsed, services)
 	case command.Announce:
 		return s.announce(ctx, parsed, services)
 	case command.Follow:
