@@ -146,8 +146,7 @@ func RulesDrift(services *Services) (Drift, error) {
 // decides the verdict, and which commit last touched it, which is shown so a
 // reader can see the version.
 func (f *FileDrift) compare(register string, services *Services) {
-	raw, err := services.FetchFile(
-		fmt.Sprintf("%s/%s/HEAD/%s", services.RawContent, register, f.Name))
+	raw, err := services.FetchFile(services.rawURL(register, "HEAD", f.Name))
 	if err != nil {
 		f.Unreadable = fmt.Sprintf("could not read %s from %s: %s", f.Name, register, err)
 		return

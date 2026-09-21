@@ -152,7 +152,7 @@ func (s *Services) reset() {
 
 // RegisterFile is the URL of a file in the register the bot works on.
 func (s *Services) RegisterFile(name string) string {
-	return s.RawContent + "/" + s.Register + "/HEAD/" + name
+	return s.rawURL(s.Register, "HEAD", name)
 }
 
 // Fresh is a copy that has seen nothing yet: the same access, an empty cache.
@@ -317,9 +317,18 @@ func (s *Services) getJSON(url string, header map[string]string, into any) error
 		return err
 	}
 	if status != http.StatusOK {
-		return fmt.Errorf("%s answered %d", url, status)
+		// Typed, as FetchFile's failure already was, so that a caller can tell
+		// a 404 from an outage through IsNotFound. Its words are the ones this
+		// returned before, because they reach a reply.
+		return &StatusError{URL: url, Status: status}
 	}
 	return json.Unmarshal(body, into)
+}
+
+// rawURL is where a repository serves one file as plain bytes, at a ref.
+// Written out by hand in three places before it was written here.
+func (s *Services) rawURL(repository, ref, path string) string {
+	return strings.TrimSuffix(s.RawContent, "/") + "/" + repository + "/" + ref + "/" + path
 }
 
 func (s *Services) github(url string, into any) error {
@@ -412,7 +421,7 @@ func (s *Services) CSV(url string) ([]map[string]string, error) {
 		return nil, err
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("%s answered %d", url, status)
+		return nil, &StatusError{URL: url, Status: status}
 	}
 
 	reader := csv.NewReader(strings.NewReader(string(body)))
