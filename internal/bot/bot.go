@@ -285,6 +285,8 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.version()
 	case command.Check:
 		return s.check(parsed, services)
+	case command.Rules:
+		return s.rules(services)
 	case command.Announce:
 		return s.announce(ctx, parsed, services)
 	case command.Follow:
@@ -669,6 +671,16 @@ func (s *Server) check(parsed command.Command, services *check.Services) string 
 		return fmt.Sprintf("%s\n", err)
 	}
 	return report.Markdown()
+}
+
+// rules says which catalogue this build judges by, and whether the register
+// has moved on since it was bundled (chekhov#43).
+func (s *Server) rules(services *check.Services) string {
+	drift, err := check.RulesDrift(services)
+	if err != nil {
+		return fmt.Sprintf("I could not read my own rules: %s\n", err)
+	}
+	return drift.Markdown()
 }
 
 // recentToots is how many of the account's own toots, boosts left out, are

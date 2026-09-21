@@ -62,6 +62,7 @@ for completeness of the conversational set.
 | `@chekhovbot check bundle` | Verify the CODECHECK bundle contents (report, manifest, outputs) | high | #10 |
 | `@chekhovbot check references` | Resolve the paper's DOI/references via the metadata source | medium | #11 |
 | `@chekhovbot check links` | Report dead links in the issue and the bundle | low | #12 |
+| `@chekhovbot rules` | Say which rules the build judges by, and whether the register has moved on | medium | #43 |
 
 **Open design question across this group:** the R package `codecheck` already
 implements most of these rules (`R/validation.R`:

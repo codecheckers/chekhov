@@ -21,9 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `suggest codecheckers` now has a subject to match on: what OpenAlex says a
   paper is about goes into the fields it ranks by, which in ten real checks had
   matched on languages alone (codecheckers/chekhov#24).
+- A `check_time` written as `2019-02-14T10:00:00+0000` now dates a
+  configuration that names no specification version, where the form was
+  previously not understood and the file fell back to the newest
+  specification. One list of timestamp forms serves the rules and the
+  provenance record (codecheckers/chekhov#43).
 
 ### Added
 
+- `@chekhovbot rules` says which rule catalogue this build judges by and
+  whether it is the register's current one, naming the bundled commit, the
+  register's commit and the day the bundle was taken - so "behind" can be told
+  from "the same day, a different file". A register that cannot be asked is
+  reported as "could not check", never as agreement, and so is one file that
+  could not be read while the other could. What the register's copy *says*
+  decides the verdict, compared against the md5 the refresh recorded, so a
+  whitespace fix or a revert is not reported as a bundle that has fallen
+  behind. The weekly workflow runs the same comparison through
+  `chekhov rules --check` and fails when it has (codecheckers/chekhov#43).
 - `@chekhovbot check repository` describes the repository under check before a
   codechecker is assigned: the languages, the licence it states, whether there
   is a `codecheck.yml`, and how many files and bytes the bundle holds, with a

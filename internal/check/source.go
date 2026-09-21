@@ -106,19 +106,11 @@ func FromRepository(spec string, services *Services) (Context, error) {
 func lastModified(spec RepositorySpec, services *Services) time.Time {
 	switch spec.Type {
 	case "github":
-		var commits []struct {
-			Commit struct {
-				Committer struct {
-					Date time.Time `json:"date"`
-				} `json:"committer"`
-			} `json:"commit"`
-		}
-		url := fmt.Sprintf("%s/repos/%s/commits?path=%s&per_page=1",
-			services.GitHub, spec.Path, neturl.QueryEscape(spec.path("codecheck.yml")))
-		if err := services.github(url, &commits); err != nil || len(commits) == 0 {
+		_, when, err := services.lastCommit(spec.Path, spec.path("codecheck.yml"))
+		if err != nil {
 			return time.Time{}
 		}
-		return commits[0].Commit.Committer.Date
+		return when
 	case "zenodo", "zenodo-sandbox":
 		record, err := services.zenodoRecordOf(spec)
 		if err != nil {
@@ -132,6 +124,32 @@ func lastModified(spec RepositorySpec, services *Services) time.Time {
 		// GitLab and OSF can say too, but nothing in the register needs it yet.
 		return time.Time{}
 	}
+}
+
+// lastCommit is the newest commit touching one file of a GitHub repository:
+// which commit it was, and when it was made.
+//
+// Two callers want different halves of the same request - dating a
+// configuration wants the time, and comparing the bundled rules with the
+// register wants the commit - so it is asked for once, here.
+func (s *Services) lastCommit(repository, file string) (string, time.Time, error) {
+	var commits []struct {
+		SHA    string `json:"sha"`
+		Commit struct {
+			Committer struct {
+				Date time.Time `json:"date"`
+			} `json:"committer"`
+		} `json:"commit"`
+	}
+	url := fmt.Sprintf("%s/repos/%s/commits?path=%s&per_page=1",
+		s.GitHub, repository, neturl.QueryEscape(file))
+	if err := s.github(url, &commits); err != nil {
+		return "", time.Time{}, fmt.Errorf("could not ask %s about %s: %w", repository, file, err)
+	}
+	if len(commits) == 0 {
+		return "", time.Time{}, fmt.Errorf("%s has no %s", repository, file)
+	}
+	return commits[0].SHA, commits[0].Commit.Committer.Date, nil
 }
 
 // path is where a file lives inside the repository: what the manifest says,

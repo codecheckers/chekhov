@@ -788,3 +788,44 @@ func TestTheListingOffersEveryWordCheckAccepts(t *testing.T) {
 		}
 	}
 }
+
+// A codechecker reading a surprising verdict can ask which rules produced it,
+// without redeploying the bot to find out (chekhov#43).
+func TestRulesSaysWhichCatalogueAndWhetherItIsCurrent(t *testing.T) {
+	server, _ := testServer(t)
+	stub := testserver.New(t)
+	// A register whose rule files say something the bundle does not.
+	for _, name := range []string{"rules-1.0.yml", "rules-2.0.yml"} {
+		stub.Text("/raw/codecheckers/register/HEAD/"+name, "rules: []\n")
+	}
+	stub.JSON("/github/repos/codecheckers/register/commits",
+		`[{"sha": "0000000000000000000000000000000000000000",
+		   "commit": {"committer": {"date": "2026-09-19T09:00:00Z"}}}]`)
+	server.Services = &check.Services{Access: check.Access{
+		HTTP: stub.Client(), Register: server.Settings.TargetRepository(),
+		GitHub: stub.URL + "/github", RawContent: stub.URL + "/raw",
+	}}
+
+	reply := answer(t, server, command.Rules, nil, "")
+
+	for _, want := range []string{"codecheckers/register", "rules-2.0.yml",
+		"not** the register's current rules", "update-rules.sh"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not say %q:\n%s", want, reply)
+		}
+	}
+}
+
+// An offline bot reports what it is judging by and says it could not ask,
+// rather than claiming to be current.
+func TestRulesOfflineSaysItCouldNotAsk(t *testing.T) {
+	server, _ := testServer(t)
+
+	reply := answer(t, server, command.Rules, nil, "")
+	if !strings.Contains(reply, "could not check") {
+		t.Errorf("an offline bot should say so:\n%s", reply)
+	}
+	if strings.Contains(reply, "are the register's current rules.") {
+		t.Errorf("could not look must never read as up to date:\n%s", reply)
+	}
+}

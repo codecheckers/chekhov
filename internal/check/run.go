@@ -112,12 +112,27 @@ func configurationDate(context Context) (time.Time, string) {
 // parseCheckTime reads the check_time node, which the specification writes as
 // "2019-02-14 10:00:00" but which files in the wild also carry as a date or an
 // RFC 3339 timestamp.
-func parseCheckTime(value string) (time.Time, bool) {
+func parseCheckTime(value string) (time.Time, bool) { return parseTimestamp(value) }
+
+// timestampLayouts are the ways a date reaches this bot as text: the
+// specification's own form, a bare date, the RFC 3339 an API answers with,
+// and the +0000 variant of it that provenance.json is written in. One table,
+// because a date that one reader understands and another does not is the
+// worst of both.
+var timestampLayouts = []string{
+	"2006-01-02 15:04:05",
+	time.DateOnly,
+	time.RFC3339,
+	"2006-01-02 15:04",
+	"2006-01-02T15:04:05-0700",
+}
+
+func parseTimestamp(value string) (time.Time, bool) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return time.Time{}, false
 	}
-	for _, layout := range []string{"2006-01-02 15:04:05", time.DateOnly, time.RFC3339, "2006-01-02 15:04"} {
+	for _, layout := range timestampLayouts {
 		if when, err := time.Parse(layout, value); err == nil {
 			return when, true
 		}

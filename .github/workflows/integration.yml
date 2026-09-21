@@ -57,3 +57,30 @@ jobs:
 
       - name: Replay the fresh recordings
         run: go test -timeout 5m -run 'Cassette|Stub|Offline' ./internal/check/
+
+  # Are the bundled rules still the register's current ones? The rules are
+  # maintained in the register and compiled into the binary, so a build goes
+  # on judging by whatever was bundled when it was made, and nothing says when
+  # that has fallen behind - it happened once already, and noticing it meant
+  # reading /healthz against the GitHub API by hand. See codecheckers/chekhov#43.
+  #
+  # Its own job, so that a service having a bad day cannot hide it: this asks
+  # the register and nothing else, and a failure here is always news. The
+  # workflow's "register" input does not apply here - the rules always come
+  # from codecheckers/register, whichever register a deployment works on.
+  rules:
+    name: Bundled rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: The bundled rules are the register's current ones
+        env:
+          # Lifts the GitHub API rate limit; the endpoint used is public.
+          CHEKHOV_GH_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: go run ./cmd/chekhov rules --check

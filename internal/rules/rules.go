@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -62,6 +63,10 @@ var rules20 []byte
 
 //go:embed data/provenance.json
 var provenanceJSON []byte
+
+// bundled is the embedded rule files by name, so that the provenance record
+// can be checked against the bytes it claims to describe.
+var bundled = map[string][]byte{"rules-1.0.yml": rules10, "rules-2.0.yml": rules20}
 
 // SpecVersions are the specification versions this bot carries rules for,
 // newest first. The newest is what a codecheck.yml without a version node is
@@ -229,6 +234,25 @@ func readProvenance() (ProvenanceRecord, error) {
 		return record, fmt.Errorf("provenance.json: %w", err)
 	}
 	return record, nil
+}
+
+// SourceRepository is the register the bundled rules were taken from, as
+// owner/repo.
+//
+// Read out of the recorded source rather than written down again: the rules
+// always come from the register itself, whichever register a deployment is
+// configured to work on, and a bot answering about the testing register still
+// judges by codecheckers/register's rules.
+func (p ProvenanceRecord) SourceRepository() string {
+	rest, found := strings.CutPrefix(p.Source, "https://raw.githubusercontent.com/")
+	if !found {
+		return ""
+	}
+	pieces := strings.Split(strings.Trim(rest, "/"), "/")
+	if len(pieces) < 2 {
+		return ""
+	}
+	return pieces[0] + "/" + pieces[1]
 }
 
 // Commit returns the register commit the bundled files came from, or "" when

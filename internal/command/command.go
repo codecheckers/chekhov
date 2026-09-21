@@ -48,6 +48,9 @@ const (
 	SuggestCodecheckers Name = "suggest"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
+	// Rules says which rule catalogue this build judges by, and whether it is
+	// the register's current one.
+	Rules Name = "rules"
 	// Announce toots about a published certificate.
 	Announce Name = "announce"
 	// Follow follows the fediverse accounts a certificate names, and curates

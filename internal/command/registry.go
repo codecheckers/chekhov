@@ -126,6 +126,13 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    Rules,
+		Summary: "Say which rules I judge by, and whether they are the register's current ones",
+		Usage:   "rules",
+		Group:   GroupValidation,
+		Role:    RoleAnyone,
+	},
+	{
 		Name:    Announce,
 		Summary: "Toot about a published certificate: a preview first, then `confirm` to post",
 		Usage:   "announce <certificate> [confirm]",

@@ -37,6 +37,7 @@ Usage:
   chekhov comment [--as <handle>] [--online] <path to a comment file, or - for stdin>
   chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
+  chekhov rules --check [--markdown]
   chekhov version
   chekhov record-key
 
@@ -56,6 +57,11 @@ Naming a part of the catalogue checks only that part, which is what the bot's
 describes the repository under check - languages, licence, size, whether there
 is a codecheck.yml - rather than judging one, and nothing in it passes or
 fails.
+
+"rules --check" asks the register whether the bundled rules are still its
+current ones, and exits non-zero when they are behind - and when it could not
+ask, because a check that cannot run must not report agreement. It is what the
+weekly workflow runs.
 
 The check command exits non-zero when a rule failed as an error. Without
 --online it reads nothing but the file and its bundle, and the rules that need
@@ -233,11 +239,21 @@ func runComment(args []string, out io.Writer) error {
 
 func runRules(args []string, out io.Writer) error {
 	specVersion := rules.Newest()
+	drift, markdown := false, false
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--spec" && i+1 < len(args) {
+		switch {
+		case args[i] == "--spec" && i+1 < len(args):
 			i++
 			specVersion = args[i]
+		case args[i] == "--check":
+			drift = true
+		case args[i] == "--markdown":
+			// Only --check renders; on a plain listing this is a no-op.
+			markdown = true
 		}
+	}
+	if drift {
+		return runRulesCheck(markdown, out)
 	}
 
 	catalogue, err := rules.For(specVersion)
@@ -254,6 +270,36 @@ func runRules(args []string, out io.Writer) error {
 	}
 	fmt.Fprintf(out, "\n%d rules for specification %s, [x] = checked by this bot\n",
 		len(catalogue), specVersion)
+	return nil
+}
+
+// runRulesCheck reports whether the bundled rules are the register's current
+// ones, and is what the weekly workflow runs (chekhov#43).
+//
+// Not being able to ask is an error as much as being behind is: a scheduled
+// job that goes green when it could not do its one job is worse than no job,
+// and the two are told apart by what it prints.
+func runRulesCheck(markdown bool, out io.Writer) error {
+	drift, err := check.RulesDrift(check.Online())
+	if err != nil {
+		return err
+	}
+	if markdown {
+		fmt.Fprint(out, drift.Markdown())
+	} else {
+		fmt.Fprint(out, drift.Text())
+	}
+	// Behind first, and for the same reason the report puts it first: proof
+	// outranks an unmade comparison, and a run that has both should say the
+	// thing that can be acted on.
+	switch {
+	case drift.Behind():
+		// What to do about it is the line Text has just printed; the error
+		// only has to make the exit status say why.
+		return fmt.Errorf("the bundled rules are behind %s", drift.Register)
+	case !drift.Known():
+		return fmt.Errorf("could not check the rules against %s: %s", drift.Register, drift.Why())
+	}
 	return nil
 }
 

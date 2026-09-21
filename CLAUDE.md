@@ -192,6 +192,16 @@ scheme in
   `scripts/update-rules.sh` (add a path to a local register checkout to copy
   from there), which also rewrites `provenance.json` with the register commit
   the files came from. Commit the refreshed files.
+- **A build judges by what was bundled into it.** `@chekhovbot rules` and
+  `chekhov rules --check` compare `provenance.json` against the register's
+  current rule files; the weekly workflow runs the second and fails when the
+  bundle is behind. The verdict is the file's md5, not its commit: a
+  whitespace fix or a revert must not read as drift, and
+  `TestProvenanceMatchesTheBundledFiles` holds the recorded md5 to the bytes
+  that are actually embedded. A register that cannot be asked is "could not check",
+  never agreement. The rules always come from `codecheckers/register`,
+  whichever register a deployment works on - `ProvenanceRecord.SourceRepository`
+  reads it out of the bundle rather than naming it again.
 - Never edit a bundled rule file by hand. The tests compare `provenance.json`
   against what is bundled, so a hand edit shows up as a failure.
 - A rule's **severity comes from the rule file**, never from the code. The same
@@ -467,6 +477,7 @@ internal/check/     one check function per rule, the runner and the formatting
   openalex.go       what a paper is: title, authors, and what it is about
   zenodo.go         the certificate's archive record
   register.go       the register-wide rules and the checks issue
+  drift.go          are the bundled rules the register's current ones?
   services.go       the outside world: base URLs, cache, register.csv
   source.go         reading a codecheck.yml from github::, gitlab::, osf::, zenodo::
   bundle.go         the files around it, on disk or in the repository

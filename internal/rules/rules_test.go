@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"crypto/md5"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -100,6 +102,20 @@ func TestProvenanceMatchesTheBundledFiles(t *testing.T) {
 	}
 	if provenance.Commit() == "" {
 		t.Error("the bundled files come from different register commits")
+	}
+
+	// The md5 is what tells a refreshed bundle from a hand-edited one, and
+	// what the drift check compares the register's copy against - so it has
+	// to describe the bytes that are actually embedded.
+	for _, file := range provenance.Files {
+		raw, found := bundled[file.Name]
+		if !found {
+			t.Errorf("provenance names %s, which is not bundled", file.Name)
+		} else if sum := fmt.Sprintf("%x", md5.Sum(raw)); sum != file.MD5 {
+			t.Errorf("%s: provenance records md5 %s, the bundled file is %s - "+
+				"refresh with scripts/update-rules.sh rather than editing by hand",
+				file.Name, file.MD5, sum)
+		}
 	}
 
 	for _, file := range provenance.Files {
