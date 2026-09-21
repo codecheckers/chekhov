@@ -319,14 +319,29 @@ usage - which the platform reads as a crash loop.
 
 ## The version
 
-**One constant, bumped by hand, and nothing else.** `internal/build.Version` is
-the version this bot reports, and the only one: `/healthz`, `@chekhovbot
-version` and the development footer all read it. No `-ldflags`, no
-`CHEKHOV_VERSION`, no commit. A deployment reports the same string a local
-build does, because there is only one place it can come from.
+**One constant, bumped by hand.** `internal/build.Version` is the version this
+bot reports, and the only one: `/healthz`, `@chekhovbot version` and the
+development footer all read it. No `-ldflags`, no `CHEKHOV_VERSION`. A
+deployment reports the same string a local build does, because there is only
+one place it can come from.
 
-Go's own answers were considered and are not used. Since Go 1.24 `go build`
-stamps the module version from the VCS tag - `v0.3.0`, or
+**The commit is a different question, and only the toolchain may answer it.**
+`build.Revision` reads the stamp `go build` makes from the checkout and nothing
+else. Not `CHEKHOV_COMMIT`, which outlived its build and started all this; and
+not `REVISION` either, which a git buildpack sets into the image but which is
+an environment variable a deployment's configuration can set under the same
+name - reading it would report a hand-set value as though the build had proved
+it. `go run`, `go test` and a builder without a `.git` report no commit, which
+is the honest answer. Development-only in a reply, as every other fact about
+the machine is; `chekhov version` at a terminal says it regardless, because
+there it is the user's own binary. See #4.
+
+**A change nobody outside development can see is a patch**, however much code
+it took: the rules above are about what somebody talking to the bot sees, and a
+field added behind the development check is not that.
+
+Go's own answer is used for the commit and not for the version. Since Go 1.24
+`go build` stamps the module version from the VCS tag - `v0.3.0`, or
 `v0.0.0-20260921120735-116776f4+dirty` when untagged - which is free and
 correct **wherever `.git` is present**. The deployment platform exports the
 source without it, so that stamp is empty exactly where the question is asked,

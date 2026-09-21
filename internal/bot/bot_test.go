@@ -830,31 +830,51 @@ func TestRulesOfflineSaysItCouldNotAsk(t *testing.T) {
 	}
 }
 
-// The bot reports one version and no commit of its own. It used to report a
-// commit through three channels that could each name a different one, and on
-// the deployment one of them named a commit four behind the running code for a
-// morning (chekhov#4). rules_commit is a different question - which rules the
-// bot judges by - and stays.
-func TestHealthReportsNoCommitOfItsOwn(t *testing.T) {
+// What /healthz says about the build: the version always, and the commit only
+// where a development deployment may say it and the toolchain stamped one. The
+// bot used to report a commit through three channels that could each name a
+// different one, and on the deployment a hand-set variable named one four
+// behind the running code for a morning (chekhov#4) - so the commit now comes
+// from the build or not at all. rules_commit is a different question, which
+// rules it judges by, and stays.
+func TestHealthReportsTheBuildAndOnlyWhatItCanProve(t *testing.T) {
 	server, _ := testServer(t)
+	server.Deployment.Revision = "8c53e4a97af0a4fa54feaf88783b78d81fe56338"
 
-	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
-	response := httptest.NewRecorder()
-	server.Handler().ServeHTTP(response, request)
+	health := func() map[string]any {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+		response := httptest.NewRecorder()
+		server.Handler().ServeHTTP(response, request)
+		var state map[string]any
+		if err := json.Unmarshal(response.Body.Bytes(), &state); err != nil {
+			t.Fatalf("health: %v", err)
+		}
+		return state
+	}
 
-	var state map[string]any
-	if err := json.Unmarshal(response.Body.Bytes(), &state); err != nil {
-		t.Fatalf("health: %v", err)
-	}
-	if _, reported := state["commit"]; reported {
-		t.Errorf("health reports a commit of its own: %s", response.Body.String())
-	}
-	// The deployment's own version, which is build.Version outside a test.
-	if state["version"] != server.Deployment.Version {
+	development := health()
+	if development["version"] != server.Deployment.Version {
 		t.Errorf("health reports version %v, want the deployment's %q",
-			state["version"], server.Deployment.Version)
+			development["version"], server.Deployment.Version)
 	}
-	if _, reported := state["rules_commit"]; !reported {
+	if development["commit"] != server.Deployment.Revision {
+		t.Errorf("health reports commit %v, want the build's", development["commit"])
+	}
+	if _, reported := development["rules_commit"]; !reported {
 		t.Error("health no longer says which rules it judges by")
+	}
+
+	// A build the toolchain stamped nothing for says nothing.
+	server.Deployment.Revision = ""
+	if _, reported := health()["commit"]; reported {
+		t.Errorf("health invented a commit: %v", health()["commit"])
+	}
+
+	// Production answers a codechecker's question, not a fingerprint.
+	server.Deployment.Revision = "8c53e4a97af0a4fa54feaf88783b78d81fe56338"
+	server.Deployment.Environment = "production"
+	if _, reported := health()["commit"]; reported {
+		t.Error("production health names the build's commit")
 	}
 }

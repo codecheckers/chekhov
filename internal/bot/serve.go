@@ -142,11 +142,14 @@ func listen(address string, handler http.Handler) error {
 // can leave out the environment - which decides how much a reply discloses -
 // and have the omission read as "development".
 func deploymentFor(settings *config.Settings) command.Deployment {
+	revision, dirty := build.Revision()
 	return command.Deployment{
-		Version:     build.Version,
-		Register:    settings.TargetRepository(),
-		Bot:         settings.BotUser(),
-		Environment: config.Environment(),
+		Version:       build.Version,
+		Revision:      revision,
+		RevisionDirty: dirty,
+		Register:      settings.TargetRepository(),
+		Bot:           settings.BotUser(),
+		Environment:   config.Environment(),
 	}
 }
 

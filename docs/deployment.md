@@ -80,11 +80,11 @@ reply for anyone to notice. A deploy restarts on its own.
 ### The version
 
 `@chekhovbot version` and `/healthz` report one version, the
-`internal/build.Version` constant, and no commit. Nothing about the deployment
-decides it: the same string a local build reports is the string the deployment
-reports, because there is only one place it can come from. Bumping it is a
-commit in this repository, described in `CLAUDE.md` -> The version, and a test
-holds it to the newest heading in `CHANGELOG.md`.
+`internal/build.Version` constant. Nothing about the deployment decides it: the
+string a local build reports is the string the deployment reports, because
+there is only one place it can come from. Bumping it is a commit in this
+repository, described in `CLAUDE.md` -> The version, and a test holds it to the
+newest heading in `CHANGELOG.md`.
 
 That is a deliberate retreat from stamping the commit, and a temporary one. A
 `CHEKHOV_COMMIT` configuration variable was the channel that worked: read at
@@ -98,6 +98,20 @@ wonder why the version did not move:
 runway app config unset -a chekhov CHEKHOV_COMMIT CHEKHOV_VERSION
 ```
 
+A development deployment also reports the commit the build was made from -
+**when the toolchain stamped one**. That is the only source read, because it is
+the only one nothing can hand over wrongly: `go build` reads the commit out of
+the checkout itself. `REVISION`, which `paketo-buildpacks/git` sets into the
+image when it finds a `.git`, looked like the answer and is not: it is an
+environment variable, so a deployment's own configuration can set a variable of
+that name, and nothing distinguishes the two. Reading it would report a hand-set
+value as though the build had proved it - the 2026-09-21 failure with a better
+disguise.
+
+So if this builder has no `.git`, the deployment reports no commit, and the fix
+is at build time rather than at runtime: `BP_GO_BUILD_LDFLAGS`, which the Go
+buildpack does read.
+
 **Whether this platform can stamp the commit properly is an open question, not
 a settled no.** This file used to say `-ldflags` and the VCS stamp were both
 impossible here. Neither claim was tested:
@@ -107,19 +121,20 @@ Go would stamp the revision if `.git` reached the build. Whether it does is
 undocumented - runway says only that it "builds from git, not from your working
 tree".
 
-There is a better lever than either. Runway's Go buildpack order includes
-[`paketo-buildpacks/git`](https://github.com/paketo-buildpacks/git), which
-- when it finds a `.git` directory - sets `REVISION` to the commitish of HEAD
-**in the final running image**, where the bot could simply read it. One command
-settles whether that is happening:
+Runway's Go buildpack order includes
+[`paketo-buildpacks/git`](https://github.com/paketo-buildpacks/git), which only
+runs when it finds a `.git` directory - so whether it ran is itself the answer
+to whether `.git` is there. One command:
 
 ```sh
 runway app exec -a chekhov      # then, in the shell: printenv REVISION
 ```
 
-A SHA means `.git` reaches the build and the bot should read `REVISION`. Empty
-means it does not, and the question becomes one for runway: their own Go stack
-ships a buildpack that is dead code without it. See
+A SHA means `.git` reaches the build, and the bot's own VCS stamp should then be
+there too - check with `chekhov version` in the same shell, which prints the
+commit when there is one. Empty means it does not, and the question becomes one
+for runway: their own Go stack ships a buildpack that is dead code without it.
+Either way the bot does not read `REVISION` itself, for the reason above. See
 [chekhov#4](https://github.com/codecheckers/chekhov/issues/4).
 
 ### SSH keys, and the snap
@@ -297,9 +312,10 @@ finish.
 
 1. `curl https://<app>.runway.horse/healthz` — is it up, and which version?
    The version moves only when somebody bumps the constant, so it says which
-   release is running rather than which commit; `rules_commit` is the field
-   that moves on its own. Whether the deploy happened is a question for
-   `runway app logs` and the build log, not for this endpoint.
+   release is running rather than which commit. A development deployment also
+   reports `commit` when the build carried a stamp, which is the field that
+   answers "is this the code I pushed"; production reports neither, so there
+   the answer comes from `runway app logs` and the build log.
 2. GitHub's *Recent Deliveries* — did the event arrive, and what was answered?
    A 401 there means the secret on the platform and the secret on the webhook
    have drifted apart.

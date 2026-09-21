@@ -82,10 +82,14 @@ one tree rather than a diff - so a feature written under the existing heading
 would pass - CI additionally fails a pull request that changes non-test Go
 without moving the version, unless it carries the `no-version-bump` label.
 
-Go 1.24 can stamp the module version from a VCS tag by itself, and for a tool
-installed with `go install` that would be the right answer. It is not used
-here: the deployment platform builds from an export without `.git`, so the
-stamp is empty exactly where the version is asked for.
+The commit the build was made from is a separate question, answered only by the
+stamp `go build` makes from the checkout since Go 1.24 - the one source nothing
+can hand over wrongly. A development deployment, and a locally built binary
+previewing a reply, name it and say when the tree had uncommitted changes; a
+`go run` names nothing rather than guessing. The version itself is not taken
+from git, because the deployment's builder may have no `.git`, and a version
+that is sometimes semantic and sometimes a pseudo-version is worse than one
+that is always the same shape.
 
 ## The validation rules
 

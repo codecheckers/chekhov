@@ -22,10 +22,16 @@ import (
 // gave it.
 type Deployment struct {
 	// Version is build.Version, the one version this bot reports.
-	Version     string
-	Register    string
-	Bot         string
-	Environment string
+	Version string
+	// Revision is the commit the build was made from, empty unless the
+	// toolchain stamped one - see internal/build. RevisionDirty says the tree
+	// had uncommitted changes, so the binary is not that commit. Only a
+	// development deployment says either.
+	Revision      string
+	RevisionDirty bool
+	Register      string
+	Bot           string
+	Environment   string
 }
 
 // Development reports whether this deployment may talk about itself.
@@ -37,17 +43,27 @@ func (d Deployment) Development() bool {
 	return d.Environment == "development"
 }
 
-// Facts are what any deployment says about itself, for the health endpoint:
-// the four fields production is allowed to disclose. What a development
-// deployment adds on top is decided in bot.health, which is where the
-// environment is known.
+// Facts are what a deployment says about itself, for the health endpoint: the
+// four fields production is allowed to disclose, plus the commit the build was
+// made from where a development deployment may say it. The rest of what
+// development adds - whether the services answer, when the token expires, who
+// holds a role - needs the server and is assembled in bot.health.
 func (d Deployment) Facts() map[string]any {
-	return map[string]any{
+	facts := map[string]any{
 		"version":     d.Version,
 		"bot":         d.Bot,
 		"register":    d.Register,
 		"environment": d.Environment,
 	}
+	// A tree with uncommitted changes is worth saying: the binary is then not
+	// the commit it names, and a bug report that says so saves an afternoon.
+	if d.Development() && d.Revision != "" {
+		facts["commit"] = d.Revision
+		if d.RevisionDirty {
+			facts["commit_dirty"] = true
+		}
+	}
+	return facts
 }
 
 // Signature goes under every comment in development: which bot, which build,
@@ -129,7 +145,13 @@ func ThanksReply(pick func(n int) int) string {
 // that judged it.
 func (d Deployment) VersionReply(rulesCommit, rulesRetrieved string) string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "`@%s` %s\n\n", d.Bot, d.describeVersion())
+	fmt.Fprintf(&out, "`@%s` version %s\n\n", d.Bot, d.Version)
+	// Behind the development check, as every other detail of the machine is:
+	// production answers a codechecker's question, not a fingerprint.
+	if d.Development() && d.Revision != "" {
+		fmt.Fprintf(&out, "- build: [`%s`](https://github.com/codecheckers/chekhov/commit/%s)%s\n",
+			build.Shorten(d.Revision), d.Revision, d.describeDirt())
+	}
 
 	fmt.Fprintf(&out, "- working on: [`%s`](https://github.com/%s)\n", d.Register, d.Register)
 	if rulesCommit != "" {
@@ -161,10 +183,26 @@ func UnknownReply(parsed Command) string {
 	return out.String()
 }
 
-// describeVersion names the build. One wording, for the two replies that say
-// it: the footer, which only a development deployment writes, and the version
-// reply, which every deployment writes.
-func (d Deployment) describeVersion() string { return "version " + d.Version }
+// describeVersion names the build: the version, and the commit after it when
+// the build can prove one. Its two callers are the footer and the greeting,
+// both of which only a development deployment writes, which is where somebody
+// wants to know exactly what answered - a locally built binary signing a
+// preview says its own hash. The version reply writes its own line, because
+// there it is a link to a full hash rather than a short one in a sentence.
+func (d Deployment) describeVersion() string {
+	if d.Revision == "" {
+		return "version " + d.Version
+	}
+	return fmt.Sprintf("version %s (`%s`%s)", d.Version, build.Shorten(d.Revision), d.describeDirt())
+}
+
+// describeDirt is what to add when the binary is not the commit it names.
+func (d Deployment) describeDirt() string {
+	if !d.RevisionDirty {
+		return ""
+	}
+	return ", " + build.Uncommitted
+}
 
 // escapePipes keeps a usage line like "check [config|bundle]" from breaking
 // the table it sits in. A code span does not protect a pipe in GitHub's

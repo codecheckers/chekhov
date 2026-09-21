@@ -314,6 +314,14 @@ func runRecordKey(out io.Writer) error {
 
 func runVersion(out io.Writer) error {
 	fmt.Fprintf(out, "chekhov %s\n", build.Version)
+	// Not gated on the environment: this is somebody at a terminal asking
+	// about the binary in front of them, not a reply anybody else reads.
+	if commit, dirty := build.Revision(); commit != "" {
+		fmt.Fprintf(out, "built from %s\n", commit)
+		if dirty {
+			fmt.Fprintf(out, "  %s, so this binary is not that commit\n", build.Uncommitted)
+		}
+	}
 	if settings, err := config.Current(); err == nil {
 		fmt.Fprintf(out, "working on %s as @%s (%s)\n",
 			settings.TargetRepository(), settings.BotUser(), config.Environment())

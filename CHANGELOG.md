@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-21
+
+A patch rather than a minor bump: nothing a codechecker can see changes, because
+everything below is behind the development check.
+
+### Added
+
+- A development deployment, and a locally built binary previewing a reply,
+  report the commit the build was made from - in `@chekhovbot version`, in the
+  footer and on `/healthz` - and say when the tree had uncommitted changes, so
+  a binary that is not the commit it names says so. The only source read is the
+  stamp `go build` makes from the checkout since Go 1.24, which the toolchain
+  reads rather than being handed: `go run`, `go test` and a builder without a
+  `.git` report no commit rather than a guess. The hand-set `CHEKHOV_COMMIT`
+  that started this is not coming back, and neither is the `REVISION` an
+  environment a deployment's own configuration can set
+  (codecheckers/chekhov#4).
+
 ## [0.1.0] - 2026-09-21
 
 Everything below is what the development deployment runs. It is given a version

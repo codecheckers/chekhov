@@ -245,3 +245,59 @@ func TestVersionReplyWithoutRulesProvenance(t *testing.T) {
 		t.Errorf("the reply invents a rules provenance:\n%s", reply)
 	}
 }
+
+// The commit is reported when the build can prove one, and only where the
+// deployment may say so. A hand-set variable was the old answer and the reason
+// the bot stopped naming a commit at all; what it names now is a build fact.
+func TestTheBuildsCommitIsNamedOnlyWhenProvenAndOnlyInDevelopment(t *testing.T) {
+	proven := Deployment{Version: "0.1.1", Revision: "8c53e4a97af0a4fa54feaf88783b78d81fe56338",
+		Register: "codecheckers/testing-dev-register",
+		Bot:      "chekhovbot", Environment: "development"}
+
+	reply := proven.VersionReply("", "")
+	for _, want := range []string{"8c53e4a9", "codecheckers/chekhov/commit/"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not carry %q:\n%s", want, reply)
+		}
+	}
+	// A locally built binary signing a preview says its own hash, which is
+	// what somebody developing it wants to see.
+	if !strings.Contains(proven.Signature(), "8c53e4a9") {
+		t.Errorf("the footer does not name the build: %s", proven.Signature())
+	}
+	if proven.Facts()["commit"] != proven.Revision {
+		t.Errorf("health does not name the build's commit: %v", proven.Facts())
+	}
+	// A tree with uncommitted changes is not the commit it names.
+	dirty := proven
+	dirty.RevisionDirty = true
+	if !strings.Contains(dirty.Signature(), "uncommitted") {
+		t.Errorf("the footer does not say the tree was dirty: %s", dirty.Signature())
+	}
+	if dirty.Facts()["commit_dirty"] != true {
+		t.Errorf("health does not say the tree was dirty: %v", dirty.Facts())
+	}
+
+	// Production answers a codechecker's question, not a fingerprint.
+	production := proven
+	production.Environment = "production"
+	if strings.Contains(production.VersionReply("", ""), "chekhov/commit/") {
+		t.Errorf("production names the build's commit:\n%s", production.VersionReply("", ""))
+	}
+
+	// A build that cannot prove a commit says nothing rather than guessing.
+	unproven := proven
+	unproven.Revision = ""
+	if strings.Contains(unproven.VersionReply("", ""), "build:") {
+		t.Errorf("a build with no provable commit named one:\n%s", unproven.VersionReply("", ""))
+	}
+	if _, named := unproven.Facts()["commit"]; named {
+		t.Errorf("health invents a commit: %v", unproven.Facts())
+	}
+	if _, named := production.Facts()["commit"]; named {
+		t.Errorf("production health names the build's commit: %v", production.Facts())
+	}
+	if unproven.describeVersion() != "version 0.1.1" {
+		t.Errorf("describeVersion = %q", unproven.describeVersion())
+	}
+}
