@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `suggest codecheckers` now has a subject to match on: what OpenAlex says a
   paper is about goes into the fields it ranks by, which in ten real checks had
   matched on languages alone (codecheckers/chekhov#24).
+- The bundled rule files are refreshed from the register at `101d109e`: the
+  four paper rules and `CC-MET-004` now point at the R package's
+  `validate_codecheck_yml_metadata`, which replaced
+  `validate_codecheck_yml_crossref` when codecheckers/codecheck#92 landed.
+  Names, descriptions, severities and rule counts are unchanged, so nothing a
+  check reports changes (codecheckers/register#220).
 - A `check_time` written as `2019-02-14T10:00:00+0000` now dates a
   configuration that names no specification version, where the form was
   previously not understood and the file fell back to the newest
