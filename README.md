@@ -62,6 +62,31 @@ go run ./cmd/chekhov rules                          # the rules, and which are c
 go run ./cmd/chekhov rules --check                  # are they the register's current ones?
 ```
 
+## The version
+
+The bot reports one version, `internal/build.Version`, and it is bumped by
+hand in the commit that earns it - beside the `CHANGELOG.md` entry, never saved
+up for a release. `/healthz`, `@chekhovbot version` and the development footer
+all read that constant, so a deployment and a local build answer the same way.
+
+It is [semantic versioning](https://semver.org/) applied to what somebody
+talking to the bot can see. A new command or a new thing a reply reports is a
+**minor** bump; a fix, a wording change or a rule refresh is a **patch**; a
+command removed or renamed, or a reply whose meaning changes under somebody
+already relying on it, is **major**.
+
+Two things hold it together. A test compares the constant with the newest
+heading in `CHANGELOG.md`, checks the headings are newest-first and dated, and
+fails when anything is parked under `Unreleased`. And because that test reads
+one tree rather than a diff - so a feature written under the existing heading
+would pass - CI additionally fails a pull request that changes non-test Go
+without moving the version, unless it carries the `no-version-bump` label.
+
+Go 1.24 can stamp the module version from a VCS tag by itself, and for a tool
+installed with `go install` that would be the right answer. It is not used
+here: the deployment platform builds from an export without `.git`, so the
+stamp is empty exactly where the version is asked for.
+
 ## The validation rules
 
 The rules are maintained in the register, not here, one file per version of the

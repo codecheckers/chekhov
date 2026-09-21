@@ -20,15 +20,6 @@ import (
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
-// version and commit are the build, overridden at build time with
-// -ldflags "-X main.version=... -X main.commit=...". They are injected rather
-// than read from a file so that "@chekhovbot version" is honest about what is
-// actually running.
-var (
-	version = "dev"
-	commit  = ""
-)
-
 var usage = fmt.Sprintf(`chekhov - the CODECHECK register bot
 
 Usage:
@@ -70,7 +61,6 @@ not checked.
 `, strings.Join(check.Parts(), ", "))
 
 func main() {
-	version, commit = build.Stamp(version, commit)
 	if err := run(os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -228,7 +218,7 @@ func runComment(args []string, out io.Writer) error {
 	if online {
 		services = check.Online()
 	}
-	reply, addressed := bot.Preview(settings, version, commit, services, author, string(raw))
+	reply, addressed := bot.Preview(settings, services, author, string(raw))
 	if !addressed {
 		fmt.Fprintln(out, "not addressed to the bot, no reply")
 		return nil
@@ -323,11 +313,7 @@ func runRecordKey(out io.Writer) error {
 }
 
 func runVersion(out io.Writer) error {
-	fmt.Fprintf(out, "chekhov %s\n", version)
-	if commit != "" {
-		fmt.Fprintf(out, "commit %s (https://github.com/codecheckers/chekhov/commit/%s)\n",
-			build.Shorten(commit), commit)
-	}
+	fmt.Fprintf(out, "chekhov %s\n", build.Version)
 	if settings, err := config.Current(); err == nil {
 		fmt.Fprintf(out, "working on %s as @%s (%s)\n",
 			settings.TargetRepository(), settings.BotUser(), config.Environment())

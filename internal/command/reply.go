@@ -17,12 +17,12 @@ import (
 //
 // How much else a reply says depends on the Environment. A development
 // deployment is being watched by whoever is developing it, and every detail -
-// the build, the commit, the register - saves a question. A production
-// deployment is read by codecheckers who want an answer, not a fingerprint of
-// the machine that gave it.
+// the build, the register - saves a question. A production deployment is read
+// by codecheckers who want an answer, not a fingerprint of the machine that
+// gave it.
 type Deployment struct {
+	// Version is build.Version, the one version this bot reports.
 	Version     string
-	Commit      string
 	Register    string
 	Bot         string
 	Environment string
@@ -37,20 +37,17 @@ func (d Deployment) Development() bool {
 	return d.Environment == "development"
 }
 
-// Facts are what this deployment may say about itself, for the health
-// endpoint. The rule about who may know what lives here, with the replies,
-// rather than being decided again at every place that reports something.
+// Facts are what any deployment says about itself, for the health endpoint:
+// the four fields production is allowed to disclose. What a development
+// deployment adds on top is decided in bot.health, which is where the
+// environment is known.
 func (d Deployment) Facts() map[string]any {
-	facts := map[string]any{
+	return map[string]any{
 		"version":     d.Version,
 		"bot":         d.Bot,
 		"register":    d.Register,
 		"environment": d.Environment,
 	}
-	if d.Development() {
-		facts["commit"] = d.Commit
-	}
-	return facts
 }
 
 // Signature goes under every comment in development: which bot, which build,
@@ -134,10 +131,6 @@ func (d Deployment) VersionReply(rulesCommit, rulesRetrieved string) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "`@%s` %s\n\n", d.Bot, d.describeVersion())
 
-	if d.Commit != "" {
-		fmt.Fprintf(&out, "- build: [`%s`](https://github.com/codecheckers/chekhov/commit/%s)\n",
-			build.Shorten(d.Commit), d.Commit)
-	}
 	fmt.Fprintf(&out, "- working on: [`%s`](https://github.com/%s)\n", d.Register, d.Register)
 	if rulesCommit != "" {
 		fmt.Fprintf(&out, "- validation rules: [`%s`](https://github.com/codecheckers/register/commit/%s)",
@@ -168,16 +161,10 @@ func UnknownReply(parsed Command) string {
 	return out.String()
 }
 
-// describeVersion names the build, with the commit when there is one. Only
-// called where the deployment may say so.
-func (d Deployment) describeVersion() string {
-	// When there is no release to name, the version is the short commit
-	// already, and "version 55fb4038 (55fb4038)" says it twice.
-	if d.Commit == "" || d.Version == build.Shorten(d.Commit) {
-		return "version " + d.Version
-	}
-	return fmt.Sprintf("version %s (`%s`)", d.Version, build.Shorten(d.Commit))
-}
+// describeVersion names the build. One wording, for the two replies that say
+// it: the footer, which only a development deployment writes, and the version
+// reply, which every deployment writes.
+func (d Deployment) describeVersion() string { return "version " + d.Version }
 
 // escapePipes keeps a usage line like "check [config|bundle]" from breaking
 // the table it sits in. A code span does not protect a pipe in GitHub's

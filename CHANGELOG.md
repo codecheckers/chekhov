@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-21
+
+Everything below is what the development deployment runs. It is given a version
+so that a reply naming one can be traced to a changelog entry; the register bot
+has not been released against the production register yet, which is
+codecheckers/chekhov#37.
+
+The version is a constant, `internal/build.Version`, and it is the only thing
+the bot reports about which build is running. It used to report a commit as
+well, through three channels - `-ldflags`, the toolchain's VCS stamp and a
+`CHEKHOV_COMMIT` configuration variable - which could each name a different
+one, and on the deployment the variable named a commit four behind the running
+code for a morning. The commit is gone from `/healthz`, from
+`@chekhovbot version` and from the development footer, and so are
+`CHEKHOV_VERSION` and `CHEKHOV_COMMIT`. Reporting the commit properly is still
+wanted and still open: codecheckers/chekhov#4.
+
 ### Changed
 
 - OpenAlex replaces Crossref as the source for what a paper is. Of ten article

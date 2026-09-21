@@ -51,3 +51,94 @@ jobs:
 
       - name: Check a valid codecheck.yml end to end
         run: go run ./cmd/chekhov check testdata/exhaustive-2.0/codecheck.yml
+
+  # Did a change that somebody can see move the version?
+  #
+  # internal/build's own test compares the constant with the newest changelog
+  # heading, but it reads one tree: a new command written under the heading
+  # that is already there passes forever. Only CI has two trees, so only CI can
+  # ask whether *this* change bumped anything. See CLAUDE.md -> The version.
+  #
+  # Runs on pushes to main as well as on pull requests, because this project
+  # commits straight to main - a gate that only fires on a pull request would
+  # never fire at all. The way out is a "No-version-bump:" trailer in the
+  # commit message, for the same reason: a label cannot be added to a push,
+  # and on a pull request adding one does not re-run the workflow.
+  version:
+    name: Version bump
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: What to compare against
+        id: range
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          # A first push, or a branch created by one, has no before-commit.
+          if [ -z "${BASE:-}" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "base=" >> "$GITHUB_OUTPUT"
+            echo "nothing to compare against; skipping"
+            exit 0
+          fi
+          if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "base $BASE is not in this clone - was it force-pushed away?" >&2
+            exit 1
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: A visible change moves the version
+        if: steps.range.outputs.base != ''
+        env:
+          BASE: ${{ steps.range.outputs.base }}
+        run: |
+          set -euo pipefail
+
+          # Its own step, so that a git failure is an error rather than an
+          # empty answer that reads as "nothing changed".
+          go_files="$(git diff --name-only "$BASE"...HEAD -- '*.go')"
+          changed="$(printf '%s\n' "$go_files" | { grep -v '_test\.go$' || true; })"
+          changed="$(printf '%s' "$changed" | sed '/^$/d')"
+          if [ -z "$changed" ]; then
+            echo "no non-test Go changed; nothing to bump for"
+            exit 0
+          fi
+
+          if git log --format=%B "$BASE"..HEAD | grep -qiE '^No-version-bump:'; then
+            echo "a No-version-bump: trailer says this change is not visible; taking its word"
+            exit 0
+          fi
+
+          version_of() {
+            git show "$1:internal/build/build.go" 2>/dev/null |
+              sed -n 's/^const Version = "\(.*\)".*/\1/p' | head -1
+          }
+          before="$(version_of "$BASE")"
+          after="$(version_of HEAD)"
+          if [ -z "$after" ]; then
+            echo "internal/build/build.go has no 'const Version' line to compare" >&2
+            exit 1
+          fi
+
+          if [ "$before" = "$after" ]; then
+            echo "These files changed:"
+            printf '%s\n' "$changed" | sed 's/^/  /'
+            echo
+            echo "internal/build.Version is unchanged ($after)."
+            echo "Bump it beside the CHANGELOG.md entry - see CLAUDE.md -> The version."
+            echo "A change nobody can see needs no bump: say so with a"
+            echo "  No-version-bump: <why>"
+            echo "trailer in the commit message."
+            exit 1
+          fi
+
+          # Forwards only. An empty "before" is a base from before the constant
+          # existed, which is a bump by definition.
+          if [ -n "$before" ] && [ "$(printf '%s\n%s\n' "$before" "$after" | sort -V | tail -1)" != "$after" ]; then
+            echo "the version went from $before to $after, which is not forwards" >&2
+            exit 1
+          fi
+          echo "version ${before:-none} -> $after"

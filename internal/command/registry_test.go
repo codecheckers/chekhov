@@ -151,10 +151,9 @@ func TestUnknownReplyQuotesAndPointsAtTheListing(t *testing.T) {
 }
 
 func TestHelloReplyNamesTheDeployment(t *testing.T) {
-	deployment := Deployment{Version: "0.1.0", Commit: "0123456789abcdef",
-		Register: "codecheckers/testing-dev-register", Environment: "development"}
+	deployment := Deployment{Version: "0.1.0", Register: "codecheckers/testing-dev-register", Environment: "development"}
 	reply := deployment.HelloReply()
-	for _, want := range []string{"0.1.0", "01234567", "codecheckers/testing-dev-register"} {
+	for _, want := range []string{"0.1.0", "codecheckers/testing-dev-register"} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the reply does not say %q: %s", want, reply)
 		}
@@ -165,17 +164,14 @@ func TestHelloReplyNamesTheDeployment(t *testing.T) {
 // reader sees on every comment, and it is a fingerprint of the machine rather
 // than an answer to their question.
 func TestProductionRepliesCarryNoFooter(t *testing.T) {
-	production := Deployment{Version: "1.2.0", Commit: "0123456789abcdef",
-		Register: "codecheckers/register", Bot: "chekhovbot", Environment: "production"}
+	production := Deployment{Version: "1.2.0", Register: "codecheckers/register", Bot: "chekhovbot", Environment: "production"}
 
 	if signature := production.Signature(); signature != "" {
 		t.Errorf("a production reply is signed %q", signature)
 	}
 	hello := production.HelloReply()
-	for _, leak := range []string{"01234567", "1.2.0"} {
-		if strings.Contains(hello, leak) {
-			t.Errorf("the production greeting says %q: %s", leak, hello)
-		}
+	if strings.Contains(hello, "1.2.0") {
+		t.Errorf("the production greeting says which build answered: %s", hello)
 	}
 	if !strings.Contains(hello, "codecheckers/register") {
 		t.Error("the greeting must still say which register it works on")
@@ -194,44 +190,44 @@ func TestProductionRepliesCarryNoFooter(t *testing.T) {
 	if !strings.Contains(development.Signature(), "1.2.0") {
 		t.Error("a development reply says which build answered")
 	}
-	if !strings.Contains(development.HelloReply(), "01234567") {
-		t.Error("a development greeting says which commit answered")
-	}
-}
-
-// Between releases the version is the short commit, and saying it twice reads
-// as a bug in the bot.
-func TestTheCommitIsNotRepeatedAfterTheVersion(t *testing.T) {
-	deployment := Deployment{Version: "55fb4038", Commit: "55fb4038aac76091bf5e83b1c73660b2010fa41d",
-		Register: "codecheckers/testing-dev-register", Bot: "chekhovbot", Environment: "development"}
-
-	if got := deployment.describeVersion(); got != "version 55fb4038" {
-		t.Errorf("describeVersion = %q", got)
-	}
-	released := deployment
-	released.Version = "0.2.0"
-	if got := released.describeVersion(); got != "version 0.2.0 (`55fb4038`)" {
-		t.Errorf("describeVersion = %q, want the release and the commit", got)
+	if !strings.Contains(development.HelloReply(), "1.2.0") {
+		t.Error("a development greeting says which build answered")
 	}
 }
 
 // version says which build answered and which register it works on: a
 // development deployment must not be mistakable for the real one.
 func TestVersionReplyNamesBuildRegisterAndRules(t *testing.T) {
-	deployment := Deployment{Version: "0.2.0", Commit: "0123456789abcdef",
-		Register: "codecheckers/testing-dev-register", Bot: "chekhovbot",
+	deployment := Deployment{Version: "0.2.0", Register: "codecheckers/testing-dev-register", Bot: "chekhovbot",
 		Environment: "development"}
 
 	reply := deployment.VersionReply("abcdef0123456789", "2026-09-16T20:38:45+0000")
 	for _, want := range []string{
 		"0.2.0",
-		"https://github.com/codecheckers/chekhov/commit/0123456789abcdef",
 		"codecheckers/testing-dev-register",
 		"https://github.com/codecheckers/register/commit/abcdef0123456789",
 		"2026-09-16T20:38:45+0000",
 	} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the reply does not carry %q:\n%s", want, reply)
+		}
+	}
+
+	// One version and nothing beside it. The bot used to report a commit of
+	// its own as well, through three channels that could each name a
+	// different one; there is now a single constant, so there is nothing for
+	// a reply to reconcile. The register's rules commit is a different thing
+	// and is still named above.
+	// The build's own commit used to be a line in this reply, linked into the
+	// bot's repository. The register's rules commit is linked too and is a
+	// different thing, so the absence is asserted on the repository rather
+	// than on the word.
+	if strings.Contains(reply, "codecheckers/chekhov/commit/") {
+		t.Errorf("the reply links a commit of the bot's own:\n%s", reply)
+	}
+	for _, own := range []string{deployment.Signature(), deployment.HelloReply()} {
+		if strings.Contains(strings.ToLower(own), "commit") {
+			t.Errorf("a reply still speaks of a commit of its own:\n%s", own)
 		}
 	}
 }

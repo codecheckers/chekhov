@@ -317,6 +317,51 @@ usage - which the platform reads as a crash loop.
 - `chekhov comment` renders its answer through the same `bot.Preview` the
   listener uses, so what you read on the command line is what would be posted.
 
+## The version
+
+**One constant, bumped by hand, and nothing else.** `internal/build.Version` is
+the version this bot reports, and the only one: `/healthz`, `@chekhovbot
+version` and the development footer all read it. No `-ldflags`, no
+`CHEKHOV_VERSION`, no commit. A deployment reports the same string a local
+build does, because there is only one place it can come from.
+
+Go's own answers were considered and are not used. Since Go 1.24 `go build`
+stamps the module version from the VCS tag - `v0.3.0`, or
+`v0.0.0-20260921120735-116776f4+dirty` when untagged - which is free and
+correct **wherever `.git` is present**. The deployment platform exports the
+source without it, so that stamp is empty exactly where the question is asked,
+and a version that is sometimes a semantic version and sometimes a pseudo-
+version is worse than one that is always the same shape. `-ldflags` has the
+same hole and needs the platform to co-operate. See `docs/deployment.md`.
+
+**Semantic versioning, of the bot's surface.** What counts is what somebody
+talking to the bot can see: the commands, and what a reply says.
+
+| Bump | For |
+|---|---|
+| **major** | a command removed or renamed, or a reply whose meaning changes for somebody already relying on it |
+| **minor** | a new command, a new argument, or a new thing a reply reports |
+| **patch** | a fix, a wording change, a rule refresh, anything internal |
+
+**The bump goes in the commit that earns it**, next to the `CHANGELOG.md`
+entry, not saved up for a release: a version that is bumped later describes a
+build nobody can point at. So the entry goes under the heading of the version
+being bumped to, and **`## [Unreleased]` stays empty** - anything parked there
+is behaviour the running version reports with no entry a reply can be traced
+to. See Changelog below, which this changed.
+
+Two checks, and it is worth knowing what each one does **not** catch:
+
+- `TestVersionMatchesTheChangelog`, in the fast suite, compares the constant
+  with the newest heading, asserts the headings are newest-first and dated, and
+  fails on entries under `Unreleased`. It reads one tree, not a diff, so it
+  cannot see that a commit added a command without bumping: a bullet written
+  under the *existing* heading passes forever.
+- The `version bump` job in `test.yml` is the one that can, because CI has the
+  merge base: it fails when non-test Go changed and the `Version` line did not,
+  and when the new version is not greater than the base's. A refactor that
+  genuinely needs no bump says so with the `no-version-bump` label.
+
 **Development says more than production.** `CHEKHOV_ENV` picks the settings
 file and, through `command.Deployment.Development()`, how much a deployment
 talks about itself: in development every comment carries a footer with the
@@ -446,7 +491,7 @@ exists; read the issues for what does not.
 | #9 metadata, #10 bundle, #11 references | Commands exist; small criteria left (ORCID checksum digit, bundle size, the certificate's own references) |
 | #8 repository, #12 links | Not started |
 | #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
-| #4 version SHA and target register | `version` and `/healthz` report both; the SHA needs the `-ldflags` of a real build |
+| #4 version SHA and target register | `version` and `/healthz` report the version constant and the register. The commit is deliberately not reported: open for the VCS-stamp route, which needs `.git` in the deployment's builder |
 | #5 thanks, #6 goodbye | One registry entry each, not written |
 | #13 check by certificate identifier, #19 target shortcuts | Done: `check.ResolveTarget` |
 | #14 webhook, #15 reply path | Implemented and covered offline by recorded deliveries and a stubbed GitHub |
@@ -516,7 +561,12 @@ are about the file's name and the bundle around it.
 
 ## Changelog
 
-`CHANGELOG.md` follows Keep a Changelog. Add to `## [Unreleased]` under
-`Added`, `Changed`, `Fixed` or `Removed`, one line per user-visible change,
-with the issue reference. Not the implementation, not the reasoning: those
-belong in the code comments and the commit message.
+`CHANGELOG.md` follows Keep a Changelog, with one departure: the entry goes
+under the heading of the version being bumped to, and `## [Unreleased]` stays
+empty. Because the version is bumped in the commit that earns it - see The
+version above - there is never a change waiting for a release to be named, and
+`TestVersionMatchesTheChangelog` fails on entries parked under `Unreleased`.
+
+One line per user-visible change, under `Added`, `Changed`, `Fixed` or
+`Removed`, with the issue reference. Not the implementation, not the reasoning:
+those belong in the code comments and the commit message.

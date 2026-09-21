@@ -172,7 +172,7 @@ func (r RepositorySpec) within(base, file string) string {
 
 // rawBase is where GitHub serves the repository's files as plain files.
 func (r RepositorySpec) rawBase(s *Services) string {
-	return s.RawContent + "/" + r.Path + "/HEAD"
+	return s.rawURL(r.Path, "HEAD", "")
 }
 
 // gitLabRawBase is the same for one branch of a GitLab project.

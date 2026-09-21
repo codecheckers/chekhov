@@ -325,10 +325,19 @@ func (s *Services) getJSON(url string, header map[string]string, into any) error
 	return json.Unmarshal(body, into)
 }
 
-// rawURL is where a repository serves one file as plain bytes, at a ref.
-// Written out by hand in three places before it was written here.
+// rawURL is where a repository serves its files as plain bytes, at a ref: one
+// file when path names one, the directory the files hang off when it is empty.
+//
+// Written out by hand in three places before it was written here, and the
+// third is why the trailing slash is trimmed: a configured RawContent ending
+// in "/" gave one caller a doubled slash, which raw.githubusercontent answers
+// 404 for - reported by the rules as a missing file rather than as an error.
 func (s *Services) rawURL(repository, ref, path string) string {
-	return strings.TrimSuffix(s.RawContent, "/") + "/" + repository + "/" + ref + "/" + path
+	base := strings.TrimSuffix(s.RawContent, "/") + "/" + repository + "/" + ref
+	if path == "" {
+		return base
+	}
+	return base + "/" + path
 }
 
 func (s *Services) github(url string, into any) error {

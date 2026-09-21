@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/codecheckers/chekhov/config"
+	"github.com/codecheckers/chekhov/internal/build"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
@@ -25,7 +26,7 @@ import (
 // It lives here rather than in the command so that the server is not tangled
 // with the tool around it: the deployment runs "chekhov serve" through the
 // Procfile, and a person on a terminal runs the same thing.
-func Serve(address, version, commit string) error {
+func Serve(address string) error {
 	settings, err := config.Current()
 	if err != nil {
 		return err
@@ -36,7 +37,7 @@ func Serve(address, version, commit string) error {
 		return fmt.Errorf("the bot needs CHEKHOV_GH_ACCESS_TOKEN and CHEKHOV_GH_SECRET_TOKEN, see docs/github-token.md")
 	}
 
-	deployment := deploymentFor(settings, version, commit)
+	deployment := deploymentFor(settings)
 	// Only a development deployment signs its comments with what it is; see
 	// command.Deployment.
 	replies := github.New(token, settings.TargetRepository(), deployment.Signature())
@@ -79,7 +80,7 @@ func Serve(address, version, commit string) error {
 	reloadTeams(server, settings)
 
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,
-		"commit", deployment.Commit, "register", deployment.Register,
+		"register", deployment.Register,
 		"environment", deployment.Environment,
 		"announcing", server.Toots != nil, "visibility", settings.Mastodon().Visibility)
 
@@ -140,10 +141,9 @@ func listen(address string, handler http.Handler) error {
 // deploymentFor is the one place a Deployment is assembled, so that no caller
 // can leave out the environment - which decides how much a reply discloses -
 // and have the omission read as "development".
-func deploymentFor(settings *config.Settings, version, commit string) command.Deployment {
+func deploymentFor(settings *config.Settings) command.Deployment {
 	return command.Deployment{
-		Version:     version,
-		Commit:      commit,
+		Version:     build.Version,
 		Register:    settings.TargetRepository(),
 		Bot:         settings.BotUser(),
 		Environment: config.Environment(),

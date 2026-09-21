@@ -77,27 +77,50 @@ with `runway app restart -a chekhov` whenever the new value has to take effect
 now - a rotated token above all, where the symptom is 401 on everything and no
 reply for anyone to notice. A deploy restarts on its own.
 
-### The build stamp
+### The version
 
-`@chekhovbot version` and `/healthz` report the commit they are running, and on
-this platform it has to be handed to them:
+`@chekhovbot version` and `/healthz` report one version, the
+`internal/build.Version` constant, and no commit. Nothing about the deployment
+decides it: the same string a local build reports is the string the deployment
+reports, because there is only one place it can come from. Bumping it is a
+commit in this repository, described in `CLAUDE.md` -> The version, and a test
+holds it to the newest heading in `CHANGELOG.md`.
+
+That is a deliberate retreat from stamping the commit, and a temporary one. A
+`CHEKHOV_COMMIT` configuration variable was the channel that worked: read at
+runtime, written by hand, and on 2026-09-21 it named a commit four behind the
+running code for a morning without anything noticing. **Nothing reads it now**
+- if a deployment still carries `CHEKHOV_COMMIT` or `CHEKHOV_VERSION`, they do
+nothing and are worth removing so that the next person does not set them and
+wonder why the version did not move:
 
 ```sh
-runway app config set -a chekhov CHEKHOV_COMMIT=$(git rev-parse HEAD)
-runway app deploy source -y
+runway app config unset -a chekhov CHEKHOV_COMMIT CHEKHOV_VERSION
 ```
 
-Two ordinary routes are closed here. `-ldflags` never reaches the compiler,
-because runway pins the buildpack's build flags - the build log says `go build
--buildmode pie -trimpath` whatever `BP_GO_BUILD_FLAGS` or
-`BP_GO_BUILD_LDFLAGS` are set to. And Go's own `vcs.revision` stamp is absent,
-because the builder exports the source without `.git`. The configuration is
-the one channel that arrives, so set `CHEKHOV_COMMIT` in the same breath as the
-deploy; `CHEKHOV_VERSION` overrides the version string when there is a release
-worth naming.
+**Whether this platform can stamp the commit properly is an open question, not
+a settled no.** This file used to say `-ldflags` and the VCS stamp were both
+impossible here. Neither claim was tested:
+[`paketo-buildpacks/go-build`](https://github.com/paketo-buildpacks/go-build)
+does read `BP_GO_BUILD_LDFLAGS`, and it never passes `-buildvcs=false`, so
+Go would stamp the revision if `.git` reached the build. Whether it does is
+undocumented - runway says only that it "builds from git, not from your working
+tree".
 
-Locally none of this is needed: a binary built from a checkout carries its own
-revision, and says `978a0bc0+dirty` when the tree had uncommitted changes.
+There is a better lever than either. Runway's Go buildpack order includes
+[`paketo-buildpacks/git`](https://github.com/paketo-buildpacks/git), which
+- when it finds a `.git` directory - sets `REVISION` to the commitish of HEAD
+**in the final running image**, where the bot could simply read it. One command
+settles whether that is happening:
+
+```sh
+runway app exec -a chekhov      # then, in the shell: printenv REVISION
+```
+
+A SHA means `.git` reaches the build and the bot should read `REVISION`. Empty
+means it does not, and the question becomes one for runway: their own Go stack
+ships a buildpack that is dead code without it. See
+[chekhov#4](https://github.com/codecheckers/chekhov/issues/4).
 
 ### SSH keys, and the snap
 
@@ -264,7 +287,6 @@ the command, the issue and what GitHub said.
 
 ```sh
 git commit ...           # the platform builds a commit, not a working tree
-runway app config set -a chekhov BP_GO_BUILD_FLAGS="-buildmode=pie -trimpath -ldflags=\"-X main.version=... -X main.commit=...\""
 runway app deploy source -y
 ```
 
@@ -273,10 +295,11 @@ finish.
 
 ## When it falls over
 
-1. `curl https://<app>.runway.horse/healthz` — is it up, and is it the build you
-   think? A commit that stayed the same across a deploy usually means
-   `CHEKHOV_COMMIT` was not set with it, not that the deploy failed: the
-   container is new, its idea of which commit it is is old.
+1. `curl https://<app>.runway.horse/healthz` — is it up, and which version?
+   The version moves only when somebody bumps the constant, so it says which
+   release is running rather than which commit; `rules_commit` is the field
+   that moves on its own. Whether the deploy happened is a question for
+   `runway app logs` and the build log, not for this endpoint.
 2. GitHub's *Recent Deliveries* — did the event arrive, and what was answered?
    A 401 there means the secret on the platform and the secret on the webhook
    have drifted apart.

@@ -2,6 +2,7 @@ package check
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -35,5 +36,23 @@ func TestFreshCarriesNothingOfTheRun(t *testing.T) {
 
 	if _, seen := services.Fresh().cache.Load("GET https://example.invalid "); seen {
 		t.Error("Fresh() inherited the response cache")
+	}
+}
+
+// A RawContent configured with a trailing slash must not double the separator.
+// raw.githubusercontent answers 404 for a doubled slash, which the rules about
+// the bundle would report as a file the codechecker forgot to commit.
+func TestRawURLsDoNotDoubleTheSeparator(t *testing.T) {
+	services := &Services{Access: Access{RawContent: "https://raw.example.invalid/", Register: "codecheckers/testing"}}
+	spec := RepositorySpec{Type: "github", Path: "codecheckers/demo"}
+
+	for what, url := range map[string]string{
+		"a register file": services.RegisterFile("register.csv"),
+		"a bundle file":   spec.within(spec.rawBase(services), "codecheck.yml"),
+		"the bundle root": spec.rawBase(services),
+	} {
+		if strings.Contains(strings.TrimPrefix(url, "https://"), "//") {
+			t.Errorf("%s is %q", what, url)
+		}
 	}
 }

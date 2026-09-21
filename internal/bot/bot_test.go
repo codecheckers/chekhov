@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -68,8 +69,7 @@ func testServer(t *testing.T) (*Server, *recorder) {
 	}
 	replies := &recorder{}
 	server := New(settings, secret, replies, command.Deployment{
-		Version: "0.1.0-test", Commit: "0123456789abcdef",
-		Register: settings.TargetRepository(), Bot: settings.BotUser(),
+		Version: "0.1.0-test", Register: settings.TargetRepository(), Bot: settings.BotUser(),
 		Environment: "development",
 	})
 	server.Logger = slog.New(slog.DiscardHandler)
@@ -827,5 +827,34 @@ func TestRulesOfflineSaysItCouldNotAsk(t *testing.T) {
 	}
 	if strings.Contains(reply, "are the register's current rules.") {
 		t.Errorf("could not look must never read as up to date:\n%s", reply)
+	}
+}
+
+// The bot reports one version and no commit of its own. It used to report a
+// commit through three channels that could each name a different one, and on
+// the deployment one of them named a commit four behind the running code for a
+// morning (chekhov#4). rules_commit is a different question - which rules the
+// bot judges by - and stays.
+func TestHealthReportsNoCommitOfItsOwn(t *testing.T) {
+	server, _ := testServer(t)
+
+	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	response := httptest.NewRecorder()
+	server.Handler().ServeHTTP(response, request)
+
+	var state map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &state); err != nil {
+		t.Fatalf("health: %v", err)
+	}
+	if _, reported := state["commit"]; reported {
+		t.Errorf("health reports a commit of its own: %s", response.Body.String())
+	}
+	// The deployment's own version, which is build.Version outside a test.
+	if state["version"] != server.Deployment.Version {
+		t.Errorf("health reports version %v, want the deployment's %q",
+			state["version"], server.Deployment.Version)
+	}
+	if _, reported := state["rules_commit"]; !reported {
+		t.Error("health no longer says which rules it judges by")
 	}
 }
