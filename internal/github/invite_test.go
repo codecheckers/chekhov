@@ -278,8 +278,8 @@ func TestAnOrganisationCannotBeInvited(t *testing.T) {
 	if !errors.Is(err, ErrNotAUser) {
 		t.Fatalf("error %v, want it to wrap ErrNotAUser", err)
 	}
-	if !strings.Contains(err.Error(), "not a person") {
-		t.Errorf("error %q, want it to say why", err)
+	if !strings.Contains(err.Error(), "organization") {
+		t.Errorf("error %q, want it to name what the account is", err)
 	}
 	for _, request := range *requests {
 		if request.Method == http.MethodPut {

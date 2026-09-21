@@ -53,7 +53,11 @@ var ErrNotPermitted = errors.New("this bot's token may not manage team membershi
 
 // ErrNotAUser is a handle that is not a person's account: an organisation, or
 // nothing at all. Neither can be in a team.
-var ErrNotAUser = errors.New("not a user account")
+//
+// Its words are the consequence rather than the category, because a wrapped
+// sentinel is printed after the sentence that wrapped it: "not a user
+// account" only said the sentence again.
+var ErrNotAUser = errors.New("only a person's account can be in a team")
 
 // handleShape is what a GitHub login may look like: letters, digits and
 // single hyphens, at most 39 characters.
@@ -109,7 +113,7 @@ func (c *Client) resolveUser(ctx context.Context, handle string) (string, error)
 	case !strings.EqualFold(account.Type, "User"):
 		// An organisation cannot be in a team, and GitHub answers 422 to the
 		// attempt. Refused here, in words, rather than passed on as a puzzle.
-		return "", fmt.Errorf("`@%s` is a %s, not a person: %w", handle, strings.ToLower(account.Type), ErrNotAUser)
+		return "", fmt.Errorf("`@%s` is a GitHub %s: %w", handle, strings.ToLower(account.Type), ErrNotAUser)
 	case account.Login == "":
 		return "", fmt.Errorf("GitHub did not say who `@%s` is", handle)
 	}

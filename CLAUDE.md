@@ -79,6 +79,14 @@ under a hundred earlier comments, and a reply cannot be read against what was
 expected of it. Link the chekhov issues from the test issue, and the test issue
 from the closing comment, so the proof is one click away.
 
+**Post the commands one at a time, and wait for each reply.** The bot answers
+in a goroutine, so a burst of comments comes back out of order: eight commands
+posted in eight seconds produced replies interleaved with the next commands,
+and matching each answer to its question meant reading timestamps. Leave enough
+time for the reply to land - a `check` that asks OpenAlex and Zenodo takes
+longer than `rules` - and read it before posting the next one. The thread is
+the record, and it has to be readable by somebody who was not there.
+
 **The board is part of the work.** The register development board
 (<https://github.com/orgs/codecheckers/projects/2>) carries Status and Priority
 for everything. When starting on an issue, check whether it is on the board; if

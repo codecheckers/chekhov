@@ -98,7 +98,10 @@ func (s *Server) invite(ctx context.Context, parsed command.Command, services *c
 		// Said plainly, and never as though the invitation had been sent: a
 		// missing permission is the deployment's problem to fix, and a handle
 		// that is not a person is the editor's.
-		return fmt.Sprintf("I could not invite `@%s`: %s\n", handle, err)
+		// Returned as it is, the way every other handler returns a refusal:
+		// each of these errors is a sentence that already names the account,
+		// and a prefix here put the handle in it twice.
+		return fmt.Sprintf("%s\n", err)
 	}
 	if login != "" {
 		// GitHub's own capitalisation of the account, now that it is known.

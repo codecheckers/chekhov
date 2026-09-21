@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -128,8 +129,10 @@ func TestInviteThatFailedNeverReadsAsSent(t *testing.T) {
 
 	reply := answer(t, server, command.Invite, []string{"@a-newcomer"}, "")
 
-	if !strings.Contains(reply, "could not invite") {
-		t.Errorf("reply:\n%s", reply)
+	// The reason, in the words the error used: the reply is the error, so a
+	// refusal that said nothing would be a blank comment.
+	if !strings.Contains(reply, "may not manage team membership") {
+		t.Errorf("the reply does not say what went wrong:\n%s", reply)
 	}
 	if strings.Contains(reply, "I have invited") || strings.Contains(reply, "I have added") {
 		t.Errorf("a failure read as a success:\n%s", reply)
@@ -153,5 +156,23 @@ func TestInviteIsForEditors(t *testing.T) {
 	}
 	if strings.Contains(command.Listing(nil), "invite") {
 		t.Error("a command a stranger may not run should be absent from their listing")
+	}
+}
+
+// A refusal names the account once. The error carries it, so a prefix here
+// put it in the sentence twice - "I could not invite `@x`: there is no GitHub
+// account `@x`: ..." - and the wrapped sentinel said the sentence again.
+func TestARefusalNamesTheAccountOnce(t *testing.T) {
+	server, replies := invitingServer(t)
+	replies.err = fmt.Errorf("there is no GitHub account `@a-new-codechecker`: %w",
+		github.ErrNotAUser)
+
+	reply := answer(t, server, command.Invite, []string{"@a-new-codechecker"}, "")
+
+	if got := strings.Count(reply, "a-new-codechecker"); got != 1 {
+		t.Errorf("the account is named %d times:\n%s", got, reply)
+	}
+	if strings.Contains(reply, "not a user account") {
+		t.Errorf("the sentinel should read as a consequence, not a restatement:\n%s", reply)
 	}
 }
