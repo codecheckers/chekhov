@@ -17,12 +17,20 @@ type Person struct {
 	// ORCID is written "ORCID" in a codecheck.yml and "orcid" in a published
 	// certificate's index.json.
 	ORCID string `yaml:"ORCID" json:"orcid"`
+
+	// path is where the person is in a codecheck.yml, "codechecker.0", so a
+	// finding about them can say which line to look at. Empty for a person
+	// read from anywhere else.
+	path string
 }
 
 // ManifestItem is one output the workflow produces.
 type ManifestItem struct {
 	File    string `yaml:"file"`
 	Comment string `yaml:"comment"`
+
+	// path is where the item is in the file, "manifest.2", see Config.Line.
+	path string
 }
 
 // Paper is the metadata about the checked article.
@@ -45,7 +53,11 @@ type Paper struct {
 // manifest fails, an empty one does not - so the nodes whose absence a rule
 // asks about carry a Has flag.
 type Config struct {
-	Version     string
+	Version string
+	// HasVersion is whether the file has a version node at all. An empty one
+	// is a version nobody can apply, not a file that names none, see
+	// SpecVersion.
+	HasVersion  bool
 	Manifest    []ManifestItem
 	HasManifest bool
 	Codechecker []Person
@@ -61,7 +73,38 @@ type Config struct {
 
 	// Strings holds every string value in the file, for the rules that ask
 	// about values wherever they appear.
-	Strings []string
+	Strings []Scalar
+
+	// lines maps where a node is, "paper.title" or "manifest.2.file", to the
+	// line it starts on. See Line.
+	lines map[string]int
+}
+
+// A Scalar is one value in the file and the line it is on.
+type Scalar struct {
+	Value string
+	Line  int
+}
+
+// Line is the line a node starts on, or the line of the nearest node that
+// contains it: a paper with no title is reported where the paper is, which is
+// where the title has to be added. Zero when not even the top-level node is
+// there, and a finding then carries no line rather than a wrong one.
+//
+// A path is the keys and the sequence positions from the root, joined with
+// dots, positions counted from zero: "paper.authors.1.ORCID".
+func (c Config) Line(path string) int {
+	for path != "" {
+		if line, ok := c.lines[path]; ok {
+			return line
+		}
+		cut := strings.LastIndex(path, ".")
+		if cut < 0 {
+			break
+		}
+		path = path[:cut]
+	}
+	return 0
 }
 
 // Context is everything the checks need about the file under validation.
@@ -152,6 +195,7 @@ func FromBytes(raw []byte) Context {
 
 	config := Config{
 		Version:     parsed.Version,
+		HasVersion:  hasKey(root, "version"),
 		Manifest:    parsed.Manifest,
 		Codechecker: parsed.Codechecker,
 		Report:      parsed.Report,
@@ -159,6 +203,14 @@ func FromBytes(raw []byte) Context {
 		Certificate: parsed.Certificate,
 		CheckTime:   parsed.CheckTime,
 		Strings:     stringValues(root),
+		lines:       map[string]int{},
+	}
+	nodeLines(root, "", config.lines)
+	for i := range config.Manifest {
+		config.Manifest[i].path = fmt.Sprintf("manifest.%d", i)
+	}
+	for i := range config.Codechecker {
+		config.Codechecker[i].path = fmt.Sprintf("codechecker.%d", i)
 	}
 	config.HasManifest = hasKey(root, "manifest")
 	config.Repository = scalars(childNode(root, "repository"))
@@ -167,6 +219,9 @@ func FromBytes(raw []byte) Context {
 		Title:     parsed.Paper.Title,
 		Authors:   parsed.Paper.Authors,
 		Reference: parsed.Paper.Reference,
+	}
+	for i := range config.Paper.Authors {
+		config.Paper.Authors[i].path = fmt.Sprintf("paper.authors.%d", i)
 	}
 
 	if other := childNode(childNode(root, "paper"), "reference-other"); other != nil {
@@ -266,12 +321,38 @@ func scalars(node *yaml.Node) []string {
 	return nil
 }
 
+// nodeLines records the line of every node below one, by path, see
+// Config.Line. A key's line is the key's, not its value's: a block sequence
+// starts on the line after its key, and the key is what a reader looks for.
+func nodeLines(node *yaml.Node, path string, lines map[string]int) {
+	below := func(step string) string {
+		if path == "" {
+			return step
+		}
+		return path + "." + step
+	}
+	switch node.Kind {
+	case yaml.SequenceNode:
+		for i, child := range node.Content {
+			item := below(fmt.Sprint(i))
+			lines[item] = child.Line
+			nodeLines(child, item, lines)
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key := below(node.Content[i].Value)
+			lines[key] = node.Content[i].Line
+			nodeLines(node.Content[i+1], key, lines)
+		}
+	}
+}
+
 // stringValues collects every scalar in the document, keys excluded.
-func stringValues(node *yaml.Node) []string {
-	var values []string
+func stringValues(node *yaml.Node) []Scalar {
+	var values []Scalar
 	switch node.Kind {
 	case yaml.ScalarNode:
-		values = append(values, node.Value)
+		values = append(values, Scalar{Value: node.Value, Line: node.Line})
 	case yaml.SequenceNode:
 		for _, child := range node.Content {
 			values = append(values, stringValues(child)...)

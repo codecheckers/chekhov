@@ -166,7 +166,7 @@ func TestSpecVersionFromTheFile(t *testing.T) {
 
 	// A file that names no version and cannot be dated is validated against
 	// the newest, which is what the specification asks tools to assume.
-	if got, why := SpecVersion(Context{}); got != rules.Newest() {
+	if got, why, _ := SpecVersion(Context{}); got != rules.Newest() {
 		t.Errorf("a file without a version node: %q (%s), want %q", got, why, rules.Newest())
 	}
 }
@@ -178,13 +178,79 @@ func TestSpecVersionFromTheFile(t *testing.T) {
 func TestTheHistoricalVersionURLIsUnderstood(t *testing.T) {
 	context := FromBytes([]byte("---\nversion: https://codecheck.org.uk/spec/1.0\n"))
 
-	version, why := SpecVersion(context)
+	version, why, _ := SpecVersion(context)
 	if version != "1.0" {
 		t.Errorf("version = %q (%s), want 1.0", version, why)
 	}
 	// It is still not a published URL, and CC-CFG-015 still says so.
 	if SpecVersionFromURL("https://codecheck.org.uk/spec/1.0") != "" {
 		t.Error("the historical URL must not count as published")
+	}
+}
+
+// A file that declares a version this build does not know is refused, not
+// checked against a guess: every finding would answer requirements the author
+// did not claim to meet, and the heading used to say the file named no version
+// when it plainly named one. A malformed or empty version is the same case.
+//
+// The refusal is the report's, not an error: both renderings say it, in place
+// of results, and neither shows counts that would read as "nothing wrong".
+func TestAnUnknownVersionIsRefused(t *testing.T) {
+	for _, declared := range []string{
+		"https://codecheck.org.uk/spec/config/5.0/",
+		"yes",
+		"2",
+		`""`,
+		"",
+	} {
+		// The file is otherwise dated, so a fallback would have had an answer.
+		context := FromBytes([]byte("---\nversion: " + declared + "\ncheck_time: \"2021-03-01\"\n"))
+
+		report, err := RunPart(context, "", false, "")
+		if err != nil {
+			t.Fatalf("version %q: %v", declared, err)
+		}
+		if report.Refused == nil || len(report.Results) > 0 || report.OK() {
+			t.Errorf("version %q: refused %v, %d result(s), OK %v; want refused, nothing run, not OK",
+				declared, report.Refused, len(report.Results), report.OK())
+			continue
+		}
+
+		for name, rendered := range map[string]string{
+			"markdown": report.Markdown(),
+			"text":     report.Text(),
+			"failure":  report.FailureMessage(),
+		} {
+			for _, want := range []string{"not checked", "2.0 and 1.0"} {
+				if !strings.Contains(rendered, want) {
+					t.Errorf("version %q, %s: does not say %q:\n%s", declared, name, want, rendered)
+				}
+			}
+			for _, unwanted := range []string{"names no version", "0 failed"} {
+				if strings.Contains(rendered, unwanted) {
+					t.Errorf("version %q, %s: says %q:\n%s", declared, name, unwanted, rendered)
+				}
+			}
+		}
+		if !strings.Contains(report.Markdown(), "behind the register") {
+			t.Errorf("version %q: the reply does not say what a newer version means", declared)
+		}
+
+		// Somebody who pins the version has decided which rules apply.
+		if pinned, err := RunPart(context, "2.0", false, ""); err != nil || pinned.Refused != nil {
+			t.Errorf("version %q pinned to 2.0: %v, refused %v", declared, err, pinned.Refused)
+		}
+	}
+
+	if refused := unknownVersion("https://codecheck.org.uk/spec/config/5.0/"); !strings.Contains(refused.Why,
+		"'https://codecheck.org.uk/spec/config/5.0/'") {
+		t.Errorf("the refusal does not repeat the version the file declared: %s", refused.Why)
+	}
+
+	// And a file with no version node at all is still dated, not refused.
+	if _, why, refused := SpecVersion(FromBytes([]byte("---\ncheck_time: \"2021-03-01\"\n"))); refused != nil ||
+		!strings.Contains(why, "checked") {
+		t.Errorf("no version node: %q, %v; want it dated", why, refused)
 	}
 }
 
@@ -197,7 +263,7 @@ func TestAnUndatedVersionIsTakenFromTheCheckTime(t *testing.T) {
 	}
 	for checkTime, want := range cases {
 		context := FromBytes([]byte("---\ncheck_time: \"" + checkTime + "\"\n"))
-		if got, why := SpecVersion(context); got != want {
+		if got, why, _ := SpecVersion(context); got != want {
 			t.Errorf("check_time %s: version %q (%s), want %q", checkTime, got, why, want)
 		}
 	}
@@ -205,7 +271,7 @@ func TestAnUndatedVersionIsTakenFromTheCheckTime(t *testing.T) {
 	// And by when it was last changed, when the file itself says nothing.
 	context := FromBytes([]byte("---\ncertificate: 2020-001\n"))
 	context.Modified = time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
-	if got, why := SpecVersion(context); got != "1.0" {
+	if got, why, _ := SpecVersion(context); got != "1.0" {
 		t.Errorf("version = %q (%s), want 1.0", got, why)
 	}
 }

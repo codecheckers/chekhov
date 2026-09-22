@@ -3,6 +3,7 @@ package check
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,34 @@ type RuleResult struct {
 	Rule    rules.Rule
 	Outcome Outcome
 	Detail  string
+	// Lines are where in the configuration the finding is, see Result.
+	Lines []int
+}
+
+// Where says which lines of the configuration a finding is about, " at line
+// 26" to follow an identifier, or empty when it is about none.
+func (r RuleResult) Where() string {
+	switch len(r.Lines) {
+	case 0:
+		return ""
+	case 1:
+		return " at line " + lineNumbers(r.Lines, "")
+	default:
+		return " at lines " + lineNumbers(r.Lines, "")
+	}
+}
+
+// lineNumbers lists line numbers, each a link to that line of the file when
+// there is a page for it.
+func lineNumbers(lines []int, file string) string {
+	numbers := make([]string, len(lines))
+	for i, line := range lines {
+		numbers[i] = strconv.Itoa(line)
+		if file != "" {
+			numbers[i] = fmt.Sprintf("[%d](%s#L%d)", line, file, line)
+		}
+	}
+	return strings.Join(numbers, ", ")
 }
 
 // Text describes one rule in words.
@@ -41,7 +70,7 @@ type RuleResult struct {
 // listed or counted, Line is used instead: the descriptions would bury the
 // list.
 func (r RuleResult) Text() string {
-	text := r.Rule.ID + " " + r.Rule.Name
+	text := r.Rule.ID + " " + r.Rule.Name + r.Where()
 	if r.Detail != "" {
 		text += ": " + r.Detail
 	}
@@ -51,9 +80,9 @@ func (r RuleResult) Text() string {
 // Line describes one rule by identifier and finding only, for lists.
 func (r RuleResult) Line() string {
 	if r.Detail == "" {
-		return r.Rule.ID
+		return r.Rule.ID + r.Where()
 	}
-	return r.Rule.ID + ": " + r.Detail
+	return r.Rule.ID + r.Where() + ": " + r.Detail
 }
 
 // Report is the outcome of validating one codecheck.yml.
@@ -67,15 +96,33 @@ type Report struct {
 	// Source is where the configuration was read from, as a link when there is
 	// one.
 	Source string
+	// File is the configuration itself as a link, which a line number can be
+	// added to; empty where the source has no such page.
+	File   string
 	Strict bool
 	// Part is the piece of the catalogue this report covers, empty for all of
 	// it, see Report.Subset.
 	Part    string
 	Results []RuleResult
+	// Refused is why no rule was run at all, nil when they were. A refused
+	// report is not OK: nothing about the file was established.
+	Refused *Refusal
+}
+
+// A Refusal is a configuration the rules cannot be applied to, and what to do
+// about it.
+//
+// It is not a rule finding - no rule in the catalogue is about it - but "could
+// not check" for the file as a whole, so it stays out of the counts at the
+// foot of a report, and a report says it instead of the results rather than
+// among them.
+type Refusal struct {
+	Why    string
+	Remedy string
 }
 
 // SpecVersion returns the specification version to check a configuration
-// against, and why.
+// against and why, or why there is none to check it against.
 //
 // The specification asks tools to assume the newest version when a file names
 // none. Taken literally that judges a configuration written in 2020 against
@@ -83,18 +130,49 @@ type Report struct {
 // have known about - so a file that names no version is dated instead, and
 // only an undatable one falls back to the newest. See "Choosing the
 // specification version" in the register's RULES.md.
-func SpecVersion(context Context) (version, why string) {
-	if declared := SpecVersionNamed(context.Config.Version); declared != "" {
-		return declared, "declared by the file"
+//
+// A file that names a version this build does not know is none of those: it
+// is refused rather than checked, because every finding would be judged
+// against requirements the file does not claim to meet.
+func SpecVersion(context Context) (version, why string, refused *Refusal) {
+	if context.Config.HasVersion {
+		declared := SpecVersionNamed(context.Config.Version)
+		if declared == "" {
+			return "", "", unknownVersion(context.Config.Version)
+		}
+		return declared, "declared by the file", nil
 	}
 
 	if when, source := configurationDate(context); !when.IsZero() {
 		if dated := rules.AsOf(when); dated != "" {
 			return dated, fmt.Sprintf("current when the file was %s (%s)",
-				source, when.Format(time.DateOnly))
+				source, when.Format(time.DateOnly)), nil
 		}
 	}
-	return rules.Newest(), "assumed: the file names no version and could not be dated"
+	return rules.Newest(), "assumed: the file names no version and could not be dated", nil
+}
+
+// unknownVersion refuses a configuration that declares a specification
+// version this build does not know, or declares one in a form nobody could.
+func unknownVersion(declared string) *Refusal {
+	known := rules.SpecVersions()
+	knownList := known[len(known)-1]
+	if len(known) > 1 {
+		knownList = strings.Join(known[:len(known)-1], ", ") + " and " + knownList
+	}
+	why := "the version node is empty, which names no specification"
+	if declared = strings.TrimSpace(declared); declared != "" {
+		why = fmt.Sprintf("the file declares specification version '%s', "+
+			"which is not one this build knows", declared)
+	}
+	return &Refusal{
+		Why: fmt.Sprintf("%s. It knows %s, and a report against a specification "+
+			"the file does not claim to meet would be wrong in every line", why, knownList),
+		Remedy: fmt.Sprintf("Name a published version, such as "+
+			"https://codecheck.org.uk/spec/config/%s/. If the file means a "+
+			"specification newer than %s, this build is behind the register "+
+			"and its rules need refreshing.", rules.Newest(), rules.Newest()),
+	}
 }
 
 // configurationDate is the best evidence of when a configuration was written:
@@ -155,26 +233,32 @@ func Run(context Context, specVersion string, strict bool) (Report, error) {
 // not cost a Crossref lookup and a Zenodo record, and on a bad day must not
 // fail because one of them is down.
 func RunPart(context Context, specVersion string, strict bool, part string) (Report, error) {
-	// A caller that pinned the version knows why; only a chosen one needs
-	// explaining.
-	why := ""
-	if specVersion == "" {
-		specVersion, why = SpecVersion(context)
-	}
+	// What was asked comes before what the file says: a mistyped part is the
+	// caller's to fix, whatever version the file declares.
 	if !IsPart(part) {
 		return Report{}, fmt.Errorf("no such check %q; try one of %s, or leave it off for all of them",
 			part, strings.Join(Parts(), ", "))
 	}
+	report := Report{Label: context.Label, Source: context.SourceURL(),
+		File: context.FileURL(), Strict: strict}
+	if part != "all" {
+		report.Part = part
+	}
+	// A caller that pinned the version knows why; only a chosen one needs
+	// explaining. A file no known version can be chosen for is refused, and
+	// the report says so instead of running anything.
+	if specVersion == "" {
+		specVersion, report.SpecVersionReason, report.Refused = SpecVersion(context)
+		if report.Refused != nil {
+			return report, nil
+		}
+	}
+	report.SpecVersion = specVersion
 	catalogue, err := rules.For(specVersion)
 	if err != nil {
 		return Report{}, err
 	}
 
-	report := Report{Label: context.Label, SpecVersion: specVersion,
-		SpecVersionReason: why, Source: context.SourceURL(), Strict: strict}
-	if part != "all" {
-		report.Part = part
-	}
 	for _, rule := range catalogue {
 		if !rule.Active() || !inPart(rule, part) {
 			continue
@@ -195,20 +279,21 @@ func runRule(rule rules.Rule, context Context, strict bool) RuleResult {
 	}
 
 	result := checkFunc(context)
+	reported := RuleResult{Rule: rule, Detail: result.Detail, Lines: result.Lines}
 	switch result.Status {
 	case StatusPass:
-		return RuleResult{Rule: rule, Outcome: OutcomeOK, Detail: result.Detail}
+		reported.Outcome = OutcomeOK
 	case StatusSkip:
-		return RuleResult{Rule: rule, Outcome: OutcomeSkipped, Detail: result.Detail}
+		reported.Outcome = OutcomeSkipped
 	default:
 		// A failed check is reported at the rule's own severity, which strict
 		// only ever raises.
-		outcome := Outcome(rule.Severity)
+		reported.Outcome = Outcome(rule.Severity)
 		if strict && rule.Severity == rules.SeverityWarning {
-			outcome = OutcomeError
+			reported.Outcome = OutcomeError
 		}
-		return RuleResult{Rule: rule, Outcome: outcome, Detail: result.Detail}
 	}
+	return reported
 }
 
 // Count returns how many results had one outcome.
@@ -234,12 +319,15 @@ func (r Report) Failures() []RuleResult {
 }
 
 // OK reports whether the configuration is valid: no rule failed as an error.
-func (r Report) OK() bool { return len(r.Failures()) == 0 }
+func (r Report) OK() bool { return r.Refused == nil && len(r.Failures()) == 0 }
 
 // FailureMessage says what failed. One rule is reported in full, with the
 // rule's own words; several are listed by identifier and finding, so the list
 // stays readable.
 func (r Report) FailureMessage() string {
+	if r.Refused != nil {
+		return fmt.Sprintf("%s was not checked: %s", r.Label, r.Refused.Why)
+	}
 	failures := r.Failures()
 	switch len(failures) {
 	case 0:

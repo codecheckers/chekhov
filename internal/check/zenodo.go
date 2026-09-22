@@ -112,7 +112,7 @@ func reportDOIVersionSpecific(c Context) Result {
 	// certificate that names one does not point at a fixed document.
 	if record.ConceptDOI != "" && sameDOI(record.ConceptDOI, c.Config.Report) {
 		return fail(fmt.Sprintf("'%s' is the concept DOI, which follows the latest version; "+
-			"use the version-specific DOI", c.Config.Report))
+			"use the version-specific DOI", c.Config.Report)).at(c.Config.Line("report"))
 	}
 	return pass("")
 }
@@ -134,7 +134,7 @@ func reportDOINewestVersion(c Context) Result {
 		return pass("the latest version of the record")
 	}
 	return fail(fmt.Sprintf("a newer version of this record has been published "+
-		"(version %d of %d)", versions[0].Index+1, versions[0].Count))
+		"(version %d of %d)", versions[0].Index+1, versions[0].Count)).at(c.Config.Line("report"))
 }
 
 // rule: CC-REP-003 zenodo-files-present
@@ -167,7 +167,7 @@ func zenodoCertificateIDMatch(c Context) Result {
 		return pass(record.title())
 	}
 	return fail(fmt.Sprintf("the record is titled '%s', which does not carry the certificate identifier %s",
-		record.title(), certificate))
+		record.title(), certificate)).at(c.Config.Line("certificate"))
 }
 
 // rule: CC-REP-005 zenodo-codechecker-names-match
@@ -184,6 +184,7 @@ func zenodoCodecheckerNamesMatch(c Context) Result {
 	}
 
 	var missing []string
+	var lines []int
 	for _, codechecker := range c.Config.Codechecker {
 		found := false
 		for _, creator := range record.Metadata.Creators {
@@ -196,11 +197,12 @@ func zenodoCodecheckerNamesMatch(c Context) Result {
 		}
 		if !found {
 			missing = append(missing, codechecker.Name)
+			lines = append(lines, c.Config.Line(codechecker.path+".name"))
 		}
 	}
 	if len(missing) > 0 {
 		return fail("codechecker(s) not among the record's creators: " +
-			strings.Join(missing, ", "))
+			strings.Join(missing, ", ")).at(lines...)
 	}
 	return pass(fmt.Sprintf("%d codechecker(s) match", len(c.Config.Codechecker)))
 }
@@ -232,13 +234,15 @@ func zenodoCodecheckerORCIDsMatch(c Context) Result {
 	}
 
 	var missing []string
+	var lines []int
 	for _, codechecker := range withORCID {
 		if !recorded[ORCIDDigits(codechecker.ORCID)] {
 			missing = append(missing, codechecker.Name+" ("+codechecker.ORCID+")")
+			lines = append(lines, c.Config.Line(codechecker.orcidPath()))
 		}
 	}
 	if len(missing) > 0 {
-		return fail("codechecker ORCID(s) not on the record: " + strings.Join(missing, ", "))
+		return fail("codechecker ORCID(s) not on the record: " + strings.Join(missing, ", ")).at(lines...)
 	}
 	return pass(fmt.Sprintf("%d ORCID(s) match", len(withORCID)))
 }

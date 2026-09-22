@@ -20,12 +20,12 @@ func reportResolvable(c Context) Result {
 		return skip("no report identifier to resolve")
 	}
 	if !strings.HasPrefix(report, "http") {
-		return fail(fmt.Sprintf("'%s' is not a resolvable URL", report))
+		return fail(fmt.Sprintf("'%s' is not a resolvable URL", report)).at(c.Config.Line("report"))
 	}
 	if !c.Services.Enabled() {
 		return needsServices(RequiresService["CC-CFG-012"])
 	}
-	return c.Services.resolves(report)
+	return c.Services.resolves(report).at(c.Config.Line("report"))
 }
 
 // rule: CC-MET-004 paper-reference-resolves
@@ -40,7 +40,7 @@ func paperReferenceResolves(c Context) Result {
 	if !c.Services.Enabled() {
 		return needsServices(RequiresService["CC-MET-004"])
 	}
-	return c.Services.resolves(reference)
+	return c.Services.resolves(reference).at(c.Config.Line("paper.reference"))
 }
 
 // rule: CC-MET-009 reference-other-resolves
@@ -53,8 +53,9 @@ func referenceOtherResolves(c Context) Result {
 	}
 
 	var unresolved []string
+	var lines []int
 	reached := 0
-	for _, entry := range c.Config.Paper.ReferenceOther {
+	for i, entry := range c.Config.Paper.ReferenceOther {
 		entry = strings.TrimSpace(entry)
 		if !bareURL.MatchString(entry) {
 			continue
@@ -62,6 +63,7 @@ func referenceOtherResolves(c Context) Result {
 		switch result := c.Services.resolves(entry); result.Status {
 		case StatusFail:
 			unresolved = append(unresolved, entry)
+			lines = append(lines, c.Config.Line(referenceOtherPath(i)))
 			reached++
 		case StatusPass:
 			reached++
@@ -72,7 +74,7 @@ func referenceOtherResolves(c Context) Result {
 	}
 	if len(unresolved) > 0 {
 		return fail("reference-other entries that do not resolve: " +
-			strings.Join(unresolved, ", "))
+			strings.Join(unresolved, ", ")).at(lines...)
 	}
 	return pass(fmt.Sprintf("%d entry(s) resolve", reached))
 }
@@ -93,7 +95,8 @@ func repositoryReachable(c Context) Result {
 		}
 	}
 	if len(unreachable) > 0 {
-		return fail("repository(s) that do not answer: " + strings.Join(unreachable, ", "))
+		return fail("repository(s) that do not answer: " + strings.Join(unreachable, ", ")).
+			at(c.Config.Line("repository"))
 	}
 	return pass(strings.Join(c.Config.Repository, ", "))
 }
@@ -113,6 +116,7 @@ func manifestFilesExist(c Context) Result {
 	}
 
 	var missing []string
+	var lines []int
 	for _, item := range c.Config.Manifest {
 		if item.File == "" {
 			continue
@@ -126,10 +130,12 @@ func manifestFilesExist(c Context) Result {
 		}
 		if !found {
 			missing = append(missing, item.File)
+			lines = append(lines, c.Config.Line(item.path+".file"))
 		}
 	}
 	if len(missing) > 0 {
-		return fail("manifest file(s) not where the configuration says: " + strings.Join(missing, ", "))
+		return fail("manifest file(s) not where the configuration says: " + strings.Join(missing, ", ")).
+			at(lines...)
 	}
 	return pass(fmt.Sprintf("%d manifest file(s) present", len(c.Config.Manifest)))
 }
@@ -158,13 +164,15 @@ func orcidResolves(c Context) Result {
 	}
 
 	var unresolved []string
+	var lines []int
 	for _, person := range people {
 		if _, err := orcidRecord(c, person.ORCID); err != nil {
 			unresolved = append(unresolved, person.ORCID)
+			lines = append(lines, c.Config.Line(person.orcidPath()))
 		}
 	}
 	if len(unresolved) > 0 {
-		return fail("ORCID(s) that do not resolve: " + strings.Join(unresolved, ", "))
+		return fail("ORCID(s) that do not resolve: " + strings.Join(unresolved, ", ")).at(lines...)
 	}
 	return pass(fmt.Sprintf("%d ORCID(s) resolve", len(people)))
 }
@@ -180,6 +188,7 @@ func orcidNameMatch(c Context) Result {
 	}
 
 	var mismatched []string
+	var lines []int
 	compared := 0
 	for _, person := range people {
 		record, err := orcidRecord(c, person.ORCID)
@@ -193,6 +202,7 @@ func orcidNameMatch(c Context) Result {
 		if family != "" && !strings.Contains(Normalise(person.Name), Normalise(family)) {
 			mismatched = append(mismatched, fmt.Sprintf("%s is %s %s at ORCID",
 				person.Name, record.Name.GivenNames.Value, family))
+			lines = append(lines, c.Config.Line(person.path+".name"))
 		}
 	}
 	if compared == 0 {
@@ -200,7 +210,7 @@ func orcidNameMatch(c Context) Result {
 	}
 	if len(mismatched) > 0 {
 		return fail("name(s) that differ from the ORCID record: " +
-			strings.Join(mismatched, "; "))
+			strings.Join(mismatched, "; ")).at(lines...)
 	}
 	return pass(fmt.Sprintf("%d name(s) match", compared))
 }
@@ -342,7 +352,7 @@ func paperTitleMatch(c Context) Result {
 		return pass("")
 	}
 	return fail(fmt.Sprintf("the title is '%s' but %s says '%s'",
-		c.Config.Paper.Title, source, work.Title))
+		c.Config.Paper.Title, source, work.Title)).at(c.Config.Line("paper.title"))
 }
 
 // rule: CC-MET-006 paper-author-count-match
@@ -359,7 +369,7 @@ func paperAuthorCountMatch(c Context) Result {
 		return pass(fmt.Sprintf("%d author(s)", len(work.Authors)))
 	}
 	return fail(fmt.Sprintf("the file lists %d author(s), %s %d",
-		len(c.Config.Paper.Authors), source, len(work.Authors)))
+		len(c.Config.Paper.Authors), source, len(work.Authors))).at(c.Config.Line("paper.authors"))
 }
 
 // rule: CC-MET-007 paper-author-name-match
@@ -385,7 +395,7 @@ func paperAuthorNameMatch(c Context) Result {
 	}
 	if len(missing) > 0 {
 		return fail(fmt.Sprintf("author(s) %s lists but the file does not: %s",
-			source, strings.Join(missing, ", ")))
+			source, strings.Join(missing, ", "))).at(c.Config.Line("paper.authors"))
 	}
 	return pass("")
 }
@@ -442,7 +452,7 @@ func paperAuthorORCIDMatch(c Context) Result {
 	}
 	if len(missing) > 0 {
 		return fail(fmt.Sprintf("ORCID(s) %s has but the file does not: %s",
-			source, strings.Join(missing, ", ")))
+			source, strings.Join(missing, ", "))).at(c.Config.Line("paper.authors"))
 	}
 	return pass(fmt.Sprintf("%d ORCID(s) match", compared))
 }

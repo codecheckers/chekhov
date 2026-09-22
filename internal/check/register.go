@@ -33,7 +33,8 @@ func certificateUnique(c Context) Result {
 		}
 	}
 	if occurrences > 1 {
-		return fail(fmt.Sprintf("%s appears %d times in register.csv", certificate, occurrences))
+		return fail(fmt.Sprintf("%s appears %d times in register.csv", certificate, occurrences)).
+			at(c.Config.Line("certificate"))
 	}
 	return pass(fmt.Sprintf("%s appears %d time(s) in register.csv", certificate, occurrences))
 }
@@ -73,7 +74,7 @@ func certificateIDSequence(c Context) Result {
 		return pass(fmt.Sprintf("%s, the highest in %s is %03d", certificate, year, highest))
 	}
 	return fail(fmt.Sprintf("%s leaves a gap: the highest identifier in %s is %s-%03d",
-		certificate, year, year, highest))
+		certificate, year, year, highest)).at(c.Config.Line("certificate"))
 }
 
 // rule: CC-REG-003 repository-spec-format

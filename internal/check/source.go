@@ -90,10 +90,11 @@ func FromRepository(spec string, services *Services) (Context, error) {
 	context.Bundle = bundle
 
 	// Only a file that says nothing about its version needs dating, and dating
-	// it costs a request - so ask only then. The test is whether check_time
+	// it costs a request - so ask only then. One that names a version this
+	// build does not know is refused, not dated, see SpecVersion. The test is whether check_time
 	// can actually be read, not whether it is present: a date in a form
 	// nothing understands is no date at all.
-	if SpecVersionNamed(context.Config.Version) == "" {
+	if !context.Config.HasVersion {
 		if _, dated := parseCheckTime(context.Config.CheckTime); !dated {
 			context.Modified = lastModified(parsed, services)
 		}
@@ -273,18 +274,11 @@ func (r RepositorySpec) String() string {
 // was read should let the reader open it.
 func (r RepositorySpec) URL() string {
 	switch r.Type {
-	case "github":
-		url := "https://github.com/" + r.Path
-		if r.SubPath != "" {
-			url += "/tree/HEAD/" + r.SubPath
+	case "github", "gitlab":
+		if r.SubPath == "" {
+			return r.forgePage("")
 		}
-		return url
-	case "gitlab":
-		url := "https://gitlab.com/" + r.Path
-		if r.SubPath != "" {
-			url += "/-/tree/HEAD/" + r.SubPath
-		}
-		return url
+		return r.within(r.forgePage("tree"), "")
 	case "osf":
 		return "https://osf.io/" + r.Path + "/"
 	case "zenodo":
@@ -296,6 +290,39 @@ func (r RepositorySpec) URL() string {
 	}
 }
 
+// FileURL is where a human can read one file of this repository, with a line
+// number to be appended as "#L12", or empty for a source whose pages cannot
+// point at a line: an OSF or Zenodo file is a download, not a page.
+func (r RepositorySpec) FileURL(name string) string {
+	if page := r.forgePage("blob"); page != "" {
+		return r.within(page, name)
+	}
+	return ""
+}
+
+// forgePage is a page of a GitHub or GitLab repository at HEAD: "tree" for a
+// directory, "blob" for a file, and "" for the repository itself. Empty for a
+// source that is not a forge.
+func (r RepositorySpec) forgePage(kind string) string {
+	var root, pages string
+	switch r.Type {
+	case "github":
+		root, pages = "https://github.com/"+r.Path, "/"
+	case "gitlab":
+		root, pages = "https://gitlab.com/"+r.Path, "/-/"
+	default:
+		return ""
+	}
+	if kind == "" {
+		return root
+	}
+	return root + pages + kind + "/HEAD"
+}
+
 // SourceURL is where the configuration under check came from, empty for a file
 // on disk.
 func (c Context) SourceURL() string { return c.RepositorySpec.URL() }
+
+// FileURL is the configuration under check as a page a line number can be
+// added to, empty for a file on disk or a source with no such page.
+func (c Context) FileURL() string { return c.RepositorySpec.FileURL(c.Path) }

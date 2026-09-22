@@ -2,6 +2,7 @@ package check
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -230,6 +231,8 @@ type stubCase struct {
 	routes   func(*stub)
 	want     Outcome
 	detail   string // a fragment the detail has to contain
+	// lines are where in stubConfig the finding points, checked when set.
+	lines []int
 }
 
 var stubCases = []stubCase{
@@ -245,6 +248,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "concept DOI",
+		lines:  []int{15},
 	},
 	{
 		name: "a newer version of the record has been published",
@@ -257,6 +261,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "newer version",
+		lines:  []int{15},
 	},
 	{
 		name: "the record has no files, so the certificate cannot be read",
@@ -279,6 +284,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "does not carry the certificate identifier",
+		lines:  []int{18},
 	},
 	{
 		name: "the record names someone else as creator",
@@ -290,6 +296,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "not among the record's creators",
+		lines:  []int{13},
 	},
 	{
 		name: "the creator's ORCID is not the codechecker's",
@@ -301,6 +308,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "not on the record",
+		lines:  []int{14},
 	},
 	{
 		name: "the record is not there",
@@ -338,6 +346,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "OpenAlex says",
+		lines:  []int{7},
 	},
 	{
 		name: "the source lists more authors than the file",
@@ -417,6 +426,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "0000-0001-8607-8025",
+		lines:  []int{14},
 	},
 	{
 		name: "the ORCID record names someone else",
@@ -428,6 +438,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeWarning,
 		detail: "is Stephen Lovelace at ORCID",
+		lines:  []int{13},
 	},
 	{
 		name: "no ORCID record can be read at all",
@@ -574,6 +585,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeError,
 		detail: "figure1.png",
+		lines:  []int{4},
 	},
 	{
 		// Reported as absence, a rate limit would tell a codechecker their
@@ -623,6 +635,7 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeInfo,
 		detail: "answers 404",
+		lines:  []int{15},
 	},
 	{
 		name:          "the publisher blocks robots, which is not the same as a broken reference",
@@ -701,6 +714,9 @@ func TestStubbedServices(t *testing.T) {
 			if !strings.Contains(result.Detail, testCase.detail) {
 				t.Errorf("%s: detail %q does not contain %q",
 					testCase.rule, result.Detail, testCase.detail)
+			}
+			if testCase.lines != nil && !slices.Equal(result.Lines, testCase.lines) {
+				t.Errorf("%s: about lines %v, want %v", testCase.rule, result.Lines, testCase.lines)
 			}
 		})
 	}

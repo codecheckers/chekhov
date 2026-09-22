@@ -2,6 +2,7 @@ package check
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -26,7 +27,12 @@ func Symbol(outcome Outcome) string { return symbol[outcome] }
 // skipped or is unchecked stays short, so a clean run does not fill a screen.
 func (r Report) Text() string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "CODECHECK rules %s%s: %s\n", r.SpecVersion, r.partSuffix(), r.Label)
+	// A refused report has no version to name, so the heading leaves it out.
+	version := ""
+	if r.SpecVersion != "" {
+		version = " " + r.SpecVersion
+	}
+	fmt.Fprintf(&out, "CODECHECK rules%s%s: %s\n", version, r.partSuffix(), r.Label)
 	if r.SpecVersionReason != "" {
 		fmt.Fprintf(&out, "specification %s %s\n", r.SpecVersion, r.SpecVersionReason)
 	}
@@ -34,6 +40,11 @@ func (r Report) Text() string {
 		fmt.Fprintf(&out, "read from %s\n", r.Source)
 	}
 	out.WriteString("\n")
+	if r.Refused != nil {
+		fmt.Fprintf(&out, "%s not checked: %s.\n%s\n",
+			Symbol(OutcomeUnchecked), r.Refused.Why, r.Refused.Remedy)
+		return out.String()
+	}
 	for _, result := range r.Results {
 		line := result.Line()
 		if reported(result.Outcome) {
@@ -74,6 +85,15 @@ func (r Report) Summary() string {
 func (r Report) Markdown() string {
 	var out strings.Builder
 
+	if r.Refused != nil {
+		// Said instead of the results, not among them: there are none, and a
+		// table of zero counts would read as a file with nothing wrong.
+		fmt.Fprintf(&out, "%s **`codecheck.yml` was not checked**: %s.\n\n%s\n",
+			Symbol(OutcomeUnchecked), r.Refused.Why, r.Refused.Remedy)
+		out.WriteString(r.provenance())
+		return out.String()
+	}
+
 	if r.OK() {
 		fmt.Fprintf(&out, "%s **`codecheck.yml` is valid** against specification %s%s.\n",
 			Symbol(OutcomeOK), r.SpecVersion, r.partSuffix())
@@ -90,12 +110,25 @@ func (r Report) Markdown() string {
 		}
 	}
 
+	// The line column is there when a finding has a line to show, so that a
+	// report about the register or the bundle does not carry an empty one.
+	withLines := slices.ContainsFunc(reportable, func(result RuleResult) bool {
+		return len(result.Lines) > 0
+	})
+
 	if len(reportable) > 0 {
-		out.WriteString("\n| | Rule | Finding | What the rule asks |\n")
-		out.WriteString("|---|---|---|---|\n")
+		columns := []string{"", "Rule", "Finding", "What the rule asks"}
+		if withLines {
+			columns = slices.Insert(columns, 2, "Line")
+		}
+		fmt.Fprintf(&out, "\n| %s |\n|%s\n", strings.Join(columns, " | "),
+			strings.Repeat("---|", len(columns)))
 		for _, result := range reportable {
-			fmt.Fprintf(&out, "| %s | `%s` %s | %s | %s |\n",
-				Symbol(result.Outcome), result.Rule.ID, result.Rule.Name,
+			fmt.Fprintf(&out, "| %s | `%s` %s |", Symbol(result.Outcome), result.Rule.ID, result.Rule.Name)
+			if withLines {
+				fmt.Fprintf(&out, " %s |", lineNumbers(result.Lines, r.File))
+			}
+			fmt.Fprintf(&out, " %s | %s |\n",
 				escapePipes(result.Detail), escapePipes(result.Rule.Description))
 		}
 	}

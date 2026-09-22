@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-23
+
+### Added
+
+- `check` says which line of `codecheck.yml` each finding is about: after the
+  identifier in the terminal, and in a Line column of the reply, linked to that
+  line when the file came from GitHub or GitLab (codecheckers/chekhov#7).
+
+### Changed
+
+- A `codecheck.yml` that declares a specification version this build does not
+  know - a newer one, a malformed one, or an empty `version` - is refused
+  rather than checked against a guess. The reply names the version it
+  declared and the versions this build knows, and says the build is behind the
+  register if the file means a newer one. It used to say the file named no
+  version at all (codecheckers/chekhov#7).
+
 ## [0.3.1] - 2026-09-23
 
 ### Changed

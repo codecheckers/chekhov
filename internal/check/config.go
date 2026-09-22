@@ -11,10 +11,12 @@
 package check
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -33,11 +35,28 @@ const (
 type Result struct {
 	Status Status
 	Detail string
+	// Lines are the lines of the configuration the finding is about, in
+	// order, for a reader who has to find them: a manifest item without a
+	// file is item 3 to the check and line 14 to the person fixing it.
+	Lines []int
 }
 
 func pass(detail string) Result { return Result{Status: StatusPass, Detail: detail} }
 func fail(detail string) Result { return Result{Status: StatusFail, Detail: detail} }
 func skip(detail string) Result { return Result{Status: StatusSkip, Detail: detail} }
+
+// at says where in the file a result is about. A zero line is a node that is
+// not there, and is left out rather than reported as line 0.
+func (r Result) at(lines ...int) Result {
+	for _, line := range lines {
+		if line > 0 {
+			r.Lines = append(r.Lines, line)
+		}
+	}
+	slices.Sort(r.Lines)
+	r.Lines = slices.Compact(r.Lines)
+	return r
+}
 
 // A Func checks one rule against the file under validation.
 type Func func(Context) Result
@@ -124,9 +143,14 @@ func yamlParses(c Context) Result {
 	// byte inside a quoted scalar makes the YAML parser fail with a scanner
 	// error rather than saying the file is not UTF-8.
 	if c.Raw != nil && !utf8.Valid(c.Raw) {
-		return fail("the file is not valid UTF-8 encoded")
+		return fail("the file is not valid UTF-8 encoded").at(firstInvalidLine(c.Raw))
 	}
 	if c.ParseError != nil {
+		// No line of its own, although the parser's message carries one:
+		// yaml.v3 gives the line the enclosing construct started on, and for a
+		// parser error one too few - "line 2" for a flow sequence opened on
+		// line 3 and broken on line 4. The message says it in the parser's
+		// words; a line in the report's own column would be a wrong one.
 		return fail(fmt.Sprintf("the file is not valid YAML: %s", c.ParseError))
 	}
 	if c.Raw == nil {
@@ -140,14 +164,14 @@ func explicitDocument(c Context) Result {
 	if c.Raw == nil {
 		return skip("no file on disk to inspect")
 	}
-	for _, line := range strings.Split(string(c.Raw), "\n") {
+	for number, line := range strings.Split(string(c.Raw), "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		if strings.TrimSpace(line) == "---" {
 			return pass("")
 		}
-		break
+		return fail("the file does not start with the document marker '---'").at(number + 1)
 	}
 	return fail("the file does not start with the document marker '---'")
 }
@@ -181,15 +205,17 @@ func manifestItemFile(c Context) Result {
 		return skip("no manifest to inspect")
 	}
 	var without []string
+	var lines []int
 	for i, item := range c.Config.Manifest {
 		if strings.TrimSpace(item.File) == "" {
 			without = append(without, fmt.Sprint(i+1))
+			lines = append(lines, c.Config.Line(item.path))
 		}
 	}
 	if len(without) == 0 {
 		return pass("")
 	}
-	return fail("manifest item(s) without a file: " + strings.Join(without, ", "))
+	return fail("manifest item(s) without a file: " + strings.Join(without, ", ")).at(lines...)
 }
 
 // rule: CC-CFG-006 manifest-path-relative
@@ -201,15 +227,17 @@ func manifestPathRelative(c Context) Result {
 	// leave the bundle, which is what the rule is about.
 	leaves := regexp.MustCompile(`^(/|~|[A-Za-z]:)|(^|/)\.\.(/|$)`)
 	var outside []string
+	var lines []int
 	for _, item := range c.Config.Manifest {
 		if item.File != "" && leaves.MatchString(item.File) {
 			outside = append(outside, item.File)
+			lines = append(lines, c.Config.Line(item.path+".file"))
 		}
 	}
 	if len(outside) == 0 {
 		return pass("")
 	}
-	return fail("path(s) not relative to the bundle: " + strings.Join(outside, ", "))
+	return fail("path(s) not relative to the bundle: " + strings.Join(outside, ", ")).at(lines...)
 }
 
 // rule: CC-CFG-007 manifest-item-comment
@@ -217,16 +245,16 @@ func manifestItemComment(c Context) Result {
 	if len(c.Config.Manifest) == 0 {
 		return skip("no manifest to inspect")
 	}
-	without := 0
+	var lines []int
 	for _, item := range c.Config.Manifest {
 		if strings.TrimSpace(item.Comment) == "" {
-			without++
+			lines = append(lines, c.Config.Line(item.path))
 		}
 	}
-	if without == 0 {
+	if len(lines) == 0 {
 		return pass("every manifest item has a comment")
 	}
-	return fail(fmt.Sprintf("%d manifest item(s) have no comment to explain them", without))
+	return fail(fmt.Sprintf("%d manifest item(s) have no comment to explain them", len(lines))).at(lines...)
 }
 
 // --- codechecker and report ------------------------------------------------
@@ -234,27 +262,27 @@ func manifestItemComment(c Context) Result {
 // rule: CC-CFG-008 codechecker-present
 func codecheckerPresent(c Context) Result {
 	if len(c.Config.Codechecker) == 0 {
-		return fail("no codechecker recorded")
+		return fail("no codechecker recorded").at(c.Config.Line("codechecker"))
 	}
 	return pass(fmt.Sprintf("%d codechecker(s)", len(c.Config.Codechecker)))
 }
 
 // rule: CC-CFG-009 codechecker-name
 func codecheckerName(c Context) Result {
-	return everyPersonHas(c.Config.Codechecker, "codechecker", "name",
+	return everyPersonHas(c, c.Config.Codechecker, "codechecker", "name",
 		func(p Person) string { return p.Name })
 }
 
 // rule: CC-CFG-010 codechecker-orcid
 func codecheckerORCID(c Context) Result {
-	return everyPersonHas(c.Config.Codechecker, "codechecker", "an ORCID",
+	return everyPersonHas(c, c.Config.Codechecker, "codechecker", "an ORCID",
 		func(p Person) string { return p.ORCID })
 }
 
 // rule: CC-CFG-011 report-present
 func reportPresent(c Context) Result {
 	if strings.TrimSpace(c.Config.Report) == "" {
-		return fail("no report identifier")
+		return fail("no report identifier").at(c.Config.Line("report"))
 	}
 	return pass(c.Config.Report)
 }
@@ -266,7 +294,7 @@ func reportDOINotPlaceholder(c Context) Result {
 		return skip("no report identifier to inspect")
 	}
 	if isPlaceholder(report) {
-		return fail(fmt.Sprintf("'%s' is a placeholder", report))
+		return fail(fmt.Sprintf("'%s' is a placeholder", report)).at(c.Config.Line("report"))
 	}
 	return pass("")
 }
@@ -282,13 +310,18 @@ func versionPresent(c Context) Result {
 }
 
 // rule: CC-CFG-015 version-known
+//
+// A version this build cannot read never gets here: the run is refused before
+// any rule, see SpecVersion. What is left is a version it can read at an
+// address that was never published, the historical spec/1.0 form.
 func versionKnown(c Context) Result {
 	version := strings.TrimSpace(c.Config.Version)
 	if version == "" {
 		return skip("no version node to inspect")
 	}
 	if SpecVersionFromURL(version) == "" {
-		return fail(fmt.Sprintf("'%s' is not a published specification version", version))
+		return fail(fmt.Sprintf("'%s' is not a published specification version", version)).
+			at(c.Config.Line("version"))
 	}
 	return pass("")
 }
@@ -309,7 +342,7 @@ func paperTitle(c Context) Result {
 		return skip("no paper metadata to inspect")
 	}
 	if strings.TrimSpace(c.Config.Paper.Title) == "" {
-		return fail("the paper has no title")
+		return fail("the paper has no title").at(c.Config.Line("paper.title"))
 	}
 	return pass("")
 }
@@ -320,27 +353,27 @@ func paperAuthors(c Context) Result {
 		return skip("no paper metadata to inspect")
 	}
 	if len(c.Config.Paper.Authors) == 0 {
-		return fail("the paper has no authors")
+		return fail("the paper has no authors").at(c.Config.Line("paper.authors"))
 	}
 	return pass(fmt.Sprintf("%d author(s)", len(c.Config.Paper.Authors)))
 }
 
 // rule: CC-CFG-019 paper-author-name
 func paperAuthorName(c Context) Result {
-	return everyPersonHas(c.Config.Paper.Authors, "author", "name",
+	return everyPersonHas(c, c.Config.Paper.Authors, "author", "name",
 		func(p Person) string { return p.Name })
 }
 
 // rule: CC-CFG-020 paper-author-orcid
 func paperAuthorORCID(c Context) Result {
-	return everyPersonHas(c.Config.Paper.Authors, "author", "an ORCID",
+	return everyPersonHas(c, c.Config.Paper.Authors, "author", "an ORCID",
 		func(p Person) string { return p.ORCID })
 }
 
 // rule: CC-CFG-021 paper-reference
 func paperReference(c Context) Result {
 	if strings.TrimSpace(c.Config.Paper.Reference) == "" {
-		return fail("the paper has no reference")
+		return fail("the paper has no reference").at(c.Config.Line("paper.reference"))
 	}
 	return pass(c.Config.Paper.Reference)
 }
@@ -360,7 +393,8 @@ func referenceNotBarePDF(c Context) Result {
 		// exists.
 		return pass("a PDF link, but an archived one")
 	}
-	return fail(fmt.Sprintf("'%s' is a direct PDF link; prefer a DOI or a landing page", reference))
+	return fail(fmt.Sprintf("'%s' is a direct PDF link; prefer a DOI or a landing page", reference)).
+		at(c.Config.Line("paper.reference"))
 }
 
 // rule: CC-CFG-031 reference-pdf-is-archived
@@ -372,7 +406,8 @@ func referencePDFIsArchived(c Context) Result {
 	if isWebArchiveLink(reference) {
 		return pass("archived snapshot of a PDF")
 	}
-	return fail("a direct PDF link that is not archived; a Wayback Machine snapshot lasts longer")
+	return fail("a direct PDF link that is not archived; a Wayback Machine snapshot lasts longer").
+		at(c.Config.Line("paper.reference"))
 }
 
 // rule: CC-CFG-027 reference-is-url
@@ -384,7 +419,8 @@ func referenceIsURL(c Context) Result {
 	if bareURL.MatchString(reference) {
 		return pass("")
 	}
-	return fail(fmt.Sprintf("'%s' is not a bare URL; tools do not extract a URL from surrounding text", reference))
+	return fail(fmt.Sprintf("'%s' is not a bare URL; tools do not extract a URL from surrounding text", reference)).
+		at(c.Config.Line("paper.reference"))
 }
 
 // rule: CC-CFG-028 reference-prefers-doi
@@ -396,7 +432,8 @@ func referencePrefersDOI(c Context) Result {
 	if doiPattern.MatchString(reference) {
 		return pass("")
 	}
-	return fail("the reference is not a DOI, which is preferred for long-term availability")
+	return fail("the reference is not a DOI, which is preferred for long-term availability").
+		at(c.Config.Line("paper.reference"))
 }
 
 // rule: CC-CFG-029 reference-other-is-list
@@ -405,7 +442,7 @@ func referenceOtherIsList(c Context) Result {
 		return skip("no reference-other")
 	}
 	if !c.Config.Paper.ReferenceOtherIsList {
-		return fail("reference-other is not a sequence")
+		return fail("reference-other is not a sequence").at(c.Config.Line("paper.reference-other"))
 	}
 	return pass(fmt.Sprintf("%d further reference(s)", len(c.Config.Paper.ReferenceOther)))
 }
@@ -416,15 +453,18 @@ func referenceOtherItemForm(c Context) Result {
 		return skip("no reference-other sequence")
 	}
 	var notURL []string
-	for _, entry := range c.Config.Paper.ReferenceOther {
+	var lines []int
+	for i, entry := range c.Config.Paper.ReferenceOther {
 		if !bareURL.MatchString(strings.TrimSpace(entry)) {
 			notURL = append(notURL, entry)
+			lines = append(lines, c.Config.Line(referenceOtherPath(i)))
 		}
 	}
 	if len(notURL) == 0 {
 		return pass("")
 	}
-	return fail("reference-other entries that are not resolvable URLs: " + strings.Join(notURL, ", "))
+	return fail("reference-other entries that are not resolvable URLs: " + strings.Join(notURL, ", ")).
+		at(lines...)
 }
 
 // --- certificate and summary -----------------------------------------------
@@ -432,7 +472,7 @@ func referenceOtherItemForm(c Context) Result {
 // rule: CC-CFG-024 summary-present
 func summaryPresent(c Context) Result {
 	if strings.TrimSpace(c.Config.Summary) == "" {
-		return fail("no summary of the check")
+		return fail("no summary of the check").at(c.Config.Line("summary"))
 	}
 	return pass("")
 }
@@ -440,7 +480,7 @@ func summaryPresent(c Context) Result {
 // rule: CC-CFG-025 certificate-present
 func certificatePresent(c Context) Result {
 	if strings.TrimSpace(c.Config.Certificate) == "" {
-		return fail("no certificate identifier")
+		return fail("no certificate identifier").at(c.Config.Line("certificate"))
 	}
 	return pass(c.Config.Certificate)
 }
@@ -454,21 +494,24 @@ func certificateIDFormat(c Context) Result {
 	if certificateID.MatchString(certificate) {
 		return pass("")
 	}
-	return fail(fmt.Sprintf("'%s' is not of the form YYYY-NNN", certificate))
+	return fail(fmt.Sprintf("'%s' is not of the form YYYY-NNN", certificate)).
+		at(c.Config.Line("certificate"))
 }
 
 // rule: CC-CFG-023 no-placeholder-values
 func noPlaceholderValues(c Context) Result {
 	var found []string
+	var lines []int
 	for _, value := range c.Config.Strings {
-		if isPlaceholder(value) {
-			found = append(found, value)
+		if isPlaceholder(value.Value) {
+			found = append(found, value.Value)
+			lines = append(lines, value.Line)
 		}
 	}
 	if len(found) == 0 {
 		return pass("")
 	}
-	return fail("placeholder value(s) left in the file: " + strings.Join(found, ", "))
+	return fail("placeholder value(s) left in the file: " + strings.Join(found, ", ")).at(lines...)
 }
 
 // --- metadata form ---------------------------------------------------------
@@ -479,6 +522,7 @@ func orcidFormat(c Context) Result {
 	// the form of an ORCID wherever it appears in the file.
 	people := append(append([]Person{}, c.Config.Paper.Authors...), c.Config.Codechecker...)
 	var orcids, malformed []string
+	var lines []int
 	for _, person := range people {
 		if strings.TrimSpace(person.ORCID) == "" {
 			continue
@@ -486,6 +530,7 @@ func orcidFormat(c Context) Result {
 		orcids = append(orcids, person.ORCID)
 		if !orcidPattern.MatchString(person.ORCID) {
 			malformed = append(malformed, person.ORCID)
+			lines = append(lines, c.Config.Line(person.orcidPath()))
 		}
 	}
 	if len(orcids) == 0 {
@@ -495,7 +540,7 @@ func orcidFormat(c Context) Result {
 		return pass(fmt.Sprintf("%d ORCID(s)", len(orcids)))
 	}
 	return fail("ORCIDs must be plain and without URL prefix, but found: " +
-		strings.Join(malformed, ", "))
+		strings.Join(malformed, ", ")).at(lines...)
 }
 
 // --- the bundle on disk ----------------------------------------------------
@@ -612,20 +657,38 @@ var (
 	licenceFile   = regexp.MustCompile(`(?i)^(LICEN[CS]E|COPYING)(\..*)?$`)
 )
 
+// firstInvalidLine is the line of the first byte that is not UTF-8.
+func firstInvalidLine(raw []byte) int {
+	for i, line := range bytes.Split(raw, []byte("\n")) {
+		if !utf8.Valid(line) {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// referenceOtherPath is where one entry of reference-other is, see Config.Line.
+func referenceOtherPath(i int) string { return fmt.Sprintf("paper.reference-other.%d", i) }
+
+// orcidPath is where a person's ORCID is, or where it would go.
+func (p Person) orcidPath() string { return p.path + ".ORCID" }
+
 func isPDFLink(reference string) bool        { return pdfLink.MatchString(reference) }
 func isWebArchiveLink(reference string) bool { return webArchive.MatchString(reference) }
 func isPlaceholder(value string) bool        { return placeholder.MatchString(value) }
 
 // everyPersonHas reports the people in a sequence that lack a field, by
-// position, which is how a reader finds them in the file.
-func everyPersonHas(people []Person, kind, field string, get func(Person) string) Result {
+// position and by line, which is how a reader finds them in the file.
+func everyPersonHas(c Context, people []Person, kind, field string, get func(Person) string) Result {
 	if len(people) == 0 {
 		return skip("no " + kind + " to inspect")
 	}
 	var without []string
+	var lines []int
 	for i, person := range people {
 		if strings.TrimSpace(get(person)) == "" {
 			without = append(without, fmt.Sprint(i+1))
+			lines = append(lines, c.Config.Line(person.path))
 		}
 	}
 	if len(without) == 0 {
@@ -636,5 +699,5 @@ func everyPersonHas(people []Person, kind, field string, get func(Person) string
 		article = ""
 	}
 	return fail(fmt.Sprintf("%s(s) without %s%s: %s", kind, article, field,
-		strings.Join(without, ", ")))
+		strings.Join(without, ", "))).at(lines...)
 }

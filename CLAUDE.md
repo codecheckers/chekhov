@@ -531,7 +531,7 @@ exists; read the issues for what does not.
 
 | Issue | State |
 |---|---|
-| #7 `check codecheck.yml` | Done but for line numbers in the report |
+| #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused. Closes once the deployment has answered a real check |
 | #9 metadata, #10 bundle, #11 references | Commands exist; small criteria left (ORCID checksum digit, bundle size, the certificate's own references) |
 | #8 repository, #12 links | Not started |
 | #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
