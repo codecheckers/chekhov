@@ -445,7 +445,12 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	})
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
-		return fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role)
+		// The role was already theirs, which is not the same as there being
+		// nothing to do: an editor re-running the command to move somebody
+		// into another team means the team, and saying "already" and stopping
+		// would silently ignore what they asked for.
+		return withTeam(fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role),
+			s.teamNote(ctx, event, handle, role, team, inside))
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
@@ -458,18 +463,8 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	if role == command.RoleAssignedCodechecker {
 		assigned = s.assignee(ctx, event, handle, replaced)
 	}
-	reply := command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now())
-
-	// A codechecker belongs in the team the check implies. Only when they are
-	// known to be in the organisation: the write is a PUT on a team
-	// membership, which GitHub turns into an organisation invitation for
-	// anybody else, and inviting is the owners' half.
-	if role.Checks() && inside {
-		if note := s.intoTheTeam(ctx, handle, s.teamFor(ctx, event, team)); note != "" {
-			reply += "\n" + note + "\n"
-		}
-	}
-	return reply
+	return withTeam(command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now()),
+		s.teamNote(ctx, event, handle, role, team, inside))
 }
 
 // remove takes a role away again.

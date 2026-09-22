@@ -366,3 +366,34 @@ func TestAPendingTeamMembershipIsSaidRatherThanIgnored(t *testing.T) {
 		}
 	}
 }
+
+// Re-running assign to move somebody into another team means the team. The
+// role being unchanged is not the same as there being nothing to do, and
+// saying "already" and stopping would silently ignore what was asked for.
+func TestReassigningToAnotherTeamStillChangesTheTeam(t *testing.T) {
+	server, replies := organised(t)
+	replies.members["a-newcomer"] = true
+
+	// First time: the role is new, and the ordinary team follows.
+	answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	if len(replies.addedTo) != 1 || replies.addedTo[0] != "codecheckers" {
+		t.Fatalf("added to %v", replies.addedTo)
+	}
+	replies.inTeam["a-newcomer"] = true
+
+	// Second time, naming the other team: the role is unchanged and the team
+	// is not.
+	replies.inTeam["a-newcomer"] = false
+	reply := answer(t, server, command.Assign,
+		[]string{"@a-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
+
+	if len(replies.addedTo) != 2 || replies.addedTo[1] != "institutional-codecheckers" {
+		t.Fatalf("added to %v, want the team the editor named the second time", replies.addedTo)
+	}
+	if !strings.Contains(reply, "already the assigned codechecker") {
+		t.Errorf("the reply does not say the role was unchanged:\n%s", reply)
+	}
+	if !strings.Contains(reply, "institutional-codecheckers") {
+		t.Errorf("the reply says nothing about the team that changed:\n%s", reply)
+	}
+}

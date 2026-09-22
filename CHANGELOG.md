@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-22
+
+### Fixed
+
+- `assign` does the team half even when the role is unchanged. Re-running it
+  to move somebody into another team means the team, and the reply said
+  "already the assigned codechecker" and stopped - silently ignoring what the
+  editor asked for. Found by the live test on
+  codecheckers/testing-dev-register#202 (codecheckers/chekhov#47).
+
 ## [0.2.0] - 2026-09-22
 
 ### Changed

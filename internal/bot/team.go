@@ -141,6 +141,29 @@ func (s *Server) teamFor(ctx context.Context, event mention, chosen string) stri
 	return ordinary
 }
 
+// teamNote is what to say about the team after an assignment, empty when
+// there is nothing to say.
+//
+// Only for a role that puts somebody in a team, and only when they are known
+// to be in the organisation: the write is a PUT on a team membership, which
+// GitHub turns into an organisation invitation for anybody else, and inviting
+// is the owners' half.
+func (s *Server) teamNote(ctx context.Context, event mention, handle string,
+	role command.Role, chosen string, inside bool) string {
+	if !role.Checks() || !inside {
+		return ""
+	}
+	return s.intoTheTeam(ctx, handle, s.teamFor(ctx, event, chosen))
+}
+
+// withTeam puts a note about the team under a reply, when there is one.
+func withTeam(reply, note string) string {
+	if note == "" {
+		return reply
+	}
+	return reply + "\n" + note + "\n"
+}
+
 // intoTheTeam puts a codechecker in the team this check implies, when they are
 // not in it already.
 //
