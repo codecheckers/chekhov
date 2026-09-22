@@ -103,6 +103,14 @@ func (r Role) Standing() bool {
 	return false
 }
 
+// Checks reports whether a role means the person performs CODECHECKs, and so
+// belongs in a codechecker team. An author does not - CODECHECK exists so that
+// somebody other than the author runs the code - and the handling editor is an
+// editor already.
+func (r Role) Checks() bool {
+	return r == RoleCodechecker || r == RoleAssignedCodechecker
+}
+
 // Requires is the standing role somebody must already hold before a check can
 // give them this one: only an editor can be the handling editor.
 func (r Role) Requires() (Role, bool) {
@@ -183,6 +191,20 @@ func AssignableRole(words string) (Role, error) {
 	}
 }
 
+// Typed is the shortest word AssignableRole accepts for a role, which is what
+// a reply should put in front of somebody as a command to run: "assigned
+// codechecker" parses, but nobody types it.
+func (r Role) Typed() string {
+	switch r {
+	case RoleAssignedCodechecker:
+		return "codechecker"
+	case RoleHandlingEditor:
+		return "handling editor"
+	default:
+		return string(r)
+	}
+}
+
 func assignableRoles() string {
 	var names []string
 	for _, known := range grantable {
@@ -200,22 +222,6 @@ func assignableRoles() string {
 // every comparison that matters - a role, a team, an exclusion.
 func Handle(written string) string {
 	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(written), "@"))
-}
-
-// ParseInvite reads `@user`, the one argument of invite.
-//
-// The shape is checked here, before anything is written: a handle carrying a
-// slash or a dot segment would not merely fail to resolve, it would move the
-// request that uses it to a different endpoint.
-func ParseInvite(args []string) (string, error) {
-	switch {
-	case len(args) == 0:
-		return "", fmt.Errorf("who should I invite? For example `%s invite @a-codechecker`", Bot)
-	case len(args) > 1:
-		return "", fmt.Errorf("I can invite one person at a time, and %q is more than one",
-			strings.Join(args, " "))
-	}
-	return parseHandle(args[0])
 }
 
 // parseHandle is how every command reads the person it was given: normalised,
@@ -242,27 +248,56 @@ func parseHandle(written string) (string, error) {
 // business importing the thing that writes to GitHub.
 var gitHubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$`)
 
-// ParseAssignment reads `@user as <role>`, the arguments of assign and remove.
+// ParseAssignment reads `@user as <role>` and `@user as <role> in <team>`,
+// the arguments of assign and remove.
 //
 // "as" is optional, because half the people who write the command will leave
 // it out, and the words after it may be several: `handling editor` is a role
 // with a space in it.
-func ParseAssignment(args []string) (handle string, role Role, err error) {
+//
+// `in <team>` overrides the team a codechecker is put in. The bot works the
+// team out from the check - an institutional check sends them to the
+// institutional team - and an editor knows things the labels do not, in both
+// directions: an institutional codechecker taking an ordinary check, or an
+// ordinary one standing in on an institutional one. The team is returned as
+// written; which teams may be named at all is the settings' business, not the
+// parser's.
+func ParseAssignment(args []string) (handle string, role Role, team string, err error) {
 	if len(args) == 0 {
-		return "", "", fmt.Errorf("who, and as what? For example `%s assign @octocat as codechecker`", Bot)
+		return "", "", "", fmt.Errorf(
+			"who, and as what? For example `%s assign @a-codechecker as codechecker`", Bot)
 	}
 	handle, err = parseHandle(args[0])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	rest := args[1:]
 	if len(rest) > 0 && strings.EqualFold(rest[0], "as") {
 		rest = rest[1:]
 	}
+	// "in" separates the role from the team, so that a role with a space in it
+	// still reads as one thing.
+	for i, word := range rest {
+		if !strings.EqualFold(word, "in") {
+			continue
+		}
+		team = strings.Join(rest[i+1:], " ")
+		rest = rest[:i]
+		if strings.TrimSpace(team) == "" {
+			return "", "", "", fmt.Errorf("in which team? For example "+
+				"`%s assign @a-codechecker as codechecker in institutional-codecheckers`", Bot)
+		}
+		break
+	}
+
 	role, err = AssignableRole(strings.Join(rest, " "))
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return handle, role, nil
+	if team != "" && !role.Checks() {
+		return "", "", "", fmt.Errorf("a %s is not put in a codechecker team, so `in %s` "+
+			"means nothing here", role, team)
+	}
+	return handle, role, strings.TrimSpace(team), nil
 }

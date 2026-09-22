@@ -287,8 +287,6 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 		return s.check(parsed, services)
 	case command.Rules:
 		return s.rules(services)
-	case command.Invite:
-		return s.invite(ctx, parsed, services)
 	case command.Announce:
 		return s.announce(ctx, parsed, services)
 	case command.Follow:
@@ -405,9 +403,22 @@ func (s *Server) checkRoles(ctx context.Context, event mention, roles command.Ro
 
 // assign gives somebody a role on this check, and records it in the issue.
 func (s *Server) assign(ctx context.Context, event mention, parsed command.Command) string {
-	handle, role, err := command.ParseAssignment(parsed.Args)
+	handle, role, team, err := command.ParseAssignment(parsed.Args)
 	if reply, ok := s.roleCommand(event, err); !ok {
 		return reply
+	}
+	// An editor may name the team themselves, in either direction; the bot
+	// works it out from the check when they do not. Refused here rather than
+	// at the request, so that the reply can say what may be named.
+	if team != "" {
+		// Handed on in the settings' own spelling: the guard at the request
+		// compares exactly, so "Codecheckers" accepted here would be refused
+		// there, after the role had been recorded.
+		canonical, ok := s.Settings.ManagedTeam(team)
+		if !ok {
+			return command.UnmanagedTeamReply(team, s.Settings.ManagedTeams())
+		}
+		team = canonical
 	}
 
 	// A role a check gives out may still need the person to be something
@@ -415,6 +426,15 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	if required, needs := role.Requires(); needs && !s.Teams.Has(ctx, s.team(required), handle) {
 		return fmt.Sprintf("`@%s` is not one of the %s, so I cannot make them the %s of this check.\n",
 			handle, required.Description(), role)
+	}
+
+	// Somebody outside the organisation cannot hold a role on a check, and
+	// only an owner can invite them in - so the role is not recorded and the
+	// owners are asked instead. A question that could not be answered records
+	// the role and touches no team; see Server.membership.
+	inside, known := s.membership(ctx, handle)
+	if known && !inside {
+		return s.outsideReply(ctx, event, handle, role, team)
 	}
 
 	replaced := ""
@@ -438,12 +458,23 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	if role == command.RoleAssignedCodechecker {
 		assigned = s.assignee(ctx, event, handle, replaced)
 	}
-	return command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now())
+	reply := command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now())
+
+	// A codechecker belongs in the team the check implies. Only when they are
+	// known to be in the organisation: the write is a PUT on a team
+	// membership, which GitHub turns into an organisation invitation for
+	// anybody else, and inviting is the owners' half.
+	if role.Checks() && inside {
+		if note := s.intoTheTeam(ctx, handle, s.teamFor(ctx, event, team)); note != "" {
+			reply += "\n" + note + "\n"
+		}
+	}
+	return reply
 }
 
 // remove takes a role away again.
 func (s *Server) remove(ctx context.Context, event mention, parsed command.Command) string {
-	handle, role, err := command.ParseAssignment(parsed.Args)
+	handle, role, _, err := command.ParseAssignment(parsed.Args)
 	if reply, ok := s.roleCommand(event, err); !ok {
 		return reply
 	}

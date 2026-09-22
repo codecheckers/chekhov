@@ -154,7 +154,97 @@ func TestTheEditorsAndCodecheckersTeamsMayNotBeTheSame(t *testing.T) {
 	}
 
 	settings.Chekhov.Teams.Codecheckers = "codecheckers"
+	settings.Chekhov.Teams.Managed = []string{"codecheckers"}
 	if err := validate("settings-test.yml", settings); err != nil {
 		t.Errorf("two different teams should be accepted: %v", err)
+	}
+}
+
+// The bot may add people to the managed teams, so the editors team must not be
+// one of them: every editor-only command rests on a membership the bot cannot
+// grant itself.
+func TestTheEditorsTeamMayNotBeManaged(t *testing.T) {
+	settings := &Settings{}
+	settings.Chekhov.Env.TargetRepository = "codecheckers/testing-dev-register"
+	settings.Chekhov.Mastodon.Visibility = "direct"
+	settings.Chekhov.Teams.Organisation = "codecheckers"
+	settings.Chekhov.Teams.Editors = "editors"
+	settings.Chekhov.Teams.Codecheckers = "codecheckers"
+	settings.Chekhov.Teams.Managed = []string{"codecheckers", " Editors "}
+
+	err := validate("settings-test.yml", settings)
+	if err == nil {
+		t.Fatal("the editors team was allowed into the managed list")
+	}
+	if !strings.Contains(err.Error(), "editor commands are gated on") {
+		t.Errorf("error %q, want it to say why", err)
+	}
+
+	settings.Chekhov.Teams.Managed = []string{"codecheckers", "institutional-codecheckers"}
+	if err := validate("settings-test.yml", settings); err != nil {
+		t.Errorf("a list without the editors team should be accepted: %v", err)
+	}
+}
+
+// The shipped settings name the two teams a codechecker can belong to, and not
+// the editors team.
+func TestShippedSettingsManageTheCodecheckerTeams(t *testing.T) {
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	managed := settings.ManagedTeams()
+	if len(managed) != 2 || managed[0] != "codecheckers" || managed[1] != "institutional-codecheckers" {
+		t.Errorf("managed teams = %v", managed)
+	}
+	for _, team := range managed {
+		if strings.EqualFold(team, settings.EditorsTeam()) {
+			t.Errorf("the editors team is managed: %q", team)
+		}
+	}
+}
+
+// A team the bot is told to put somebody in has to be one it may add to.
+// Without this a settings file with no teams.managed passes and the team half
+// of `assign` silently does nothing.
+func TestANamedTeamMustBeManaged(t *testing.T) {
+	settings := &Settings{}
+	settings.Chekhov.Env.TargetRepository = "codecheckers/testing-dev-register"
+	settings.Chekhov.Mastodon.Visibility = "direct"
+	settings.Chekhov.Teams.Organisation = "codecheckers"
+	settings.Chekhov.Teams.Editors = "editors"
+	settings.Chekhov.Teams.Codecheckers = "codecheckers"
+	settings.Chekhov.Teams.Institutional = "institutional-codecheckers"
+
+	// Nothing managed at all: the commonest way to get this wrong.
+	err := validate("settings-test.yml", settings)
+	if err == nil || !strings.Contains(err.Error(), "not in teams.managed") {
+		t.Fatalf("error %v, want it to refuse a team the bot cannot add to", err)
+	}
+
+	// The institutional team left out of the list.
+	settings.Chekhov.Teams.Managed = []string{"codecheckers"}
+	err = validate("settings-test.yml", settings)
+	if err == nil || !strings.Contains(err.Error(), "teams.institutional") {
+		t.Fatalf("error %v, want it to name the team that is missing", err)
+	}
+
+	settings.Chekhov.Teams.Managed = []string{"codecheckers", "institutional-codecheckers"}
+	if err := validate("settings-test.yml", settings); err != nil {
+		t.Errorf("both named teams are managed: %v", err)
+	}
+}
+
+// The shipped settings name the institutional team, and it is managed.
+func TestShippedSettingsNameTheInstitutionalTeam(t *testing.T) {
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings.InstitutionalTeam(); got != "institutional-codecheckers" {
+		t.Errorf("institutional team = %q", got)
+	}
+	if !settings.Managed(settings.InstitutionalTeam()) {
+		t.Error("the institutional team is not in teams.managed")
 	}
 }

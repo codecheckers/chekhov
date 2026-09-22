@@ -898,102 +898,137 @@ func codeListUpTo(items []string, most int) string {
 	return fmt.Sprintf("%s and %d more", codeList(items[:most]), len(items)-most)
 }
 
-// An Invitation is what came of inviting somebody to the codecheckers team,
-// as a reply says it.
+// An OutsideRequest is somebody an editor tried to give a role to who is not
+// in the organisation yet, as the reply says it.
 //
-// Handles are written in backticks throughout, as everywhere else the bot
-// names somebody: a reply is not the place to notify a person who has not
-// asked to be in this thread. The invitation itself is what reaches them.
-type Invitation struct {
-	// Handle is the account, as GitHub capitalises it.
+// The one reply in this package that writes a plain @mention. Everywhere else
+// a handle is in backticks, because a reply is not the place to notify a
+// person who has not asked to be in the thread - but this reply exists to
+// reach the owners, who are the only people who can invite somebody in, and a
+// notification is what it is for. The handles are the organisation's current
+// owners, read from the organisation; nothing here writes one down. See
+// CLAUDE.md -> Committing and publishing.
+type OutsideRequest struct {
+	// Handle is the person who is not in the organisation. In backticks, as
+	// everywhere: they are being discussed, not summoned.
 	Handle string
-	// Team is where they were added, as organisation/team.
-	Team string
-	// Outcome is which of the three things happened.
-	Outcome Outcome
-	// OnList is whether they are already a row in a codechecker list. A
-	// member who is not on one is a different problem from a stranger, and
-	// the reply says which.
-	OnList bool
-	// Lists is where the rows are kept, for the reply to point at.
-	Lists []string
-	// Unread is what could not be read while answering, in words. Without it
-	// an unreachable list would read as somebody having no row, and the reply
-	// would state that as fact.
-	Unread []string
+	// Role is what the editor tried to give them.
+	Role Role
+	// Organisation and Team are where they need to end up.
+	Organisation string
+	Team         string
+	// Owners are the handles this reply mentions. Empty when they could not
+	// be read, which the reply says rather than asking nobody.
+	Owners []string
+	// Unreadable is why the owners could not be read, empty when they could.
+	Unreadable string
+	// Configured says the handles came from the settings rather than from the
+	// organisation. The reply says so: otherwise it reads as though the
+	// organisation's owners had been asked, when in a test they have not
+	// been.
+	Configured bool
 }
 
-// Outcome of inviting somebody: the three things that can happen, as one
-// value rather than as a pair of flags with an impossible combination.
-type Outcome string
-
-const (
-	// AlreadyAMember needed no invitation.
-	AlreadyAMember Outcome = "already a member"
-	// Invited has been sent an invitation and has to accept it.
-	Invited Outcome = "invited"
-	// Added was already in the organisation, so the membership is immediate.
-	Added Outcome = "added"
-	// Unclear is a write that went through and an answer that named neither
-	// state. Its own outcome, because the alternative is a default branch
-	// that reports the happiest of the three.
-	Unclear Outcome = "unclear"
-)
-
-// InvitedReply says what happened, and what is left for a person to do.
-func InvitedReply(invitation Invitation) string {
-	handle, team := invitation.Handle, "`"+invitation.Team+"`"
-	if invitation.Outcome == AlreadyAMember && invitation.OnList {
-		return fmt.Sprintf("`@%s` is already in %s and on the codechecker list, "+
-			"so there is nothing to do.\n", handle, team)
-	}
-
+// OutsideReply asks the owners to invite somebody, and says what the bot will
+// do once they have.
+//
+// Only an organisation owner can invite somebody from outside into a team -
+// GitHub's rule, not this bot's - so the division of labour is the point of
+// the wording: the owners invite, the bot does the rest.
+func OutsideReply(request OutsideRequest) string {
 	var out strings.Builder
-	switch invitation.Outcome {
-	case AlreadyAMember:
-		// Only said as a fact when every list was read; an unreadable one
-		// makes this "I did not see a row", which the tail says.
-		if len(invitation.Unread) > 0 {
-			fmt.Fprintf(&out, "`@%s` is already in %s. I did not find a row for them on a "+
-				"codechecker list, which would be a different problem - without one nobody "+
-				"can be suggested for a check.\n", handle, team)
-			break
-		}
-		fmt.Fprintf(&out, "`@%s` is already in %s, but is not on any codechecker list - "+
-			"which is a different problem, and the one worth fixing: without a row nobody "+
-			"can be suggested for a check.\n", handle, team)
-	case Invited:
-		fmt.Fprintf(&out, "I have invited `@%s` to %s. "+
-			"GitHub has sent them an invitation, and they are not in the team until they accept it.\n",
-			handle, team)
-	case Added:
-		fmt.Fprintf(&out, "I have added `@%s` to %s. "+
-			"They were already in the organisation, so the membership is immediate.\n",
-			handle, team)
-	default:
-		fmt.Fprintf(&out, "I asked for `@%s` to be added to %s. GitHub accepted it but did not "+
-			"say whether the membership is immediate or an invitation to accept, so please "+
-			"check the team.\n", handle, team)
+	fmt.Fprintf(&out, "`@%s` is not in the `%s` organisation yet, so I have not made them "+
+		"the %s of this check: somebody outside the organisation cannot hold a role on one.\n",
+		request.Handle, request.Organisation, request.Role)
+
+	if request.Unreadable != "" {
+		fmt.Fprintf(&out, "\nAn organisation owner has to invite them, and I could not read "+
+			"who the owners are: %s\n", oneLine(request.Unreadable))
+		return out.String()
+	}
+	if len(request.Owners) == 0 {
+		out.WriteString("\nAn organisation owner has to invite them, and I could not find one.\n")
+		return out.String()
 	}
 
-	if !invitation.OnList {
-		out.WriteString("\nThe row in the codechecker list is still a person's job - " +
-			"it carries their name, ORCID, fields and languages, which I have no way to know")
-		if len(invitation.Lists) > 0 {
-			out.WriteString(":\n\n")
-			for _, list := range invitation.Lists {
-				fmt.Fprintf(&out, "- [%s](%s)\n", nameOfList(list), list)
-			}
-		} else {
-			out.WriteString(".\n")
-		}
+	fmt.Fprintf(&out, "\n%s — please invite `@%s` to the organisation. "+
+		"I will handle the rest: once they accept, %s\n",
+		notifying(request.Owners), request.Handle, request.rest())
+	if request.Configured {
+		// Said plainly: a reader must not take this for the organisation's
+		// owners having been asked.
+		out.WriteString("\n*This deployment is configured to ask the people above rather than " +
+			"the organisation's owners, so the owners have not been notified.*\n")
 	}
-	// Said after the rest, because it qualifies it: whether somebody has a row
-	// is what separates these replies, and this is the case where that could
-	// not be established. Worded as the suggestion reply words it.
-	for _, problem := range invitation.Unread {
-		fmt.Fprintf(&out, "\nCould not read %s, so they may have a row I did not see.\n",
-			oneLine(problem))
-	}
+	// What to do next, said once and honestly. Nothing picks this up on its
+	// own yet - the nightly nudge is codecheckers/chekhov#48 - so the command
+	// does have to be run again; waiting until they have accepted is what
+	// keeps the owners from being notified a second time for the same person.
+	fmt.Fprintf(&out, "\nOnly an owner can invite somebody from outside the organisation, "+
+		"which is why this is not something I can do. Once they have accepted, run "+
+		"`%s assign @%s as %s` again and I will do the rest - running it before then "+
+		"only asks the owners twice.\n", Bot, request.Handle, request.Role.Typed())
 	return out.String()
+}
+
+// UnmanagedTeamReply refuses a team the settings do not allow the bot to add
+// to, and says which it does - a refusal that names what it would have
+// accepted saves the next command.
+func UnmanagedTeamReply(team string, managed []string) string {
+	if len(managed) == 0 {
+		return "I am not set up to put anybody in a team.\n"
+	}
+	return fmt.Sprintf("I can only put somebody in %s, not in `%s`.\n", codeList(managed), team)
+}
+
+// rest is what the bot promises to do once the person has joined, said from
+// what is actually true of this role: a team only for somebody who checks, and
+// the issue's assignee only for the one role the issue shows.
+func (request OutsideRequest) rest() string {
+	promised := []string{"I record the role"}
+	if request.Team != "" {
+		promised = []string{fmt.Sprintf("I put them in `%s/%s`", request.Organisation, request.Team),
+			"record the role"}
+	}
+	if request.Role == RoleAssignedCodechecker {
+		promised = append(promised, "assign this issue to them")
+	}
+	switch len(promised) {
+	case 1:
+		return promised[0] + "."
+	default:
+		return strings.Join(promised[:len(promised)-1], ", ") + " and " + promised[len(promised)-1] + "."
+	}
+}
+
+// mostOwnersMentioned is how many owners one reply will notify. Asking three
+// people to do a thing gets it done; asking thirty is a broadcast.
+const mostOwnersMentioned = 3
+
+// notifying writes handles so that GitHub notifies their owners: the one
+// place in this package that does, see OutsideRequest. Not to be confused
+// with mentions above, which writes a handle in backticks precisely so that
+// it does not.
+func notifying(handles []string) string {
+	// Bounded, because a large organisation would otherwise make one
+	// paragraph that notifies everybody holding owner rights.
+	if len(handles) > mostOwnersMentioned {
+		handles = handles[:mostOwnersMentioned]
+	}
+	named := make([]string, 0, len(handles))
+	for _, handle := range handles {
+		named = append(named, "@"+handle)
+	}
+	switch len(named) {
+	case 0:
+		// Guarded against by every caller, and guarded here too: the last
+		// branch indexes named[:len-1], which would panic.
+		return ""
+	case 1:
+		return named[0]
+	case 2:
+		return named[0] + " and " + named[1]
+	default:
+		return strings.Join(named[:len(named)-1], ", ") + " and " + named[len(named)-1]
+	}
 }

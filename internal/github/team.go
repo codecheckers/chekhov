@@ -22,7 +22,7 @@ import (
 // calls it. Nor does it ever ask for `maintainer` on a team, which would let
 // the invited person add and remove others. The role sent is always
 // TeamRoleMember, it is not a parameter of any function here, and
-// invite_test.go watches the requests that leave to prove both.
+// team_test.go watches the requests that leave to prove both.
 //
 // See codecheckers/chekhov#42 and docs/github-token.md.
 
@@ -36,15 +36,12 @@ import (
 // member, who is in the team and may do nothing to it.
 const TeamRoleMember = "member"
 
-// Membership states GitHub answers with.
-const (
-	// MembershipActive is somebody who was already in the organisation and is
-	// now in the team.
-	MembershipActive = "active"
-	// MembershipPending is somebody who has been sent an invitation and is
-	// not in the team until they accept it.
-	MembershipPending = "pending"
-)
+// membershipActive is what GitHub calls a membership that is in effect. The
+// bot only ever adds people who are already in the organisation - an
+// invitation from outside is an owner's to send - so this is the only state it
+// can produce, and a "pending" one would mean somebody changed what this file
+// does.
+const membershipActive = "active"
 
 // ErrNotPermitted is a token that may not manage membership. Its own error,
 // because the reply has to say so plainly rather than let a 403 read as a
@@ -121,11 +118,13 @@ func (c *Client) resolveUser(ctx context.Context, handle string) (string, error)
 	return account.Login, nil
 }
 
-// AddToTeam adds somebody to the one team this bot may add to, as a plain
-// member. It returns the account as GitHub capitalises it, which is how a
-// reply should write it, and the membership state GitHub answered with:
-// MembershipPending for an invitation still to be accepted, MembershipActive
-// for somebody who was already in the organisation.
+// AddToTeam adds somebody to one of the teams this bot may add to, as a plain
+// member, and returns the account as GitHub capitalises it, which is how a
+// reply should write it.
+//
+// Only somebody already in the organisation can be added this way; bringing
+// somebody in from outside is an organisation owner's to do, and `assign` asks
+// them. See the note at the top of this file.
 //
 // The organisation and the team are parameters as well as fields, as the
 // repository is for Comment, so that the caller has to say which it thinks it
@@ -135,15 +134,15 @@ func (c *Client) resolveUser(ctx context.Context, handle string) (string, error)
 // There is deliberately no role parameter, and no method here that removes
 // anybody: taking a role away is done by a person, in the organisation's own
 // settings, where it is logged against their name.
-func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle string) (login, state string, err error) {
-	if err := c.mayInvite(organisation, team); err != nil {
-		return "", "", err
+func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle string) (login string, err error) {
+	if err := c.mayAddTo(organisation, team); err != nil {
+		return "", err
 	}
 	// Resolved first: the handle is checked against GitHub, and its shape
 	// against handleShape, before any path is built from it.
 	login, err = c.resolveUser(ctx, handle)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	// The only body this bot ever sends here. Written as a literal rather than
@@ -167,37 +166,47 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 	})
 	switch {
 	case isStatus(err, http.StatusForbidden), isStatus(err, http.StatusUnauthorized):
-		return login, "", fmt.Errorf("%w, so I cannot add `@%s` to %s/%s",
+		return login, fmt.Errorf("%w, so I cannot add `@%s` to %s/%s",
 			ErrNotPermitted, login, organisation, team)
 	case isStatus(err, http.StatusUnprocessableEntity):
-		return login, "", fmt.Errorf("GitHub refused to put `@%s` in %s/%s, "+
+		return login, fmt.Errorf("GitHub refused to put `@%s` in %s/%s, "+
 			"which is what it answers for an account that cannot be in a team: %w",
 			login, organisation, team, ErrNotAUser)
 	case err != nil:
-		return login, "", fmt.Errorf("could not add `@%s` to %s/%s: %w", login, organisation, team, err)
+		return login, fmt.Errorf("could not add `@%s` to %s/%s: %w", login, organisation, team, err)
 	case answered.Role != "" && answered.Role != TeamRoleMember:
 		// Never seen, and worth saying loudly if it ever is: the bot asked for
 		// a member and the answer describes somebody with more than that.
-		return login, answered.State, fmt.Errorf(
+		return login, fmt.Errorf(
 			"I asked for `@%s` to be a %s of %s/%s and GitHub answered %q; "+
 				"check the team in the organisation's settings",
 			login, TeamRoleMember, organisation, team, answered.Role)
 	}
-	return login, answered.State, nil
+	if answered.State != "" && answered.State != membershipActive {
+		// Never seen either: the bot adds an existing member, and GitHub calls
+		// that active. Anything else means this file no longer does what its
+		// comment says.
+		return login, fmt.Errorf("I added `@%s` to %s/%s and GitHub answered state %q, "+
+			"which it should not for somebody already in the organisation",
+			login, organisation, team, answered.State)
+	}
+	return login, nil
 }
 
-// TeamMembership is what the organisation says about one person's place in the
-// team: the state GitHub reports, and whether they are in it at all.
+// TeamMembership reports whether somebody's membership of the team is in
+// effect, and whether one is merely pending.
 //
-// The authoritative answer, for a caller that has a cached one and is about to
-// tell somebody there is nothing to do. Behind the same guard as the write: the
+// The two are separate because GitHub answers 200 for both: an owner who
+// invited somebody through the team leaves a membership in state "pending"
+// until they accept, and reading that as "in the team" would have the bot say
+// nothing while the person cannot act. Behind the same guard as the write: the
 // bot has no reason to read the membership of any other team either.
-func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle string) (string, bool, error) {
-	if err := c.mayInvite(organisation, team); err != nil {
-		return "", false, err
+func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle string) (active, pending bool, err error) {
+	if err := c.mayAddTo(organisation, team); err != nil {
+		return false, false, err
 	}
 	if !IsHandle(handle) {
-		return "", false, fmt.Errorf("%q is not a GitHub handle", handle)
+		return false, false, fmt.Errorf("%q is not a GitHub handle", handle)
 	}
 
 	var membership struct {
@@ -205,7 +214,7 @@ func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle 
 	}
 	url := fmt.Sprintf("%s/orgs/%s/teams/%s/memberships/%s",
 		strings.TrimSuffix(c.BaseURL, "/"), organisation, team, handle)
-	err := c.attempt(ctx, fmt.Sprintf("reading @%s's place in %s/%s", handle, organisation, team),
+	err = c.attempt(ctx, fmt.Sprintf("reading `@%s`'s place in %s/%s", handle, organisation, team),
 		func() error {
 			raw, err := c.do(ctx, http.MethodGet, url, nil)
 			if err != nil {
@@ -217,36 +226,100 @@ func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle 
 	case isStatus(err, http.StatusNotFound):
 		// Not a failure: GitHub answers 404 for somebody who is not in the
 		// team, which is the answer that was asked for.
-		return "", false, nil
+		return false, false, nil
 	case isStatus(err, http.StatusForbidden), isStatus(err, http.StatusUnauthorized):
-		return "", false, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s",
+		return false, false, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s",
 			ErrNotPermitted, handle, organisation, team)
 	case err != nil:
-		return "", false, fmt.Errorf("could not read `@%s`'s place in %s/%s: %w",
+		return false, false, fmt.Errorf("could not read `@%s`'s place in %s/%s: %w",
 			handle, organisation, team, err)
 	}
-	return membership.State, true, nil
+	return membership.State == membershipActive, membership.State != membershipActive, nil
 }
 
-// mayInvite is the guard the rest of this file rests on: the right
-// organisation, and the one team the bot may add to.
+// mayAddTo is the guard the rest of this file rests on: the right
+// organisation, and one of the teams the bot may add to.
 //
 // Refusing any other team is not tidiness. The editors team is what grants the
 // editor-only commands, so a bot that could add to any team could hand out its
-// own permissions.
-func (c *Client) mayInvite(organisation, team string) error {
+// own permissions. The list is an allow-list rather than one name because
+// which team a codechecker belongs in follows from the check; config refuses a
+// list that contains the editors team, which is the property this rests on.
+func (c *Client) mayAddTo(organisation, team string) error {
 	switch {
-	case c.Organisation == "" || c.InviteTeam == "":
+	case c.Organisation == "" || len(c.ManagedTeams) == 0:
 		return fmt.Errorf("this bot is not configured to add anybody to a team")
-	case !slugShape.MatchString(c.Organisation) || !slugShape.MatchString(c.InviteTeam):
-		return fmt.Errorf("refusing to change membership of %q/%q: that is not an "+
-			"organisation and team", c.Organisation, c.InviteTeam)
+	case !slugShape.MatchString(c.Organisation):
+		return fmt.Errorf("refusing to change membership of %q: that is not an organisation",
+			c.Organisation)
 	case organisation != c.Organisation:
 		return fmt.Errorf("refusing to change membership of %s: this bot works on %s only",
 			organisation, c.Organisation)
-	case team != c.InviteTeam:
-		return fmt.Errorf("refusing to add anybody to %s/%s: this bot may only add to %s/%s",
-			organisation, team, c.Organisation, c.InviteTeam)
 	}
-	return nil
+	for _, managed := range c.ManagedTeams {
+		if team == managed && slugShape.MatchString(team) {
+			return nil
+		}
+	}
+	return fmt.Errorf("refusing to add anybody to %s/%s: this bot may only add to %s",
+		organisation, team, strings.Join(c.withinOrganisation(), ", "))
+}
+
+// withinOrganisation names the managed teams as a reader sees them.
+func (c *Client) withinOrganisation() []string {
+	named := make([]string, 0, len(c.ManagedTeams))
+	for _, team := range c.ManagedTeams {
+		named = append(named, c.Organisation+"/"+team)
+	}
+	return named
+}
+
+// Owners are the organisation's owners, who are the only people who can invite
+// somebody from outside it into a team - see the note at the top of this file.
+// Read so that a reply asking them to act names the organisation's current
+// owners rather than a list written down here.
+func (c *Client) Owners(ctx context.Context, organisation string) ([]string, error) {
+	if organisation != c.Organisation {
+		return nil, fmt.Errorf("refusing to read the owners of %s: this bot works on %s only",
+			organisation, c.Organisation)
+	}
+	url := fmt.Sprintf("%s/orgs/%s/members?role=admin&per_page=%d",
+		strings.TrimSuffix(c.BaseURL, "/"), organisation, membersPerPage)
+	handles, err := c.logins(ctx, "reading the owners of "+organisation, url)
+	if err != nil {
+		return nil, fmt.Errorf("could not read the owners of %s: %w", organisation, err)
+	}
+	return handles, nil
+}
+
+// InOrganisation reports whether somebody is a member of the organisation.
+//
+// The question `assign` has to ask before anything else: somebody outside the
+// organisation cannot hold a role on a check, and only an owner can invite
+// them in.
+func (c *Client) InOrganisation(ctx context.Context, organisation, handle string) (bool, error) {
+	if organisation != c.Organisation {
+		return false, fmt.Errorf("refusing to read the members of %s: this bot works on %s only",
+			organisation, c.Organisation)
+	}
+	if !IsHandle(handle) {
+		return false, fmt.Errorf("%q is not a GitHub handle", handle)
+	}
+
+	url := fmt.Sprintf("%s/orgs/%s/members/%s", strings.TrimSuffix(c.BaseURL, "/"), organisation, handle)
+	err := c.attempt(ctx, fmt.Sprintf("reading whether `@%s` is in %s", handle, organisation),
+		func() error {
+			_, err := c.do(ctx, http.MethodGet, url, nil)
+			return err
+		})
+	switch {
+	case err == nil:
+		return true, nil
+	case isStatus(err, http.StatusNotFound):
+		// 404 is how GitHub says "not a member", and is the answer rather
+		// than a failure.
+		return false, nil
+	default:
+		return false, fmt.Errorf("could not read whether `@%s` is in %s: %w", handle, organisation, err)
+	}
 }

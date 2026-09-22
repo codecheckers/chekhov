@@ -24,6 +24,10 @@ type Issue struct {
 	Title     string
 	Body      string
 	Assignees []string
+	// Labels are the register's own labels on this check, which say things
+	// about it nothing else does: `institution` says an arrangement covers
+	// it, which decides which team a codechecker on it belongs in.
+	Labels []string
 }
 
 // Issue reads one issue of the configured repository.
@@ -83,6 +87,9 @@ type wireIssue struct {
 	Assignees []struct {
 		Login string `json:"login"`
 	} `json:"assignees"`
+	Labels []struct {
+		Name string `json:"name"`
+	} `json:"labels"`
 	// PullRequest is present, and non-nil, only on a pull request.
 	PullRequest *struct{} `json:"pull_request"`
 }
@@ -91,6 +98,11 @@ func (i wireIssue) issue() Issue {
 	read := Issue{Number: i.Number, Title: i.Title, Body: i.Body}
 	for _, assignee := range i.Assignees {
 		read.Assignees = append(read.Assignees, assignee.Login)
+	}
+	for _, label := range i.Labels {
+		if label.Name != "" {
+			read.Labels = append(read.Labels, label.Name)
+		}
 	}
 	return read
 }

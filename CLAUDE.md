@@ -55,6 +55,17 @@ were notified by test comments before this was written down.
 | `@nuest` | the maintainer, who is running the test |
 | `@chekhovbot` | the bot itself, which the command is addressed to |
 
+The one exception is `command.OutsideReply`, which asks the organisation's
+owners to invite somebody: notifying them is the whole point of that reply, and
+the handles are the organisation's current owners read from the organisation,
+never written down. **A development deployment must not ask them**, because a
+test may not notify people who did not ask to be in it - `teams.owners` in the
+settings names who to ask instead, the shipped development and live-test files
+name the maintainer, and the reply says when it used that list rather than the
+organisation's. `command.notifying` is the only function that writes a
+handle so that it notifies, and it is named to be hard to confuse with
+`command.mentions`, which writes one in backticks so that it does not.
+
 For anybody else in a test, **check first** and use a handle that does not
 exist:
 
@@ -432,20 +443,25 @@ than a `switch`.
   the paper, nor may the handling editor - CODECHECK exists so that somebody
   other than the author runs the code. The standing roles never conflict, and
   only an editor may be made the handling editor (`Role.Requires`).
-- **Inviting writes outside the register, and is fenced in code.**
-  `internal/github/invite.go` is the only thing that changes membership: one
-  endpoint (`PUT /orgs/{org}/teams/{team}/memberships/{user}`), always
-  `role: member` written as a literal, no role argument on any function, the
-  configured organisation only, and the `codecheckers` team only - adding to
-  `editors` would let the bot hand out its own permissions - and because that
-  guard compares names, `config.validate` refuses a settings file that names
-  the two teams the same. It never touches
-  `PUT /orgs/{org}/memberships/{user}`, which sets the organisation role and
-  can make an owner. Nothing there removes anybody. `invite_test.go` records
-  every request that leaves and fails if any of that stops being true; add to
-  it rather than trusting the comments. Its errors reach a posted comment, so
-  every handle in one is in backticks. Needs *Members: write*, which is
-  optional - without it `invite` refuses and says why.
+- **The owners invite; the bot does the teams.** GitHub splits this endpoint by
+  authority: a **team maintainer** may add somebody already in the
+  organisation, and only an **organisation owner** may bring somebody in from
+  outside. So `@chekhovbot` is a maintainer of the teams it manages and must
+  never be an owner. `assign` asks the organisation's current owners - read
+  from the organisation, and **mentioned** so they are notified - and puts the
+  person in the team itself once they have joined. See #47.
+- **Team membership is fenced in code.** `internal/github/team.go` is the only
+  thing that changes it: one endpoint
+  (`PUT /orgs/{org}/teams/{team}/memberships/{user}`), always `role: member`
+  written as a literal, no role argument on any function, the configured
+  organisation only, and only a team in `teams.managed` - `config.validate`
+  refuses a list containing the editors team, because the bot must not be able
+  to grant the permission its own editor commands are gated on. It never
+  touches `PUT /orgs/{org}/memberships/{user}`, which sets the organisation
+  role. Nothing there removes anybody. `team_test.go` records every request
+  that leaves and fails if any of that stops being true; add to it rather than
+  trusting the comments. Its errors reach a posted comment, so every handle in
+  one is in backticks.
 - **Fail closed.** A team the token cannot read has no members: the editor
   commands refuse and the listing does not offer them. The opposite - an
   unreadable team meaning everyone is an editor - would hand the register to

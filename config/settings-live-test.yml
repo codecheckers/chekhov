@@ -59,6 +59,18 @@ chekhov:
     organisation: ${CHEKHOV_TEAMS_ORG:-codecheckers}
     editors: editors
     codecheckers: codecheckers
+    institutional: institutional-codecheckers
+    # Who to ask when somebody has to be invited to the organisation. Only an
+    # organisation owner can do that, so the reply mentions them - the one
+    # place this bot writes a plain @mention, which notifies. In a live test
+    # that must not be the real owners: a test may not notify people who did
+    # not ask to be in it. Left empty in production, where the organisation's
+    # own owners are read and asked.
+    owners:
+      - nuest
+    managed:
+      - codecheckers
+      - institutional-codecheckers
 
   # Who may run a command is NOT here: it is the Role of the command's entry in
   # internal/command/registry.go, which also generates the help listing. buffy

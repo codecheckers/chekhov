@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-22
+
+### Changed
+
+- `@chekhovbot invite @user` is removed, and `assign` does the work instead.
+  GitHub splits team membership by authority: a team maintainer may add
+  somebody already in the organisation, and only an organisation owner may
+  bring somebody in from outside - so a bot that could invite a stranger would
+  have to be an owner, which reaches membership everywhere, billing and
+  repository deletion. `assign @user as codechecker` now asks whether the
+  person is in the organisation: if they are not, the role is **not** recorded
+  and the reply asks the organisation's owners, mentioning them, to invite
+  them - "I will handle the rest". If they are, the bot puts them in the team
+  the check implies and says so (codecheckers/chekhov#47).
+- `teams.owners` names who to ask when somebody has to be invited to the
+  organisation, instead of reading the organisation's owners. That reply is the
+  only place the bot writes a plain `@mention`, so a development deployment
+  asks whoever is testing it rather than notifying the real owners, and the
+  reply says when it did that (codecheckers/chekhov#47).
+- Which team that is follows from the check rather than from the person: a
+  check carrying the `institution` label sends a codechecker to the
+  institutional team, which `teams.institutional` names; an editor can say
+  otherwise in either direction with `assign @user as codechecker in <team>`.
+  The teams the bot may add to are an allow-list in `config/`, and a settings
+  file is refused at load when it contains the editors team - the bot must not
+  be able to grant the permission its own editor commands are gated on - or
+  when a named team is missing from the list, which would leave the team half
+  of `assign` silently doing nothing (codecheckers/chekhov#47).
+
 ## [0.1.1] - 2026-09-21
 
 A patch rather than a minor bump: nothing a codechecker can see changes, because

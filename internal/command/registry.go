@@ -79,7 +79,7 @@ var registry = []Definition{
 	{
 		Name:    Assign,
 		Summary: "Give somebody a role on this check",
-		Usage:   "assign @user as codechecker|author|handling editor",
+		Usage:   "assign @user as codechecker|author|handling editor [in <team>]",
 		Group:   GroupPeople,
 		Role:    RoleEditor,
 	},
@@ -110,13 +110,6 @@ var registry = []Definition{
 		Usage:   "codecheckers",
 		Group:   GroupPeople,
 		Role:    RoleAnyone,
-	},
-	{
-		Name:    Invite,
-		Summary: "Invite somebody to the codecheckers team",
-		Usage:   "invite @user",
-		Group:   GroupPeople,
-		Role:    RoleEditor,
 	},
 	{
 		Name:    SuggestCodecheckers,

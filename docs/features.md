@@ -35,7 +35,7 @@ for completeness of the conversational set.
 | `@chekhovbot assign @user as editor` | Set the editor handling this check | high |
 | `@chekhovbot codecheckers` | Link the lists of registered codecheckers, rather than copy them | high |
 | `@chekhovbot suggest codecheckers` | Propose candidates by declared expertise vs. the repository, the DOI, or a pasted abstract | high |
-| `@chekhovbot invite @user` | Send an org/team invitation to a new codechecker | medium |
+| `@chekhovbot assign @user as codechecker` | Ask the owners to invite a non-member, and put a member in the right team | done |
 | `@chekhovbot list team <name>` | List members of a codecheckers team | medium |
 | `@chekhovbot add/remove assignee @user` | Manage GitHub assignees without role semantics | medium |
 | `@chekhovbot availability @user` | Show whether a codechecker is currently accepting work | low |

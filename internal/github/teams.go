@@ -22,11 +22,20 @@ const membersPerPage = 100
 // decides what to do about it, and the answer must never be "nobody is in this
 // team, so this command is open to everyone".
 func (c *Client) TeamMembers(ctx context.Context, organisation, team string) ([]string, error) {
-	var handles []string
 	url := fmt.Sprintf("%s/orgs/%s/teams/%s/members?per_page=%d",
 		strings.TrimSuffix(c.BaseURL, "/"), organisation, team, membersPerPage)
-	what := fmt.Sprintf("reading the %s/%s team", organisation, team)
+	handles, err := c.logins(ctx, fmt.Sprintf("reading the %s/%s team", organisation, team), url)
+	if err != nil {
+		return nil, fmt.Errorf("could not read the %s/%s team: %w", organisation, team, err)
+	}
+	return handles, nil
+}
 
+// logins reads a paginated list of accounts and returns their handles. Two
+// endpoints answer that shape - a team's members and an organisation's owners
+// - and the paging was written twice before it was written here.
+func (c *Client) logins(ctx context.Context, what, url string) ([]string, error) {
+	var handles []string
 	type member struct {
 		Login string `json:"login"`
 	}
@@ -37,8 +46,5 @@ func (c *Client) TeamMembers(ctx context.Context, organisation, team string) ([]
 			}
 		}
 	})
-	if err != nil {
-		return nil, fmt.Errorf("could not read the %s/%s team: %w", organisation, team, err)
-	}
-	return handles, nil
+	return handles, err
 }

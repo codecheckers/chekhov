@@ -190,3 +190,55 @@ func TestTheParserAgreesOnWhatAHandleIs(t *testing.T) {
 		}
 	}
 }
+
+// `in <team>` overrides the team, and only means something for a role that
+// puts somebody in one.
+func TestParseAssignmentReadsATeamOverride(t *testing.T) {
+	handle, role, team, err := ParseAssignment([]string{"@a-codechecker", "as", "codechecker",
+		"in", "institutional-codecheckers"})
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	// "codechecker" on a check is the assigned codechecker; the standing role
+	// of the same name comes from the team.
+	if handle != "a-codechecker" || role != RoleAssignedCodechecker || team != "institutional-codecheckers" {
+		t.Errorf("read %q / %q / %q", handle, role, team)
+	}
+
+	// A role with a space in it still reads as one thing.
+	if _, role, team, err = ParseAssignment([]string{"@nuest", "as", "handling", "editor"}); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if role != RoleHandlingEditor || team != "" {
+		t.Errorf("read %q / %q", role, team)
+	}
+
+	// A team means nothing for somebody who is not put in one.
+	if _, _, _, err = ParseAssignment([]string{"@an-author", "as", "author", "in", "codecheckers"}); err == nil {
+		t.Error("a team was accepted for an author")
+	}
+	// And "in" with nothing after it is a question, not a team.
+	if _, _, _, err = ParseAssignment([]string{"@a-codechecker", "as", "codechecker", "in"}); err == nil {
+		t.Error("an empty team was accepted")
+	}
+}
+
+// A reply that tells somebody to run a command has to use a word the parser
+// takes, and the plainest one: "assigned codechecker" parses but nobody types
+// it.
+func TestTheTypedWordForARoleParses(t *testing.T) {
+	for _, role := range []Role{RoleAssignedCodechecker, RoleAuthor, RoleHandlingEditor} {
+		typed := role.Typed()
+		got, err := AssignableRole(typed)
+		if err != nil {
+			t.Errorf("%q is not a word I accept: %v", typed, err)
+			continue
+		}
+		if got != role {
+			t.Errorf("%q parses as %q, want %q", typed, got, role)
+		}
+	}
+	if got := RoleAssignedCodechecker.Typed(); got != "codechecker" {
+		t.Errorf("the assigned codechecker is typed %q", got)
+	}
+}

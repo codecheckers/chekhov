@@ -301,3 +301,57 @@ func TestTheBuildsCommitIsNamedOnlyWhenProvenAndOnlyInDevelopment(t *testing.T) 
 		t.Errorf("describeVersion = %q", unproven.describeVersion())
 	}
 }
+
+// The reply that asks the owners is the one place a handle is written so that
+// it notifies. It is bounded, and it does not invite a retry: every attempt
+// would notify every owner again.
+func TestTheRequestToTheOwnersIsBoundedAndDoesNotInviteARetry(t *testing.T) {
+	many := []string{"one", "two", "three", "four", "five"}
+	reply := OutsideReply(OutsideRequest{Handle: "a-newcomer", Role: RoleAssignedCodechecker,
+		Organisation: "codecheckers", Team: "codecheckers", Owners: many})
+
+	notified := strings.Count(reply, "@one") + strings.Count(reply, "@two") +
+		strings.Count(reply, "@three") + strings.Count(reply, "@four") + strings.Count(reply, "@five")
+	if notified != mostOwnersMentioned {
+		t.Errorf("%d owners notified, want at most %d:\n%s", notified, mostOwnersMentioned, reply)
+	}
+	// Running it again is the only way forward until the nightly nudge exists,
+	// so the reply says so - and says when, because running it before they
+	// have accepted asks the owners twice for the same person.
+	if !strings.Contains(reply, "Once they have accepted") {
+		t.Errorf("the reply does not say when to run it again:\n%s", reply)
+	}
+	if !strings.Contains(reply, "asks the owners twice") {
+		t.Errorf("the reply does not say what an early retry costs:\n%s", reply)
+	}
+	// The subject is discussed, not summoned.
+	if !strings.Contains(reply, "`@a-newcomer`") {
+		t.Errorf("the person being assigned should be in backticks:\n%s", reply)
+	}
+}
+
+// Asking nobody must not panic: the last branch of the conjunction indexes
+// one before the end.
+func TestTheRequestToTheOwnersSurvivesAnEmptyList(t *testing.T) {
+	reply := OutsideReply(OutsideRequest{Handle: "a-newcomer", Role: RoleAssignedCodechecker,
+		Organisation: "codecheckers", Team: "codecheckers"})
+	if !strings.Contains(reply, "could not find one") {
+		t.Errorf("reply:\n%s", reply)
+	}
+	if got := notifying(nil); got != "" {
+		t.Errorf("notifying(nil) = %q", got)
+	}
+}
+
+// Only a role that puts somebody in a team may promise one. An author is not a
+// codechecker, and the handling editor is an editor already.
+func TestTheRequestPromisesNoTeamForARoleThatNeedsNone(t *testing.T) {
+	reply := OutsideReply(OutsideRequest{Handle: "an-author", Role: RoleAuthor,
+		Organisation: "codecheckers", Owners: []string{"an-owner"}})
+	if strings.Contains(reply, "I put them in") {
+		t.Errorf("the reply promises a team for an author:\n%s", reply)
+	}
+	if !strings.Contains(reply, "@an-owner") {
+		t.Errorf("the owners are still asked to invite them:\n%s", reply)
+	}
+}

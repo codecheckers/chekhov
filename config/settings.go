@@ -48,6 +48,27 @@ type Settings struct {
 			// permission. See docs/github-token.md.
 			Editors      string `yaml:"editors"`
 			Codecheckers string `yaml:"codecheckers"`
+			// Owners replaces the organisation's owners in the reply that
+			// asks them to invite somebody. Empty in production, where the
+			// organisation is asked; set in development and for a live test,
+			// because that reply is the one place the bot writes a plain
+			// @mention, and a test must not notify people who did not ask to
+			// be in it. See CLAUDE.md -> Committing and publishing.
+			Owners []string `yaml:"owners"`
+			// Institutional is where a codechecker on a check an
+			// institution's arrangement covers belongs. Named rather than
+			// found among Managed by the shape of its name: which team is
+			// which is not something to infer from a substring.
+			Institutional string `yaml:"institutional"`
+			// Managed are the teams the bot may add somebody to. An
+			// allow-list rather than a single name, because which team a
+			// codechecker belongs in follows from the check - an
+			// institutional one belongs in the institutional team - and a
+			// list that cannot contain the editors team is the property that
+			// matters, not a count of one. validate refuses a list that
+			// does contain it: adding to `editors` would let the bot hand out
+			// the permission its own editor commands are gated on.
+			Managed []string `yaml:"managed"`
 		} `yaml:"teams"`
 	} `yaml:"chekhov"`
 }
@@ -151,16 +172,35 @@ func validate(name string, s *Settings) error {
 		return fmt.Errorf("%s: metadata source %q is neither openalex nor crossref",
 			name, s.Chekhov.Metadata.Source)
 	}
-	// The bot may add people to the codecheckers team and no other, which is
-	// what keeps `invite` from handing out the bot's own permissions - see
-	// internal/github/invite.go. That guard compares team names, so it only
-	// holds while the two names differ, and nothing else would notice if they
-	// stopped. Refused here rather than trusted there.
+	// The editors team is what grants the editor-only commands, and the
+	// codecheckers team is a standing role anybody on a check may hold, so
+	// naming the same team twice would make every codechecker an editor.
 	editors, codecheckers := s.EditorsTeam(), s.CodecheckersTeam()
 	if codecheckers != "" && strings.EqualFold(editors, codecheckers) {
 		return fmt.Errorf("%s: the editors and codecheckers teams are both %q; "+
-			"they must differ, or inviting a codechecker would make them an editor",
-			name, codecheckers)
+			"they must differ, or every codechecker would be an editor", name, codecheckers)
+	}
+	// The bot may add people to the managed teams, so the editors team must
+	// not be one of them: every editor-only command rests on a membership the
+	// bot must not be able to grant itself.
+	if editors != "" && s.Managed(editors) {
+		return fmt.Errorf("%s: the editors team %q is in teams.managed; "+
+			"the bot must not be able to add anybody to the team its own "+
+			"editor commands are gated on", name, editors)
+	}
+	// A team the bot is told to put somebody in must be one it is allowed to
+	// add to. Without this a settings file with no teams.managed passes, and
+	// then the team half of `assign` silently does nothing at all.
+	// A slice rather than a map, so that a file with both wrong is refused
+	// with the same message every time.
+	for _, named := range []struct{ what, team string }{
+		{"teams.codecheckers", codecheckers},
+		{"teams.institutional", s.InstitutionalTeam()},
+	} {
+		if named.team != "" && !s.Managed(named.team) {
+			return fmt.Errorf("%s: %s is %q, which is not in teams.managed; "+
+				"the bot could not put anybody in it", name, named.what, named.team)
+		}
 	}
 	switch s.Chekhov.Mastodon.Visibility {
 	case "public", "unlisted", "private", "direct":
@@ -200,6 +240,63 @@ func (s *Settings) EditorsTeam() string { return strings.TrimSpace(s.Chekhov.Tea
 // CodecheckersTeam is the team of people who perform CODECHECKs, which grants
 // the codechecker role.
 func (s *Settings) CodecheckersTeam() string { return strings.TrimSpace(s.Chekhov.Teams.Codecheckers) }
+
+// ManagedTeams are the teams the bot may add somebody to, trimmed and in the
+// order the settings name them. Never the editors team, which validate
+// refuses.
+func (s *Settings) ManagedTeams() []string {
+	managed := make([]string, 0, len(s.Chekhov.Teams.Managed))
+	for _, team := range s.Chekhov.Teams.Managed {
+		if team = strings.TrimSpace(team); team != "" {
+			managed = append(managed, team)
+		}
+	}
+	return managed
+}
+
+// InstitutionalTeam is where a codechecker on an institutional check belongs,
+// empty when the settings name none - and then an institutional check is
+// treated as an ordinary one.
+func (s *Settings) InstitutionalTeam() string {
+	return strings.TrimSpace(s.Chekhov.Teams.Institutional)
+}
+
+// OwnersOverride are the handles to ask instead of the organisation's owners,
+// empty when the organisation itself should be asked.
+//
+// A leading @ is tolerated, because somebody writing a settings file will
+// write one half the time.
+func (s *Settings) OwnersOverride() []string {
+	configured := make([]string, 0, len(s.Chekhov.Teams.Owners))
+	for _, owner := range s.Chekhov.Teams.Owners {
+		if owner = strings.TrimPrefix(strings.TrimSpace(owner), "@"); owner != "" {
+			configured = append(configured, owner)
+		}
+	}
+	return configured
+}
+
+// Managed reports whether a team is one the bot may add somebody to.
+func (s *Settings) Managed(team string) bool {
+	_, ok := s.ManagedTeam(team)
+	return ok
+}
+
+// ManagedTeam is the team as the settings spell it, for a name somebody typed.
+//
+// The spelling matters: the guard in internal/github compares exactly, as a
+// guard at a request boundary should, so a team matched here case-insensitively
+// has to be handed on in the settings' own spelling or it would be refused
+// there instead - the role recorded and the team not changed.
+func (s *Settings) ManagedTeam(team string) (string, bool) {
+	team = strings.TrimSpace(team)
+	for _, allowed := range s.ManagedTeams() {
+		if strings.EqualFold(team, allowed) {
+			return allowed, true
+		}
+	}
+	return "", false
+}
 
 // Teams are the teams the bot reads, in the order a listing should show them.
 func (s *Settings) Teams() []string {

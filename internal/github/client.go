@@ -37,11 +37,11 @@ type Client struct {
 	// Repository is the only repository this client will write to, owner/repo.
 	Repository string
 	// Organisation is the only organisation whose membership this client will
-	// change, and InviteTeam the only team within it that it will add anybody
-	// to. Both empty unless a deployment turns inviting on, and inviting is
-	// then refused rather than aimed somewhere else. See invite.go.
+	// change, and ManagedTeams the only teams within it that it will add
+	// anybody to. Both empty unless a deployment says otherwise, and adding
+	// is then refused rather than aimed somewhere else. See team.go.
 	Organisation string
-	InviteTeam   string
+	ManagedTeams []string
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string

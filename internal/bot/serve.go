@@ -42,10 +42,10 @@ func Serve(address string) error {
 	// command.Deployment.
 	replies := github.New(token, settings.TargetRepository(), deployment.Signature())
 	// The one organisation whose membership this deployment may change, and
-	// the one team within it it may add anybody to. Naming the editors team
-	// here would let the bot hand out its own permissions; see
-	// internal/github/invite.go.
-	replies.Organisation, replies.InviteTeam = settings.TeamOrganisation(), settings.CodecheckersTeam()
+	// the teams within it it may add anybody to. The editors team is refused
+	// from that list at load, because naming it would let the bot hand out its
+	// own permissions; see config.validate and internal/github/team.go.
+	replies.Organisation, replies.ManagedTeams = settings.TeamOrganisation(), settings.ManagedTeams()
 
 	server := New(settings, secret, replies, deployment)
 	// A deployment is always online: the checks it runs read repositories and

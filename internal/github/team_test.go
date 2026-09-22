@@ -17,11 +17,12 @@ type sent struct {
 	Body   string
 }
 
-// inviting is a client set up to add to one team, watching everything it sends.
+// adding is a client set up to add to the managed teams, watching everything
+// it sends.
 //
 // Every test here reads the record: what this code must not do matters more
 // than what it does, and the only proof of that is the requests that left.
-func inviting(t *testing.T, handler http.HandlerFunc) (*Client, *[]sent) {
+func adding(t *testing.T, handler http.HandlerFunc) (*Client, *[]sent) {
 	t.Helper()
 	var requests []sent
 	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +30,8 @@ func inviting(t *testing.T, handler http.HandlerFunc) (*Client, *[]sent) {
 		requests = append(requests, sent{Method: r.Method, Path: r.URL.Path, Body: string(raw)})
 		handler(w, r)
 	})
-	client.Organisation, client.InviteTeam = "codecheckers", "codecheckers"
+	client.Organisation = "codecheckers"
+	client.ManagedTeams = []string{"codecheckers", "institutional-codecheckers"}
 	return client, &requests
 }
 
@@ -61,9 +63,9 @@ func nothingLeft(t *testing.T, requests *[]sent) {
 // one, and with role:admin it makes somebody an owner of the organisation.
 // Nothing here may ever reach it, whatever it is asked.
 func TestTheBotNeverTouchesOrganisationMembership(t *testing.T) {
-	client, requests := inviting(t, answers("User", MembershipActive, TeamRoleMember))
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
 
-	if _, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err != nil {
+	if _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err != nil {
 		t.Fatalf("invite: %v", err)
 	}
 
@@ -84,10 +86,10 @@ func TestTheBotNeverTouchesOrganisationMembership(t *testing.T) {
 // The role sent is always a plain member. A maintainer may add and remove
 // others, which is the bot's own permission handed on.
 func TestTheBotOnlyEverAsksForAPlainMember(t *testing.T) {
-	client, requests := inviting(t, answers("User", MembershipPending, TeamRoleMember))
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
 
-	if _, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err != nil {
-		t.Fatalf("invite: %v", err)
+	if _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err != nil {
+		t.Fatalf("add: %v", err)
 	}
 
 	writes := 0
@@ -111,8 +113,8 @@ func TestTheBotOnlyEverAsksForAPlainMember(t *testing.T) {
 // Every method here adds; none removes. A role is taken away by a person, in
 // the organisation's settings, where it is logged against their name.
 func TestThereIsNoWayToRemoveAnybody(t *testing.T) {
-	client, requests := inviting(t, answers("User", MembershipActive, TeamRoleMember))
-	if _, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err != nil {
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
+	if _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err != nil {
 		t.Fatalf("invite: %v", err)
 	}
 	for _, request := range *requests {
@@ -125,9 +127,9 @@ func TestThereIsNoWayToRemoveAnybody(t *testing.T) {
 // Another organisation is refused before a request is made: a misconfigured
 // deployment must not be able to reach into somebody else's organisation.
 func TestAnotherOrganisationIsRefused(t *testing.T) {
-	client, requests := inviting(t, answers("User", MembershipActive, TeamRoleMember))
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
 
-	_, _, err := client.AddToTeam(context.Background(), "someone-else", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "someone-else", "codecheckers", "a-codechecker")
 	if err == nil {
 		t.Fatal("membership of another organisation was changed")
 	}
@@ -138,16 +140,17 @@ func TestAnotherOrganisationIsRefused(t *testing.T) {
 }
 
 // The editors team is what grants the editor-only commands. A bot that could
-// add to any team could hand out its own permissions.
+// add to any team could hand out its own permissions - and config refuses a
+// managed list that contains it, so this is the second line of that defence.
 func TestAnotherTeamIsRefused(t *testing.T) {
-	client, requests := inviting(t, answers("User", MembershipActive, TeamRoleMember))
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
 
-	_, _, err := client.AddToTeam(context.Background(), "codecheckers", "editors", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "editors", "a-codechecker")
 	if err == nil {
 		t.Fatal("somebody was added to the editors team")
 	}
 	if !strings.Contains(err.Error(), "may only add to codecheckers/codecheckers") {
-		t.Errorf("error %q, want it to name the one team", err)
+		t.Errorf("error %q, want it to name the teams it may add to", err)
 	}
 	nothingLeft(t, requests)
 }
@@ -173,8 +176,8 @@ func TestAHandleCannotRedirectTheRequest(t *testing.T) {
 	}
 	for _, handle := range escapes {
 		t.Run(handle, func(t *testing.T) {
-			client, requests := inviting(t, answers("User", MembershipActive, TeamRoleMember))
-			if _, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", handle); err == nil {
+			client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
+			if _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", handle); err == nil {
 				t.Errorf("%q was accepted as a handle", handle)
 			}
 			nothingLeft(t, requests)
@@ -185,9 +188,9 @@ func TestAHandleCannotRedirectTheRequest(t *testing.T) {
 // An answer describing more than was asked for is reported as the surprise it
 // is, rather than as a successful invitation.
 func TestARoleTheBotDidNotAskForIsReported(t *testing.T) {
-	client, _ := inviting(t, answers("User", MembershipActive, "maintainer"))
+	client, _ := adding(t, answers("User", membershipActive, "maintainer"))
 
-	_, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if err == nil {
 		t.Fatal("a maintainer came back and was reported as a member")
 	}
@@ -205,7 +208,7 @@ func TestAnUnconfiguredClientCannotInvite(t *testing.T) {
 		requests = append(requests, sent{Method: r.Method, Path: r.URL.Path, Body: string(raw)})
 	})
 
-	if _, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err == nil {
+	if _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker"); err == nil {
 		t.Fatal("an unconfigured client invited somebody")
 	}
 	nothingLeft(t, &requests)
@@ -213,20 +216,35 @@ func TestAnUnconfiguredClientCannotInvite(t *testing.T) {
 
 // --- what it does ----------------------------------------------------------
 
-// Somebody outside the organisation is sent an invitation, and is not in the
-// team until they accept it. Saying otherwise would have an editor waiting for
-// a codechecker who never arrives.
-func TestAnInvitationIsPendingUntilAccepted(t *testing.T) {
-	client, requests := inviting(t, answers("User", MembershipPending, TeamRoleMember))
+// A pending membership cannot arise: the bot only adds people who are already
+// in the organisation, and bringing somebody in from outside is an owner's to
+// do. If GitHub ever answers "pending" here, this file no longer does what its
+// comment says, and saying so is better than reporting a membership that is
+// not in effect.
+func TestAPendingMembershipIsReportedAsImpossible(t *testing.T) {
+	client, _ := adding(t, answers("User", "pending", TeamRoleMember))
 
-	_, state, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	if err == nil {
+		t.Fatal("a pending membership was reported as done")
+	}
+	if !strings.Contains(err.Error(), "pending") || !strings.Contains(err.Error(), "should not") {
+		t.Errorf("error %q, want it to say what came back and that it should not have", err)
+	}
+}
+
+// Somebody already in the organisation is in the team at once, and the account
+// comes back as GitHub capitalises it, which is how a reply should write it.
+func TestAMemberOfTheOrganisationIsAddedAtOnce(t *testing.T) {
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
+
+	login, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if err != nil {
-		t.Fatalf("invite: %v", err)
+		t.Fatalf("add: %v", err)
 	}
-	if state != MembershipPending {
-		t.Errorf("state %q, want it pending", state)
+	if login != "A-Codechecker" {
+		t.Errorf("login = %q, want GitHub's own capitalisation", login)
 	}
-	// GitHub's own capitalisation of the handle, not the one that was typed.
 	for _, request := range *requests {
 		if request.Method == http.MethodPut && !strings.HasSuffix(request.Path, "/A-Codechecker") {
 			t.Errorf("the write used %q rather than the account's own login", request.Path)
@@ -234,23 +252,10 @@ func TestAnInvitationIsPendingUntilAccepted(t *testing.T) {
 	}
 }
 
-// Somebody already in the organisation is in the team at once.
-func TestAMemberOfTheOrganisationIsAddedAtOnce(t *testing.T) {
-	client, _ := inviting(t, answers("User", MembershipActive, TeamRoleMember))
-
-	_, state, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
-	if err != nil {
-		t.Fatalf("invite: %v", err)
-	}
-	if state != MembershipActive {
-		t.Errorf("state %q, want it immediate", state)
-	}
-}
-
 // The handle is checked against GitHub before the team is touched, as the
 // registration runbook does by hand.
 func TestAHandleThatDoesNotResolveIsNotInvited(t *testing.T) {
-	client, requests := inviting(t, func(w http.ResponseWriter, r *http.Request) {
+	client, requests := adding(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/users/") {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -258,7 +263,7 @@ func TestAHandleThatDoesNotResolveIsNotInvited(t *testing.T) {
 		t.Error("the team was touched for a handle that does not exist")
 	})
 
-	_, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if !errors.Is(err, ErrNotAUser) {
 		t.Fatalf("error %v, want it to wrap ErrNotAUser", err)
 	}
@@ -272,9 +277,9 @@ func TestAHandleThatDoesNotResolveIsNotInvited(t *testing.T) {
 // An organisation cannot be in a team, and asking is a puzzle of a 422. It is
 // refused in words, before the write.
 func TestAnOrganisationCannotBeInvited(t *testing.T) {
-	client, requests := inviting(t, answers("Organization", MembershipActive, TeamRoleMember))
+	client, requests := adding(t, answers("Organization", membershipActive, TeamRoleMember))
 
-	_, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if !errors.Is(err, ErrNotAUser) {
 		t.Fatalf("error %v, want it to wrap ErrNotAUser", err)
 	}
@@ -291,7 +296,7 @@ func TestAnOrganisationCannotBeInvited(t *testing.T) {
 // A token that may not manage membership says so plainly. Read as a failed
 // invitation it would have an editor trying again for ever.
 func TestATokenThatMayNotManageMembershipSaysSo(t *testing.T) {
-	client, _ := inviting(t, func(w http.ResponseWriter, r *http.Request) {
+	client, _ := adding(t, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/users/") {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"login": "A-Codechecker", "type": "User"}`))
@@ -301,7 +306,7 @@ func TestATokenThatMayNotManageMembershipSaysSo(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "Resource not accessible by personal access token"}`))
 	})
 
-	_, _, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if !errors.Is(err, ErrNotPermitted) {
 		t.Fatalf("error %v, want it to wrap ErrNotPermitted", err)
 	}
@@ -319,5 +324,80 @@ func TestTheHandleShapeAgreesWithTheParsers(t *testing.T) {
 		if IsHandle(handle) {
 			t.Errorf("%q should not be a handle", handle)
 		}
+	}
+}
+
+// A managed team the settings do name is allowed, so that an institutional
+// codechecker can go into the institutional team.
+func TestEveryManagedTeamIsAllowed(t *testing.T) {
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
+
+	for _, team := range client.ManagedTeams {
+		if _, err := client.AddToTeam(context.Background(), "codecheckers", team, "a-codechecker"); err != nil {
+			t.Errorf("adding to the managed team %q was refused: %v", team, err)
+		}
+	}
+	for _, request := range *requests {
+		if request.Method == http.MethodPut && !strings.Contains(request.Path, "/teams/") {
+			t.Errorf("a write went somewhere other than a team: %+v", request)
+		}
+	}
+}
+
+// The owners are read from the organisation, so a reply asking them to act
+// names whoever is an owner now.
+func TestOwnersComeFromTheOrganisation(t *testing.T) {
+	client, _ := adding(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("role") != "admin" {
+			t.Errorf("owners were read without role=admin: %s", r.URL.RawQuery)
+		}
+		if r.URL.Query().Get("page") == "1" {
+			_, _ = w.Write([]byte(`[{"login": "an-owner"}, {"login": "another-owner"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	})
+
+	owners, err := client.Owners(context.Background(), "codecheckers")
+	if err != nil {
+		t.Fatalf("owners: %v", err)
+	}
+	if len(owners) != 2 || owners[0] != "an-owner" {
+		t.Errorf("owners = %v", owners)
+	}
+	if _, err := client.Owners(context.Background(), "someone-else"); err == nil {
+		t.Error("the owners of another organisation were read")
+	}
+}
+
+// Membership of the organisation is the question assign has to ask first, and
+// GitHub answers "no" with a 404 rather than an error.
+func TestOrganisationMembershipTellsNoFromBroken(t *testing.T) {
+	client, _ := adding(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/members/a-member"):
+			w.WriteHeader(http.StatusNoContent)
+		case strings.HasSuffix(r.URL.Path, "/members/a-stranger"):
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+
+	for handle, want := range map[string]bool{"a-member": true, "a-stranger": false} {
+		in, err := client.InOrganisation(context.Background(), "codecheckers", handle)
+		if err != nil {
+			t.Errorf("%s: %v", handle, err)
+		}
+		if in != want {
+			t.Errorf("%s in the organisation = %v, want %v", handle, in, want)
+		}
+	}
+	if _, err := client.InOrganisation(context.Background(), "codecheckers", "a-bad-day"); err == nil {
+		t.Error("a 500 should be an error, not an answer of no")
+	}
+	if _, err := client.InOrganisation(context.Background(), "codecheckers", "../x"); err == nil {
+		t.Error("a handle that is not one should be refused before the request")
 	}
 }
