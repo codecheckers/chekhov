@@ -390,12 +390,13 @@ type registerData struct {
 func (s *Services) registerCSV() (*registerData, error) {
 	s.once.Do(func() {
 		data := &registerData{venues: map[string]bool{}}
-		rows, err := s.CSV(s.RegisterFile("register.csv"))
-		if err != nil {
-			s.loadErr = err
+		tables := s.CSVs(s.RegisterFile("register.csv"), s.RegisterFile("venues.csv"))
+		register, venues := tables[0], tables[1]
+		if register.Err != nil {
+			s.loadErr = register.Err
 			return
 		}
-		for _, row := range rows {
+		for _, row := range register.Rows {
 			data.entries = append(data.entries, registerEntry{
 				Certificate: row["Certificate"],
 				Repository:  row["Repository"],
@@ -407,8 +408,8 @@ func (s *Services) registerCSV() (*registerData, error) {
 
 		// venues.csv is optional: the testing register may not carry one, and
 		// a missing file must make the venue rule skip rather than fail.
-		if venues, err := s.CSV(s.RegisterFile("venues.csv")); err == nil {
-			for _, row := range venues {
+		if venues.Err == nil {
+			for _, row := range venues.Rows {
 				for _, key := range []string{"Venue", "name", "Name"} {
 					if value := strings.TrimSpace(row[key]); value != "" {
 						data.venues[strings.ToLower(value)] = true
@@ -456,6 +457,30 @@ func (s *Services) CSV(url string) ([]map[string]string, error) {
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// A Table is one file CSVs read: its rows, or why it could not be read.
+type Table struct {
+	Rows []map[string]string
+	Err  error
+}
+
+// CSVs reads several CSV files at once, and returns them in the order they
+// were asked for, not the order they answered in: where a caller lets the
+// first file win, the first file is the one it named first (#34).
+func (s *Services) CSVs(urls ...string) []Table {
+	tables := make([]Table, len(urls))
+	var wg sync.WaitGroup
+	for i, url := range urls {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rows, err := s.CSV(url)
+			tables[i] = Table{Rows: rows, Err: err}
+		}()
+	}
+	wg.Wait()
+	return tables
 }
 
 // entryFor finds the register row of one certificate.

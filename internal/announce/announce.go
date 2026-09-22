@@ -40,6 +40,18 @@ type Certificate struct {
 // Load reads a published certificate and the accounts of the people and the
 // venue it names.
 func Load(services *check.Services, settings *config.Settings, id string) (Certificate, Directory, error) {
+	// The register's files do not depend on the certificate or on each other,
+	// so they are read while index.json is: a round trip each, one after the
+	// other, was about a second of every announce (#34).
+	// venues.csv, then the lists of people. A file that cannot be read
+	// mentions nobody from it; the preview says who could not be matched.
+	sources := append([]string{services.RegisterFile("venues.csv"), services.RegisterFile("persons.csv")},
+		settings.CodecheckerLists()...)
+	// Buffered, so that an unpublished certificate is answered at once and
+	// the reads finish on their own.
+	read := make(chan []check.Table, 1)
+	go func() { read <- services.CSVs(sources...) }()
+
 	page := settings.CertificateURL(id)
 	raw, err := services.FetchFile(page + "index.json")
 	if err != nil {
@@ -80,22 +92,18 @@ func Load(services *check.Services, settings *config.Settings, id string) (Certi
 		Codecheckers:   published.Codecheck.Codecheckers,
 	}
 
+	tables := <-read
+	venues, people := tables[0], tables[1:]
 	directory := Directory{venues: map[string]Venue{}}
 	// persons.csv first: the register's own record of a person wins over the
 	// lists people fill in about themselves.
-	for _, source := range append([]string{services.RegisterFile("persons.csv")}, settings.CodecheckerLists()...) {
-		rows, err := services.CSV(source)
-		if err != nil {
-			continue
-		}
-		for _, row := range rows {
+	for _, table := range people {
+		for _, row := range table.Rows {
 			directory.addPerson(firstOf(row, "orcid", "ORCID"), row["name"], row["fediverse"])
 		}
 	}
-	if rows, err := services.CSV(services.RegisterFile("venues.csv")); err == nil {
-		for _, row := range rows {
-			directory.addVenue(row["name"], row["fediverse"], row["hashtags"])
-		}
+	for _, row := range venues.Rows {
+		directory.addVenue(row["name"], row["fediverse"], row["hashtags"])
 	}
 	return certificate, directory, nil
 }

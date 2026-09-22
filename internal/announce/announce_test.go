@@ -126,6 +126,22 @@ func TestAnUnpublishedCertificateIsAnError(t *testing.T) {
 	}
 }
 
+// The register's own record of a person wins over the lists people fill in
+// about themselves. CSVs keeps the order of the sources, whichever answers
+// first; this holds Load to putting persons.csv ahead of the lists.
+func TestPersonsWinsOverTheLists(t *testing.T) {
+	p := newPublished(t)
+	const orcid = "0000-0000-0000-0009"
+	p.Text(announcetest.Codecheckers,
+		"name,handle,ORCID,fediverse\nA Codechecker,@a,"+orcid+",@list@example.social\n")
+	p.Text(announcetest.Persons, "orcid,wikidata,fediverse\n"+orcid+",,@register@example.social\n")
+
+	_, directory := p.load(t)
+	if got := directory.Person(Person{ORCID: orcid}); got != "@register@example.social" {
+		t.Errorf("the account is %q, want persons.csv's @register@example.social", got)
+	}
+}
+
 func TestLongToots(t *testing.T) {
 	p := newPublished(t)
 	certificate, directory := p.load(t)

@@ -1,9 +1,12 @@
 package check
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // Fresh carries the whole of Access across, so a field added to it cannot be
@@ -53,6 +56,45 @@ func TestRawURLsDoNotDoubleTheSeparator(t *testing.T) {
 	} {
 		if strings.Contains(strings.TrimPrefix(url, "https://"), "//") {
 			t.Errorf("%s is %q", what, url)
+		}
+	}
+}
+
+// CSVs reads the files at once and hands them back in the order asked for:
+// the first file answers only after the second has been served, which reading
+// one after the other would never do. A file that fails keeps its place.
+func TestCSVsKeepTheOrderAskedFor(t *testing.T) {
+	stub := newStub(t)
+	secondServed := make(chan struct{})
+	var once sync.Once
+	stub.Handle("/first.csv", func(w http.ResponseWriter, _ *http.Request) {
+		select {
+		case <-secondServed:
+		case <-time.After(2 * time.Second):
+			t.Error("the first file was answered before the second was asked for: the reads are not concurrent")
+		}
+		fmt.Fprint(w, "name\nfirst\n")
+	})
+	stub.Handle("/second.csv", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "name\nsecond\n")
+		once.Do(func() { close(secondServed) })
+	})
+
+	urls := []string{stub.At("/first.csv"), stub.At("/missing.csv"), stub.At("/second.csv")}
+	tables := stub.services.CSVs(urls...)
+	if len(tables) != len(urls) {
+		t.Fatalf("%d tables, want %d", len(tables), len(urls))
+	}
+	for i, want := range []string{"first", "", "second"} {
+		table := tables[i]
+		if want == "" {
+			if !IsNotFound(table.Err) {
+				t.Errorf("table %d: error %v, want not found", i, table.Err)
+			}
+			continue
+		}
+		if table.Err != nil || len(table.Rows) != 1 || table.Rows[0]["name"] != want {
+			t.Errorf("table %d: %v %v, want one row named %q", i, table.Rows, table.Err, want)
 		}
 	}
 }

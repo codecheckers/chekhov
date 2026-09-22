@@ -797,16 +797,34 @@ func (s *Server) announce(ctx context.Context, parsed command.Command, services 
 	}
 	settings := s.Settings.Mastodon()
 
+	// What the instance allows and what the account posted do not depend on
+	// the certificate, so they are asked while it is read (#34). A mistyped
+	// certificate costs three GETs to Mastodon for it, and still answers
+	// that it is not published: the errors are reported in the order the
+	// steps used to run.
+	var (
+		wg                     sync.WaitGroup
+		instance               mastodon.Limits
+		statuses               []mastodon.Posted
+		limitsErr, statusesErr error
+	)
+	if s.Toots != nil {
+		wg.Add(2)
+		go func() { defer wg.Done(); instance, limitsErr = s.Toots.Limits(ctx) }()
+		go func() { defer wg.Done(); statuses, statusesErr = s.Toots.RecentStatuses(ctx, recentToots) }()
+	}
 	published, directory, err := announce.Load(services, s.Settings, certificate)
 	if err != nil {
+		// Answered at once: the Mastodon calls finish on their own, into
+		// variables nothing reads any more.
 		return fmt.Sprintf("I could not read certificate %s: %s\n", certificate, err)
 	}
+	wg.Wait()
 
 	limits, imageLimit := announce.DefaultLimits, int64(announce.DefaultImageLimit)
 	if s.Toots != nil {
-		instance, err := s.Toots.Limits(ctx)
-		if err != nil {
-			return fmt.Sprintf("I could not ask %s what it allows: %s\n", settings.Instance, err)
+		if limitsErr != nil {
+			return fmt.Sprintf("I could not ask %s what it allows: %s\n", settings.Instance, limitsErr)
 		}
 		limits, imageLimit = announce.LimitsFor(instance), instance.ImageSizeLimit
 	}
@@ -821,10 +839,9 @@ func (s *Server) announce(ctx context.Context, parsed command.Command, services 
 	}
 
 	if s.Toots != nil {
-		statuses, err := s.Toots.RecentStatuses(ctx, recentToots)
-		if err != nil {
+		if statusesErr != nil {
 			return fmt.Sprintf("I could not read the account's recent toots, so I cannot tell whether %s was announced: %s\n",
-				certificate, err)
+				certificate, statusesErr)
 		}
 		if preview.AnnouncedAt, _ = announce.Announced(statuses, published); preview.AnnouncedAt != "" {
 			// Nothing more to build: the answer is that it was done already.

@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -308,5 +309,20 @@ func TestAnnounceNeedsACertificate(t *testing.T) {
 	}
 	if reply := announceAs(server, "nuest", "1970-099"); !strings.Contains(reply, "could not read certificate 1970-099") {
 		t.Errorf("an unpublished certificate was not reported: %s", reply)
+	}
+}
+
+// The certificate and the instance are asked at once, and the reply still
+// names the first thing that went wrong in the order the steps depend on each
+// other: a certificate that is not published, then the instance.
+func TestAnnounceReportsTheCertificateBeforeTheInstance(t *testing.T) {
+	server, toots := announceServer(t)
+	toots.limitErr = errors.New("the instance is down")
+
+	if reply := announceAs(server, "nuest", "1970-099"); !strings.Contains(reply, "could not read certificate 1970-099") {
+		t.Errorf("an unpublished certificate was not reported first: %s", reply)
+	}
+	if reply := announceAs(server, "nuest", "1970-001"); !strings.Contains(reply, "what it allows: the instance is down") {
+		t.Errorf("the instance's error was not reported: %s", reply)
 	}
 }

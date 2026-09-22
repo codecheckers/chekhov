@@ -45,22 +45,21 @@ func (s *Server) codecheckerListPages() []string {
 
 // codecheckers says where the lists are, and how long each one is.
 func (s *Server) codecheckers(services *check.Services) string {
-	configured := s.Settings.CodecheckerLists()
 	pages := s.codecheckerListPages()
-	lists := make([]command.CodecheckerList, 0, len(configured))
-	for i, url := range configured {
-		// The links are worth having offline; the count is the only part of
-		// the answer that needs the network.
-		list := command.CodecheckerList{Page: pages[i], Count: -1}
-		if services.Enabled() {
-			rows, err := services.CSV(url)
-			if err != nil {
-				list.Problem = err.Error()
+	lists := make([]command.CodecheckerList, len(pages))
+	for i, page := range pages {
+		lists[i] = command.CodecheckerList{Page: page, Count: -1}
+	}
+	// The links are worth having offline; the count is the only part of the
+	// answer that needs the network.
+	if services.Enabled() {
+		for i, table := range services.CSVs(s.Settings.CodecheckerLists()...) {
+			if table.Err != nil {
+				lists[i].Problem = table.Err.Error()
 			} else {
-				list.Count = len(rows)
+				lists[i].Count = len(table.Rows)
 			}
 		}
-		lists = append(lists, list)
 	}
 	return command.CodecheckerListsReply(lists)
 }

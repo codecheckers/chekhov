@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-23
+
+### Changed
+
+- `announce`, `follow`, `codecheckers` and `suggest codecheckers` read the
+  register's lists side by side, and `announce` asks Mastodon while it reads
+  the certificate, about a second faster (#34).
+
 ## [0.3.0] - 2026-09-22
 
 ### Added

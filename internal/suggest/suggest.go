@@ -48,17 +48,17 @@ func Load(services *check.Services, settings *config.Settings) ([]Codechecker, [
 	var unread []string
 
 	seen := map[string]bool{}
-	for _, list := range settings.CodecheckerLists() {
-		rows, err := services.CSV(list)
-		if err != nil {
-			unread = append(unread, list)
+	lists := settings.CodecheckerLists()
+	for i, table := range services.CSVs(lists...) {
+		if table.Err != nil {
+			unread = append(unread, lists[i])
 			continue
 		}
-		for _, row := range rows {
+		for _, row := range table.Rows {
 			handle := command.Handle(row["handle"])
 			if handle == "" || seen[handle] {
 				// A person on two lists is one person, and the first list
-				// wins: the lists are in the order the settings name them.
+				// wins: CSVs keeps the order the settings name them in.
 				continue
 			}
 			seen[handle] = true
@@ -68,7 +68,7 @@ func Load(services *check.Services, settings *config.Settings) ([]Codechecker, [
 				ORCID:     check.ORCIDDigits(firstOf(row, "ORCID", "orcid")),
 				Fields:    terms(row["fields"]),
 				Languages: terms(row["languages"]),
-				List:      list,
+				List:      lists[i],
 			})
 		}
 	}
