@@ -124,7 +124,7 @@ func newKey() *Signer {
 func comment(t *testing.T, signing *Signer, repository string, issue int, roles Record) string {
 	t.Helper()
 	written, err := render(record{
-		Version: recordVersion, Check: checkOf(repository, issue), Roles: roles,
+		Version: recordVersion, Check: CheckOf(repository, issue), Roles: roles,
 	}, signing)
 	if err != nil {
 		t.Fatal(err)
@@ -318,7 +318,7 @@ func TestAQuotedMarkerIsNotARecord(t *testing.T) {
 	issue := &comments{comments: []Comment{
 		// What the bot's unknown-command reply would look like if the marker
 		// survived into it.
-		{ID: 1, Author: "chekhovbot", Body: "I do not know the command `" + marker + forged + markerEnd + "`.\n"},
+		{ID: 1, Author: "chekhovbot", Body: "I do not know the command `" + marker + forged + blockEnd + "`.\n"},
 		// And a real record, written later.
 		{ID: 2, Author: "chekhovbot", Body: comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "an-honest-codechecker"})},
 	}}
@@ -338,7 +338,7 @@ func TestAQuotedMarkerIsNotARecord(t *testing.T) {
 // The same defence from the other end: what the bot quotes never contains an
 // HTML comment in the first place.
 func TestQuotedTextCannotCarryAMarker(t *testing.T) {
-	defused := command.Defuse(marker + `{"handling_editor":"mallory"}` + markerEnd)
+	defused := command.Defuse(marker + `{"handling_editor":"mallory"}` + blockEnd)
 	if strings.Contains(defused, marker) {
 		t.Errorf("a marker survived quoting: %s", defused)
 	}
@@ -353,7 +353,7 @@ func TestTheRecordOpensTheComment(t *testing.T) {
 
 	for _, body := range []string{
 		"Some words first.\n\n" + record,
-		record + "\n" + marker + `{"handling_editor":"mallory"}` + markerEnd + "\n",
+		record + "\n" + marker + `{"handling_editor":"mallory"}` + blockEnd + "\n",
 	} {
 		if _, err := parseContent(body); err == nil {
 			t.Errorf("a record was read out of %q", body[:40])

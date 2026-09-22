@@ -288,6 +288,24 @@ for a production one at a glance.
 reports only status, version, bot, register and environment, and its comments
 carry no footer naming the build.
 
+```sh
+curl https://<app>.runway.horse/nudges
+```
+
+`/nudges` is the other read-only endpoint: when the process started, what the
+nightly sweep of the register found (issues walked, replies posted, follow-ups
+left waiting, how many problems), and when the next sweep is due. It is
+unauthenticated too, so a problem is a *number* everywhere but development —
+the words name the person the follow-up is about.
+
+The sweep is a goroutine in this process, not a scheduled job: the reply path
+and the token are already here, and a second copy of either is a second thing
+to rotate. The history is in memory and a deploy loses it, which is the same
+bargain as the rest of the bot having no database. The weekly **Nightly
+sweep** workflow reads this endpoint without any credential and fails when no
+sweep has run in 36 hours *and* the process is older than that — a timer
+cannot report its own death, so something outside the process has to look.
+
 Then, on an issue of the testing register:
 
 ```txt

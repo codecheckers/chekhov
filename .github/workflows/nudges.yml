@@ -1,0 +1,59 @@
+# Is the nightly sweep still running?
+#
+# The sweep itself is a goroutine in the deployment (internal/bot/nudges.go),
+# which is why it needs no token: the bot already has the reply path. The
+# failure mode of an in-process timer is that it stops without anybody
+# noticing, and a timer cannot report its own death - so this workflow reads
+# the unauthenticated GET /nudges and fails when no sweep has run in 36 hours
+# *and* the process is older than that. A deploy restarts the ticker with the
+# process and loses the history, which is why both halves have to be true.
+name: Nightly sweep
+
+on:
+  schedule:
+    - cron: '30 6 * * 1' # 06:30 UTC every Monday
+  workflow_dispatch:
+    inputs:
+      deployment:
+        description: 'Deployment to ask (base URL)'
+        required: false
+        default: 'https://chekhov.pqapp.dev'
+
+permissions:
+  contents: read
+
+jobs:
+  sweeping:
+    name: The ticker is alive
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ask the deployment what it has swept
+        env:
+          DEPLOYMENT: ${{ inputs.deployment || 'https://chekhov.pqapp.dev' }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 "$DEPLOYMENT/nudges" > nudges.json
+          cat nudges.json
+
+      - name: Fail when nothing has swept for 36 hours
+        run: |
+          python3 - <<'PY'
+          import datetime, json, sys
+
+          state = json.load(open("nudges.json"))
+          now = datetime.datetime.now(datetime.timezone.utc)
+          when = lambda key: datetime.datetime.fromisoformat(state[key])
+          stale = datetime.timedelta(hours=36)
+
+          started = when("started")
+          print(f"the process started {started}, {now - started} ago")
+          last = state.get("last_sweep")
+          if last:
+              print(f"the last sweep was {last}, {now - when('last_sweep')} ago")
+              if now - when("last_sweep") < stale:
+                  sys.exit(0)
+          if now - started < stale:
+              print("no sweep yet, but the process is younger than 36 hours: too early to worry")
+              sys.exit(0)
+          sys.exit("the nightly sweep has stopped: no sweep in 36 hours, and the process is older than that")
+          PY

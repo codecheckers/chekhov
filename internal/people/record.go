@@ -2,7 +2,6 @@ package people
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -48,18 +47,10 @@ import (
 // who holds a role.
 const marker = "<!-- chekhov:roles "
 
-const markerEnd = " -->"
-
-// signature is the line under the record carrying the bot's signature over it.
-//
-// Outside the payload rather than a field within it, so that what is signed is
-// exactly the bytes between the marker and its end - as they stand in the
-// comment, not as Go would marshal them again. A signature over a re-marshal
-// covers an equivalence class of blocks rather than the one a reader sees:
-// duplicate JSON keys, unknown fields and different spellings of a handle all
-// verify, and an independent verifier has to reproduce Go's encoder to check
-// anything. See docs/record-key.md.
-const signatureMarker = "<!-- chekhov:sig "
+// rolesBlock is the record as the comment carries it: the marker above, and
+// the signed-block format every kind of record the bot writes shares. See
+// block.go.
+var rolesBlock = Block{Marker: marker, Name: "roles record"}
 
 // A Record is who holds which per-check role on one issue.
 //
@@ -146,6 +137,21 @@ func (r Record) Grant(role command.Role, handle string) (Record, string, error) 
 	return r, replaced, nil
 }
 
+// Holder is who holds a role on this check now, empty when nobody does.
+//
+// Only the roles one person holds at a time answer: a paper has as many
+// authors as it has, and "the author" is not a thing to ask about.
+func (r Record) Holder(role command.Role) string {
+	switch role {
+	case command.RoleHandlingEditor:
+		return r.HandlingEditor
+	case command.RoleAssignedCodechecker:
+		return r.AssignedCodechecker
+	default:
+		return ""
+	}
+}
+
 // Revoke takes a role away, and says whether anything changed.
 func (r Record) Revoke(role command.Role, handle string) (Record, bool) {
 	handle = normalize(handle)
@@ -202,9 +208,7 @@ func (c content) Comment() string {
 	var body strings.Builder
 	body.Write(c.payload)
 	body.WriteString("\n")
-	if c.Signature != "" {
-		body.WriteString(signatureMarker + c.Signature + markerEnd + "\n")
-	}
+	body.WriteString(rolesBlock.Line(c.Signature))
 	body.WriteString("\n")
 	body.WriteString(command.RolesTable(c.Roles.Holders()))
 	body.WriteString(command.RecordNote(c.AcceptedBy, c.AcceptedAt, c.Signature != ""))
@@ -241,12 +245,11 @@ type record struct {
 // render writes a record and signs it as written.
 func render(what record, signer *Signer) (content, error) {
 	what.Key = signer.PublicKey()
-	payload, err := json.Marshal(what)
+	whole, signature, err := rolesBlock.Render(what, signer)
 	if err != nil {
 		return content{}, err
 	}
-	whole := []byte(marker + string(payload) + markerEnd)
-	return content{payload: whole, record: what, Signature: signer.sign(whole)}, nil
+	return content{payload: whole, record: what, Signature: signature}, nil
 }
 
 // parseContent reads a record out of a comment the bot wrote.
@@ -255,46 +258,21 @@ func render(what record, signer *Signer) (content, error) {
 // Anything else is a comment that merely mentions the record, which is not the
 // same thing at all.
 func parseContent(body string) (content, error) {
-	body = strings.TrimLeft(body, " \t\r\n")
-	if !strings.HasPrefix(body, marker) {
+	var read content
+	whole, signature, err := rolesBlock.Parse(body, &read.record)
+	switch {
+	case errors.Is(err, ErrNoBlock):
 		return content{}, errNoRecord
-	}
-	if strings.Count(body, marker) > 1 {
-		return content{}, fmt.Errorf("the comment carries more than one roles record")
-	}
-
-	end := strings.Index(body, markerEnd)
-	if end < 0 {
-		return content{}, fmt.Errorf("the roles record is not closed")
-	}
-	// Exactly the bytes the signature covers, as they stand here.
-	whole := []byte(body[:end+len(markerEnd)])
-	read := content{payload: whole}
-
-	if err := json.Unmarshal([]byte(strings.TrimSpace(body[len(marker):end])), &read.record); err != nil {
-		return content{}, fmt.Errorf("the roles record could not be read: %w", err)
+	case err != nil:
+		return content{}, err
 	}
 	if read.Version > recordVersion {
 		return content{}, fmt.Errorf("this record was written by a newer version of me (%d), "+
 			"and I will not guess at what it means", read.Version)
 	}
+	read.payload, read.Signature = whole, signature
 	read.Roles = read.Roles.normalized()
-	read.Signature = signatureIn(body[end:])
 	return read, nil
-}
-
-// signatureIn finds the signature line under the record.
-func signatureIn(body string) string {
-	start := strings.Index(body, signatureMarker)
-	if start < 0 {
-		return ""
-	}
-	rest := body[start+len(signatureMarker):]
-	end := strings.Index(rest, markerEnd)
-	if end < 0 {
-		return ""
-	}
-	return strings.TrimSpace(rest[:end])
 }
 
 // Comments is what the store reads and writes the record through,
@@ -424,13 +402,10 @@ func (c *Checks) check(read content, body, repository string, issue int) error {
 	// The signature covers which check the record belongs to, so a record
 	// lifted from another issue is refused rather than read as somebody
 	// else's roles. Compared case-insensitively: GitHub's names are.
-	if !strings.EqualFold(read.Check, checkOf(repository, issue)) {
+	if !strings.EqualFold(read.Check, CheckOf(repository, issue)) {
 		return fmt.Errorf("%w: it says it belongs to %s", ErrTampered, read.Check)
 	}
-	if read.Signature != "" && !c.Signer.Knows(read.Key) {
-		return fmt.Errorf("%w: it names a key I do not accept (%s)", ErrTampered, read.Key)
-	}
-	if err := c.Signer.verify(read.payload, read.Signature); err != nil {
+	if err := rolesBlock.Verify(read.payload, read.Signature, read.Key, c.Signer); err != nil {
 		return err
 	}
 	// The table under the record is what people read, and it is not covered by
@@ -444,8 +419,11 @@ func (c *Checks) check(read content, body, repository string, issue int) error {
 	return nil
 }
 
-// checkOf names the issue a record belongs to, as the signature covers it.
-func checkOf(repository string, issue int) string {
+// CheckOf names the issue a record belongs to, as the signature covers it.
+// Exported because a follow-up record carries the same name and it must be
+// the same spelling: a record whose check is written differently verifies and
+// then reads as somebody else's.
+func CheckOf(repository string, issue int) string {
 	return fmt.Sprintf("%s#%d", repository, issue)
 }
 
@@ -531,7 +509,7 @@ func (c *Checks) Accept(ctx context.Context, repository string, issue int,
 func (c *Checks) write(ctx context.Context, repository string, issue int, what record, comment int64) error {
 	// The identity of the record is the store's to fill in, not the caller's:
 	// it is what the signature binds the roles to.
-	what.Version, what.Check = recordVersion, checkOf(repository, issue)
+	what.Version, what.Check = recordVersion, CheckOf(repository, issue)
 	written, err := render(what, c.Signer)
 	if err != nil {
 		return err
@@ -545,7 +523,7 @@ func (c *Checks) write(ctx context.Context, repository string, issue int, what r
 
 // lock serialises writes to one issue's record.
 func (c *Checks) lock(repository string, issue int) func() {
-	key := checkOf(repository, issue)
+	key := CheckOf(repository, issue)
 	held, _ := c.writing.LoadOrStore(key, &sync.Mutex{})
 	mutex := held.(*sync.Mutex)
 	mutex.Lock()

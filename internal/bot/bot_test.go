@@ -301,7 +301,7 @@ func TestCheckWithoutATargetExplainsItself(t *testing.T) {
 	server, _ := testServer(t)
 
 	reply := server.answer(context.Background(), mention{Repository: "codecheckers/testing-dev-register", Issue: 1},
-		command.Command{Name: command.Check})
+		command.Command{Name: command.Check}).body
 	if !strings.Contains(reply, "github::owner/repo") {
 		t.Errorf("the reply does not say how to name a repository: %s", reply)
 	}
@@ -313,7 +313,7 @@ func TestAShortcutTargetIsResolved(t *testing.T) {
 	server, _ := testServer(t)
 
 	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
-		command.Command{Name: command.Check, Args: []string{"config", "codecheckers/Piccolo-2020"}})
+		command.Command{Name: command.Check, Args: []string{"config", "codecheckers/Piccolo-2020"}}).body
 	if !strings.Contains(reply, "github::codecheckers/Piccolo-2020") {
 		t.Errorf("the shortcut was not read as a GitHub repository: %s", reply)
 	}
@@ -325,7 +325,7 @@ func TestATrailingWordDoesNotBecomeTheTarget(t *testing.T) {
 	server, _ := testServer(t)
 
 	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
-		command.Command{Name: command.Check, Args: []string{"codecheckers/Piccolo-2020", "please"}})
+		command.Command{Name: command.Check, Args: []string{"codecheckers/Piccolo-2020", "please"}}).body
 	if !strings.Contains(reply, "github::codecheckers/Piccolo-2020") {
 		t.Errorf("the target was displaced: %s", reply)
 	}
@@ -337,7 +337,7 @@ func TestADeploymentRefusesALocalPath(t *testing.T) {
 	server, _ := testServer(t)
 
 	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
-		command.Command{Name: command.Check, Args: []string{"/etc/passwd"}})
+		command.Command{Name: command.Check, Args: []string{"/etc/passwd"}}).body
 	if !strings.Contains(reply, "github::owner/repo") {
 		t.Errorf("a path was taken as a target: %s", reply)
 	}
@@ -372,7 +372,7 @@ func TestVersionIsAnswered(t *testing.T) {
 
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "acodechecker"},
-		command.Command{Name: command.Version})
+		command.Command{Name: command.Version}).body
 	if !strings.Contains(reply, "codecheckers/testing-dev-register") {
 		t.Errorf("the version reply does not name the register:\n%s", reply)
 	}
@@ -429,14 +429,14 @@ func TestRefreshTeamsIsForEditors(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1}
 
 	event.Author = "nuest"
-	reply := server.answer(context.Background(), event, command.Command{Name: command.Refresh, Args: []string{"teams"}})
+	reply := server.answer(context.Background(), event, command.Command{Name: command.Refresh, Args: []string{"teams"}}).body
 	if !strings.Contains(reply, server.Settings.EditorsTeam()) || !strings.Contains(reply, "| 1 |") {
 		t.Errorf("the reply does not say what was read: %s", reply)
 	}
 
 	event.Author = "a-stranger"
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Refresh, Args: []string{"teams"}}); !strings.Contains(reply, "for editors") {
+		command.Command{Name: command.Refresh, Args: []string{"teams"}}).body; !strings.Contains(reply, "for editors") {
 		t.Errorf("a stranger was allowed to refresh the teams: %s", reply)
 	}
 }
@@ -449,12 +449,12 @@ func TestWithoutTheTeamsNobodyIsAnEditor(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Refresh, Args: []string{"teams"}}); !strings.Contains(reply, "for editors") {
+		command.Command{Name: command.Refresh, Args: []string{"teams"}}).body; !strings.Contains(reply, "for editors") {
 		t.Errorf("an editor command ran without the teams: %s", reply)
 	}
 	// And the listing does not advertise what it would refuse.
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Commands}); strings.Contains(reply, "refresh teams") {
+		command.Command{Name: command.Commands}).body; strings.Contains(reply, "refresh teams") {
 		t.Errorf("the listing offers a command nobody may run: %s", reply)
 	}
 }
@@ -465,7 +465,7 @@ func TestRefreshSaysWhatItCanRefresh(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"},
-		command.Command{Name: command.Refresh, Args: []string{"everything"}})
+		command.Command{Name: command.Refresh, Args: []string{"everything"}}).body
 	if !strings.Contains(reply, "`teams`") {
 		t.Errorf("the reply does not say what can be refreshed: %s", reply)
 	}
@@ -502,7 +502,7 @@ func TestARefusalNamesTheRoleItNeeds(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
-		command.Command{Name: command.Refresh, Args: []string{"teams"}})
+		command.Command{Name: command.Refresh, Args: []string{"teams"}}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("the refusal does not name the role: %s", reply)
 	}
@@ -515,7 +515,7 @@ func TestAssigningRecordsTheRoleInTheIssue(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "codechecker"}})
+		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "codechecker"}}).body
 	if !strings.Contains(reply, "a-codechecker") || !strings.Contains(reply, "assigned codechecker") {
 		t.Errorf("the reply does not say what happened: %s", reply)
 	}
@@ -528,7 +528,7 @@ func TestAssigningRecordsTheRoleInTheIssue(t *testing.T) {
 	}
 
 	// And `roles` says so, naming where each role comes from.
-	listing := server.answer(context.Background(), event, command.Command{Name: command.ListRoles})
+	listing := server.answer(context.Background(), event, command.Command{Name: command.ListRoles}).body
 	if !strings.Contains(listing, "a-codechecker") || !strings.Contains(listing, "teams on GitHub") {
 		t.Errorf("the listing does not report the check: %s", listing)
 	}
@@ -543,7 +543,7 @@ func TestAnAuthorCannotBeAssignedAsTheCodechecker(t *testing.T) {
 	server.answer(context.Background(), event,
 		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}})
 	reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "codechecker"}})
+		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "codechecker"}}).body
 
 	if !strings.Contains(reply, "cannot check a paper they wrote") {
 		t.Errorf("the refusal does not say why: %s", reply)
@@ -561,11 +561,11 @@ func TestTheHandlingEditorHasToBeAnEditor(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "handling", "editor"}}); !strings.Contains(reply, "not one of the editors") {
+		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "handling", "editor"}}).body; !strings.Contains(reply, "not one of the editors") {
 		t.Errorf("somebody outside the team was made the handling editor: %s", reply)
 	}
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@nuest", "as", "handling", "editor"}}); !strings.Contains(reply, "handling editor") {
+		command.Command{Name: command.Assign, Args: []string{"@nuest", "as", "handling", "editor"}}).body; !strings.Contains(reply, "handling editor") {
 		t.Errorf("an editor could not be made the handling editor: %s", reply)
 	}
 }
@@ -576,7 +576,7 @@ func TestAssigningIsForEditors(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger"},
-		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}})
+		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a stranger assigned a role: %s", reply)
 	}
@@ -589,14 +589,14 @@ func TestRemovingSaysWhetherAnythingChanged(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Remove, Args: []string{"@nobody", "as", "author"}}); !strings.Contains(reply, "was not the author") {
+		command.Command{Name: command.Remove, Args: []string{"@nobody", "as", "author"}}).body; !strings.Contains(reply, "was not the author") {
 		t.Errorf("a role nobody held was removed: %s", reply)
 	}
 
 	server.answer(context.Background(), event,
 		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}})
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Remove, Args: []string{"@an-author", "as", "author"}}); !strings.Contains(reply, "no longer") {
+		command.Command{Name: command.Remove, Args: []string{"@an-author", "as", "author"}}).body; !strings.Contains(reply, "no longer") {
 		t.Errorf("the author was not removed: %s", reply)
 	}
 }
@@ -607,7 +607,7 @@ func TestRolesNeedACheck(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Author: "nuest"},
-		command.Command{Name: command.ListRoles})
+		command.Command{Name: command.ListRoles}).body
 	if !strings.Contains(reply, "checks issue") {
 		t.Errorf("the reply does not say there is no check: %s", reply)
 	}
@@ -621,7 +621,7 @@ func TestAssigningTwiceChangesNothing(t *testing.T) {
 	assign := command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}}
 
 	server.answer(context.Background(), event, assign)
-	if reply := server.answer(context.Background(), event, assign); !strings.Contains(reply, "already") {
+	if reply := server.answer(context.Background(), event, assign).body; !strings.Contains(reply, "already") {
 		t.Errorf("a repeated assignment claimed to have done something: %s", reply)
 	}
 }
@@ -633,7 +633,7 @@ func TestAHandleIsCheckedBeforeItIsRecorded(t *testing.T) {
 	for _, handle := range []string{"a|b", "<!--x", "-leading", "a b"} {
 		reply := server.answer(context.Background(),
 			mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"},
-			command.Command{Name: command.Assign, Args: []string{handle, "as", "author"}})
+			command.Command{Name: command.Assign, Args: []string{handle, "as", "author"}}).body
 		if !strings.Contains(reply, "not a GitHub handle") {
 			t.Errorf("%q was accepted as a handle: %s", handle, reply)
 		}
@@ -675,24 +675,24 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 	forged.comments[0].Body = strings.Replace(forged.comments[0].Body, "an-author", "mallory", 1)
 
 	reply := server.answer(ctx, event,
-		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}})
+		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body
 	if !strings.Contains(reply, "accept roles") || !strings.Contains(reply, "edited after I wrote it") {
 		t.Errorf("the refusal does not say what to do: %s", reply)
 	}
 
 	// `roles` still shows what it claims, with the warning.
-	listing := server.answer(ctx, event, command.Command{Name: command.ListRoles})
+	listing := server.answer(ctx, event, command.Command{Name: command.ListRoles}).body
 	if !strings.Contains(listing, "mallory") || !strings.Contains(listing, "edited after I wrote it") {
 		t.Errorf("the listing hides the edited record: %s", listing)
 	}
 
 	// And an editor can adopt it, after which work goes on.
-	adopted := server.answer(ctx, event, command.Command{Name: command.Accept, Args: []string{"roles"}})
+	adopted := server.answer(ctx, event, command.Command{Name: command.Accept, Args: []string{"roles"}}).body
 	if !strings.Contains(adopted, "Adopted") || !strings.Contains(adopted, "nuest") {
 		t.Errorf("the adoption does not say who did it: %s", adopted)
 	}
 	if reply := server.answer(ctx, event,
-		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}); !strings.Contains(reply, "is now the author") {
+		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body; !strings.Contains(reply, "is now the author") {
 		t.Errorf("assignment is still refused after adoption: %s", reply)
 	}
 }
@@ -702,7 +702,7 @@ func TestAcceptingIsForEditors(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
-		command.Command{Name: command.Accept, Args: []string{"roles"}})
+		command.Command{Name: command.Accept, Args: []string{"roles"}}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a codechecker adopted a record: %s", reply)
 	}
@@ -716,7 +716,7 @@ func TestAChangeSaysWhoMadeIt(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	assigned := server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "codechecker"}})
+		command.Command{Name: command.Assign, Args: []string{"@a-codechecker", "as", "codechecker"}}).body
 	for _, expected := range []string{"a-codechecker", "assigned codechecker", "nuest", "assigned by"} {
 		if !strings.Contains(assigned, expected) {
 			t.Errorf("the confirmation does not say %q: %s", expected, assigned)
@@ -727,7 +727,7 @@ func TestAChangeSaysWhoMadeIt(t *testing.T) {
 	}
 
 	removed := server.answer(context.Background(), event,
-		command.Command{Name: command.Remove, Args: []string{"@a-codechecker", "as", "codechecker"}})
+		command.Command{Name: command.Remove, Args: []string{"@a-codechecker", "as", "codechecker"}}).body
 	if !strings.Contains(removed, "nuest") || !strings.Contains(removed, "removed by") {
 		t.Errorf("the removal does not say who made it: %s", removed)
 	}
@@ -748,7 +748,7 @@ func TestCheckRepositoryDescribesRatherThanJudges(t *testing.T) {
 	}}
 
 	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
-		command.Command{Name: command.Check, Args: []string{"repository", "codecheckers/demo"}})
+		command.Command{Name: command.Check, Args: []string{"repository", "codecheckers/demo"}}).body
 
 	for _, want := range []string{"github.com/codecheckers/demo", "languages", "R",
 		"no `codecheck.yml` yet", "not a verdict"} {
@@ -767,7 +767,7 @@ func TestCheckRepositoryRefusesALocalPath(t *testing.T) {
 	server, _ := testServer(t)
 
 	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 1},
-		command.Command{Name: command.Check, Args: []string{"repository", "/etc/passwd"}})
+		command.Command{Name: command.Check, Args: []string{"repository", "/etc/passwd"}}).body
 	if !strings.Contains(reply, "I could not look at") {
 		t.Errorf("a path was described: %s", reply)
 	}

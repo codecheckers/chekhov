@@ -305,7 +305,7 @@ are fine when deliberate, and worth a comment when they are.
 ## The bot
 
 `bot.Serve` is the whole deployment: `POST /dispatch` for GitHub's deliveries,
-`GET /healthz` for everything else. No state, no database. The container runs
+`GET /healthz` and `GET /nudges` for everything else. No state, no database. The container runs
 it through the `Procfile` (`web: chekhov serve`), because a buildpack otherwise
 runs the built binary with **no arguments**, and the tool answers that with its
 usage - which the platform reads as a crash loop.
@@ -397,6 +397,19 @@ production the footer is gone and `/healthz` says only status, version, bot,
 register and environment - it is unauthenticated, and the rest is nobody's
 business. Anything new that names a build, a path or a credential belongs
 behind that check.
+
+**What a reply leaves outstanding lives in the thread.** A signed follow-up
+record (`internal/followup`) says what kind, who it is about and when it was
+asked; a sweep walks the open issues nightly - a goroutine in the deployment,
+not a second job with a second token - and hands each record to the handler
+for its kind. A handler decides by **looking at the world**, never by
+bookkeeping: when the thing is done it says nothing, which is what makes the
+sweep safe to run twice. A record is only a record because **the bot wrote
+it** - the sweep reads its own comments and nobody else's, as
+`people.Checks.Read` does, because a deployment with no record key signs
+nothing and anybody can comment on an issue of the register. `GET /nudges` reports the sweeps for the weekly
+workflow that exists only to notice the goroutine has stopped; it is
+unauthenticated, so it counts problems rather than naming people.
 
 `docs/deployment.md` has the platform, the webhook settings and what to do when
 it falls over; `docs/github-token.md` has the bot's credential and its

@@ -960,14 +960,13 @@ func OutsideReply(request OutsideRequest) string {
 		out.WriteString("\n*This deployment is configured to ask the people above rather than " +
 			"the organisation's owners, so the owners have not been notified.*\n")
 	}
-	// What to do next, said once and honestly. Nothing picks this up on its
-	// own yet - the nightly nudge is codecheckers/chekhov#48 - so the command
-	// does have to be run again; waiting until they have accepted is what
-	// keeps the owners from being notified a second time for the same person.
+	// What to do next, said once and honestly: the nightly sweep picks this
+	// up (codecheckers/chekhov#48), so nobody has to come back to the thread,
+	// and the command is offered only as a way of not waiting for it.
 	fmt.Fprintf(&out, "\nOnly an owner can invite somebody from outside the organisation, "+
-		"which is why this is not something I can do. Once they have accepted, run "+
-		"`%s assign @%s as %s` again and I will do the rest - running it before then "+
-		"only asks the owners twice.\n", Bot, request.Handle, request.Role.Typed())
+		"which is why this is not something I can do. I will check every night and finish "+
+		"this once they have joined; `%s assign @%s as %s` does it sooner, and asks the "+
+		"owners again if they still have not.\n", Bot, request.Handle, request.Role.Typed())
 	return out.String()
 }
 
@@ -999,6 +998,114 @@ func (request OutsideRequest) rest() string {
 	default:
 		return strings.Join(promised[:len(promised)-1], ", ") + " and " + promised[len(promised)-1] + "."
 	}
+}
+
+// A Swept is what one walk of the register came to, as the reply says it.
+type Swept struct {
+	Issues      int
+	Acted       int
+	Outstanding int
+	Problems    []string
+}
+
+// SweptReply says what the walk found. Short when there was nothing to do,
+// which is the usual answer and should read as reassurance rather than as a
+// shrug.
+// mostProblemsListed bounds the problems one reply prints; see SweptReply.
+const mostProblemsListed = 20
+
+func SweptReply(swept Swept) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "I walked %d open issue%s.\n", swept.Issues, plural(swept.Issues))
+
+	switch {
+	case swept.Acted > 0:
+		fmt.Fprintf(&out, "\nAnswered %d follow-up%s", swept.Acted, plural(swept.Acted))
+		if swept.Outstanding > 0 {
+			fmt.Fprintf(&out, ", and left %d waiting", swept.Outstanding)
+		}
+		out.WriteString(".\n")
+	case swept.Outstanding > 0:
+		fmt.Fprintf(&out, "\n%d follow-up%s waiting, none of them ready for anything yet.\n",
+			swept.Outstanding, plural(swept.Outstanding))
+	default:
+		out.WriteString("\nNothing outstanding.\n")
+	}
+
+	// Bounded, because a register-wide failure - an expired token, a walk
+	// that ran out of time - is one problem per open issue, and a comment
+	// GitHub refuses for its length is no answer at all.
+	listed := swept.Problems
+	if len(listed) > mostProblemsListed {
+		listed = listed[:mostProblemsListed]
+	}
+	for _, problem := range listed {
+		fmt.Fprintf(&out, "\nCould not check: %s\n", oneLine(problem))
+	}
+	if left := len(swept.Problems) - len(listed); left > 0 {
+		fmt.Fprintf(&out, "\nAnd %d more like that, which I have left out.\n", left)
+	}
+	return out.String()
+}
+
+// Joined is somebody who has accepted the organisation's invitation, and what
+// was done about it.
+type Joined struct {
+	// Handle is who joined. In backticks, as everywhere: the reply is about
+	// them, and the invitation already reached them.
+	Handle string
+	Role   Role
+	// Taken is who holds the role now, when it went to somebody else while
+	// the invitation was outstanding. The role is left with them: an editor
+	// decided that after the ask, and a three-day-old record does not
+	// overrule it.
+	Taken string
+	// Granted says the role was recorded now rather than by somebody who got
+	// there first, and Assigned that the issue's assignee was set.
+	Granted  bool
+	Assigned bool
+	// TeamNote is what the team change came to, empty when there was nothing
+	// to change.
+	TeamNote string
+	// Lists is where a codechecker's row is kept, for the reply to point at.
+	Lists []string
+	// Organisation is the one they joined, named from the settings rather
+	// than written down here.
+	Organisation string
+}
+
+// JoinedReply says that the wait is over and what was done, for the nightly
+// sweep that noticed.
+func JoinedReply(joined Joined) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "`@%s` has joined the `%s` organisation.\n", joined.Handle, joined.Organisation)
+
+	var did []string
+	if joined.TeamNote != "" {
+		did = append(did, joined.TeamNote)
+	}
+	if joined.Granted {
+		did = append(did, fmt.Sprintf("They are now the %s of this check.", joined.Role))
+	}
+	if joined.Taken != "" {
+		did = append(did, fmt.Sprintf("The %s of this check is `@%s`, who was given the role "+
+			"after I asked for the invitation, so I have left it with them.", joined.Role, joined.Taken))
+	}
+	if joined.Assigned {
+		did = append(did, "Assignee of this issue set.")
+	}
+	for _, done := range did {
+		fmt.Fprintf(&out, "\n%s\n", done)
+	}
+
+	if joined.Role.Checks() && len(joined.Lists) > 0 {
+		out.WriteString("\nThe row in the codechecker list is still a person's job - " +
+			"it carries their name, ORCID, fields and languages, which I have no way to know:\n\n")
+		for _, list := range joined.Lists {
+			fmt.Fprintf(&out, "- [%s](%s)\n", nameOfList(list), list)
+		}
+	}
+	return out.String()
 }
 
 // mostOwnersMentioned is how many owners one reply will notify. Asking three

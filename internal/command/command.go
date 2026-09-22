@@ -46,6 +46,9 @@ const (
 	// type is `suggest`, with what to suggest as an argument, so that the
 	// parser stays one word per command - as `refresh teams` does.
 	SuggestCodecheckers Name = "suggest"
+	// Nudge walks the register for what earlier replies left outstanding, and
+	// acts on it.
+	Nudge Name = "nudge"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// Rules says which rule catalogue this build judges by, and whether it is

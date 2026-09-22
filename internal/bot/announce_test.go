@@ -224,7 +224,7 @@ func announceServer(t *testing.T) (*Server, *fakeToots) {
 func announceAs(server *Server, author string, args ...string) string {
 	return server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: author},
-		command.Command{Name: command.Announce, Args: args})
+		command.Command{Name: command.Announce, Args: args}).body
 }
 
 func TestAnnouncePreviewPostsNothing(t *testing.T) {

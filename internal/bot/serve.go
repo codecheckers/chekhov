@@ -79,6 +79,14 @@ func Serve(address string) error {
 	}
 	reloadTeams(server, settings)
 
+	// The nightly sweep lives in this process: the reply path is here and so
+	// is the token, and a second scheduled job would need a copy of both. It
+	// stops when the process does; the weekly workflow behind GET /nudges is
+	// what notices if it stops sooner. See internal/bot/nudges.go.
+	sweeping, stopSweeping := context.WithCancel(context.Background())
+	defer stopSweeping()
+	go server.sweepNightly(sweeping)
+
 	slog.Info("chekhov is listening", "address", address, "version", deployment.Version,
 		"register", deployment.Register,
 		"environment", deployment.Environment,

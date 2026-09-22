@@ -15,12 +15,14 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/codecheckers/chekhov/config"
 	"github.com/codecheckers/chekhov/internal/announce"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/mastodon"
 	"github.com/codecheckers/chekhov/internal/people"
@@ -99,6 +101,15 @@ type Server struct {
 	// line preview turns it on, because there the path is the user's own.
 	LocalPaths bool
 
+	// sweeps is what the nightly walk of the register has found in this
+	// process, for GET /nudges. In memory on purpose: a bot with no database
+	// restarts its ticker with itself, and the endpoint says so.
+	sweeps *sweeps
+
+	// sweeping is held by the walk of the register, so that the nightly one
+	// and an editor's `nudge` cannot both act on the same record.
+	sweeping sync.Mutex
+
 	// done is closed when a background command finishes, for the tests.
 	done chan struct{}
 }
@@ -111,6 +122,7 @@ func New(settings *config.Settings, secret string, replies Poster, deployment co
 		Replies:    replies,
 		Deployment: deployment,
 		Logger:     slog.Default(),
+		sweeps:     &sweeps{started: time.Now().UTC()},
 	}
 }
 
@@ -119,6 +131,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /dispatch", s.dispatch)
 	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /nudges", s.nudgeState)
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://github.com/codecheckers/chekhov", http.StatusFound)
 	})
@@ -211,25 +224,55 @@ func (s *Server) act(event mention, parsed command.Command) {
 	defer cancel()
 
 	started := time.Now()
-	// Everything the bot says goes out through here, and everything it says
-	// may quote somebody: a command it did not understand, a report built from
-	// a stranger's codecheck.yml, a toot composed from a published record. The
-	// roles of a check are kept in a comment by the bot, so nothing the bot
-	// posts may look like one. Defusing here rather than in each reply makes
-	// that structural instead of something every new reply has to remember.
-	body := command.Defuse(s.answer(ctx, event, parsed))
-	if body == "" {
-		return
-	}
-
-	id, err := s.Replies.Comment(ctx, event.Repository, event.Issue, body)
+	id, err := s.post(ctx, event, s.answer(ctx, event, parsed))
 	if err != nil {
 		s.Logger.Error("the answer could not be posted", "command", parsed.Name,
 			"issue", event.Issue, "error", err)
 		return
 	}
+	if id == 0 {
+		return
+	}
 	s.Logger.Info("answered", "command", parsed.Name, "issue", event.Issue,
 		"author", event.Author, "comment", id, "took", time.Since(started))
+}
+
+// post is how everything the bot says goes out, whether a command asked for it
+// or the nightly sweep did.
+//
+// Everything it says may quote somebody: a command it did not understand, a
+// report built from a stranger's codecheck.yml, a toot composed from a
+// published record. The records the bot keeps live in comments it wrote, so
+// nothing it posts may look like one. Defusing here rather than in each reply
+// makes that structural instead of something every new reply has to remember -
+// and the record, when there is one, goes on afterwards, by the one piece of
+// code that knows it is writing the bot's own rather than quoting somebody's.
+//
+// A reply whose record cannot be written is not posted at all: posting it
+// would say the thing is in hand and leave nothing to chase it with.
+func (s *Server) post(ctx context.Context, event mention, result answered) (int64, error) {
+	body := command.Defuse(result.body)
+	if body == "" {
+		return 0, nil
+	}
+	if result.follow != nil {
+		block, err := followup.Render(*result.follow, s.signer())
+		if err != nil {
+			return 0, fmt.Errorf("the follow-up could not be written, so nothing would chase it: %w", err)
+		}
+		body = block + body
+	}
+	return s.Replies.Comment(ctx, event.Repository, event.Issue, body)
+}
+
+// signer is the key the bot signs its records with, nil when it has none -
+// a deployment without one writes records nothing will trust later, which is
+// the same bargain the roles record makes.
+func (s *Server) signer() *people.Signer {
+	if s.Checks == nil {
+		return nil
+	}
+	return s.Checks.Signer
 }
 
 // recoverCommand catches a panic from one command, so it costs that command's
@@ -255,7 +298,23 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 }
 
 // answer produces the reply to one command.
-func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) string {
+// answered is what a command produced: the body to post, and what the reply
+// left outstanding, if anything.
+//
+// The follow-up travels beside the body rather than inside it because
+// command.Defuse escapes "<!--" in everything the bot posts - so that nothing
+// it quotes can look like a record - and a marker written into a body would be
+// neutralised on the way out. act defuses the body and then writes the record,
+// which is the one place that may. See internal/followup.
+type answered struct {
+	body   string
+	follow *followup.Record
+}
+
+// said is an answer with nothing outstanding, which is almost all of them.
+func said(body string) answered { return answered{body: body} }
+
+func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) answered {
 	roles := s.standingRoles(ctx, event)
 	definition, found := command.Lookup(string(parsed.Name))
 	// The per-check roles cost a read of the issue's comments, so they are
@@ -266,7 +325,8 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	}
 
 	if found && !definition.Permits(roles) {
-		return fmt.Sprintf("`%s %s` is for %s.\n", command.Bot, parsed.Name, definition.Role.Description())
+		return said(fmt.Sprintf("`%s %s` is for %s.\n",
+			command.Bot, parsed.Name, definition.Role.Description()))
 	}
 
 	// Every command reads the world afresh. A deployment keeps one Services for
@@ -276,37 +336,39 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 
 	switch parsed.Name {
 	case command.Commands:
-		return command.Listing(roles)
+		return said(command.Listing(roles))
 	case command.Hello:
-		return s.Deployment.HelloReply()
+		return said(s.Deployment.HelloReply())
 	case command.Thanks:
-		return command.ThanksReply(rand.IntN)
+		return said(command.ThanksReply(rand.IntN))
 	case command.Version:
-		return s.version()
+		return said(s.version())
 	case command.Check:
-		return s.check(parsed, services)
+		return said(s.check(parsed, services))
 	case command.Rules:
-		return s.rules(services)
+		return said(s.rules(services))
+	case command.Nudge:
+		return said(s.nudged(ctx))
 	case command.Announce:
-		return s.announce(ctx, parsed, services)
+		return said(s.announce(ctx, parsed, services))
 	case command.Follow:
-		return s.follow(ctx, parsed, services)
+		return said(s.follow(ctx, parsed, services))
 	case command.Refresh:
-		return s.refresh(ctx, parsed)
+		return said(s.refresh(ctx, parsed))
 	case command.Assign:
 		return s.assign(ctx, event, parsed)
 	case command.Remove:
-		return s.remove(ctx, event, parsed)
+		return said(s.remove(ctx, event, parsed))
 	case command.ListRoles:
-		return s.listRoles(ctx, event, roles)
+		return said(s.listRoles(ctx, event, roles))
 	case command.ListCodecheckers:
-		return s.codecheckers(services)
+		return said(s.codecheckers(services))
 	case command.SuggestCodecheckers:
-		return s.suggestCodecheckers(ctx, event, parsed, services)
+		return said(s.suggestCodecheckers(ctx, event, parsed, services))
 	case command.Accept:
-		return s.accept(ctx, event, parsed)
+		return said(s.accept(ctx, event, parsed))
 	default:
-		return command.UnknownReply(parsed)
+		return said(command.UnknownReply(parsed))
 	}
 }
 
@@ -402,10 +464,10 @@ func (s *Server) checkRoles(ctx context.Context, event mention, roles command.Ro
 }
 
 // assign gives somebody a role on this check, and records it in the issue.
-func (s *Server) assign(ctx context.Context, event mention, parsed command.Command) string {
+func (s *Server) assign(ctx context.Context, event mention, parsed command.Command) answered {
 	handle, role, team, err := command.ParseAssignment(parsed.Args)
 	if reply, ok := s.roleCommand(event, err); !ok {
-		return reply
+		return said(reply)
 	}
 	// An editor may name the team themselves, in either direction; the bot
 	// works it out from the check when they do not. Refused here rather than
@@ -416,7 +478,7 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 		// there, after the role had been recorded.
 		canonical, ok := s.Settings.ManagedTeam(team)
 		if !ok {
-			return command.UnmanagedTeamReply(team, s.Settings.ManagedTeams())
+			return said(command.UnmanagedTeamReply(team, s.Settings.ManagedTeams()))
 		}
 		team = canonical
 	}
@@ -424,8 +486,8 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	// A role a check gives out may still need the person to be something
 	// already: only an editor can be the handling editor.
 	if required, needs := role.Requires(); needs && !s.Teams.Has(ctx, s.team(required), handle) {
-		return fmt.Sprintf("`@%s` is not one of the %s, so I cannot make them the %s of this check.\n",
-			handle, required.Description(), role)
+		return said(fmt.Sprintf("`@%s` is not one of the %s, so I cannot make them the %s of this check.\n",
+			handle, required.Description(), role))
 	}
 
 	// Somebody outside the organisation cannot hold a role on a check, and
@@ -434,7 +496,14 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	// the role and touches no team; see Server.membership.
 	inside, known := s.membership(ctx, handle)
 	if known && !inside {
-		return s.outsideReply(ctx, event, handle, role, team)
+		// Where they will end up, worked out once: the reply promises it and
+		// the record carries it. The ask carries that record, so that the
+		// nightly sweep can finish the job once they have joined.
+		destination := s.destination(ctx, event, role, team)
+		return answered{
+			body:   s.outsideReply(ctx, handle, role, destination),
+			follow: s.outstanding(event, handle, role, destination),
+		}
 	}
 
 	replaced := ""
@@ -449,12 +518,12 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 		// nothing to do: an editor re-running the command to move somebody
 		// into another team means the team, and saying "already" and stopping
 		// would silently ignore what they asked for.
-		return withTeam(fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role),
-			s.teamNote(ctx, event, handle, role, team, inside))
+		return said(withTeam(fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role),
+			s.teamNote(ctx, event, handle, role, team, inside)))
 	case errors.Is(err, people.ErrTampered):
-		return tamperedReply(err)
+		return said(tamperedReply(err))
 	case err != nil:
-		return fmt.Sprintf("%s\n", err)
+		return said(fmt.Sprintf("%s\n", err))
 	}
 
 	// The assigned codechecker is also the issue's assignee, so that the role
@@ -463,8 +532,8 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	if role == command.RoleAssignedCodechecker {
 		assigned = s.assignee(ctx, event, handle, replaced)
 	}
-	return withTeam(command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now()),
-		s.teamNote(ctx, event, handle, role, team, inside))
+	return said(withTeam(command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now()),
+		s.teamNote(ctx, event, handle, role, team, inside)))
 }
 
 // remove takes a role away again.
@@ -1145,6 +1214,12 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	writeJSON(w, state)
+}
+
+// writeJSON is how the read-only endpoints answer: indented, because a person
+// with curl is who reads them.
+func writeJSON(w http.ResponseWriter, state map[string]any) {
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
@@ -1178,6 +1253,7 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 	defer cancel()
 	// The body travels with the mention: a command may be followed by prose -
 	// an abstract, an availability statement - and the preview has to read the
-	// same comment a deployment would.
-	return server.answer(ctx, mention{Author: author, Body: body}, parsed), true
+	// same comment a deployment would. A preview posts nothing, so whatever
+	// the answer left outstanding is not written here either.
+	return server.answer(ctx, mention{Author: author, Body: body}, parsed).body, true
 }

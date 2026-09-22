@@ -304,7 +304,7 @@ func TestTheRecordHasTheDocumentedShape(t *testing.T) {
 	})
 	lines := strings.Split(body, "\n")
 
-	if !strings.HasPrefix(lines[0], marker) || !strings.HasSuffix(lines[0], markerEnd) {
+	if !strings.HasPrefix(lines[0], marker) || !strings.HasSuffix(lines[0], blockEnd) {
 		t.Errorf("the first line is not the record: %q", lines[0])
 	}
 	if !strings.HasPrefix(lines[1], signatureMarker) {

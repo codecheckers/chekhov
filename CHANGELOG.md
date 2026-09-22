@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-22
+
+### Added
+
+- Follow-up records: a reply that leaves something outstanding says so in a
+  signed block on its own comment, and a later walk of the register picks it
+  up. The bot has no database, so the state is the thread - and the record is
+  signed for the reason the roles record is, because a repository collaborator
+  can edit a bot comment and an edited record would send the sweep after
+  somebody else. `internal/followup` owns it and the handlers are keyed by
+  kind, so a new kind of follow-up is a handler rather than a change to the
+  walk (codecheckers/chekhov#48).
+- `@chekhovbot nudge` (editors) walks every open issue of the register, reads
+  the follow-up records and acts on them. The first kind is the invitation the
+  owners were asked for: still not a member after three days, and the owners
+  are asked again; a member now, and the bot does what the ask promised - the
+  team the check implies, the role, the issue's assignee - and says the row in
+  the codechecker list is still a person's job. A handler decides by looking at
+  the organisation rather than by bookkeeping, so a second sweep the same day
+  says nothing twice - and a role that went to somebody else while the
+  invitation was outstanding stays with them. The owners are asked at most
+  four times before the bot says so and goes quiet
+  (codecheckers/chekhov#48).
+- The same sweep runs nightly in the deployment itself, which needs no second
+  copy of the token, and `GET /nudges` reports what it has found: the process
+  start, the last three weeks of sweeps and when the next is due. It is
+  unauthenticated, so it counts problems rather than naming the people they
+  are about, except in development. The weekly **Nightly sweep** workflow reads
+  it without a credential and fails when no sweep has run in 36 hours and the
+  process is older than that - a timer cannot report its own death
+  (codecheckers/chekhov#48).
+
 ## [0.2.1] - 2026-09-22
 
 ### Fixed

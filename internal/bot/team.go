@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
 )
 
@@ -61,20 +63,18 @@ func (s *Server) membership(ctx context.Context, handle string) (inside, known b
 }
 
 // outsideReply asks the owners to invite somebody, for a caller that has
-// established they are not in the organisation.
-func (s *Server) outsideReply(ctx context.Context, event mention, handle string,
-	role command.Role, chosen string) string {
+// established they are not in the organisation. team is where they will end up
+// once they have, empty for a role that puts nobody in one.
+func (s *Server) outsideReply(ctx context.Context, handle string,
+	role command.Role, team string) string {
 	organisation := s.Settings.TeamOrganisation()
 	reader, ok := s.Replies.(Organisation)
 	if !ok || organisation == "" {
 		return ""
 	}
 
-	request := command.OutsideRequest{Handle: handle, Role: role, Organisation: organisation}
-	// Only a role that puts somebody in a team can promise one. An author is
-	// not a codechecker, and the handling editor is an editor already.
-	if role.Checks() {
-		request.Team = s.teamFor(ctx, event, chosen)
+	request := command.OutsideRequest{
+		Handle: handle, Role: role, Organisation: organisation, Team: team,
 	}
 	// A deployment may name who to ask instead of reading the organisation's
 	// owners. That reply is the one place the bot writes a plain @mention, so
@@ -150,10 +150,43 @@ func (s *Server) teamFor(ctx context.Context, event mention, chosen string) stri
 // is the owners' half.
 func (s *Server) teamNote(ctx context.Context, event mention, handle string,
 	role command.Role, chosen string, inside bool) string {
-	if !role.Checks() || !inside {
+	team := s.destination(ctx, event, role, chosen)
+	if team == "" || !inside {
 		return ""
 	}
-	return s.intoTheTeam(ctx, handle, s.teamFor(ctx, event, chosen))
+	return s.intoTheTeam(ctx, handle, team)
+}
+
+// destination is the team this role puts somebody in on this check, empty for
+// a role that puts them in none.
+//
+// One place, because the reply to an assignment promises a team, the record it
+// leaves behind carries one, and the sweep that finishes the job reads that
+// record: the three must not be able to disagree.
+func (s *Server) destination(ctx context.Context, event mention, role command.Role, chosen string) string {
+	if !role.Checks() {
+		return ""
+	}
+	return s.teamFor(ctx, event, chosen)
+}
+
+// outstanding is the record the ask to the owners leaves behind, so that the
+// nightly sweep can finish the job once the person has joined.
+//
+// Nil when there is nothing to chase with: without an issue there is nowhere
+// to write it, and without a signer nothing would trust it later.
+func (s *Server) outstanding(event mention, handle string, role command.Role, team string) *followup.Record {
+	if event.Issue <= 0 || !s.signer().Signs() {
+		return nil
+	}
+	return &followup.Record{
+		Kind:    followup.KindOrganisation,
+		Check:   event.check(),
+		Subject: handle,
+		Role:    string(role),
+		Team:    team,
+		Asked:   time.Now().UTC().Format(time.RFC3339),
+	}
 }
 
 // withTeam puts a note about the team under a reply, when there is one.

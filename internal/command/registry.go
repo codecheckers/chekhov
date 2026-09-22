@@ -112,6 +112,13 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    Nudge,
+		Summary: "Pick up what earlier replies left outstanding, across the register",
+		Usage:   "nudge",
+		Group:   GroupPeople,
+		Role:    RoleEditor,
+	},
+	{
 		Name:    SuggestCodecheckers,
 		Summary: "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
 		Usage:   "suggest codecheckers [<repository>|<DOI>|<certificate>]",

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
 )
 
@@ -24,14 +25,62 @@ type organisation struct {
 	// pending is somebody an owner invited through the team who has not
 	// accepted: GitHub answers 200 for them, and they are not in it.
 	pending map[string]bool
-	added   []string
-	addedTo []string
+	// thread is what the issue's comments are, as the sweep reads them, and
+	// issuesErr a register that will not answer at all.
+	thread    []github.Comment
+	issuesErr error
+	added     []string
+	addedTo   []string
+	// assigned and unassigned are what the issue's assignee was changed to
+	// and from, which is the other half of finishing an assignment.
+	assigned   []string
+	unassigned []string
+}
+
+func (o *organisation) Assign(_ context.Context, _ string, _ int, handle string) ([]string, error) {
+	o.assigned = append(o.assigned, handle)
+	return o.assigned, nil
+}
+
+func (o *organisation) Unassign(_ context.Context, _ string, _ int, handle string) error {
+	o.unassigned = append(o.unassigned, handle)
+	return nil
+}
+
+// Comments and OpenIssues make this a Reader too, which is what the sweep
+// walks the register with.
+func (o *organisation) Comments(_ context.Context, _ string, _ int) ([]github.Comment, error) {
+	return o.thread, o.issuesErr
+}
+
+func (o *organisation) OpenIssues(_ context.Context, _ string) ([]github.Issue, error) {
+	if o.issuesErr != nil {
+		return nil, o.issuesErr
+	}
+	return o.issues, nil
 }
 
 // labelled is the check's own labels, which decide which team a codechecker
 // belongs in.
 func (o *organisation) labelled(labels ...string) {
 	o.issues = []github.Issue{{Number: 1, Labels: labels}}
+}
+
+// Comment posts as the recorder does, and leaves the comment in the thread:
+// what the bot says on an issue is what a later sweep reads back, records and
+// all.
+func (o *organisation) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
+	id, err := o.recorder.Comment(ctx, repository, issue, body)
+	if err == nil {
+		o.thread = append(o.thread, github.Comment{ID: id, Author: "chekhovbot", Body: body})
+	}
+	return id, err
+}
+
+// onTheIssue is a comment already in the thread, for the sweep to find.
+func (o *organisation) onTheIssue(body string) {
+	o.thread = append(o.thread, github.Comment{ID: int64(len(o.thread) + 1),
+		Author: "chekhovbot", Body: body})
 }
 
 func (o *organisation) InOrganisation(_ context.Context, _, handle string) (bool, error) {
@@ -55,6 +104,22 @@ func (o *organisation) AddToTeam(_ context.Context, _, team, handle string) (str
 	return handle, nil
 }
 
+// acted runs one command the way a delivery does - through act, which defuses
+// the reply and then writes any record - and returns what was posted.
+func acted(t *testing.T, server *Server, body string) string {
+	t.Helper()
+	parsed, addressed := command.Parse(body)
+	if !addressed {
+		t.Fatalf("%q is not addressed to the bot", body)
+	}
+	server.act(mention{Repository: server.Settings.TargetRepository(), Issue: 1,
+		Author: "nuest", Body: body}, parsed)
+	if server.done != nil {
+		<-server.done
+	}
+	return server.Replies.(*organisation).last()
+}
+
 // organised is a bot whose reply path can read and change membership.
 func organised(t *testing.T) (*Server, *organisation) {
 	t.Helper()
@@ -66,6 +131,9 @@ func organised(t *testing.T) (*Server, *organisation) {
 		pending:     map[string]bool{},
 		owners:      []string{"an-owner", "another-owner"},
 	}
+	// One open issue, which is the check every test here is about. labelled
+	// replaces it when the labels matter.
+	replies.issues = []github.Issue{{Number: 1}}
 	server.Replies = replies
 	// The shipped development settings name who to ask instead of the
 	// organisation's owners, so that a test never notifies them. Cleared here
@@ -395,5 +463,83 @@ func TestReassigningToAnotherTeamStillChangesTheTeam(t *testing.T) {
 	}
 	if !strings.Contains(reply, "institutional-codecheckers") {
 		t.Errorf("the reply says nothing about the team that changed:\n%s", reply)
+	}
+}
+
+// The ask to the owners leaves a record behind, so that the nightly sweep can
+// finish the job once the person has joined. It has to survive `act`, which
+// defuses every reply - a marker written into a body would be escaped on the
+// way out, which is exactly the property this relies on.
+func TestTheAskToTheOwnersLeavesASignedRecord(t *testing.T) {
+	server, _ := organised(t)
+
+	posted := acted(t, server, "@chekhovbot assign @a-newcomer as codechecker")
+	record, err := followup.Parse(posted, "codecheckers/testing-dev-register#1", server.signer())
+	if err != nil {
+		t.Fatalf("the posted comment carries no usable record: %v\n%s", err, posted)
+	}
+	if record.Kind != followup.KindOrganisation || record.Subject != "a-newcomer" {
+		t.Errorf("record %+v", record)
+	}
+	if record.Team != "codecheckers" {
+		t.Errorf("the record does not say which team: %+v", record)
+	}
+	if record.Raised().IsZero() {
+		t.Error("the record does not say when it was raised, so nothing can be three days old")
+	}
+	// The reply a person reads is still under it.
+	if !strings.Contains(posted, "please invite `@a-newcomer`") {
+		t.Errorf("the reply is missing from the comment:\n%s", posted)
+	}
+}
+
+// An ordinary reply carries no record: there is nothing to chase, and a
+// marker on every comment would make the sweep's work meaningless.
+func TestAnOrdinaryReplyCarriesNoRecord(t *testing.T) {
+	server, _ := organised(t)
+
+	posted := acted(t, server, "@chekhovbot hello")
+	if _, err := followup.Parse(posted, "", server.signer()); err != followup.ErrNoRecord {
+		t.Errorf("an ordinary reply carries a record: %v\n%s", err, posted)
+	}
+}
+
+// The reply promises a team and the record carries one; they are worked out
+// once so that they cannot disagree - a sweep putting somebody somewhere the
+// reply did not promise would be worse than not sweeping at all.
+func TestTheRecordAndTheReplyAgreeOnTheTeam(t *testing.T) {
+	server, replies := organised(t)
+	replies.labelled("institution")
+
+	posted := acted(t, server, "@chekhovbot assign @a-newcomer as codechecker")
+
+	record, err := followup.Parse(posted, "codecheckers/testing-dev-register#1", server.signer())
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if record.Team != "institutional-codecheckers" {
+		t.Errorf("the record says %q", record.Team)
+	}
+	if !strings.Contains(posted, "codecheckers/institutional-codecheckers") {
+		t.Errorf("the reply promises a different team:\n%s", posted)
+	}
+}
+
+// A role that puts nobody in a team leaves a record with no team in it, and a
+// reply that promises none.
+func TestARecordForARoleWithNoTeamNamesNone(t *testing.T) {
+	server, _ := organised(t)
+
+	posted := acted(t, server, "@chekhovbot assign @an-author as author")
+
+	record, err := followup.Parse(posted, "codecheckers/testing-dev-register#1", server.signer())
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if record.Team != "" {
+		t.Errorf("an author's record names a team: %q", record.Team)
+	}
+	if strings.Contains(posted, "I put them in") {
+		t.Errorf("the reply promises a team for an author:\n%s", posted)
 	}
 }

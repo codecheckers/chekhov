@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/codecheckers/chekhov/internal/people"
 	"strings"
 )
 
@@ -44,6 +45,10 @@ type mention struct {
 	Author     string
 	Body       string
 }
+
+// check names the issue, the one way it is written everywhere: in a signed
+// record, in a problem the sweep reports, and in a log line.
+func (m mention) check() string { return people.CheckOf(m.Repository, m.Issue) }
 
 // parseEvent reads a delivery, and says whether it is one the bot acts on.
 //

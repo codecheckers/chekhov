@@ -43,7 +43,7 @@ only; the production register is not configured anywhere. See
 [`docs/deployment.md`](docs/deployment.md).
 
 ```bash
-go run ./cmd/chekhov serve                          # the bot: /dispatch and /healthz
+go run ./cmd/chekhov serve                          # the bot: /dispatch, /healthz, /nudges
 echo '@chekhovbot commands' | go run ./cmd/chekhov comment -   # the same answer, offline
 echo '@chekhovbot announce 1970-001' | go run ./cmd/chekhov comment --as nuest --online -  # an editor's preview
 ```

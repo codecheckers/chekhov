@@ -50,7 +50,7 @@ func answer(t *testing.T, server *Server, name command.Name, args []string, body
 	t.Helper()
 	return server.answer(context.Background(), mention{
 		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest", Body: body,
-	}, command.Command{Name: name, Args: args})
+	}, command.Command{Name: name, Args: args}).body
 }
 
 func TestCodecheckersPointsAtTheLists(t *testing.T) {
@@ -142,7 +142,7 @@ func TestSuggestSaysWhatItCouldNotCheck(t *testing.T) {
 	// No issue: the command line preview, where this check's roles and the
 	// register's open issues are both out of reach.
 	reply := server.answer(context.Background(), mention{Author: "nuest"},
-		command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers", "codecheckers/demo"}})
+		command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers", "codecheckers/demo"}}).body
 	if !strings.Contains(reply, "No check here") {
 		t.Errorf("the reply does not say which exclusions it could not apply:\n%s", reply)
 	}
@@ -175,7 +175,7 @@ func TestSuggestIsForEditors(t *testing.T) {
 
 	reply := server.answer(context.Background(), mention{
 		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger",
-	}, command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers"}})
+	}, command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers"}}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a stranger was answered:\n%s", reply)
 	}

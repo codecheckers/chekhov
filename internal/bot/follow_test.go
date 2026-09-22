@@ -33,7 +33,7 @@ func followServer(t *testing.T) (*Server, *fakeToots) {
 func followAs(server *Server, author string, args ...string) string {
 	return server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: author},
-		command.Command{Name: command.Follow, Args: args})
+		command.Command{Name: command.Follow, Args: args}).body
 }
 
 func TestFollowPreviewActsOnNothingWhenDisabled(t *testing.T) {

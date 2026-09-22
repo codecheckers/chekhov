@@ -315,14 +315,14 @@ func TestTheRequestToTheOwnersIsBoundedAndDoesNotInviteARetry(t *testing.T) {
 	if notified != mostOwnersMentioned {
 		t.Errorf("%d owners notified, want at most %d:\n%s", notified, mostOwnersMentioned, reply)
 	}
-	// Running it again is the only way forward until the nightly nudge exists,
-	// so the reply says so - and says when, because running it before they
-	// have accepted asks the owners twice for the same person.
-	if !strings.Contains(reply, "Once they have accepted") {
-		t.Errorf("the reply does not say when to run it again:\n%s", reply)
+	// Nobody has to come back to the thread: the nightly sweep finishes this
+	// once they have joined, and the reply says so rather than asking for a
+	// retry that would notify every owner again.
+	if !strings.Contains(reply, "check every night") {
+		t.Errorf("the reply does not say that it follows this up itself:\n%s", reply)
 	}
-	if !strings.Contains(reply, "asks the owners twice") {
-		t.Errorf("the reply does not say what an early retry costs:\n%s", reply)
+	if !strings.Contains(reply, "asks the owners again if they still have not") {
+		t.Errorf("the reply does not say what running it early comes to:\n%s", reply)
 	}
 	// The subject is discussed, not summoned.
 	if !strings.Contains(reply, "`@a-newcomer`") {
