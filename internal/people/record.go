@@ -109,6 +109,7 @@ func (r Record) Holders() command.Holders {
 		HandlingEditor:      r.HandlingEditor,
 		AssignedCodechecker: r.AssignedCodechecker,
 		Authors:             append([]string(nil), r.Authors...),
+		Certificate:         r.Certificate,
 	}
 }
 
@@ -227,7 +228,6 @@ func (c content) Comment() string {
 	body.WriteString(recordBlock.Line(c.Signature))
 	body.WriteString("\n")
 	body.WriteString(command.RolesTable(c.Roles.Holders()))
-	body.WriteString(command.CertificateLine(c.Roles.Certificate))
 	body.WriteString(command.RecordNote(c.AcceptedBy, c.AcceptedAt, c.Signature != ""))
 	return body.String()
 }

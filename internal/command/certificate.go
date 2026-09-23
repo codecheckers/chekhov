@@ -150,7 +150,8 @@ func RuleNote(symbol, id, description string) string {
 	return fmt.Sprintf("\n%s `%s`: %s\n", symbol, id, description)
 }
 
-// CertificateLine shows the identifier in the record comment, under the roles.
+// CertificateLine shows the identifier under the roles table, wherever that
+// table is shown: the record comment, the `roles` reply and an adoption.
 func CertificateLine(id string) string {
 	if id == "" {
 		return ""

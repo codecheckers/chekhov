@@ -538,6 +538,11 @@ type Holders struct {
 	HandlingEditor      string
 	AssignedCodechecker string
 	Authors             []string
+	// Certificate is the identifier this check has reserved, empty when it
+	// has none. Not a role, but part of the same record and shown by the same
+	// renderer: `roles` used to leave it out while the record comment carried
+	// it, which is the drift RolesTable exists to prevent.
+	Certificate string
 }
 
 // Teams are the teams the standing roles come from, for a reply that says
@@ -638,6 +643,7 @@ func RolesTable(holders Holders) string {
 	fmt.Fprintf(&table, "| %s | %s |\n", RoleHandlingEditor, mention(holders.HandlingEditor))
 	fmt.Fprintf(&table, "| %s | %s |\n", RoleAssignedCodechecker, mention(holders.AssignedCodechecker))
 	fmt.Fprintf(&table, "| %s | %s |\n", RoleAuthor, mentions(holders.Authors))
+	table.WriteString(CertificateLine(holders.Certificate))
 	return table.String()
 }
 

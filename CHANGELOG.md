@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-23
+
+### Changed
+
+- `roles` shows the certificate identifier of the check, as the record comment
+  already did: the identifier is part of the record, and every reading of the
+  record now goes through the one renderer, so an editor who runs `roles`
+  after `set certificate` is shown what they reserved (codecheckers/chekhov#20).
+
 ## [0.9.0] - 2026-09-23
 
 ### Added
