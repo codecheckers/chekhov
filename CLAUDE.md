@@ -38,6 +38,26 @@ Below that line, review anyway when the change:
 `/code-review ultra` (the multi-agent cloud review) is yours to trigger, not
 mine; the ordinary `/code-review` is the one that belongs in this loop.
 
+**Merging a worktree branch: cherry-pick it, do not rebase it.** Work on an
+issue often happens in a `.claude/worktrees/` copy driven by another session,
+and that session still has the branch checked out. Rebasing it rewrites the
+branch under somebody else's working tree; `git cherry-pick <sha>` onto main
+gives the same linear history, leaves their branch alone - behind main, theirs
+to delete or reset - and keeps the original author and message. Wait until the
+other session says the branch is finished: staged-but-uncommitted work is not
+a branch to merge, because that session follows the rule above and its user
+does the committing.
+
+Two things conflict every time, and both resolve the same way:
+`internal/build.Version` and the `CHANGELOG.md` heading. The branch was
+numbered against the main it left, so the number it wrote is stale: give it
+**the next number in sequence from current main**, of the size its own change
+earns - see The version - and move its changelog section to match, leaving the
+entry text as its author wrote it. Merge a patch before a minor when both are
+waiting, or the patch has no number left to take. Build, vet, gofmt and the
+suite run before each `cherry-pick --continue`, not only at the end, so a bad
+resolution is caught on the commit that caused it.
+
 **Issues and comments: draft first, in the session.** Put the full text of an
 issue - title, labels, body - in the reply, not only in a scratchpad file, and
 wait for the go-ahead before `gh issue create`. The wording is reviewed before
@@ -578,6 +598,7 @@ internal/bot/       the listener: webhook, signature, dispatch, /healthz
 internal/github/    the reply path: the one place that writes to GitHub
 internal/people/    who holds a role: the teams cache, and the per-check record
 internal/mastodon/  the one place that writes to Mastodon
+internal/httpretry/ the one retry: two tries, the backoff, rate limits, for both writers
 internal/announce/  the toot about a certificate: data, mentions, length, the GIF
 internal/suggest/   finding a codechecker: the lists, the evidence, the ranking
 internal/testserver/ the offline stub server and its local-only client, for tests

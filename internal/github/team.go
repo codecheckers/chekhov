@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/codecheckers/chekhov/internal/httpretry"
 )
 
 // Adding somebody to a team, and nothing else.
@@ -103,7 +105,7 @@ func (c *Client) resolveUser(ctx context.Context, handle string) (string, error)
 		return json.Unmarshal(raw, &account)
 	})
 	switch {
-	case isStatus(err, http.StatusNotFound):
+	case httpretry.IsStatus(err, http.StatusNotFound):
 		return "", fmt.Errorf("there is no GitHub account `@%s`: %w", handle, ErrNotAUser)
 	case err != nil:
 		return "", fmt.Errorf("could not look up `@%s`: %w", handle, err)
@@ -165,10 +167,10 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 		return json.Unmarshal(raw, &answered)
 	})
 	switch {
-	case isStatus(err, http.StatusForbidden), isStatus(err, http.StatusUnauthorized):
+	case httpretry.IsStatus(err, http.StatusForbidden), httpretry.IsStatus(err, http.StatusUnauthorized):
 		return login, fmt.Errorf("%w, so I cannot add `@%s` to %s/%s",
 			ErrNotPermitted, login, organisation, team)
-	case isStatus(err, http.StatusUnprocessableEntity):
+	case httpretry.IsStatus(err, http.StatusUnprocessableEntity):
 		return login, fmt.Errorf("GitHub refused to put `@%s` in %s/%s, "+
 			"which is what it answers for an account that cannot be in a team: %w",
 			login, organisation, team, ErrNotAUser)
@@ -223,11 +225,11 @@ func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle 
 			return json.Unmarshal(raw, &membership)
 		})
 	switch {
-	case isStatus(err, http.StatusNotFound):
+	case httpretry.IsStatus(err, http.StatusNotFound):
 		// Not a failure: GitHub answers 404 for somebody who is not in the
 		// team, which is the answer that was asked for.
 		return false, false, nil
-	case isStatus(err, http.StatusForbidden), isStatus(err, http.StatusUnauthorized):
+	case httpretry.IsStatus(err, http.StatusForbidden), httpretry.IsStatus(err, http.StatusUnauthorized):
 		return false, false, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s",
 			ErrNotPermitted, handle, organisation, team)
 	case err != nil:
@@ -315,7 +317,7 @@ func (c *Client) InOrganisation(ctx context.Context, organisation, handle string
 	switch {
 	case err == nil:
 		return true, nil
-	case isStatus(err, http.StatusNotFound):
+	case httpretry.IsStatus(err, http.StatusNotFound):
 		// 404 is how GitHub says "not a member", and is the answer rather
 		// than a failure.
 		return false, nil

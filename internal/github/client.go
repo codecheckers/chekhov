@@ -1,9 +1,10 @@
 // Package github posts what the bot has to say.
 //
-// It is the one place that writes to GitHub. Rate limiting, truncation and the
-// question "did this actually post" are answered here rather than once per
-// command, and so is the rule that the bot writes to one repository and no
-// other.
+// It is the one place that writes to GitHub. Truncation and the question "did
+// this actually post" are answered here rather than once per command, and so
+// is the rule that the bot writes to one repository and no other. The retry is
+// internal/httpretry's, shared with Mastodon; which 403 is a rate limit is
+// decided here.
 //
 // Reading is elsewhere: internal/check talks to the API too, but only to ask
 // questions, and caches the answers for a run.
@@ -13,15 +14,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/codecheckers/chekhov/internal/httpretry"
 )
 
 // MaxCommentLength is GitHub's limit on the body of an issue comment.
@@ -189,47 +190,24 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]
 	c.noteTokenExpiry(response)
 	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, &statusError{
-			Status:      response.StatusCode,
-			Body:        strings.TrimSpace(string(raw)),
-			RetryAfter:  retryAfter(response),
-			RateLimited: rateLimitExhausted(response),
-			Reset:       rateLimitReset(response),
-		}
+		return nil, httpretry.FromResponse("GitHub", response, raw)
 	}
 	return raw, nil
-}
-
-// isStatus reports whether an error from do is a particular HTTP status. Here
-// rather than beside its first caller, so that the next one does not write a
-// second errors.As of its own.
-func isStatus(err error, status int) bool {
-	var failure *statusError
-	return errors.As(err, &failure) && failure.Status == status
 }
 
 // attempt runs a request twice at most, waiting as GitHub asks between the
 // two. A request lost to a hiccup is a codechecker waiting for an answer that
 // never comes; a permission refusal is not retried, because it will not change.
 func (c *Client) attempt(ctx context.Context, what string, request func() error) error {
-	var lastErr error
-	for try := range 2 {
-		if try > 0 {
-			if err := wait(ctx, c.backoff(lastErr)); err != nil {
-				return err
-			}
-		}
-		if err := request(); err == nil {
-			return nil
-		} else {
-			lastErr = err
-		}
-		c.Logger.Warn(what+" failed", "attempt", try+1, "error", lastErr)
-		if !retryable(lastErr) {
-			break
-		}
+	policy := httpretry.Policy{
+		Wait:                c.RetryWait,
+		Logger:              c.Logger,
+		BodySaysRateLimited: bodySaysRateLimited,
+		// A reply posted twice is a smaller sin than a codechecker never
+		// answered.
+		RetryTimeouts: true,
 	}
-	return lastErr
+	return policy.Do(ctx, what, request)
 }
 
 // compose puts the signature under the reply and keeps the whole within
@@ -295,121 +273,16 @@ func (c *Client) noteTokenExpiry(response *http.Response) {
 	}
 }
 
-// statusError is a request GitHub refused.
-type statusError struct {
-	Status     int
-	Body       string
-	RetryAfter time.Duration
-	// RateLimited and Reset come from the x-ratelimit headers: GitHub answers
-	// 403 both for "you have run out of requests" and for "this token may not
-	// do that", and the headers are how it says which.
-	RateLimited bool
-	Reset       time.Time
-}
-
-func (e *statusError) Error() string {
-	body := e.Body
-	if len(body) > 200 {
-		body = body[:200] + "..."
-	}
-	return fmt.Sprintf("GitHub answered %d: %s", e.Status, body)
-}
-
-// retryable says whether trying again could work. A refusal - the token is
-// wrong, the issue is locked - will be refused again.
-func retryable(err error) bool {
-	var status *statusError
-	if !errors.As(err, &status) {
-		return true // a connection that failed may succeed
-	}
-	switch {
-	case status.Status == http.StatusTooManyRequests:
-		return true
-	case status.Status == http.StatusForbidden:
-		// GitHub answers 403 both for "not now" and for "not ever", and the
-		// difference is in the body: the secondary rate limit says so, while a
-		// token without the right permission will say the same thing however
-		// often it is asked.
-		return status.rateLimited()
-	case status.Status >= 500:
-		return true
-	default:
-		return false
-	}
-}
-
-// rateLimited reports whether a refusal is a rate limit rather than a
-// permission. Observed in the live deployment: a token lacking Issues: write
-// answers 403 "Resource not accessible by personal access token", which was
-// retried once for nothing.
+// bodySaysRateLimited reads a 403 whose rate-limit headers are silent. GitHub
+// answers 403 both for "not now" and for "not ever": the secondary rate limit
+// says so only in the body, while a token without the right permission says
+// the same thing however often it is asked. Observed in the live deployment: a
+// token lacking Issues: write answers 403 "Resource not accessible by personal
+// access token", which was retried once for nothing.
 //
-// The headers decide it. GitHub owns the wording of its messages and has
-// changed it before, so the body is only consulted when the headers say
-// nothing.
-func (e *statusError) rateLimited() bool {
-	if e.RetryAfter > 0 || e.RateLimited {
-		return true
-	}
-	body := strings.ToLower(e.Body)
+// The headers are consulted first, in httpretry: GitHub owns the wording of
+// its messages and has changed it before.
+func bodySaysRateLimited(body string) bool {
+	body = strings.ToLower(body)
 	return strings.Contains(body, "rate limit") || strings.Contains(body, "abuse")
-}
-
-// backoff is how long to wait before the retry, honouring Retry-After when
-// GitHub sends one.
-func (c *Client) backoff(err error) time.Duration {
-	var status *statusError
-	if !errors.As(err, &status) {
-		return c.RetryWait
-	}
-	if status.RetryAfter > 0 {
-		return status.RetryAfter
-	}
-	// The primary rate limit says when it refills instead of how long to wait.
-	// Waiting for it is only sensible when it is close; an hour from now, the
-	// caller is better told that the answer did not go out.
-	if until := time.Until(status.Reset); until > 0 && until <= maxRateLimitWait {
-		return until
-	}
-	return c.RetryWait
-}
-
-// maxRateLimitWait is how long a retry may wait for the rate limit to refill.
-const maxRateLimitWait = 2 * time.Minute
-
-// rateLimitExhausted reports whether GitHub said the budget is used up.
-func rateLimitExhausted(response *http.Response) bool {
-	remaining := strings.TrimSpace(response.Header.Get("x-ratelimit-remaining"))
-	return remaining == "0"
-}
-
-// rateLimitReset is when the budget refills, zero when GitHub did not say.
-func rateLimitReset(response *http.Response) time.Time {
-	value := strings.TrimSpace(response.Header.Get("x-ratelimit-reset"))
-	seconds, err := strconv.ParseInt(value, 10, 64)
-	if err != nil || seconds <= 0 {
-		return time.Time{}
-	}
-	return time.Unix(seconds, 0)
-}
-
-func retryAfter(response *http.Response) time.Duration {
-	value := response.Header.Get("Retry-After")
-	if value == "" {
-		return 0
-	}
-	if seconds, err := strconv.Atoi(strings.TrimSpace(value)); err == nil && seconds > 0 {
-		return time.Duration(seconds) * time.Second
-	}
-	return 0
-}
-
-func wait(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
 }

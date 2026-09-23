@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-23
+
+### Fixed
+
+- A reply that GitHub answers with a server error close to the hourly
+  rate-limit reset is retried after the usual pause, instead of waiting for the
+  reset (codecheckers/chekhov#33).
+- A Mastodon request refused with a 403 that says when to try again is retried
+  once, the way GitHub's already were (codecheckers/chekhov#33).
+- When GitHub or Mastodon asks for a pause of more than two minutes, the reply
+  says at once that the request did not go out, rather than falling silent
+  until the pause is over (codecheckers/chekhov#33).
+
 ## [0.4.0] - 2026-09-23
 
 ### Added

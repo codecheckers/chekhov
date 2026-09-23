@@ -2,8 +2,8 @@
 //
 // It is the one place that writes to Mastodon, in the same shape as
 // internal/github: the rule that a development deployment posts nothing
-// public, the retry, and the question "did this actually post" are answered
-// here rather than once per caller.
+// public and the question "did this actually post" are answered here rather
+// than once per caller. The retry is internal/httpretry's, shared with GitHub.
 package mastodon
 
 import (
@@ -17,9 +17,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/codecheckers/chekhov/internal/httpretry"
 )
 
 // Client posts statuses as one account.
@@ -191,7 +192,7 @@ func (c *Client) awaitMedia(ctx context.Context, id string) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("media %s was still processing after %s", id, c.MediaWait)
 		}
-		if err := wait(ctx, c.RetryWait); err != nil {
+		if err := httpretry.Wait(ctx, c.RetryWait); err != nil {
 			return err
 		}
 	}
@@ -475,23 +476,11 @@ func (c *Client) RemoveCollectionItem(ctx context.Context, collectionID, itemID 
 // withRetry runs a write once more after a failure that may pass: a dropped
 // connection, a 5xx, a rate limit. A refusal - 401, 403, 422 - is final.
 func (c *Client) withRetry(ctx context.Context, what string, attempt func() error) error {
-	var lastErr error
-	for try := range 2 {
-		if try > 0 {
-			if err := wait(ctx, c.backoff(lastErr)); err != nil {
-				return err
-			}
-		}
-		lastErr = attempt()
-		if lastErr == nil {
-			return nil
-		}
-		c.Logger.Warn(what+" failed", "attempt", try+1, "error", lastErr)
-		if !retryable(lastErr) {
-			break
-		}
+	policy := httpretry.Policy{Wait: c.RetryWait, Logger: c.Logger}
+	if err := policy.Do(ctx, what, attempt); err != nil {
+		return fmt.Errorf("%s: %w", what, err)
 	}
-	return fmt.Errorf("%s: %w", what, lastErr)
+	return nil
 }
 
 // do sends one request and decodes a 2xx answer into `into`, when given.
@@ -523,11 +512,7 @@ func (c *Client) do(ctx context.Context, method, path string, header http.Header
 
 	raw, _ := io.ReadAll(io.LimitReader(response.Body, 4<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return response.StatusCode, &StatusError{
-			Status: response.StatusCode,
-			Body:   strings.TrimSpace(string(raw)),
-			Reset:  rateLimitReset(response),
-		}
+		return response.StatusCode, httpretry.FromResponse("Mastodon", response, raw)
 	}
 	if into != nil && response.StatusCode != http.StatusPartialContent && len(raw) > 0 {
 		if err := json.Unmarshal(raw, into); err != nil {
@@ -538,67 +523,4 @@ func (c *Client) do(ctx context.Context, method, path string, header http.Header
 }
 
 // StatusError is a request the instance refused.
-type StatusError struct {
-	Status int
-	Body   string
-	// Reset is when a rate limit refills, from X-RateLimit-Reset.
-	Reset time.Time
-}
-
-func (e *StatusError) Error() string {
-	body := e.Body
-	if len(body) > 200 {
-		body = body[:200] + "..."
-	}
-	return fmt.Sprintf("Mastodon answered %d: %s", e.Status, body)
-}
-
-func retryable(err error) bool {
-	var status *StatusError
-	if !errors.As(err, &status) {
-		// A context that ended will not come back; a connection that failed may.
-		return !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded)
-	}
-	return status.Status == http.StatusTooManyRequests || status.Status >= 500
-}
-
-// maxRateLimitWait is how long a retry may wait for a rate limit to refill.
-// Longer than that, the editor is better told that the toot did not go out.
-const maxRateLimitWait = 2 * time.Minute
-
-func (c *Client) backoff(err error) time.Duration {
-	var status *StatusError
-	if errors.As(err, &status) && status.Status == http.StatusTooManyRequests {
-		if until := time.Until(status.Reset); until > 0 && until <= maxRateLimitWait {
-			return until
-		}
-	}
-	return c.RetryWait
-}
-
-// rateLimitReset reads X-RateLimit-Reset, which Mastodon writes as a
-// timestamp.
-func rateLimitReset(response *http.Response) time.Time {
-	value := strings.TrimSpace(response.Header.Get("X-RateLimit-Reset"))
-	if value == "" {
-		return time.Time{}
-	}
-	if when, err := time.Parse(time.RFC3339Nano, value); err == nil {
-		return when
-	}
-	if seconds, err := strconv.ParseInt(value, 10, 64); err == nil && seconds > 0 {
-		return time.Unix(seconds, 0)
-	}
-	return time.Time{}
-}
-
-func wait(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-timer.C:
-		return nil
-	}
-}
+type StatusError = httpretry.StatusError
