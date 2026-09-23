@@ -187,12 +187,32 @@ Check with `ls .git/objects/pack/`: a `multi-pack-index` file is the symptom.
 ```sh
 git multi-pack-index expire --object-dir=.git/objects   # drop the index
 git repack -ad                                          # one pack again
+git commit-graph write --reachable                      # forget what the repack dropped
 git maintenance unregister                              # and stop it coming back
 ```
 
+The repack drops commits nothing reaches any more - a deleted branch, say - and
+the commit-graph still lists them, which `git fsck` reports as a commit it
+cannot read; rewriting the graph from what is reachable clears that. If
+`unregister` answers with exit 5, the repository was never registered with
+`git maintenance`, and the index came from elsewhere: with a `.git/gk`
+directory present, that is GitKraken, and it will write the index again until
+its background maintenance is switched off for this repository.
+
 Deploying from a fresh clone works too, and is the quicker way out when a
 deployment is waiting, but it is a second checkout to keep in step - prefer
-repacking the one you work in.
+repacking the one you work in. The clone needs `--no-local`, or it hardlinks
+the same packs, and the `runway` remote, which is how the CLI knows the app:
+
+```sh
+git clone --no-local --branch main . ../chekhov-deploy
+git -C ../chekhov-deploy remote add runway ssh://git@deploy.runway.horse:2222/chekhov.git
+cd ../chekhov-deploy && runway app deploy source -y
+```
+
+Put it under your home directory, not `/tmp`: the CLI is a snap, a snap has a
+`/tmp` of its own, and a clone there answers "Deployments are only possible
+from a git repo".
 
 ## The webhook
 
@@ -339,6 +359,23 @@ the reply path writes to, so in production the trace is as public as the
 register. It covers a panic and nothing else: a kill from the memory limit
 above ends the process before any of this runs. See
 [chekhov#38](https://github.com/codecheckers/chekhov/issues/38).
+
+The trace itself is **development's alone**: in production the target
+repository is the public register, and a trace names the build's paths, its
+packages and its line numbers, so the report there carries the panic value -
+which is what a command was given, and already on the issue - and says the
+trace is in the log. Every other fact about the machine is reported the same
+way; see `/healthz` above.
+
+The nightly sweep, the team load at startup and the goroutines a command asks
+Mastodon on are reported there too. A panic in
+any of them would otherwise end the process: they are goroutines of their own,
+which the guard around a command cannot reach. The first two run for the timer
+rather than for somebody, so the admin issue is the only place anyone hears of
+them, and a failed sweep is counted by `/nudges` like any other - a sweep that
+keeps panicking shows up as well as one that has stopped. The third is a
+command's own, so the person who asked is told that step failed. See
+[chekhov#50](https://github.com/codecheckers/chekhov/issues/50).
 
 ## Redeploying
 
