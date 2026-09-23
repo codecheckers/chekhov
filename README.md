@@ -37,7 +37,9 @@ to read it from. Editors can announce a published certificate on Mastodon with
 the toot is a direct message with every mention defused. `@chekhovbot
 codecheckers` says where the codechecker lists are, and an editor can ask
 `@chekhovbot suggest codecheckers` for candidates, named without notifying
-them. It runs against
+them. `@chekhovbot next certificate` says which certificate identifier comes
+next, and `@chekhovbot set certificate` reserves it for the check. It runs
+against
 [`codecheckers/testing-dev-register`](https://github.com/codecheckers/testing-dev-register)
 only; the production register is not configured anywhere. See
 [`docs/deployment.md`](docs/deployment.md).

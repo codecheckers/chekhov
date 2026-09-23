@@ -3,7 +3,9 @@
 The per-check roles — handling editor, assigned codechecker, authors — live in
 a comment the bot posted on the checks issue, because the bot has no storage
 but the issues themselves. See [`../CLAUDE.md`](../CLAUDE.md) and
-codecheckers/chekhov#18.
+codecheckers/chekhov#18. The certificate identifier `set certificate` reserves
+lives there too, as `"certificate":"YYYY-NNN"` inside `roles`, and a
+`**Certificate**` line under the table (codecheckers/chekhov#20).
 
 A comment by the bot cannot be edited by somebody without write access to the
 repository. It **can** be edited by anyone who has it, and GitHub keeps the bot

@@ -43,6 +43,11 @@ type Client struct {
 	// is then refused rather than aimed somewhere else. See team.go.
 	Organisation string
 	ManagedTeams []string
+	// AddableLabels and RemovableLabels are the only labels this client will
+	// put on an issue or take off one, by name. Empty unless a deployment says
+	// otherwise, and then the change is refused. See AddLabel.
+	AddableLabels   []string
+	RemovableLabels []string
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string

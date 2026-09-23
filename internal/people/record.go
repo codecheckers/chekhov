@@ -52,7 +52,8 @@ const marker = "<!-- chekhov:roles "
 // block.go.
 var rolesBlock = Block{Marker: marker, Name: "roles record"}
 
-// A Record is who holds which per-check role on one issue.
+// A Record is who holds which per-check role on one issue, and the
+// certificate identifier the check was given.
 //
 // Handles are stored lowercased and without the @, as internal/people compares
 // them everywhere.
@@ -60,6 +61,12 @@ type Record struct {
 	HandlingEditor      string   `json:"handling_editor,omitempty"`
 	AssignedCodechecker string   `json:"assigned_codechecker,omitempty"`
 	Authors             []string `json:"authors,omitempty"`
+	// Certificate is the identifier `set certificate` reserved, YYYY-NNN. It
+	// lives here rather than in a record of its own so that it shares the
+	// lock, the signature and the tamper check the roles have; the title
+	// and the `id assigned` label repeat it where people and the launch-pad
+	// look, and anybody can edit those.
+	Certificate string `json:"certificate,omitempty"`
 }
 
 // RolesOf is what one person is on this check.
@@ -211,6 +218,7 @@ func (c content) Comment() string {
 	body.WriteString(rolesBlock.Line(c.Signature))
 	body.WriteString("\n")
 	body.WriteString(command.RolesTable(c.Roles.Holders()))
+	body.WriteString(command.CertificateLine(c.Roles.Certificate))
 	body.WriteString(command.RecordNote(c.AcceptedBy, c.AcceptedAt, c.Signature != ""))
 	return body.String()
 }

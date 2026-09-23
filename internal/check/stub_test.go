@@ -468,18 +468,32 @@ var stubCases = []stubCase{
 		detail: "appears 2 times",
 	},
 	{
-		name:          "the certificate number leaves a gap in the year",
+		name:          "the certificate number jumps too far past the year's previous one",
 		rule:          "CC-REG-002",
-		configuration: with("certificate", "certificate: 2026-009"),
+		configuration: with("certificate", "certificate: 2026-012"),
 		routes: func(s *stub) {
 			s.serveEverythingWell()
-			// The register stops at 2026-002, so 2026-009 skips seven numbers.
+			// The register stops at 2026-002, so 2026-012 jumps ten.
 			s.register("Certificate,Repository,Type,Venue,Issue\n"+
 				"2026-001,github::codecheckers/demo,journal,GigaScience,41\n"+
 				"2026-002,github::codecheckers/demo,journal,GigaScience,42\n", venuesRow)
 		},
 		want:   OutcomeError,
-		detail: "leaves a gap",
+		detail: "more than 9 past the year's previous identifier (after 2026-002)",
+	},
+	{
+		name:          "a gap left by abandoned checks is not a jump",
+		rule:          "CC-REG-002",
+		configuration: with("certificate", "certificate: 2026-011"),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			// Nine past 2026-002, the most the R package allows too.
+			s.register("Certificate,Repository,Type,Venue,Issue\n"+
+				"2026-001,github::codecheckers/demo,journal,GigaScience,41\n"+
+				"2026-002,github::codecheckers/demo,journal,GigaScience,42\n", venuesRow)
+		},
+		want:   OutcomeOK,
+		detail: "follows 2026-002",
 	},
 	{
 		name: "the Repository column has no known prefix",

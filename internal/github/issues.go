@@ -61,13 +61,24 @@ func (c *Client) Issue(ctx context.Context, repository string, issue int) (Issue
 // requests left out: a pull request is not a check, and GitHub serves both
 // from this endpoint.
 func (c *Client) OpenIssues(ctx context.Context, repository string) ([]Issue, error) {
+	return c.issues(ctx, repository, "open")
+}
+
+// AllIssues returns every issue of the configured repository, open and
+// closed, pull requests left out. A closed check still holds its certificate
+// identifier: an abandoned one leaves its number unused, never free.
+func (c *Client) AllIssues(ctx context.Context, repository string) ([]Issue, error) {
+	return c.issues(ctx, repository, "all")
+}
+
+func (c *Client) issues(ctx context.Context, repository, state string) ([]Issue, error) {
 	if err := c.mine(repository, "read the issues"); err != nil {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s/repos/%s/issues?state=open&per_page=%d",
-		strings.TrimSuffix(c.BaseURL, "/"), repository, issuesPerPage)
-	what := "reading the open issues of " + repository
+	url := fmt.Sprintf("%s/repos/%s/issues?state=%s&per_page=%d",
+		strings.TrimSuffix(c.BaseURL, "/"), repository, state, issuesPerPage)
+	what := fmt.Sprintf("reading the %s issues of %s", state, repository)
 
 	var issues []Issue
 	err := paged(ctx, c, what, url, issuesPerPage, func(batch []wireIssue) {
@@ -78,7 +89,7 @@ func (c *Client) OpenIssues(ctx context.Context, repository string) ([]Issue, er
 		}
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not read the open issues of %s: %w", repository, err)
+		return nil, fmt.Errorf("could not read the %s issues of %s: %w", state, repository, err)
 	}
 	return issues, nil
 }

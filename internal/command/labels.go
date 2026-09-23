@@ -25,7 +25,9 @@ import (
 //     an institutional codechecker may well take an ordinary check. What must
 //     not happen is that nobody notices. See codecheckers/chekhov#40.
 //   - It never changes a label. A label nobody can justify from the issue is
-//     still one somebody may have put there for a reason.
+//     still one somebody may have put there for a reason. A command that
+//     changes one does it as its own act, and only for a label the settings
+//     list under labels.managed - `set certificate` adding `id assigned`.
 //   - Agreement is silence. A reply that ends "and the labels are fine" on
 //     every command is noise, and noise is how the useful line gets skipped.
 

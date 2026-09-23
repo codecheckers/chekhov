@@ -70,4 +70,88 @@ func TestTheCommentMethodsRefuseAnotherRepository(t *testing.T) {
 	if err := client.Unassign(ctx, "codecheckers/register", 1, "nuest"); err == nil {
 		t.Error("somebody was unassigned on another repository")
 	}
+	if err := client.AddLabel(ctx, "codecheckers/register", 1, "id assigned"); err == nil {
+		t.Error("an issue of another repository was labelled")
+	}
+	if err := client.SetTitle(ctx, "codecheckers/register", 1, "x | 2026-001"); err == nil {
+		t.Error("an issue of another repository was retitled")
+	}
+}
+
+// A label is added to those the issue has, and a title changes nothing but
+// the title: each is one request, to the endpoint that does only that.
+func TestLabellingAndRetitlingSendOneNarrowRequest(t *testing.T) {
+	var requests []string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		body := make([]byte, r.ContentLength)
+		_, _ = r.Body.Read(body)
+		requests = append(requests, r.Method+" "+r.URL.Path+" "+string(body))
+		_, _ = w.Write([]byte(`{}`))
+	})
+	client.AddableLabels = []string{"id assigned"}
+	ctx := context.Background()
+
+	if err := client.AddLabel(ctx, "codecheckers/testing-dev-register", 7, "id assigned"); err != nil {
+		t.Fatalf("label: %v", err)
+	}
+	if err := client.SetTitle(ctx, "codecheckers/testing-dev-register", 7, "Baetzel | 2026-020"); err != nil {
+		t.Fatalf("title: %v", err)
+	}
+
+	want := []string{
+		`POST /repos/codecheckers/testing-dev-register/issues/7/labels {"labels":["id assigned"]}`,
+		`PATCH /repos/codecheckers/testing-dev-register/issues/7 {"title":"Baetzel | 2026-020"}`,
+	}
+	if strings.Join(requests, "\n") != strings.Join(want, "\n") {
+		t.Errorf("got\n%s\nwant\n%s", strings.Join(requests, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// The labels are the register's: the bot adds or removes only those the
+// settings list, and a refused change never reaches GitHub - which would
+// otherwise create a label that does not exist yet.
+func TestOnlyTheManagedLabelsChange(t *testing.T) {
+	var requests []string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		if r.Method == http.MethodDelete && strings.HasSuffix(r.URL.Path, "/absent") {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"message": "Label does not exist"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	})
+	client.AddableLabels = []string{"id assigned"}
+	client.RemovableLabels = []string{"needs codechecker", "absent"}
+	ctx, repo := context.Background(), "codecheckers/testing-dev-register"
+
+	for _, refused := range []error{
+		client.AddLabel(ctx, repo, 7, "institution"),
+		client.AddLabel(ctx, repo, 7, "id asigned"),
+		client.RemoveLabel(ctx, repo, 7, "id assigned"),
+	} {
+		if refused == nil || !strings.Contains(refused.Error(), "labels.managed") {
+			t.Errorf("a label outside the list was changed: %v", refused)
+		}
+	}
+	if len(requests) != 0 {
+		t.Fatalf("a refused change was sent: %v", requests)
+	}
+
+	if err := client.AddLabel(ctx, repo, 7, "ID Assigned"); err != nil {
+		t.Errorf("a listed label, written differently, was refused: %v", err)
+	}
+	if err := client.RemoveLabel(ctx, repo, 7, "needs codechecker"); err != nil {
+		t.Errorf("a listed label was not removed: %v", err)
+	}
+	// Removing a label the issue does not carry leaves it as asked.
+	if err := client.RemoveLabel(ctx, repo, 7, "absent"); err != nil {
+		t.Errorf("removing a label that is not there failed: %v", err)
+	}
+	want := "POST /repos/" + repo + "/issues/7/labels\n" +
+		"DELETE /repos/" + repo + "/issues/7/labels/needs codechecker\n" +
+		"DELETE /repos/" + repo + "/issues/7/labels/absent"
+	if got := strings.Join(requests, "\n"); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
 }

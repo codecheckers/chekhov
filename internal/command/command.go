@@ -59,6 +59,12 @@ const (
 	// Follow follows the fediverse accounts a certificate names, and curates
 	// the Codecheckers/Authors/Venues Mastodon collections.
 	Follow Name = "follow"
+	// Next says which certificate identifier comes next. The word people type
+	// is `next`, with what as an argument - `next certificate` - as
+	// `refresh teams` does.
+	Next Name = "next"
+	// Set reserves a certificate identifier for this check: `set certificate`.
+	Set Name = "set"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

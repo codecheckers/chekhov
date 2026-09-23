@@ -284,6 +284,27 @@ func TestShippedSettingsNameTheRegistersLabels(t *testing.T) {
 	if got := settings.NeedsCodecheckerLabel(); got != "needs codechecker" {
 		t.Errorf("needs codechecker label = %q", got)
 	}
+	if got := settings.IDAssignedLabel(); got != "id assigned" {
+		t.Errorf("id assigned label = %q", got)
+	}
+}
+
+// The labels the bot may change are few and named: `set certificate` adds
+// `id assigned`, and nothing else is added or removed. Both shipped files say
+// so, because live-test is development with one switch flipped.
+func TestShippedSettingsLetTheBotAddOnlyIDAssigned(t *testing.T) {
+	for _, environment := range []string{"development", "live-test"} {
+		settings, err := Load(environment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := settings.AddableLabels(); len(got) != 1 || got[0] != "id assigned" {
+			t.Errorf("%s: addable labels = %q", environment, got)
+		}
+		if got := settings.RemovableLabels(); len(got) != 0 {
+			t.Errorf("%s: removable labels = %q", environment, got)
+		}
+	}
 }
 
 // Which team an institutional check leads to is decided by reading the label

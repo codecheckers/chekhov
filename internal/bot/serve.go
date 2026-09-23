@@ -46,6 +46,9 @@ func Serve(address string) error {
 	// from that list at load, because naming it would let the bot hand out its
 	// own permissions; see config.validate and internal/github/team.go.
 	replies.Organisation, replies.ManagedTeams = settings.TeamOrganisation(), settings.ManagedTeams()
+	// The labels it may add and remove, by name; every other label is read
+	// only. See internal/github/comments.go.
+	replies.AddableLabels, replies.RemovableLabels = settings.AddableLabels(), settings.RemovableLabels()
 
 	server := New(settings, secret, replies, deployment)
 	// A deployment is always online: the checks it runs read repositories and

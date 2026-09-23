@@ -2,7 +2,6 @@ package check
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -52,29 +51,26 @@ func certificateIDSequence(c Context) Result {
 		return *result
 	}
 
-	year, number := certificate[:4], certificate[5:]
-	position, err := strconv.Atoi(number)
-	if err != nil {
-		return skip("the certificate number is not a number")
+	// A certificate continues the year's sequence when it runs no more than
+	// MaxCertificateJump past the identifier below it. Gaps are allowed: an
+	// abandoned check leaves its number unused. The R package measures the
+	// jump the same way, from the next-lower identifier rather than the
+	// highest, so a certificate published late is not a gap.
+	//
+	// The rule sees register.csv only. `set certificate` measures the same
+	// jump against the issues labelled `id assigned` as well, which only the
+	// bot reads; a check between reservation and publication is not in the
+	// register yet, so the rule's set of claims is the smaller one.
+	previous, gap, found := CertificateJump(certificate, register.claims())
+	after := "the start of the year"
+	if found {
+		after = previous.ID
 	}
-
-	highest := 0
-	for _, entry := range register.entries {
-		if !strings.HasPrefix(entry.Certificate, year+"-") {
-			continue
-		}
-		if other, err := strconv.Atoi(entry.Certificate[5:]); err == nil && other > highest {
-			highest = other
-		}
+	if gap <= MaxCertificateJump {
+		return pass(fmt.Sprintf("%s follows %s", certificate, after))
 	}
-
-	// A certificate continues the year's sequence: it is one of the numbers
-	// already given out, or the next one. A gap means a number was skipped.
-	if position <= highest+1 {
-		return pass(fmt.Sprintf("%s, the highest in %s is %03d", certificate, year, highest))
-	}
-	return fail(fmt.Sprintf("%s leaves a gap: the highest identifier in %s is %s-%03d",
-		certificate, year, year, highest)).at(c.Config.Line("certificate"))
+	return fail(fmt.Sprintf("%s is more than %d past the year's previous identifier (after %s)",
+		certificate, MaxCertificateJump, after)).at(c.Config.Line("certificate"))
 }
 
 // rule: CC-REG-003 repository-spec-format

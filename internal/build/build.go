@@ -25,7 +25,7 @@ package build
 // Bumped in the commit that earns it, beside the CHANGELOG.md entry - a
 // version bumped later describes a build nobody can point at.
 // TestVersionMatchesTheChangelog holds the two together.
-const Version = "0.7.1"
+const Version = "0.8.0"
 
 // Shorten is a commit as it is shown to a reader: long enough to be unique in
 // this repository, short enough to read. Used for the commit this build was

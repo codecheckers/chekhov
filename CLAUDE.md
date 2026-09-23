@@ -591,6 +591,7 @@ exists; read the issues for what does not.
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
 | #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
+| #20 certificate identifier | `next certificate` and `set certificate` implemented, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); CC-REG-002 now allows the R package's slack of 9. Closes once the testing register has answered both |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
 The `codecheck` R package is the sibling implementation; its own remaining work

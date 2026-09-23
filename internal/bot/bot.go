@@ -110,6 +110,10 @@ type Server struct {
 	// and an editor's `nudge` cannot both act on the same record.
 	sweeping sync.Mutex
 
+	// reserving is held by `set certificate` from reading which identifiers
+	// are claimed to writing this check's, so two at once cannot pick one.
+	reserving sync.Mutex
+
 	// done is closed when a background command finishes, for the tests.
 	done chan struct{}
 }
@@ -502,6 +506,10 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.suggestCodecheckers(ctx, event, parsed, services))
 	case command.Accept:
 		return said(s.accept(ctx, event, parsed))
+	case command.Next:
+		return said(s.nextCertificate(ctx, parsed, services))
+	case command.Set:
+		return said(s.setCertificate(ctx, event, parsed, services))
 	default:
 		return said(command.UnknownReply(parsed))
 	}
@@ -703,7 +711,7 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 // roleCommand is the two things every role command needs before it starts:
 // somewhere to keep the roles, and arguments that made sense.
 func (s *Server) roleCommand(event mention, err error) (string, bool) {
-	if reply, ok := s.noCheck(event); !ok {
+	if reply, ok := s.noCheck(event, "the roles of a check"); !ok {
 		return reply, false
 	}
 	if err != nil {
@@ -714,7 +722,7 @@ func (s *Server) roleCommand(event mention, err error) (string, bool) {
 
 // listRoles says who holds which role on this check.
 func (s *Server) listRoles(ctx context.Context, event mention, roles command.Roles) string {
-	if reply, ok := s.noCheck(event); !ok {
+	if reply, ok := s.noCheck(event, "the roles of a check"); !ok {
 		return reply
 	}
 	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
@@ -734,7 +742,7 @@ func (s *Server) listRoles(ctx context.Context, event mention, roles command.Rol
 
 // accept adopts a record the bot did not write, so that work can go on.
 func (s *Server) accept(ctx context.Context, event mention, parsed command.Command) string {
-	if reply, ok := s.noCheck(event); !ok {
+	if reply, ok := s.noCheck(event, "the roles of a check"); !ok {
 		return reply
 	}
 	if what := strings.ToLower(strings.Join(parsed.Args, " ")); what != "" && what != "roles" {
@@ -769,12 +777,15 @@ func tamperedReply(err error) string {
 // noCheck refuses the commands that are about one check when there is no
 // check to be about: the command line preview has no issue, and a deployment
 // without a store cannot record anything.
-func (s *Server) noCheck(event mention) (string, bool) {
+//
+// what is what the command reads or records - "the roles of a check", "a
+// certificate identifier" - for the refusal to name.
+func (s *Server) noCheck(event mention, what string) (string, bool) {
 	switch {
 	case event.Issue <= 0:
-		return "Roles belong to a check: ask me on a checks issue.\n", false
+		return "That belongs to a check: ask me on a checks issue.\n", false
 	case s.Checks == nil:
-		return "I cannot read or record the roles of a check here.\n", false
+		return fmt.Sprintf("I cannot read or record %s here.\n", what), false
 	default:
 		return "", true
 	}

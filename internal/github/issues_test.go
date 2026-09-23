@@ -57,6 +57,34 @@ func TestOpenIssuesLeavesOutPullRequests(t *testing.T) {
 	}
 }
 
+// A closed check still holds its certificate identifier, so the certificate
+// commands read the closed issues too, and have to be able to tell them apart.
+func TestAllIssuesReadsTheClosedOnesToo(t *testing.T) {
+	var query string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") != "1" {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[
+			{"number": 1, "title": "Open | 2026-002", "state": "open"},
+			{"number": 2, "title": "Abandoned | 2026-001", "state": "closed", "labels": [{"name": "id assigned"}]}]`))
+	})
+
+	issues, err := client.AllIssues(context.Background(), client.Repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(issues) != 2 || issues[0].Closed || !issues[1].Closed {
+		t.Errorf("read %+v", issues)
+	}
+	if !strings.Contains(query, "state=all") {
+		t.Errorf("query = %q, want every issue asked for", query)
+	}
+}
+
 func TestIssuesRefuseAnotherRepository(t *testing.T) {
 	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("a request was made for %s, which should have been refused first", r.URL.Path)
@@ -67,5 +95,8 @@ func TestIssuesRefuseAnotherRepository(t *testing.T) {
 	}
 	if _, err := client.OpenIssues(context.Background(), "codecheckers/register"); err == nil {
 		t.Error("reading the issues of another repository should be refused")
+	}
+	if _, err := client.AllIssues(context.Background(), "codecheckers/register"); err == nil {
+		t.Error("reading every issue of another repository should be refused")
 	}
 }

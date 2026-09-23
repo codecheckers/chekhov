@@ -84,6 +84,19 @@ type Settings struct {
 			Institution string `yaml:"institution"`
 			// NeedsCodechecker is the queue: a check nobody is doing yet.
 			NeedsCodechecker string `yaml:"needs_codechecker"`
+			// IDAssigned says a check holds a certificate identifier, in its
+			// title: what `next certificate` counts, and what
+			// `set certificate` puts on the check it reserves one for.
+			IDAssigned string `yaml:"id_assigned"`
+			// Managed is what the bot may do to labels itself, as
+			// teams.managed is what it may do to teams: the labels it may add
+			// and the ones it may remove, by name, and nothing else. A label
+			// in neither list is only ever read. internal/github holds the
+			// fence; this is the list it is given.
+			Managed struct {
+				Add    []string `yaml:"add"`
+				Remove []string `yaml:"remove"`
+			} `yaml:"managed"`
 		} `yaml:"labels"`
 	} `yaml:"chekhov"`
 }
@@ -289,15 +302,7 @@ func (s *Settings) CodecheckersTeam() string { return strings.TrimSpace(s.Chekho
 // ManagedTeams are the teams the bot may add somebody to, trimmed and in the
 // order the settings name them. Never the editors team, which validate
 // refuses.
-func (s *Settings) ManagedTeams() []string {
-	managed := make([]string, 0, len(s.Chekhov.Teams.Managed))
-	for _, team := range s.Chekhov.Teams.Managed {
-		if team = strings.TrimSpace(team); team != "" {
-			managed = append(managed, team)
-		}
-	}
-	return managed
-}
+func (s *Settings) ManagedTeams() []string { return trimmed(s.Chekhov.Teams.Managed) }
 
 // InstitutionalTeam is where a codechecker on an institutional check belongs,
 // empty when the settings name none - and then an institutional check is
@@ -316,6 +321,29 @@ func (s *Settings) InstitutionLabel() string {
 // empty when the settings name none.
 func (s *Settings) NeedsCodecheckerLabel() string {
 	return strings.TrimSpace(s.Chekhov.Labels.NeedsCodechecker)
+}
+
+// IDAssignedLabel marks a check that holds a certificate identifier, empty
+// when the settings name none.
+func (s *Settings) IDAssignedLabel() string {
+	return strings.TrimSpace(s.Chekhov.Labels.IDAssigned)
+}
+
+// AddableLabels are the labels the bot may put on an issue, trimmed, empty
+// names dropped.
+func (s *Settings) AddableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Add) }
+
+// RemovableLabels are the labels the bot may take off an issue.
+func (s *Settings) RemovableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Remove) }
+
+func trimmed(names []string) []string {
+	kept := make([]string, 0, len(names))
+	for _, name := range names {
+		if name = strings.TrimSpace(name); name != "" {
+			kept = append(kept, name)
+		}
+	}
+	return kept
 }
 
 // OwnersOverride are the handles to ask instead of the organisation's owners,

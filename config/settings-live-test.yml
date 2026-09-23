@@ -59,13 +59,19 @@ chekhov:
   # compare against what it can see. The names belong to the register, not to
   # this bot, so they are named here rather than written into the code: a
   # register that renames one needs a settings change, not a new build. The
-  # bot only ever reports a label that no longer describes the check; it
-  # never adds or removes one. An empty name switches that off.
+  # bot reports a label that no longer describes the check, and changes a
+  # label only where `managed` below allows it. See settings-development.yml.
   labels:
     # "CODECHECK conducted as part of a service offered by an institution."
     institution: institution
     # The queue: a check nobody is doing yet.
     needs_codechecker: needs codechecker
+    # A check holding a certificate identifier, in its title.
+    id_assigned: id assigned
+    # What the bot may do to labels itself, by name.
+    managed:
+      add: [id assigned]
+      remove: []
 
   teams:
     # The standing roles come from the organisation's own teams, read with the

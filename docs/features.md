@@ -45,11 +45,11 @@ for completeness of the conversational set.
 | Command | Effect | Prio |
 |---|---|---|
 | `@chekhovbot register` | Open a PR adding the row to `register.csv` | MVP |
-| `@chekhovbot set certificate <id>` | Reserve/record the certificate identifier for this check | MVP |
+| `@chekhovbot set certificate [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the roles record, the title, the `id assigned` label (#20) | done |
 | `@chekhovbot set venue <name>` / `set type <type>` | Record register metadata on the issue | high |
 | `@chekhovbot set repository <url>` | Record the code repository under check | high |
 | `@chekhovbot check register` | Validate the row against `register.csv` rules before the PR | high |
-| `@chekhovbot next certificate` | Suggest the next free certificate id for the year | medium |
+| `@chekhovbot next certificate` | Suggest the next free certificate id for the year, from `register.csv` and every issue labelled `id assigned` (#20) | done |
 | `@chekhovbot show entry <id>` | Print an existing register entry | low |
 
 ## D. Validation and early checks

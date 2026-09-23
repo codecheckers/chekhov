@@ -152,6 +152,20 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    Next,
+		Summary: "Say which certificate identifier comes next, from `register.csv` and the issues",
+		Usage:   "next certificate",
+		Group:   GroupRegister,
+		Role:    RoleEditor,
+	},
+	{
+		Name:    Set,
+		Summary: "Reserve a certificate identifier for this check: the next one, or the one given",
+		Usage:   "set certificate [YYYY-NNN] [anyway]",
+		Group:   GroupRegister,
+		Role:    RoleEditor,
+	},
+	{
 		Name:    Announce,
 		Summary: "Toot about a published certificate: a preview first, then `confirm` to post",
 		Usage:   "announce <certificate> [confirm]",

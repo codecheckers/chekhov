@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/codecheckers/chekhov/internal/httpretry"
 )
 
 // Reading and editing the bot's own comments.
@@ -154,22 +157,81 @@ func (c *Client) assignees(ctx context.Context, method, repository string, issue
 	if method == http.MethodDelete {
 		what = "unassign"
 	}
+	return c.writeIssue(ctx, method, repository, issue, "/assignees", what+" "+handle,
+		map[string][]string{"assignees": {strings.TrimPrefix(strings.TrimSpace(handle), "@")}})
+}
+
+// AddLabel puts a label on an issue, leaving the labels it has.
+//
+// Only a label in AddableLabels: the labels are the register's, and the bot
+// changes one only where the settings say it may. GitHub creates a label the
+// repository does not have yet, so the list is also what keeps a typo from
+// becoming a label.
+func (c *Client) AddLabel(ctx context.Context, repository string, issue int, label string) error {
+	if err := allowed(label, c.AddableLabels, "add"); err != nil {
+		return err
+	}
+	_, err := c.writeIssue(ctx, http.MethodPost, repository, issue, "/labels", "label",
+		map[string][]string{"labels": {label}})
+	return err
+}
+
+// RemoveLabel takes a label off an issue, only one in RemovableLabels. A
+// label the issue does not carry is not an error: GitHub answers 404, and the
+// issue is as asked.
+func (c *Client) RemoveLabel(ctx context.Context, repository string, issue int, label string) error {
+	if err := allowed(label, c.RemovableLabels, "remove"); err != nil {
+		return err
+	}
+	_, err := c.writeIssue(ctx, http.MethodDelete, repository, issue,
+		"/labels/"+url.PathEscape(label), "unlabel", nil)
+	if httpretry.IsStatus(err, http.StatusNotFound) {
+		return nil
+	}
+	return err
+}
+
+// allowed refuses a label change the settings do not list, before any request.
+// The name is quoted with %q because it reaches a posted comment, where it is
+// somebody's free text.
+func allowed(label string, list []string, verb string) error {
+	for _, name := range list {
+		if strings.EqualFold(strings.TrimSpace(label), name) {
+			return nil
+		}
+	}
+	return fmt.Errorf("refusing to %s the label %q: it is not in labels.managed.%s", verb, label, verb)
+}
+
+// SetTitle changes the title of an issue, and nothing else about it.
+func (c *Client) SetTitle(ctx context.Context, repository string, issue int, title string) error {
+	_, err := c.writeIssue(ctx, http.MethodPatch, repository, issue, "", "retitle",
+		map[string]string{"title": title})
+	return err
+}
+
+// writeIssue is one write to an issue of the configured repository, or to
+// what hangs off it at path: the fence, the payload, the retries, once.
+func (c *Client) writeIssue(ctx context.Context, method, repository string, issue int,
+	path, what string, payload any) ([]byte, error) {
 	if err := c.mine(repository, what); err != nil {
 		return nil, err
 	}
-	payload, err := json.Marshal(map[string][]string{
-		"assignees": {strings.TrimPrefix(strings.TrimSpace(handle), "@")},
-	})
-	if err != nil {
-		return nil, err
+	// A nil payload is a request with no body, a DELETE's; marshalled it
+	// would be the word null.
+	var body []byte
+	if payload != nil {
+		var err error
+		if body, err = json.Marshal(payload); err != nil {
+			return nil, err
+		}
 	}
-	url := fmt.Sprintf("%s/repos/%s/issues/%d/assignees",
-		strings.TrimSuffix(c.BaseURL, "/"), repository, issue)
+	endpoint := fmt.Sprintf("%s/repos/%s/issues/%d%s", strings.TrimSuffix(c.BaseURL, "/"), repository, issue, path)
 
 	var raw []byte
-	err = c.attempt(ctx, fmt.Sprintf("%sing %s on %s#%d", what, handle, repository, issue), func() error {
+	err := c.attempt(ctx, fmt.Sprintf("%s on %s#%d", what, repository, issue), func() error {
 		var err error
-		raw, err = c.do(ctx, method, url, payload)
+		raw, err = c.do(ctx, method, endpoint, body)
 		return err
 	})
 	return raw, err

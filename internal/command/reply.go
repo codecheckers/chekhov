@@ -427,10 +427,15 @@ func writeMentionGroup(out *strings.Builder, label string, handles []string) {
 func codeList(items []string) string {
 	quoted := make([]string, len(items))
 	for i, item := range items {
-		quoted[i] = "`" + item + "`"
+		quoted[i] = Code(item)
 	}
 	return strings.Join(quoted, ", ")
 }
+
+// Code puts text somebody else wrote in a code span, where a handle does not
+// notify and markup does not render. A backtick in it would end the span
+// early, so it becomes a quote.
+func Code(text string) string { return "`" + strings.ReplaceAll(text, "`", "'") + "`" }
 
 func plural(n int) string {
 	if n == 1 {

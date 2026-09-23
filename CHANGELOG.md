@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-23
+
+### Added
+
+- `next certificate` says which certificate identifier comes next, and where
+  the highest so far is. It reads `register.csv` and the titles of every issue
+  labelled `id assigned`, open and closed, and names open issues with an
+  identifier in the title but no label (codecheckers/chekhov#20).
+- `set certificate [YYYY-NNN] [anyway]` reserves the identifier for a check,
+  or the next one when none is given. It records the identifier with the
+  roles, writes it into the title and adds the `id assigned` label. It refuses
+  an identifier that is already taken, and asks for `anyway` before a jump of
+  more than 9 (codecheckers/chekhov#20).
+- `labels.id_assigned` in the settings names the label, and
+  `labels.managed.add` / `labels.managed.remove` list the only labels the bot
+  may put on or take off an issue; every other label is only read
+  (codecheckers/chekhov#20).
+
+### Changed
+
+- `CC-REG-002` allows a jump of up to 9 past the year's previous identifier,
+  as the R package does, instead of failing on any gap
+  (codecheckers/chekhov#20).
+
 ## [0.7.1] - 2026-09-23
 
 ### Changed
