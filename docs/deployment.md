@@ -196,21 +196,41 @@ the commit-graph still lists them, which `git fsck` reports as a commit it
 cannot read; rewriting the graph from what is reachable clears that. If
 `unregister` answers with exit 5, the repository was never registered with
 `git maintenance`, and the index came from elsewhere: with a `.git/gk`
-directory present, that is GitKraken, and it will write the index again until
-its background maintenance is switched off for this repository.
+directory present, that is GitKraken.
 
-Deploying from a fresh clone works too, and is the quicker way out when a
-deployment is waiting, but it is a second checkout to keep in step - prefer
-repacking the one you work in. The clone needs `--no-local`, or it hardlinks
-the same packs, and the `runway` remote, which is how the CLI knows the app:
+GitKraken writes it again, and soon: on 2026-09-23 a fresh `loose-*.pack` and
+`multi-pack-index` were back 45 minutes after a repack, while the repository
+was open in GitKraken with auto-fetch every three minutes. No GitKraken setting
+for this was found - nothing named maintenance, gc or pack in its profile - and
+whether switching auto-fetch off is enough has not been tried. So while the
+checkout you work in is open in GitKraken, a repack buys a deploy or two, not
+a fix.
+
+### Deploying from a clone of its own
+
+The way out that does not depend on GitKraken is a clone that is used for
+deploying and **never opened in GitKraken**. It needs `--no-local`, or it
+hardlinks the same packs, and the `runway` remote, which is how the CLI knows
+the app. Once:
 
 ```sh
-git clone --no-local --branch main . ../chekhov-deploy
-git -C ../chekhov-deploy remote add runway ssh://git@deploy.runway.horse:2222/chekhov.git
-cd ../chekhov-deploy && runway app deploy source -y
+git clone --no-local --branch main ~/git/codecheck/chekhov ~/git/codecheck/chekhov-deploy
+git -C ~/git/codecheck/chekhov-deploy remote add runway ssh://git@deploy.runway.horse:2222/chekhov.git
 ```
 
-Put it under your home directory, not `/tmp`: the CLI is a snap, a snap has a
+Every deploy, after committing in the working checkout:
+
+```sh
+cd ~/git/codecheck/chekhov-deploy
+git pull --ff-only                  # from the working checkout, commits only
+runway app deploy source -y
+```
+
+It pulls from the local checkout, so what it deploys is what is committed
+there, pushed or not - the same as deploying from the working checkout, which
+the platform builds from a commit rather than a working tree either way.
+
+Keep it under your home directory, not `/tmp`: the CLI is a snap, a snap has a
 `/tmp` of its own, and a clone there answers "Deployments are only possible
 from a git repo".
 
@@ -384,7 +404,8 @@ git commit ...           # the platform builds a commit, not a working tree
 runway app deploy source -y
 ```
 
-A redeploy replaces the process. Commands in flight are given twenty seconds to
+From a checkout that is open in GitKraken, deploy from the clone of its own
+instead - see "`object not found`" above. A redeploy replaces the process. Commands in flight are given twenty seconds to
 finish.
 
 ## When it falls over
