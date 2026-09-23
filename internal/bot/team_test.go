@@ -25,6 +25,9 @@ type organisation struct {
 	// pending is somebody an owner invited through the team who has not
 	// accepted: GitHub answers 200 for them, and they are not in it.
 	pending map[string]bool
+	// maintains is somebody GitHub calls a maintainer of the team - an
+	// organisation owner, whose membership this bot cannot read at all.
+	maintains map[string]bool
 	// thread is what the issue's comments are, as the sweep reads them, and
 	// issuesErr a register that will not answer at all.
 	thread    []github.Comment
@@ -94,14 +97,28 @@ func (o *organisation) Owners(_ context.Context, _ string) ([]string, error) {
 	return o.owners, o.ownersErr
 }
 
-func (o *organisation) TeamMembership(_ context.Context, _, _, handle string) (bool, bool, error) {
-	return o.inTeam[handle], o.pending[handle], o.teamErr
+func (o *organisation) TeamMembership(_ context.Context, _, _, handle string) (github.Place, error) {
+	role := ""
+	if o.inTeam[handle] {
+		role = github.TeamRoleMember
+	}
+	if o.maintains[handle] {
+		// An organisation owner, whose membership GitHub does not show this
+		// bot at all: the read answers as though they were not in the team.
+		return github.Place{}, o.teamErr
+	}
+	return github.Place{Active: o.inTeam[handle], Pending: o.pending[handle], Role: role}, o.teamErr
 }
 
-func (o *organisation) AddToTeam(_ context.Context, _, team, handle string) (string, error) {
+func (o *organisation) AddToTeam(_ context.Context, _, team, handle string) (github.Place, error) {
 	o.added = append(o.added, handle)
 	o.addedTo = append(o.addedTo, team)
-	return handle, nil
+	if o.maintains[handle] {
+		// What GitHub answers for an owner: in the team, as a maintainer the
+		// PUT did not make them.
+		return github.Place{Login: handle, Active: true, Role: github.TeamRoleMaintainer}, nil
+	}
+	return github.Place{Login: handle, Active: true, Role: github.TeamRoleMember}, nil
 }
 
 // acted runs one command the way a delivery does - through act, which defuses
@@ -129,6 +146,7 @@ func organised(t *testing.T) (*Server, *organisation) {
 		members:     map[string]bool{"nuest": true, "a-codechecker": true},
 		inTeam:      map[string]bool{"a-codechecker": true},
 		pending:     map[string]bool{},
+		maintains:   map[string]bool{},
 		owners:      []string{"an-owner", "another-owner"},
 	}
 	// One open issue, which is the check every test here is about. labelled
@@ -541,5 +559,41 @@ func TestARecordForARoleWithNoTeamNamesNone(t *testing.T) {
 	}
 	if strings.Contains(posted, "I put them in") {
 		t.Errorf("the reply promises a team for an author:\n%s", posted)
+	}
+}
+
+// An organisation owner is a maintainer of every team they are in, and GitHub
+// shows this bot no membership for them at all - so the add is how it finds
+// out they were there already. That is not a failure, and the reply says what
+// is true rather than that something went wrong (codecheckers/chekhov#47).
+func TestAnOwnerAlreadyInTheTeamIsNotReportedAsAFailure(t *testing.T) {
+	server, replies := organised(t)
+	replies.members["an-editor"] = true
+	replies.maintains["an-editor"] = true
+
+	reply := answer(t, server, command.Assign, []string{"@an-editor", "as", "codechecker"}, "")
+
+	for _, want := range []string{"is now the assigned codechecker", "already in `codecheckers/codecheckers`",
+		"as a maintainer", "did not set and will not change"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not say %q:\n%s", want, reply)
+		}
+	}
+	if strings.Contains(reply, "could not put them") {
+		t.Errorf("an owner already in the team was reported as a failure:\n%s", reply)
+	}
+}
+
+// Somebody already in the team is left alone entirely: no write goes out,
+// because a PUT asking for `member` would take a maintainer's role away.
+func TestSomebodyAlreadyInTheTeamIsNotWrittenTo(t *testing.T) {
+	server, replies := organised(t)
+	replies.members["a-codechecker"] = true
+	replies.inTeam["a-codechecker"] = true
+
+	answer(t, server, command.Assign, []string{"@a-codechecker", "as", "codechecker"}, "")
+
+	if len(replies.added) != 0 {
+		t.Errorf("the team was written to for somebody already in it: %v", replies.added)
 	}
 }

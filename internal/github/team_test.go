@@ -185,16 +185,36 @@ func TestAHandleCannotRedirectTheRequest(t *testing.T) {
 	}
 }
 
-// An answer describing more than was asked for is reported as the surprise it
-// is, rather than as a successful invitation.
+// A maintainer coming back is an organisation owner, who is in the team
+// already and whose role the bot did not set: reported as the place it is, not
+// as a failure. The request that went out still asked for a plain member.
+func TestAMaintainerIsReportedAsOneRatherThanAsAFailure(t *testing.T) {
+	client, requests := adding(t, answers("User", membershipActive, TeamRoleMaintainer))
+
+	place, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	if err != nil {
+		t.Fatalf("an owner already in the team was reported as a failure: %v", err)
+	}
+	if !place.Active || !place.Maintains() {
+		t.Errorf("place = %+v, want an active maintainer", place)
+	}
+	for _, request := range *requests {
+		if request.Method == http.MethodPut && !strings.Contains(request.Body, `"role":"member"`) {
+			t.Errorf("the write asked for %q", request.Body)
+		}
+	}
+}
+
+// Any other role is the surprise it looks like, and is reported rather than
+// read as a successful add.
 func TestARoleTheBotDidNotAskForIsReported(t *testing.T) {
-	client, _ := adding(t, answers("User", membershipActive, "maintainer"))
+	client, _ := adding(t, answers("User", membershipActive, "owner-of-everything"))
 
 	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if err == nil {
-		t.Fatal("a maintainer came back and was reported as a member")
+		t.Fatal("an unknown role came back and was reported as a member")
 	}
-	if !strings.Contains(err.Error(), "maintainer") || !strings.Contains(err.Error(), "settings") {
+	if !strings.Contains(err.Error(), "owner-of-everything") || !strings.Contains(err.Error(), "settings") {
 		t.Errorf("error %q, want it to say what came back and what to look at", err)
 	}
 }
@@ -238,12 +258,15 @@ func TestAPendingMembershipIsReportedAsImpossible(t *testing.T) {
 func TestAMemberOfTheOrganisationIsAddedAtOnce(t *testing.T) {
 	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
 
-	login, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	place, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
-	if login != "A-Codechecker" {
-		t.Errorf("login = %q, want GitHub's own capitalisation", login)
+	if place.Login != "A-Codechecker" {
+		t.Errorf("login = %q, want GitHub's own capitalisation", place.Login)
+	}
+	if !place.Active || place.Maintains() {
+		t.Errorf("place = %+v, want an active plain member", place)
 	}
 	for _, request := range *requests {
 		if request.Method == http.MethodPut && !strings.HasSuffix(request.Path, "/A-Codechecker") {

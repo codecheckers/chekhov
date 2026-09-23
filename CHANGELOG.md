@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-23
+
+### Fixed
+
+- `assign` no longer reports a failure for somebody who is in the team
+  already. An organisation owner is a maintainer of every team they are in,
+  and GitHub shows this bot no membership for them at all, so the add was the
+  first the bot heard of it and the `maintainer` it got back read as a
+  surprise: the reply said it could not put them in the team, when nothing was
+  wrong and nothing had changed. It now says they are in it as a maintainer,
+  a role the bot did not set and will not change. Somebody already in the team
+  is not written to at all, which also means a `member` write can no longer
+  take a maintainer's role away (codecheckers/chekhov#47).
+
 ## [0.4.2] - 2026-09-23
 
 ### Added

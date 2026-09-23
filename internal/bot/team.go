@@ -29,8 +29,8 @@ import (
 type Organisation interface {
 	InOrganisation(ctx context.Context, organisation, handle string) (bool, error)
 	Owners(ctx context.Context, organisation string) ([]string, error)
-	TeamMembership(ctx context.Context, organisation, team, handle string) (active, pending bool, err error)
-	AddToTeam(ctx context.Context, organisation, team, handle string) (login string, err error)
+	TeamMembership(ctx context.Context, organisation, team, handle string) (github.Place, error)
+	AddToTeam(ctx context.Context, organisation, team, handle string) (github.Place, error)
 }
 
 // The reply path a deployment uses can do all four, which a type assertion
@@ -214,15 +214,18 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 	// The read is only an optimisation - the write below is idempotent - so a
 	// read that failed falls through to it rather than returning nothing,
 	// which an editor would read as "the team was handled".
-	active, pending, err := changer.TeamMembership(ctx, organisation, team, handle)
+	place, err := changer.TeamMembership(ctx, organisation, team, handle)
 	if err != nil {
 		s.Logger.Warn("could not read a team membership, so the add was attempted anyway",
 			"handle", handle, "team", team, "error", err)
 	}
 	switch {
-	case err == nil && active:
+	case err == nil && place.Active:
+		// In the team already, whatever role they hold there. Nothing to do
+		// and nothing to say - and nothing to write, which matters for a
+		// maintainer: a PUT asking for `member` would take the role away.
 		return ""
-	case err == nil && pending:
+	case err == nil && place.Pending:
 		// Somebody an owner invited through the team, who has not accepted.
 		// Adding them again would change nothing, and saying nothing would
 		// leave the editor believing the team was handled.
@@ -230,13 +233,22 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 			"so they are not in it.", handle, organisation, team)
 	}
 
-	login, err := changer.AddToTeam(ctx, organisation, team, handle)
+	added, err := changer.AddToTeam(ctx, organisation, team, handle)
 	if err != nil {
 		s.Logger.Warn("could not add somebody to the team", "handle", handle, "team", team, "error", err)
 		return fmt.Sprintf("I could not put them in `%s/%s`: %s", organisation, team, err)
 	}
+	login := added.Login
 	if login == "" {
 		login = handle
+	}
+	if added.Maintains() {
+		// An organisation owner is a maintainer of every team they are in,
+		// and GitHub answers 404 when this bot reads their membership - so
+		// the add above is how it finds out they were there all along. It is
+		// not a failure, and the role is not the bot's to change.
+		return fmt.Sprintf("`@%s` is already in `%s/%s`, as a maintainer - "+
+			"which I did not set and will not change.", login, organisation, team)
 	}
 	return fmt.Sprintf("I have put `@%s` in `%s/%s`.", login, organisation, team)
 }

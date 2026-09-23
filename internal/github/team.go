@@ -38,12 +38,39 @@ import (
 // member, who is in the team and may do nothing to it.
 const TeamRoleMember = "member"
 
+// TeamRoleMaintainer is a role this bot never asks for and never sets, and
+// which it therefore has to recognise: an organisation owner holds it in
+// every team they are in, whoever put them there.
+const TeamRoleMaintainer = "maintainer"
+
 // membershipActive is what GitHub calls a membership that is in effect. The
 // bot only ever adds people who are already in the organisation - an
 // invitation from outside is an owner's to send - so this is the only state it
 // can produce, and a "pending" one would mean somebody changed what this file
 // does.
 const membershipActive = "active"
+
+// A Place is where somebody stands in a team, as GitHub describes it.
+//
+// The role is read and never written: the bot asks for TeamRoleMember and
+// nothing else, and a person who is already a maintainer is left as one. An
+// organisation owner is the common case - GitHub calls them a maintainer of
+// every team they are in - and until this was read rather than assumed, the
+// bot reported a failure for somebody who was in the team all along. See
+// codecheckers/chekhov#47.
+type Place struct {
+	// Login is the account as GitHub capitalises it, which is how a reply
+	// should write it. Empty when it was not asked for.
+	Login string
+	// Active is in the team now, Pending invited and not yet accepted.
+	Active, Pending bool
+	// Role is what they hold there, empty when they are not in the team.
+	Role string
+}
+
+// Maintains reports whether this place is one the bot did not make and will
+// not change.
+func (p Place) Maintains() bool { return p.Role == TeamRoleMaintainer }
 
 // ErrNotPermitted is a token that may not manage membership. Its own error,
 // because the reply has to say so plainly rather than let a 403 read as a
@@ -136,16 +163,17 @@ func (c *Client) resolveUser(ctx context.Context, handle string) (string, error)
 // There is deliberately no role parameter, and no method here that removes
 // anybody: taking a role away is done by a person, in the organisation's own
 // settings, where it is logged against their name.
-func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle string) (login string, err error) {
+func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle string) (Place, error) {
 	if err := c.mayAddTo(organisation, team); err != nil {
-		return "", err
+		return Place{}, err
 	}
 	// Resolved first: the handle is checked against GitHub, and its shape
 	// against handleShape, before any path is built from it.
-	login, err = c.resolveUser(ctx, handle)
+	login, err := c.resolveUser(ctx, handle)
 	if err != nil {
-		return "", err
+		return Place{}, err
 	}
+	place := Place{Login: login}
 
 	// The only body this bot ever sends here. Written as a literal rather than
 	// composed, so that no caller and no future field can turn it into
@@ -168,18 +196,18 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 	})
 	switch {
 	case httpretry.IsStatus(err, http.StatusForbidden), httpretry.IsStatus(err, http.StatusUnauthorized):
-		return login, fmt.Errorf("%w, so I cannot add `@%s` to %s/%s",
+		return place, fmt.Errorf("%w, so I cannot add `@%s` to %s/%s",
 			ErrNotPermitted, login, organisation, team)
 	case httpretry.IsStatus(err, http.StatusUnprocessableEntity):
-		return login, fmt.Errorf("GitHub refused to put `@%s` in %s/%s, "+
+		return place, fmt.Errorf("GitHub refused to put `@%s` in %s/%s, "+
 			"which is what it answers for an account that cannot be in a team: %w",
 			login, organisation, team, ErrNotAUser)
 	case err != nil:
-		return login, fmt.Errorf("could not add `@%s` to %s/%s: %w", login, organisation, team, err)
-	case answered.Role != "" && answered.Role != TeamRoleMember:
+		return place, fmt.Errorf("could not add `@%s` to %s/%s: %w", login, organisation, team, err)
+	case answered.Role != "" && answered.Role != TeamRoleMember && answered.Role != TeamRoleMaintainer:
 		// Never seen, and worth saying loudly if it ever is: the bot asked for
-		// a member and the answer describes somebody with more than that.
-		return login, fmt.Errorf(
+		// a member and the answer describes something else again.
+		return place, fmt.Errorf(
 			"I asked for `@%s` to be a %s of %s/%s and GitHub answered %q; "+
 				"check the team in the organisation's settings",
 			login, TeamRoleMember, organisation, team, answered.Role)
@@ -188,11 +216,15 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 		// Never seen either: the bot adds an existing member, and GitHub calls
 		// that active. Anything else means this file no longer does what its
 		// comment says.
-		return login, fmt.Errorf("I added `@%s` to %s/%s and GitHub answered state %q, "+
+		return place, fmt.Errorf("I added `@%s` to %s/%s and GitHub answered state %q, "+
 			"which it should not for somebody already in the organisation",
 			login, organisation, team, answered.State)
 	}
-	return login, nil
+	// Maintainer here is not the bot's doing: GitHub answers it for an
+	// organisation owner, whose place in the team the PUT leaves alone. The
+	// caller says so rather than claiming to have added them.
+	place.Active, place.Role = true, answered.Role
+	return place, nil
 }
 
 // TeamMembership reports whether somebody's membership of the team is in
@@ -203,20 +235,21 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 // until they accept, and reading that as "in the team" would have the bot say
 // nothing while the person cannot act. Behind the same guard as the write: the
 // bot has no reason to read the membership of any other team either.
-func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle string) (active, pending bool, err error) {
+func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle string) (Place, error) {
 	if err := c.mayAddTo(organisation, team); err != nil {
-		return false, false, err
+		return Place{}, err
 	}
 	if !IsHandle(handle) {
-		return false, false, fmt.Errorf("%q is not a GitHub handle", handle)
+		return Place{}, fmt.Errorf("%q is not a GitHub handle", handle)
 	}
 
 	var membership struct {
 		State string `json:"state"`
+		Role  string `json:"role"`
 	}
 	url := fmt.Sprintf("%s/orgs/%s/teams/%s/memberships/%s",
 		strings.TrimSuffix(c.BaseURL, "/"), organisation, team, handle)
-	err = c.attempt(ctx, fmt.Sprintf("reading `@%s`'s place in %s/%s", handle, organisation, team),
+	err := c.attempt(ctx, fmt.Sprintf("reading `@%s`'s place in %s/%s", handle, organisation, team),
 		func() error {
 			raw, err := c.do(ctx, http.MethodGet, url, nil)
 			if err != nil {
@@ -227,16 +260,19 @@ func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle 
 	switch {
 	case httpretry.IsStatus(err, http.StatusNotFound):
 		// Not a failure: GitHub answers 404 for somebody who is not in the
-		// team, which is the answer that was asked for.
-		return false, false, nil
+		// team, which is the answer that was asked for. It answers the same
+		// for an organisation owner read by a mere team maintainer, which is
+		// why AddToTeam has to read the role it gets back as well.
+		return Place{}, nil
 	case httpretry.IsStatus(err, http.StatusForbidden), httpretry.IsStatus(err, http.StatusUnauthorized):
-		return false, false, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s",
+		return Place{}, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s",
 			ErrNotPermitted, handle, organisation, team)
 	case err != nil:
-		return false, false, fmt.Errorf("could not read `@%s`'s place in %s/%s: %w",
+		return Place{}, fmt.Errorf("could not read `@%s`'s place in %s/%s: %w",
 			handle, organisation, team, err)
 	}
-	return membership.State == membershipActive, membership.State != membershipActive, nil
+	active := membership.State == membershipActive
+	return Place{Active: active, Pending: !active, Role: membership.Role}, nil
 }
 
 // mayAddTo is the guard the rest of this file rests on: the right
