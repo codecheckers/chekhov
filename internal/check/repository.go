@@ -55,14 +55,10 @@ type Description struct {
 	// HasConfig is whether there is a codecheck.yml to check.
 	HasConfig bool
 
-	// Files and Bytes are what the bundle holds. Bytes counts only the files
-	// whose size the listing gave, which Unsized says how many were not.
-	Files   int
-	Bytes   int64
-	Unsized int
-	// Partial says the bundle was larger than a description will walk, so the
-	// counts are a floor rather than a total.
-	Partial bool
+	// Tally is what the bundle holds, however it was counted: embedded, so
+	// that the source which answers in one request and the source which has
+	// to be walked fill in the same fields by the same rules.
+	Tally
 
 	Unknown map[string]string
 }
@@ -167,16 +163,38 @@ func (d *Description) configIn(bundle Bundle) {
 	d.HasConfig = found
 }
 
-// measure counts the bundle, breadth first, within the limits.
+// measure counts the bundle.
+//
+// A source that can count itself in one request is asked to; the rest are
+// walked. Which is which is the bundle's business - see counter - and the two
+// answer in the same terms, so a description does not say where the numbers
+// came from.
+//
+// A count that fails falls through to the walk rather than leaving the size
+// unknown. The cheap endpoint is an optimisation, and a repository whose git
+// tree cannot be read may still list its directories one at a time; only when
+// both give nothing is the size unknown.
+func (d *Description) measure(bundle lister) {
+	if counting, ok := bundle.(counter); ok {
+		if tally, err := counting.Count(); err == nil {
+			d.Tally = tally
+			return
+		}
+	}
+	d.walk(bundle)
+}
+
+// walk counts the bundle breadth first, within the limits: one listing per
+// directory, which is what a source with nothing cheaper costs.
 //
 // A directory that cannot be listed does not sink the count: whatever was
 // counted is still worth knowing, and the answer says it is a floor. Only a
 // root that cannot be listed leaves the size unknown, because then nothing
 // was counted at all.
-func (d *Description) measure(bundle lister) {
+func (d *Description) walk(bundle lister) {
 	queue, listings := []string{""}, 0
 	for len(queue) > 0 {
-		if d.Files >= measureFileLimit || listings >= measureDirectoryLimit {
+		if d.full() || listings >= measureDirectoryLimit {
 			d.Partial = true
 			return
 		}
@@ -205,12 +223,7 @@ func (d *Description) measure(bundle lister) {
 				queue = append(queue, path.Join(directory, entry.Name))
 				continue
 			}
-			d.Files++
-			if entry.Size == SizeUnknown {
-				d.Unsized++
-				continue
-			}
-			d.Bytes += entry.Size
+			d.add(entry.Size)
 		}
 	}
 }

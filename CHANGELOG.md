@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-23
+
+### Changed
+
+- `check repository` counts a GitHub bundle with one request to the git tree
+  API rather than one listing per directory, and a GitLab bundle with one
+  paginated walk rather than one per directory. The count is the platform's
+  own answer rather than a floor, so a bundle bigger than the walk would read
+  is now reported exactly - where such a bundle used to say "more than 2000
+  files", which is what makes this a minor rather than a patch. GitHub's
+  `truncated` flag is what makes a count partial, and a bundle in a
+  sub-directory asks for its own tree, so it neither fetches the whole
+  repository nor inherits a `truncated` that was about somewhere else in it.
+  The per-directory listing is unchanged for the rules that ask about one
+  directory, a tree that cannot be read falls back to the walk, and GitLab
+  still gives no sizes, so its files stay unsized
+  (codecheckers/chekhov#46).
+- A Zenodo deposit is counted from the record it has already fetched, rather
+  than by re-deriving directory prefixes and re-reading the record once per
+  directory (codecheckers/chekhov#46).
+- Descending an OSF node costs one request per level: each folder's own
+  listing is remembered as it is passed, rather than following the node root
+  down again for every directory (codecheckers/chekhov#46).
+
 ## [0.5.0] - 2026-09-23
 
 ### Added

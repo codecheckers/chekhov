@@ -197,3 +197,112 @@ func TestALocalBundleStatesItsLicenceInAFile(t *testing.T) {
 		t.Errorf("the licence file was found as %q", licence)
 	}
 }
+
+// OSF names no paths, so a directory is reached by following the listing of
+// the folder above it. Without remembering where each folder's own listing is,
+// every directory is reached from the node root again - and the response cache
+// spares the network but not the parse, so a walk three deep re-unmarshals
+// every ancestor's pages once per directory. See codecheckers/chekhov#46.
+//
+// The saving is therefore not visible as a request, which the cache would have
+// answered either way: what it costs is where the descent starts. So that is
+// what this asserts.
+func TestDescendingAnOSFNodeStartsFromTheFolderAbove(t *testing.T) {
+	stub := newStub(t)
+	const (
+		rootPath   = "/osf/nodes/ab12c/files/osfstorage/"
+		middlePath = "/osf/folders/one/"
+		deepPath   = "/osf/folders/two/"
+	)
+	stub.JSON(rootPath, fmt.Sprintf(`{"data": [
+	  {"attributes": {"name": "codecheck", "kind": "folder"},
+	   "relationships": {"files": {"links": {"related": {"href": %q}}}}}
+	], "links": {}}`, stub.At(middlePath)))
+	stub.JSON(middlePath, fmt.Sprintf(`{"data": [
+	  {"attributes": {"name": "outputs", "kind": "folder"},
+	   "relationships": {"files": {"links": {"related": {"href": %q}}}}}
+	], "links": {}}`, stub.At(deepPath)))
+	stub.JSON(deepPath, `{"data": [
+	  {"attributes": {"name": "table1.csv", "kind": "file", "size": 12}}
+	], "links": {}}`)
+
+	bundle := bundleFor(RepositorySpec{Type: "osf", Path: "ab12c"}, stub.services)
+	node, ok := bundle.(*osfBundle)
+	if !ok {
+		t.Fatalf("an osf target gave a %T", bundle)
+	}
+
+	// Nothing has been reached yet, so the only way in is the node root and
+	// every segment has to be followed.
+	if href, reached := node.from([]string{"codecheck", "outputs"}); reached != 0 ||
+		href != node.spec.osfRoot(stub.services) {
+		t.Fatalf("a first descent starts at %q having reached %d segments, want the node root and none",
+			href, reached)
+	}
+
+	// The walk a description makes: the root, then the folder under it, then
+	// the folder under that.
+	for _, dir := range []string{"", "codecheck", "codecheck/outputs"} {
+		if _, err := bundle.List(dir); err != nil {
+			t.Fatalf("list %q: %v", dir, err)
+		}
+	}
+	if entries := mustList(t, bundle, "codecheck/outputs"); len(entries) != 1 ||
+		entries[0].Name != "table1.csv" || entries[0].Size != 12 {
+		t.Errorf("the deepest listing read as %v", entries)
+	}
+
+	// Each folder's own listing is remembered as it is passed, so a later
+	// descent starts from it rather than from the node root.
+	for _, want := range []struct {
+		segments []string
+		href     string
+		reached  int
+	}{
+		{[]string{"codecheck"}, stub.At(middlePath), 1},
+		{[]string{"codecheck", "outputs"}, stub.At(deepPath), 2},
+		// And a folder below one already reached follows one segment from it,
+		// rather than walking down from the node root again.
+		{[]string{"codecheck", "outputs", "figures"}, stub.At(deepPath), 2},
+	} {
+		href, reached := node.from(want.segments)
+		if href != want.href || reached != want.reached {
+			t.Errorf("%v is reached from %q after %d segments, want %q after %d",
+				want.segments, href, reached, want.href, want.reached)
+		}
+	}
+}
+
+// A listing longer than the page bound is refused rather than answered short.
+// The two callers of treePages want different things from a tree that did not
+// reach its end: a count says "more than this", which is the same judgement
+// the number was wanted for, but a listing that stops half way would report a
+// manifest file past the cut as one the codechecker forgot to commit.
+func TestAGitLabListingTooLongToReadIsRefusedRatherThanCutShort(t *testing.T) {
+	stub := newStub(t)
+	full := make([]string, listingPageSize)
+	for i := range full {
+		full[i] = fmt.Sprintf(`{"name": "file-%d", "type": "blob"}`, i)
+	}
+	page := "[" + strings.Join(full, ",") + "]"
+	// Every page is full, so the end is never reached.
+	stub.Handle("/gitlab/api/v4/projects/cdchck/demo/repository/tree",
+		func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, page) })
+	bundle := bundleFor(RepositorySpec{Type: "gitlab", Path: "cdchck/demo"}, stub.services)
+
+	if _, err := bundle.List(""); err == nil {
+		t.Error("a listing that could not be read to the end was answered as though it were whole")
+	}
+
+	// The count, asked of the same tree, is a floor rather than a refusal.
+	tally, err := bundle.(counter).Count()
+	if err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	if !tally.Partial {
+		t.Error("a tree that could not be read to the end should be a floor")
+	}
+	if tally.Files != maxTreePages*listingPageSize {
+		t.Errorf("counted %d files, want everything that was read", tally.Files)
+	}
+}

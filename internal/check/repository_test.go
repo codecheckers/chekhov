@@ -263,3 +263,233 @@ func TestRepositoryIsNotAPartOfTheCatalogue(t *testing.T) {
 		t.Error("repository is a description, not a part of the rule catalogue")
 	}
 }
+
+// --- counting a bundle in one request, codecheckers/chekhov#46 -------------
+
+// counting wires a stub that answers both ways for the same GitHub
+// repository: the contents API a directory at a time, and the git tree API
+// whole. Each route counts what was asked of it, so a test can say what the
+// description cost as well as what it said.
+func counting(t *testing.T, stub *stub) (contents, trees *int) {
+	t.Helper()
+	contents, trees = new(int), new(int)
+
+	root := `[
+	  {"name": "codecheck.yml", "type": "file", "size": 700},
+	  {"name": "LICENSE", "type": "file", "size": 1300},
+	  {"name": "codecheck", "type": "dir"}
+	]`
+	stub.Handle("/github/repos/codecheckers/demo/contents/",
+		func(w http.ResponseWriter, _ *http.Request) { *contents++; fmt.Fprint(w, root) })
+	stub.Handle("/github/repos/codecheckers/demo/contents/codecheck",
+		func(w http.ResponseWriter, _ *http.Request) {
+			*contents++
+			fmt.Fprint(w, `[{"name": "codecheck.pdf", "type": "file", "size": 2000}]`)
+		})
+	stub.Handle("/github/repos/codecheckers/demo/git/trees/HEAD",
+		func(w http.ResponseWriter, _ *http.Request) {
+			*trees++
+			fmt.Fprint(w, `{"truncated": false, "tree": [
+			  {"path": "codecheck.yml", "type": "blob", "size": 700},
+			  {"path": "LICENSE", "type": "blob", "size": 1300},
+			  {"path": "codecheck", "type": "tree"},
+			  {"path": "codecheck/codecheck.pdf", "type": "blob", "size": 2000}
+			]}`)
+		})
+	stub.JSON("/github/repos/codecheckers/demo/languages", `{"R": 900}`)
+	stub.Status("/raw/codecheckers/demo/HEAD/codecheck.yml", http.StatusOK)
+	return contents, trees
+}
+
+// The counts are the bundle's, not the endpoint's: the tree API and the walk
+// it replaces have to agree, or `check repository` would answer differently
+// depending on which platform the bundle is on.
+func TestCountingAGitHubBundleCostsOneRequest(t *testing.T) {
+	stub := newStub(t)
+	_, trees := counting(t, stub)
+
+	description := describe(t, stub, "codecheckers/demo")
+
+	// The same three files and four kilobytes the directory walk counted.
+	if description.Files != 3 || description.Bytes != 4000 || description.Unsized != 0 {
+		t.Errorf("counted %d files, %d bytes, %d unsized",
+			description.Files, description.Bytes, description.Unsized)
+	}
+	if description.Partial {
+		t.Error("a tree that was not truncated is a whole count")
+	}
+	if *trees != 1 {
+		t.Errorf("asked the tree API %d times, want 1", *trees)
+	}
+}
+
+// The contents API is the right call for one directory, and the rules that ask
+// about one directory still use it. Counting must not have changed that.
+func TestCountingDoesNotChangeHowOneDirectoryIsRead(t *testing.T) {
+	stub := newStub(t)
+	contents, _ := counting(t, stub)
+
+	description := describe(t, stub, "codecheckers/demo")
+
+	if got := answerAbout(t, description, FactLicence); got.Says != "LICENSE" {
+		t.Errorf("licence %q, want it read from the root listing", got.Says)
+	}
+	if *contents == 0 {
+		t.Error("the root was never listed, so the licence and the configuration were guessed")
+	}
+	// The root, once, for the licence and the configuration; the walk that
+	// would have listed codecheck/ as well is what the tree API replaced.
+	if *contents != 1 {
+		t.Errorf("listed %d directories, want the root alone", *contents)
+	}
+}
+
+// GitHub sets `truncated` when the tree was too large to return whole, which
+// is the same statement Partial makes: this count is a floor.
+func TestATruncatedTreeIsAPartialCount(t *testing.T) {
+	stub := newStub(t)
+	counting(t, stub)
+	stub.JSON("/github/repos/codecheckers/demo/git/trees/HEAD", `{"truncated": true, "tree": [
+	  {"path": "codecheck.yml", "type": "blob", "size": 700}
+	]}`)
+
+	description := describe(t, stub, "codecheckers/demo")
+
+	if !description.Partial {
+		t.Error("a truncated tree should say the count is a floor")
+	}
+	if got := description.size(); !strings.HasPrefix(got, "more than ") {
+		t.Errorf("size %q, want it to say the count is a floor", got)
+	}
+}
+
+// A submodule counts as the one entry it is, not as the repository behind it
+// and not as a directory - which is what the per-directory listing says too,
+// since entriesOf reads anything but a `dir` as a file. A description must not
+// depend on which endpoint answered it.
+func TestASubmoduleCountsAsOneEntry(t *testing.T) {
+	stub := newStub(t)
+	counting(t, stub)
+	stub.JSON("/github/repos/codecheckers/demo/git/trees/HEAD", `{"truncated": false, "tree": [
+	  {"path": "codecheck.yml", "type": "blob", "size": 700},
+	  {"path": "vendor", "type": "commit"}
+	]}`)
+
+	description := describe(t, stub, "codecheckers/demo")
+
+	// The configuration and the submodule, and only the configuration weighs
+	// anything: a submodule is a pointer, and the tree gives it no size.
+	if description.Files != 2 || description.Bytes != 700 {
+		t.Errorf("counted %d files and %d bytes, want the submodule as one weightless entry",
+			description.Files, description.Bytes)
+	}
+}
+
+// The cheap endpoint is an optimisation. A repository whose git tree cannot be
+// read may still list its directories one at a time, and the description is
+// the same either way - which is what makes it safe to prefer.
+func TestATreeThatCannotBeReadFallsBackToTheWalk(t *testing.T) {
+	stub := newStub(t)
+	contents, _ := counting(t, stub)
+	stub.Status("/github/repos/codecheckers/demo/git/trees/HEAD", http.StatusForbidden)
+
+	description := describe(t, stub, "codecheckers/demo")
+
+	if description.Files != 3 || description.Bytes != 4000 {
+		t.Errorf("counted %d files and %d bytes, want what the walk counts",
+			description.Files, description.Bytes)
+	}
+	if *contents < 2 {
+		t.Errorf("listed %d directories, want the walk to have read them all", *contents)
+	}
+}
+
+// One paginated walk rather than one per directory. GitLab still gives no
+// sizes, so every file stays unsized: reading an absent size as zero would
+// report a gigabyte of data as nothing.
+func TestCountingAGitLabBundleIsOneWalk(t *testing.T) {
+	stub := newStub(t)
+	stub.JSON("/gitlab/api/v4/projects/cdchck/demo/languages", `{"Julia": 100.0}`)
+	recursive, perDirectory := 0, 0
+	stub.Handle("/gitlab/api/v4/projects/cdchck/demo/repository/tree",
+		func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("recursive") != "true" {
+				perDirectory++
+				fmt.Fprint(w, `[{"name": "codecheck.yml", "type": "blob"},
+				  {"name": "codecheck", "type": "tree"}]`)
+				return
+			}
+			recursive++
+			if r.URL.Query().Get("page") != "1" {
+				fmt.Fprint(w, `[]`)
+				return
+			}
+			fmt.Fprint(w, `[{"name": "codecheck.yml", "type": "blob"},
+			  {"name": "codecheck", "type": "tree"},
+			  {"name": "codecheck.pdf", "type": "blob"},
+			  {"name": "data.csv", "type": "blob"}]`)
+		})
+	stub.Status("/gitlab/cdchck/demo/-/raw/main/codecheck.yml", http.StatusOK)
+
+	description := describe(t, stub, "gitlab::cdchck/demo")
+
+	if description.Files != 3 || description.Unsized != 3 || description.Bytes != 0 {
+		t.Errorf("counted %d files, %d of them unsized, %d bytes",
+			description.Files, description.Unsized, description.Bytes)
+	}
+	if got := answerAbout(t, description, FactSize); got.Says != "3 files, the listing gives no sizes" {
+		t.Errorf("size %q", got.Says)
+	}
+	if recursive != 1 {
+		t.Errorf("asked for the recursive tree %d times, want 1", recursive)
+	}
+	// The root is still read a directory at a time, for the licence and the
+	// configuration; what went away is a listing per directory below it.
+	if perDirectory != 1 {
+		t.Errorf("listed %d directories one at a time, want the root alone", perDirectory)
+	}
+}
+
+// A bundle in a sub-directory - the `org/repo|path` shape register.csv uses -
+// counts its own tree rather than the whole repository's. Fetching everything
+// to discard most of it would be the wrong request, and `truncated` would then
+// report this bundle's count as a floor because of files elsewhere.
+func TestCountingASubDirectoryAsksForItsOwnTree(t *testing.T) {
+	stub := newStub(t)
+	whole, subtree := 0, 0
+	stub.Handle("/github/repos/codecheckers/demo/git/trees/HEAD",
+		func(w http.ResponseWriter, _ *http.Request) {
+			whole++
+			fmt.Fprint(w, `{"truncated": true, "tree": [
+			  {"path": "codecheck/codecheck.pdf", "type": "blob", "size": 2000},
+			  {"path": "huge.bin", "type": "blob", "size": 99999}
+			]}`)
+		})
+	stub.Handle("/github/repos/codecheckers/demo/git/trees/HEAD:codecheck",
+		func(w http.ResponseWriter, _ *http.Request) {
+			subtree++
+			// Relative to the bundle, which is what the tree-ish buys.
+			fmt.Fprint(w, `{"truncated": false, "tree": [
+			  {"path": "codecheck.pdf", "type": "blob", "size": 2000}
+			]}`)
+		})
+	stub.JSON("/github/repos/codecheckers/demo/languages", `{"R": 900}`)
+	stub.JSON("/github/repos/codecheckers/demo/contents/codecheck",
+		`[{"name": "codecheck.pdf", "type": "file", "size": 2000}]`)
+	stub.Status("/raw/codecheckers/demo/HEAD/codecheck/codecheck.yml", http.StatusNotFound)
+
+	description := describe(t, stub, "github::codecheckers/demo|codecheck")
+
+	if subtree != 1 || whole != 0 {
+		t.Errorf("asked for the subtree %d times and the whole tree %d, want 1 and 0", subtree, whole)
+	}
+	if description.Files != 1 || description.Bytes != 2000 {
+		t.Errorf("counted %d files and %d bytes, want the sub-directory alone",
+			description.Files, description.Bytes)
+	}
+	// The repository is truncated and this bundle is not: `truncated` on the
+	// whole tree says nothing about a complete subtree.
+	if description.Partial {
+		t.Error("a complete subtree was reported as a floor")
+	}
+}

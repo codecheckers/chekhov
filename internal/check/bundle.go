@@ -61,6 +61,52 @@ type BundleEntry struct {
 // SizeUnknown is a BundleEntry the listing gave no size for.
 const SizeUnknown int64 = -1
 
+// A counter is a bundle that can say how big it is without being walked a
+// directory at a time.
+//
+// Counting and listing are different questions, and three of the four sources
+// answer them with different endpoints. Listing one directory is what the
+// manifest rules need, and it stays exactly as it was; counting the whole
+// bundle is what `check repository` needs, and asking for it a directory at a
+// time costs one request per directory for an answer the platform will give in
+// one. A bundle that has no cheaper shape simply does not implement this, and
+// is walked. See codecheckers/chekhov#46.
+type counter interface {
+	Count() (Tally, error)
+}
+
+// A Tally is how much a bundle holds.
+//
+// Embedded in Description, so that a source which answers in one request and a
+// source which has to be walked fill in the same fields by the same rules,
+// rather than two shapes of the same numbers with a copy between them.
+type Tally struct {
+	Files   int
+	Bytes   int64
+	Unsized int
+	// Partial says the count is a floor rather than a total: the platform
+	// truncated its answer, or the bundle is larger than a walk will read.
+	Partial bool
+}
+
+// add puts one file into the tally, with the one rule about sizes: a listing
+// that gives none is counted as unsized rather than as nothing. An empty file
+// is not an unmeasured one.
+func (t *Tally) add(size int64) {
+	t.Files++
+	if size == SizeUnknown {
+		t.Unsized++
+		return
+	}
+	t.Bytes += size
+}
+
+// full reports whether a walk has counted as much as a description reads.
+// Only the walk asks: a source that answers in one request has already paid
+// for the whole answer, and reporting "more than two thousand" when it knows
+// the number would be throwing away what was bought.
+func (t *Tally) full() bool { return t.Files >= measureFileLimit }
+
 // errNoServices is what a repository bundle answers when the outside world is
 // switched off. The rules turn it into their own skip, so that "could not
 // look" never reads as "looked and found nothing".
@@ -289,6 +335,64 @@ func (b *githubBundle) tree(dir string) ([]BundleEntry, error) {
 	return entriesOf(listing, "dir", true), nil
 }
 
+// Count reads the bundle's tree in one request.
+//
+// The contents API above answers one directory, which is the right call when a
+// rule asks about one directory; counting a bundle through it costs a request
+// per directory, up to the two hundred the walk allows. The git tree API gives
+// every path and every blob size in a single response.
+//
+// The tree-ish names the bundle rather than the repository - `HEAD:codecheck`
+// for an `org/repo|codecheck` target - so a bundle in a sub-directory does not
+// fetch the whole repository to discard most of it, the paths come back
+// relative to the bundle, and `truncated` is a statement about this bundle
+// rather than about something elsewhere in the repository. That is exactly
+// what Partial means: this count is a floor.
+//
+// Nothing is clamped here. The walk stops at a limit because each directory
+// past it costs another request; one response has already been paid for
+// whole, and answering "more than two thousand files" when the number is in
+// hand would be throwing away what was bought.
+func (b *githubBundle) Count() (Tally, error) {
+	if err := b.available(); err != nil {
+		return Tally{}, err
+	}
+	var tree struct {
+		Tree []struct {
+			Type string `json:"type"`
+			Size int64  `json:"size"`
+		} `json:"tree"`
+		Truncated bool `json:"truncated"`
+	}
+	url := fmt.Sprintf("%s/repos/%s/git/trees/%s?recursive=1",
+		b.services.GitHub, b.spec.Path, b.treeish())
+	if err := b.services.github(url, &tree); err != nil {
+		return Tally{}, err
+	}
+
+	tally := Tally{Partial: tree.Truncated}
+	for _, item := range tree.Tree {
+		// Everything that is not a directory is a file, which is what the
+		// per-directory listing this replaces says too - entriesOf reads
+		// anything but a `dir` as a file. A submodule counts as the one entry
+		// it is rather than as the repository behind it, which is not in this
+		// bundle; a description must not depend on which endpoint answered.
+		if item.Type != "tree" {
+			tally.add(item.Size)
+		}
+	}
+	return tally, nil
+}
+
+// treeish names the bundle's own tree: the commit for a repository, and the
+// sub-directory inside it for an `org/repo|path` target.
+func (b *githubBundle) treeish() string {
+	if inside := b.spec.path(""); inside != "" {
+		return "HEAD:" + escapePathSegments(inside)
+	}
+	return "HEAD"
+}
+
 // --- GitLab ---
 
 type gitlabBundle struct {
@@ -346,33 +450,134 @@ func (b *gitlabBundle) Exists(name string) (bool, error) {
 func (b *gitlabBundle) Licence() (string, error) { return licenceFileIn(b) }
 
 func (b *gitlabBundle) tree(dir string) ([]BundleEntry, error) {
-	if err := b.available(); err != nil {
+	listing, whole, err := b.treePages(b.spec.path(dir), false)
+	if err != nil {
 		return nil, err
 	}
-	// A page at a time: a data-heavy bundle with more than a hundred entries
-	// would otherwise hide its codecheck/ directory, and a hidden one now
-	// reads as a finding rather than as a skip.
-	var listing []treeEntry
-	for page := 1; ; page++ {
-		url := fmt.Sprintf("%s/api/v4/projects/%s/repository/tree?path=%s&per_page=%d&page=%d",
-			b.services.GitLab, neturl.QueryEscape(b.spec.Path),
-			neturl.QueryEscape(b.spec.path(dir)), listingPageSize, page)
-		var batch []treeEntry
-		if err := b.services.getJSON(url, nil, &batch); err != nil {
-			return nil, err
-		}
-		listing = append(listing, batch...)
-		if len(batch) < listingPageSize {
-			break
-		}
+	if !whole {
+		// A listing cut short is worse than no listing: a manifest file past
+		// the cut would read as a file the codechecker forgot to commit. A
+		// rule that cannot see the whole directory has not looked at it.
+		return nil, fmt.Errorf("the listing of %s in %s is longer than %d entries",
+			b.spec.path(dir), b.spec, maxTreePages*listingPageSize)
 	}
 	// GitLab's tree gives names and no sizes.
 	return entriesOf(listing, "tree", false), nil
 }
 
+// Count reads the whole tree, one paginated walk rather than one per
+// directory.
+//
+// `recursive` is the only difference from tree above, and it collapses the
+// per-directory loop into the pagination that was there anyway. Still no
+// sizes, so every file counts as unsized: that is the honest answer, and the
+// one the walk gave too.
+func (b *gitlabBundle) Count() (Tally, error) {
+	listing, whole, err := b.treePages(b.spec.path(""), true)
+	if err != nil {
+		return Tally{}, err
+	}
+	var tally Tally
+	for _, entry := range entriesOf(listing, "tree", false) {
+		if !entry.IsDir {
+			tally.add(entry.Size)
+		}
+	}
+	// Counting is the one question a short answer can still be useful for:
+	// "more than this" is the same judgement the number was wanted for.
+	tally.Partial = !whole
+	return tally, nil
+}
+
+// maxTreePages bounds a paginated tree. GitLab spends a request per page, so
+// this is a limit on what a listing may cost, in the unit it costs it in -
+// unlike the walk's limits, which bound a description's reading.
+const maxTreePages = 200
+
+// treePages reads a GitLab tree, a page at a time, and says whether it reached
+// the end.
+//
+// One page at a time because a data-heavy bundle with more than a hundred
+// entries would otherwise hide its codecheck/ directory, and a hidden one
+// reads as a finding rather than as a skip. One function because listing a
+// directory and counting the bundle are the same request with one parameter
+// changed, and two copies of it would drift.
+//
+// Reaching the page bound is reported rather than hidden, because the two
+// callers answer it differently: a count says it is a floor, and a listing
+// refuses, since a rule that cannot see the whole directory has not looked at
+// it. A last page that is full is not proof there is nothing after it, so it
+// counts as not having reached the end.
+func (b *gitlabBundle) treePages(path string, recursive bool) ([]treeEntry, bool, error) {
+	if err := b.available(); err != nil {
+		return nil, false, err
+	}
+	var listing []treeEntry
+	for page := 1; page <= maxTreePages; page++ {
+		url := fmt.Sprintf("%s/api/v4/projects/%s/repository/tree?path=%s&per_page=%d&page=%d",
+			b.services.GitLab, neturl.QueryEscape(b.spec.Path),
+			neturl.QueryEscape(path), listingPageSize, page)
+		if recursive {
+			url += "&recursive=true"
+		}
+		var batch []treeEntry
+		if err := b.services.getJSON(url, nil, &batch); err != nil {
+			return nil, false, err
+		}
+		listing = append(listing, batch...)
+		if len(batch) < listingPageSize {
+			return listing, true, nil
+		}
+	}
+	return listing, false, nil
+}
+
 // --- OSF ---
 
-type osfBundle struct{ repoBundle }
+type osfBundle struct {
+	repoBundle
+	// hrefs is where each directory's own listing is, learned from the
+	// listing of the folder above it. OSF names no paths, so without this
+	// every directory is reached by following the node root down again: the
+	// response cache spares the network, but each cached body is unmarshalled
+	// afresh, so a walk three deep re-parses every ancestor's pages once per
+	// directory. The parent listing already carries the child's href, and
+	// remembering it makes descending cost one request from the parent rather
+	// than a re-walk. Keyed by the path inside the repository, as memo is.
+	//
+	// Its own lock rather than memo's: listing is reached both through
+	// memo.List, which holds that lock across the read, and directly from
+	// item, which does not - so taking memo's here would deadlock on one path
+	// and guard nothing on the other.
+	mu    sync.Mutex
+	hrefs map[string]string
+}
+
+// remember records where a directory's own listing is, so that the next
+// descent starts from it rather than from the node root.
+func (b *osfBundle) remember(dir, href string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.hrefs == nil {
+		b.hrefs = map[string]string{}
+	}
+	b.hrefs[dir] = href
+}
+
+// from is the deepest listing already known on the way to a directory: its own
+// href when it has been reached before, otherwise the nearest ancestor's, and
+// the node root when none is known. The index is how many of the segments that
+// href has already accounted for, so the caller follows the rest.
+func (b *osfBundle) from(segments []string) (href string, reached int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for i := len(segments); i > 0; i-- {
+		if known, ok := b.hrefs[strings.Join(segments[:i], "/")]; ok {
+			return known, i
+		}
+	}
+	return b.spec.osfRoot(b.services), 0
+}
 
 func (b *osfBundle) Read(name string) ([]byte, error) {
 	item, found, err := b.item(name)
@@ -468,14 +673,19 @@ func (b *osfBundle) listing(dir string) (osfListing, error) {
 	if err := b.available(); err != nil {
 		return osfListing{}, err
 	}
-	listing, err := b.services.osfListing(b.spec.osfRoot(b.services), b.spec.Path)
+	// Start from the deepest listing already reached on the way here, which
+	// for the common descent - a directory whose parent was just listed - is
+	// the parent itself, and so costs one request rather than a walk from the
+	// node root. FieldsFunc rather than Split: the root is no segments at all
+	// rather than one empty one.
+	segments := strings.FieldsFunc(b.spec.path(dir), func(r rune) bool { return r == '/' })
+	href, reached := b.from(segments)
+	listing, err := b.services.osfListing(href, b.spec.Path)
 	if err != nil {
 		return listing, err
 	}
-	for _, segment := range strings.Split(b.spec.path(dir), "/") {
-		if segment == "" {
-			continue
-		}
+
+	for _, segment := range segments[reached:] {
 		next := ""
 		for _, item := range listing.Data {
 			if item.Attributes.Name == segment && item.folder() {
@@ -486,6 +696,8 @@ func (b *osfBundle) listing(dir string) (osfListing, error) {
 			return osfListing{}, fmt.Errorf("%w: no %s in OSF node %s",
 				errNoSuchDirectory, segment, b.spec.Path)
 		}
+		reached++
+		b.remember(strings.Join(segments[:reached], "/"), next)
 		if listing, err = b.services.osfListing(next, b.spec.Path); err != nil {
 			return listing, err
 		}
@@ -533,6 +745,34 @@ func (b *zenodoBundle) Licence() (string, error) {
 		return licence, nil
 	}
 	return licenceFileIn(b)
+}
+
+// Count folds the record's files into a tally in one pass.
+//
+// A Zenodo record is flat and is fetched whole, so the walk costs no requests
+// - but it re-derives the prefixes of every file once per directory, and
+// re-unmarshals the cached record body each time it does. Counting the files
+// the record already lists is the same answer without either.
+func (b *zenodoBundle) Count() (Tally, error) {
+	if err := b.available(); err != nil {
+		return Tally{}, err
+	}
+	record, err := b.services.zenodoRecordOf(b.spec)
+	if err != nil {
+		return Tally{}, err
+	}
+
+	prefix := b.spec.path("")
+	if prefix != "" {
+		prefix += "/"
+	}
+	var tally Tally
+	for _, file := range record.Files {
+		if _, under := strings.CutPrefix(file.name(), prefix); under {
+			tally.add(file.Size)
+		}
+	}
+	return tally, nil
 }
 
 // tree lists a record's files. A record is flat, so a directory is whatever

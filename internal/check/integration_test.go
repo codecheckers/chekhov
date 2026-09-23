@@ -180,3 +180,66 @@ func TestIntegrationFixturesCoverEveryServiceRule(t *testing.T) {
 	t.Logf("%d of %d rules that need a service reached a verdict",
 		len(RequiresService)-len(uncovered), len(RequiresService))
 }
+
+// Counting a bundle asks for a whole tree in one request rather than walking
+// it a directory at a time, which is two assumptions about what the platforms
+// answer: GitHub's git tree API carries a blob size and a `truncated` flag,
+// and GitLab's tree takes `recursive=true`. Both are new with
+// codecheckers/chekhov#46, and neither is exercised by the offline stubs
+// beyond the shape this code expects of them - which is exactly what this
+// suite is for.
+func TestIntegrationCountingABundleInOneRequest(t *testing.T) {
+	services := integrationServices(t)
+
+	for _, target := range []string{
+		"github::codecheckers/Piccolo-2020",
+		"gitlab::cdchck/community-codechecks/2022-svaRetro-svaNUMT",
+	} {
+		t.Run(target, func(t *testing.T) {
+			spec, bundle, err := bundleOf(target, services.Fresh())
+			if err != nil {
+				t.Fatalf("%s: %v", target, err)
+			}
+			counting, ok := bundle.(counter)
+			if !ok {
+				t.Fatalf("%s has no cheaper count, so this test is about nothing", spec)
+			}
+
+			tally, err := counting.Count()
+			if err != nil {
+				t.Fatalf("counting %s: %v", spec, err)
+			}
+			if tally.Files == 0 {
+				t.Errorf("%s counted no files at all", spec)
+			}
+
+			// What the walk says, from the same repository. The two read
+			// different endpoints, and a description must not depend on which.
+			//
+			// The walk is also what this change is for: it spends a request
+			// per directory, so on an unauthenticated run it is the half that
+			// meets GitHub's sixty-an-hour limit - measured at 403 part way
+			// down codecheckers/Piccolo-2020, where the tree costs one
+			// request and finishes. A comparison is only meaningful when the
+			// walk got to the end.
+			walked := Description{Unknown: map[string]string{}}
+			walked.walk(bundle)
+			switch {
+			case walked.Unknown[FactSize] != "":
+				t.Skipf("%s could not be walked, so there is nothing to compare: %s",
+					spec, walked.Unknown[FactSize])
+			case tally.Partial || walked.Partial:
+				// One of the two stopped at a limit, or the walk was cut
+				// short, so the counts are floors and need not agree.
+				t.Logf("%s: the tree counted %d files and the walk %d, and at least one is a floor",
+					spec, tally.Files, walked.Files)
+			case tally.Files != walked.Files:
+				t.Errorf("%s: the tree counted %d files and the walk %d",
+					spec, tally.Files, walked.Files)
+			case tally.Unsized != walked.Unsized || tally.Bytes != walked.Bytes:
+				t.Errorf("%s: the tree counted %d bytes (%d unsized) and the walk %d (%d unsized)",
+					spec, tally.Bytes, tally.Unsized, walked.Bytes, walked.Unsized)
+			}
+		})
+	}
+}
