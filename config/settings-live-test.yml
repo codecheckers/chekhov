@@ -27,6 +27,9 @@ chekhov:
     codechecker_lists:
       - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/codecheckers.csv
       - https://raw.githubusercontent.com/${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}/HEAD/institutional-codecheckers.csv
+    # The issue of the target repository a command's panic is reported on, 0
+    # for the log only; see docs/deployment.md. Quoted, so "#42" is refused.
+    admin_issue: "${CHEKHOV_ADMIN_ISSUE:-0}"
 
   metadata:
     # Where the bot asks what a paper is: its title, its authors and what it is

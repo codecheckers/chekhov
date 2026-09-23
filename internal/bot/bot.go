@@ -211,7 +211,8 @@ func (s *Server) refuse(event mention) string {
 // A kill from the platform's own memory limit is a different thing entirely -
 // an OS signal ends the process before any Go code, recover included, runs -
 // and no amount of recovering here changes that; see docs/deployment.md ->
-// Memory and codecheckers/chekhov#32.
+// Memory and codecheckers/chekhov#32. A panic that is caught is reported on
+// the admin issue, #38.
 func (s *Server) act(event mention, parsed command.Command) {
 	defer func() {
 		if s.done != nil {
@@ -276,10 +277,11 @@ func (s *Server) signer() *people.Signer {
 }
 
 // recoverCommand catches a panic from one command, so it costs that command's
-// answer rather than the process. It logs the full trace and tries to leave a
-// word on the issue; either can fail without making things worse - and must
-// not panic in turn, or reporting the first panic costs the process the
-// second one was meant to save.
+// answer rather than the process. It logs the full trace, tries to leave a
+// word on the issue, and reports the trace on the admin issue; any of these
+// can fail without making things worse - and must not panic in turn, or
+// reporting the first panic costs the process the second one was meant to
+// save.
 func (s *Server) recoverCommand(event mention, parsed command.Command) {
 	r := recover()
 	if r == nil {
@@ -291,10 +293,64 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 	s.Logger.Error("command panicked", "command", parsed.Name, "repository", event.Repository,
 		"issue", event.Issue, "author", event.Author, "panic", r, "stack", trace)
 
+	// The report first, and each with its own guard and its own deadline, so
+	// that a slow or failing apology costs neither the report nor its time.
+	// On the admin issue itself the report is the answer, trace and all.
+	s.survive("reporting the panic", func() {
+		s.reportPanic(fmt.Sprintf("`%s %s` panicked on %s, asked by `@%s`.",
+			command.Bot, parsed.Name, event.check(), event.Author), r, trace)
+	})
+	if event.Issue == s.Settings.AdminIssue() {
+		return
+	}
+	s.survive("apologising for the panic", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, _ = s.Replies.Comment(ctx, event.Repository, event.Issue,
+			fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
+	})
+}
+
+// survive runs f, and logs a panic from it rather than passing it on.
+func (s *Server) survive(what string, f func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.Logger.Error("panicked "+what, "panic", r)
+		}
+	}()
+	f()
+}
+
+// maxPanicValue is how much of a panic value the report quotes. A value can
+// wrap a whole response body, and the comment is cut at GitHub's limit from
+// the end - which would cut the trace, the part worth having.
+const maxPanicValue = 4000
+
+// reportPanic posts a panic and its trace on the admin issue, if there is one,
+// which is how somebody hears of it without watching the logs. See
+// docs/deployment.md -> Watching it, and codecheckers/chekhov#38.
+func (s *Server) reportPanic(headline string, r any, trace string) {
+	admin := mention{Repository: s.Settings.TargetRepository(), Issue: s.Settings.AdminIssue()}
+	if admin.Issue == 0 {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, _ = s.Replies.Comment(ctx, event.Repository, event.Issue,
-		fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
+	// The panic value can quote whatever a command was given, so it goes in
+	// an indented code block with the trace, which nothing in it can end and
+	// where neither a handle nor markdown does anything; post defuses the rest.
+	// A carriage return ends a line in markdown as well, so it is indented too.
+	value := fmt.Sprint(r)
+	if len(value) > maxPanicValue {
+		value = strings.ToValidUTF8(value[:maxPanicValue], "") + " … (cut)"
+	}
+	details := strings.TrimRight(value+"\n\n"+trace, "\r\n")
+	indent := strings.NewReplacer("\r\n", "\n    ", "\r", "\n    ", "\n", "\n    ")
+	body := headline + "\n\n    " + indent.Replace(details) + "\n"
+	if _, err := s.post(ctx, admin, said(body)); err != nil {
+		s.Logger.Error("the panic could not be reported on the admin issue",
+			"issue", admin.Issue, "error", err)
+	}
 }
 
 // answer produces the reply to one command.

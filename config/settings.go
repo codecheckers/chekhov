@@ -15,6 +15,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -35,6 +36,8 @@ type Settings struct {
 			Certificates string `yaml:"certificates"`
 			// CodecheckerLists are the URLs of the codechecker lists.
 			CodecheckerLists []string `yaml:"codechecker_lists"`
+			// AdminIssue is where a command's panic is reported, 0 for nowhere.
+			AdminIssue IssueNumber `yaml:"admin_issue"`
 		} `yaml:"env"`
 		Metadata Metadata `yaml:"metadata"`
 		Mastodon Mastodon `yaml:"mastodon"`
@@ -71,6 +74,23 @@ type Settings struct {
 			Managed []string `yaml:"managed"`
 		} `yaml:"teams"`
 	} `yaml:"chekhov"`
+}
+
+// IssueNumber is an issue of the target repository, 0 for none.
+//
+// Written quoted in the settings file and parsed here, because a bare value is
+// expanded before the YAML is read: a mistyped "#42" would become a comment,
+// and switch off what it was meant to switch on.
+type IssueNumber int
+
+// UnmarshalYAML refuses anything but a number that is not negative.
+func (n *IssueNumber) UnmarshalYAML(node *yaml.Node) error {
+	issue, err := strconv.Atoi(node.Value)
+	if err != nil || issue < 0 {
+		return fmt.Errorf("line %d: %q is not an issue number; 0 means none", node.Line, node.Value)
+	}
+	*n = IssueNumber(issue)
+	return nil
 }
 
 // Metadata is where the bot asks what a paper is: its title, its authors and
@@ -220,6 +240,10 @@ func (s *Settings) TargetRepository() string { return s.Chekhov.Env.TargetReposi
 // BotUser is the account the bot posts as. A comment by this account is never
 // acted on, so that a reply cannot trigger a reply.
 func (s *Settings) BotUser() string { return s.Chekhov.Env.BotGitHubUser }
+
+// AdminIssue is the issue of the target repository a panic is reported on,
+// 0 when there is none.
+func (s *Settings) AdminIssue() int { return int(s.Chekhov.Env.AdminIssue) }
 
 // CodecheckerLists are the URLs of the codechecker lists.
 func (s *Settings) CodecheckerLists() []string { return s.Chekhov.Env.CodecheckerLists }

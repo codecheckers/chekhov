@@ -17,6 +17,7 @@ import (
 	"github.com/codecheckers/chekhov/config"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
@@ -382,17 +383,18 @@ func TestVersionIsAnswered(t *testing.T) {
 	_ = replies
 }
 
+// panicIn runs a command that panics with value, the way act does.
+func panicIn(server *Server, event mention, value any) {
+	defer server.recoverCommand(event, command.Command{Name: command.Hello})
+	panic(value)
+}
+
 // A panic in one command must cost that command's answer, not the process:
 // every other command in flight on a shared deployment must not be dropped
 // with it. See codecheckers/chekhov#32.
 func TestAPanicInACommandIsRecoveredAndReported(t *testing.T) {
 	server, replies := testServer(t)
-	event := mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "acodechecker"}
-
-	func() {
-		defer server.recoverCommand(event, command.Command{Name: command.Hello})
-		panic("boom")
-	}()
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "acodechecker"}, "boom")
 
 	if replies.count() != 1 {
 		t.Fatalf("%d replies, want 1", replies.count())
@@ -404,6 +406,100 @@ func TestAPanicInACommandIsRecoveredAndReported(t *testing.T) {
 	if !strings.Contains(reply, string(command.Hello)) {
 		t.Errorf("reply = %q, want it to name the command that panicked", reply)
 	}
+}
+
+// The apology is seen by whoever watches the issue; the admin issue is where
+// somebody who can fix it hears of it, with the trace. See
+// codecheckers/chekhov#38.
+func TestAPanicIsReportedOnTheAdminIssue(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}
+	panicIn(server, event, "boom <!-- roles -->\n```\r@a-handling-editor")
+
+	if replies.count() != 2 {
+		t.Fatalf("%d replies, want the report and the apology", replies.count())
+	}
+	report, apology := replies.comments[0], replies.comments[1]
+	if apology.Issue != 7 || !strings.Contains(apology.Body, "went wrong") {
+		t.Errorf("reply on #%d = %q, want the apology on the issue asked on", apology.Issue, apology.Body)
+	}
+	if report.Repository != server.Settings.TargetRepository() || report.Issue != 99 {
+		t.Errorf("report went to %s#%d, want the admin issue", report.Repository, report.Issue)
+	}
+	for _, want := range []string{string(command.Hello), event.check(), "`@a-codechecker`", "recoverCommand", "boom"} {
+		if !strings.Contains(report.Body, want) {
+			t.Errorf("the report does not carry %q:\n%s", want, report.Body)
+		}
+	}
+	if strings.Contains(report.Body, "<!--") {
+		t.Errorf("the panic value went out undefused:\n%s", report.Body)
+	}
+	// Nothing in the panic value may leave the code block, or the handle in
+	// it would notify somebody. A carriage return ends a line too.
+	headline, block, _ := strings.Cut(report.Body, "\n\n")
+	for _, line := range strings.FieldsFunc(block, func(r rune) bool { return r == '\n' || r == '\r' }) {
+		if !strings.HasPrefix(line, "    ") {
+			t.Errorf("line %q is outside the code block under %q", line, headline)
+		}
+	}
+}
+
+// On the admin issue itself, the report is the one comment: whoever is
+// reproducing a panic there wants the trace, not the apology.
+func TestAPanicOnTheAdminIssueIsReportedOnce(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "7")
+	server, replies := testServer(t)
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "boom")
+
+	if replies.count() != 1 {
+		t.Fatalf("%d replies, want the report alone", replies.count())
+	}
+	if reply := replies.last(); !strings.Contains(reply, "recoverCommand") {
+		t.Errorf("the one reply carries no trace:\n%s", reply)
+	}
+}
+
+// A panic value can be as long as whatever it wraps, and the comment is cut
+// from the end at GitHub's limit, so the value is cut instead of the trace.
+func TestALongPanicValueDoesNotCostTheTrace(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := testServer(t)
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"},
+		strings.Repeat("ä", github.MaxCommentLength))
+
+	report := replies.comments[0].Body
+	if len(report) > github.MaxCommentLength/2 || !strings.Contains(report, "(cut)") ||
+		!strings.Contains(report, "recoverCommand") {
+		t.Errorf("%d bytes; want the value cut and the trace kept", len(report))
+	}
+}
+
+// A reply path that falls over for the report must not cost the apology.
+func TestTheApologySurvivesAFailedReport(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, _ := testServer(t)
+	failing := &failOnIssue{issue: 99}
+	server.Replies = failing
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "boom")
+
+	if failing.posted != 7 {
+		t.Errorf("posted on #%d, want the apology despite the report panicking", failing.posted)
+	}
+}
+
+// failOnIssue panics when asked to comment on one issue, and remembers the
+// last other issue it was asked to comment on.
+type failOnIssue struct {
+	issue, posted int
+}
+
+func (f *failOnIssue) Comment(_ context.Context, _ string, issue int, _ string) (int64, error) {
+	if issue == f.issue {
+		panic("the reply path fell over")
+	}
+	f.posted = issue
+	return 1, nil
 }
 
 // Being thanked is answered once, with a quote from the bot's namesake. A

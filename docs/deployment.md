@@ -41,6 +41,7 @@ runway app config set -a chekhov CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -h
 runway app config set -a chekhov CHEKHOV_MASTODON_TOKEN=...    # optional, see "Announcing" below
 runway app config set -a chekhov GOMEMLIMIT=96MiB             # the free plan has 128 MB, see "Memory" below
 runway app config set -a chekhov CHEKHOV_RECORD_KEY=...       # `chekhov record-key`, see record-key.md
+runway app config set -a chekhov CHEKHOV_ADMIN_ISSUE=...      # optional, see "Watching it" below
 # CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org
 runway app deploy source -y
 ```
@@ -325,6 +326,19 @@ Every answered command logs the command, the issue, the author, the identifier
 of the comment it posted and how long it took. A refused delivery logs why: a
 bad signature, the wrong repository, the bot's own comment. A failed post logs
 the command, the issue and what GitHub said.
+
+Nobody watches the logs, so a command that **panics** is also reported on an
+issue: `CHEKHOV_ADMIN_ISSUE` names one in the target repository, and the bot
+posts the command, the issue it was asked on, who asked and the stack trace
+there. Open an issue for it once, subscribe to it, and set its number; nobody
+is mentioned in the report, so subscribing is how you hear of one. The person
+who asked still gets an apology on their own issue; on the admin issue itself
+the report is the answer. Unset or `0`, the trace is
+in the log only. In the target repository because that is the one repository
+the reply path writes to, so in production the trace is as public as the
+register. It covers a panic and nothing else: a kill from the memory limit
+above ends the process before any of this runs. See
+[chekhov#38](https://github.com/codecheckers/chekhov/issues/38).
 
 ## Redeploying
 

@@ -113,6 +113,27 @@ func TestLiveTestSettingsMatchDevelopmentExceptFollow(t *testing.T) {
 	}
 }
 
+// A panic is reported on an issue of the target repository, and nowhere when
+// none is named - which is the default, so a deployment opts in.
+func TestTheAdminIssueComesFromTheEnvironment(t *testing.T) {
+	if got := mustLoad(t).AdminIssue(); got != 0 {
+		t.Errorf("admin issue = %d by default, want 0", got)
+	}
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "42")
+	if got := mustLoad(t).AdminIssue(); got != 42 {
+		t.Errorf("admin issue = %d, want the one from the environment", got)
+	}
+	// A typo must not quietly turn the reports off.
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "#42")
+	if _, err := Load("development"); err == nil {
+		t.Error("an admin issue that is not a number was accepted")
+	}
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "-1")
+	if _, err := Load("development"); err == nil || !strings.Contains(err.Error(), "not an issue number") {
+		t.Errorf("error %v, want a negative admin issue refused", err)
+	}
+}
+
 func mustLoad(t *testing.T) *Settings {
 	t.Helper()
 	settings, err := Load("development")
