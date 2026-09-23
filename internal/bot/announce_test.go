@@ -24,6 +24,9 @@ type fakeToots struct {
 	uploads  int
 	posts    []mastodon.Status
 	limitErr error
+	// limitPanic is a Mastodon client that panics rather than failing, which
+	// is what the guard on a command's own goroutines is for.
+	limitPanic any
 
 	directMessages []string // texts PostDirect was asked to send
 	postDirectErr  error
@@ -86,6 +89,9 @@ func (f *fakeToots) RecentStatuses(context.Context, int) ([]mastodon.Posted, err
 }
 
 func (f *fakeToots) Limits(context.Context) (mastodon.Limits, error) {
+	if f.limitPanic != nil {
+		panic(f.limitPanic)
+	}
 	return mastodon.Limits{MaxCharacters: 1500, CharactersPerURL: 23, ImageSizeLimit: 16 << 20}, f.limitErr
 }
 
@@ -324,5 +330,26 @@ func TestAnnounceReportsTheCertificateBeforeTheInstance(t *testing.T) {
 	}
 	if reply := announceAs(server, "nuest", "1970-001"); !strings.Contains(reply, "what it allows: the instance is down") {
 		t.Errorf("the instance's error was not reported: %s", reply)
+	}
+}
+
+// A command asks Mastodon on goroutines of its own, which recoverCommand does
+// not cover: a panic in one would end the process and every command in flight
+// with it. It costs the answer instead, and the person who asked is told that
+// step failed. See codecheckers/chekhov#50.
+func TestAPanicAskingMastodonCostsTheAnswerAndNotTheProcess(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, toots := announceServer(t)
+	toots.limitPanic = "boom"
+
+	reply := announceAs(server, "nuest", "1970-001")
+
+	if !strings.Contains(reply, "I could not ask") || !strings.Contains(reply, "logged") {
+		t.Errorf("the reply does not say the step failed:\n%s", reply)
+	}
+	replies := server.Replies.(*recorder)
+	if replies.count() != 1 || !strings.Contains(replies.last(), "boom") {
+		t.Errorf("the panic was not reported on the admin issue: %d comments, %q",
+			replies.count(), replies.last())
 	}
 }

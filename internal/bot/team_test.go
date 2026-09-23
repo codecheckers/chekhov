@@ -32,8 +32,11 @@ type organisation struct {
 	// issuesErr a register that will not answer at all.
 	thread    []github.Comment
 	issuesErr error
-	added     []string
-	addedTo   []string
+	// issuesPanic is a register read that panics rather than failing, which
+	// is what the sweep's recover is for.
+	issuesPanic any
+	added       []string
+	addedTo     []string
 	// assigned and unassigned are what the issue's assignee was changed to
 	// and from, which is the other half of finishing an assignment.
 	assigned   []string
@@ -57,6 +60,9 @@ func (o *organisation) Comments(_ context.Context, _ string, _ int) ([]github.Co
 }
 
 func (o *organisation) OpenIssues(_ context.Context, _ string) ([]github.Issue, error) {
+	if o.issuesPanic != nil {
+		panic(o.issuesPanic)
+	}
 	if o.issuesErr != nil {
 		return nil, o.issuesErr
 	}

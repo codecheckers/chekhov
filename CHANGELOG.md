@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-09-23
+
+### Fixed
+
+- A panic in the nightly sweep, or in a follow-up handler it calls, now costs
+  that night's walk rather than the whole process: it is recovered, reported
+  on the admin issue, and counted by `GET /nudges`, and the timer still fires
+  the next night. The team load at startup, and the goroutines a command asks
+  Mastodon on, are guarded the same way - the last of these tells the person
+  who asked that the step failed (codecheckers/chekhov#50).
+- The stack trace in a panic report is development's alone. In production the
+  admin issue is on the public register, and a trace names the build's paths,
+  packages and line numbers: the report there carries the panic value and says
+  the trace is in the log (codecheckers/chekhov#50).
+
 ## [0.4.3] - 2026-09-23
 
 ### Fixed

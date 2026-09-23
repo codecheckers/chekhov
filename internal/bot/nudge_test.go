@@ -415,3 +415,70 @@ func age(t *testing.T, server *Server, replies *organisation) {
 		replies.thread[i].Body = block + "aged"
 	}
 }
+
+// A panic in the sweep, or in a handler it calls, must cost that night's walk
+// and not the process: the deployment answers commands in the morning, the
+// timer fires the next night, and the admin issue is where anybody hears of
+// it. See codecheckers/chekhov#50.
+func TestASweepThatPanicsCostsThatSweepAndNotTheProcess(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := organised(t)
+	replies.issuesPanic = "boom"
+
+	server.sweepOnce(context.Background())
+
+	// Recorded like any other walk, so that the endpoint shows a sweep that
+	// keeps panicking as well as one that has stopped.
+	if body := nudges(t, server); !strings.Contains(body, `"problems": 1`) {
+		t.Errorf("/nudges does not count the failed sweep:\n%s", body)
+	}
+	if replies.count() != 1 {
+		t.Fatalf("%d comments, want the report on the admin issue", replies.count())
+	}
+	report := replies.comments[0]
+	if report.Issue != 99 {
+		t.Errorf("the report went to #%d, want the admin issue", report.Issue)
+	}
+	for _, want := range []string{"nightly sweep", "sweepOnce", "boom"} {
+		if !strings.Contains(report.Body, want) {
+			t.Errorf("the report does not carry %q:\n%s", want, report.Body)
+		}
+	}
+}
+
+// And the timer keeps its schedule: the sweep after a bad night runs.
+func TestTheSweepRunsAgainAfterAPanic(t *testing.T) {
+	server, replies := organised(t)
+	replies.issuesPanic = "boom"
+	server.sweepOnce(context.Background())
+
+	replies.issuesPanic = nil
+	server.sweepOnce(context.Background())
+
+	if len(server.sweeps.done) != 2 {
+		t.Fatalf("%d sweeps recorded, want the failed one and the next", len(server.sweeps.done))
+	}
+	if problems := server.sweeps.done[1].Problems; len(problems) != 0 {
+		t.Errorf("the sweep after the panic reports %v", problems)
+	}
+}
+
+// The startup team load is the other timer-less goroutine with nobody to
+// answer, and it is guarded the same way.
+func TestABackgroundPanicIsReportedRatherThanEndingTheProcess(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := organised(t)
+
+	func() {
+		defer server.recoverBackground("The team load at startup panicked.")
+		panic("boom")
+	}()
+
+	if replies.count() != 1 {
+		t.Fatalf("%d comments, want the report on the admin issue", replies.count())
+	}
+	report := replies.comments[0].Body
+	if !strings.Contains(report, "team load at startup") || !strings.Contains(report, "boom") {
+		t.Errorf("the report does not say what panicked:\n%s", report)
+	}
+}

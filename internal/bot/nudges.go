@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/codecheckers/chekhov/internal/command"
 )
 
 // The nightly sweep, and the endpoint that says whether it is still running.
@@ -127,12 +129,29 @@ func (s *Server) sweepNightly(ctx context.Context) {
 }
 
 // sweepOnce walks the register and remembers what it found.
+//
+// A panic in the walk, or in any follow-up handler it calls, costs this sweep
+// and not the process: the timer still fires the next night, and the failed
+// walk is recorded like any other, so that GET /nudges shows a sweep that
+// keeps panicking as well as one that has stopped. See
+// codecheckers/chekhov#50.
 func (s *Server) sweepOnce(ctx context.Context) {
-	sweep := s.nudge(ctx)
-	s.sweeps.record(sweep)
-	s.Logger.Info("the nightly sweep ran", "issues", sweep.Issues, "acted", sweep.Acted,
-		"outstanding", sweep.Outstanding, "problems", len(sweep.Problems))
-	for _, problem := range sweep.Problems {
-		s.Logger.Warn("the nightly sweep could not finish something", "problem", problem)
-	}
+	// What the walk came to, pessimistically until it comes to something: a
+	// panic leaves this standing, and the recover below runs first, so the
+	// failed walk is recorded and logged like any other. The problem says
+	// where to read it rather than quoting it, because this endpoint counts
+	// rather than names.
+	sweep := Sweep{Started: time.Now().UTC(), Swept: command.Swept{
+		Problems: []string{"the sweep panicked; the trace is on the admin issue"}}}
+	defer func() {
+		s.sweeps.record(sweep)
+		s.Logger.Info("the nightly sweep ran", "issues", sweep.Issues, "acted", sweep.Acted,
+			"outstanding", sweep.Outstanding, "problems", len(sweep.Problems))
+		for _, problem := range sweep.Problems {
+			s.Logger.Warn("the nightly sweep could not finish something", "problem", problem)
+		}
+	}()
+	defer s.recoverBackground("The nightly sweep panicked.")
+
+	sweep = s.nudge(ctx)
 }

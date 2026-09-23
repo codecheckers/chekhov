@@ -108,6 +108,10 @@ func reloadTeams(server *Server, settings *config.Settings) {
 		return
 	}
 	go func() {
+		// Its window is only the first seconds after a start, but a panic
+		// here would end the process just as surely; see the sweep's.
+		defer server.recoverBackground("The team load at startup panicked.")
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		for _, state := range server.Teams.Refresh(ctx, teams...) {

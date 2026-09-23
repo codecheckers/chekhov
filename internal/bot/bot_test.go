@@ -460,6 +460,28 @@ func TestAPanicOnTheAdminIssueIsReportedOnce(t *testing.T) {
 	}
 }
 
+// The trace names the build's paths and line numbers, and in production the
+// admin issue is on the public register: development gets it, production is
+// told where to read it. Every other fact about the machine is reported the
+// same way. See codecheckers/chekhov#50.
+func TestTheTraceIsDevelopmentsAlone(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := testServer(t)
+	server.Deployment.Environment = "production"
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "boom")
+
+	report := replies.comments[0].Body
+	if strings.Contains(report, "recoverCommand") || strings.Contains(report, ".go:") {
+		t.Errorf("production published the trace:\n%s", report)
+	}
+	if !strings.Contains(report, "boom") {
+		t.Errorf("the report does not say what the panic was:\n%s", report)
+	}
+	if !strings.Contains(report, "log") {
+		t.Errorf("the report does not say where the trace is:\n%s", report)
+	}
+}
+
 // A panic value can be as long as whatever it wraps, and the comment is cut
 // from the end at GitHub's limit, so the value is cut instead of the trace.
 func TestALongPanicValueDoesNotCostTheTrace(t *testing.T) {

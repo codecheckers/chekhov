@@ -287,19 +287,12 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 	if r == nil {
 		return
 	}
-	defer func() { recover() }()
-
-	trace := string(debug.Stack())
-	s.Logger.Error("command panicked", "command", parsed.Name, "repository", event.Repository,
-		"issue", event.Issue, "author", event.Author, "panic", r, "stack", trace)
 
 	// The report first, and each with its own guard and its own deadline, so
 	// that a slow or failing apology costs neither the report nor its time.
 	// On the admin issue itself the report is the answer, trace and all.
-	s.survive("reporting the panic", func() {
-		s.reportPanic(fmt.Sprintf("`%s %s` panicked on %s, asked by `@%s`.",
-			command.Bot, parsed.Name, event.check(), event.Author), r, trace)
-	})
+	s.reportRecovered(r, fmt.Sprintf("`%s %s` panicked on %s, asked by `@%s`.",
+		command.Bot, parsed.Name, event.check(), event.Author))
 	if event.Issue == s.Settings.AdminIssue() {
 		return
 	}
@@ -309,6 +302,65 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 		_, _ = s.Replies.Comment(ctx, event.Repository, event.Issue,
 			fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
 	})
+}
+
+// Three deferred recovers, and what they share. recoverCommand catches a panic
+// from work done for somebody, and apologises to them; recoverBackground
+// catches one from work done on a timer, which has nobody to apologise to;
+// aside catches one from a goroutine a command started, which recoverCommand
+// cannot see. All three hand what they caught to reportRecovered, which is the
+// whole of what is done with a panic. survive below is the one exception, and
+// deliberately so: it guards the apology and the report themselves, where
+// reporting again would be the second panic costing what the first did not.
+// See codecheckers/chekhov#38 and #50.
+
+// reportRecovered logs a panic with its trace and reports it on the admin
+// issue. It takes the stack itself: a deferred function runs on top of the
+// frames that panicked, so what it reads is the trace its caller would have
+// passed it. This is the last frame there is, so nothing in it may panic in
+// turn - reporting the first panic would cost the process the second one was
+// meant to save.
+func (s *Server) reportRecovered(r any, headline string) {
+	defer func() { recover() }()
+	trace := string(debug.Stack())
+	s.Logger.Error("panicked", "what", headline, "panic", r, "stack", trace)
+	s.reportPanic(headline, r, trace)
+}
+
+// recoverBackground is deferred by a goroutine that runs on a timer rather
+// than for somebody - the nightly sweep, the team load at startup. There is no
+// issue to apologise on, so the admin issue is the only place anyone hears of
+// it; what the panic costs is that run and not the process. It is deferred
+// directly, because recover only works in the function the panicking one
+// deferred.
+func (s *Server) recoverBackground(headline string) {
+	if r := recover(); r != nil {
+		s.reportRecovered(r, headline)
+	}
+}
+
+// aside runs one of a command's own goroutines, so that a panic in it costs
+// the answer rather than the process. recoverCommand cannot catch one: it is
+// deferred on the goroutine answering the command, and this runs on another.
+// What it catches becomes the error the caller already reports, so the person
+// who asked is told that step failed rather than that it found nothing.
+//
+// The caller's own wait group, because the answer waits for these whatever
+// they came to. See codecheckers/chekhov#50.
+func (s *Server) aside(wg *sync.WaitGroup, what string, failed *error, f func() error) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				// The caller's own sentence says what it could not do, so
+				// this says only that it panicked.
+				*failed = errors.New("it panicked; the trace has been logged")
+				s.reportRecovered(r, "A command panicked "+what+".")
+			}
+		}()
+		*failed = f()
+	}()
 }
 
 // survive runs f, and logs a panic from it rather than passing it on.
@@ -344,9 +396,18 @@ func (s *Server) reportPanic(headline string, r any, trace string) {
 	if len(value) > maxPanicValue {
 		value = strings.ToValidUTF8(value[:maxPanicValue], "") + " … (cut)"
 	}
-	details := strings.TrimRight(value+"\n\n"+trace, "\r\n")
+	// The trace names the build's paths, its packages and its line numbers,
+	// and in production the target repository is the public register - so it
+	// is development's, as every other fact about the machine is, and the log
+	// is where production keeps it. The panic value is the finding either
+	// way: it is what a command was given, which is on the issue already.
+	details, note := value, "\nThe stack trace is in the deployment's log.\n"
+	if s.Deployment.Development() {
+		details, note = value+"\n\n"+trace, ""
+	}
+	details = strings.TrimRight(details, "\r\n")
 	indent := strings.NewReplacer("\r\n", "\n    ", "\r", "\n    ", "\n", "\n    ")
-	body := headline + "\n\n    " + indent.Replace(details) + "\n"
+	body := headline + "\n\n    " + indent.Replace(details) + "\n" + note
 	if _, err := s.post(ctx, admin, said(body)); err != nil {
 		s.Logger.Error("the panic could not be reported on the admin issue",
 			"issue", admin.Issue, "error", err)
@@ -865,9 +926,14 @@ func (s *Server) announce(ctx context.Context, parsed command.Command, services 
 		limitsErr, statusesErr error
 	)
 	if s.Toots != nil {
-		wg.Add(2)
-		go func() { defer wg.Done(); instance, limitsErr = s.Toots.Limits(ctx) }()
-		go func() { defer wg.Done(); statuses, statusesErr = s.Toots.RecentStatuses(ctx, recentToots) }()
+		s.aside(&wg, "asking what the instance allows", &limitsErr, func() (err error) {
+			instance, err = s.Toots.Limits(ctx)
+			return err
+		})
+		s.aside(&wg, "reading what the account posted", &statusesErr, func() (err error) {
+			statuses, err = s.Toots.RecentStatuses(ctx, recentToots)
+			return err
+		})
 	}
 	published, directory, err := announce.Load(services, s.Settings, certificate)
 	if err != nil {
