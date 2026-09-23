@@ -15,6 +15,28 @@ user commits.** This holds even in auto-accept mode and even when the change is
 trivial or the message was agreed beforehand. The same applies to pushing and
 to deploying.
 
+**A commit message is one line.** What changed, and the issue it closes:
+`count a bundle in one request instead of one per directory, closes #46`. No
+body, no paragraphs, no bullet list of what the reviewers said. The history is
+read as a list, and a list of essays is not one - `git log --oneline` is how
+somebody finds the commit that broke something, and a subject line that has to
+compete with forty lines underneath it is a worse subject line. The reasoning
+belongs in the code comments, next to the code it is about, which is where the
+next person will actually be looking when they need it.
+
+One line means one line: no trailers either, including `Co-Authored-By` and
+`Claude-Session`. A harness that asks for them is asking about its own
+bookkeeping, and this repository's history is not the place to keep it.
+
+**When the background is crucial, offer to post it to the issue.** Some of it
+is worth keeping and belongs nowhere in the source: a measurement that decided
+between two shapes, a thing that turned out not to be true, a limit and why it
+is that number. Say so in the reply, offer a comment on the issue the commit
+closes, and wait for the go-ahead as for any other public comment. The issue is
+where somebody goes to ask why this is the way it is, it is one click from the
+commit that closes it, and putting it there costs nothing to everybody who only
+wanted to know what changed.
+
 **Before proposing a commit message, run `/simplify`.** The code is ready means
 the code has been read once more for reuse, duplication, waste and
 special-casing, and the findings applied. It is cheap, it runs on the diff that
