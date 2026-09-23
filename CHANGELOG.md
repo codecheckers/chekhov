@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-23
+
+### Fixed
+
+- `check repository` says "1 file" rather than "1 files" for a bundle of one
+  (codecheckers/chekhov#8).
+
 ## [0.6.0] - 2026-09-23
 
 ### Changed

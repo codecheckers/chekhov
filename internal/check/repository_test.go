@@ -493,3 +493,28 @@ func TestCountingASubDirectoryAsksForItsOwnTree(t *testing.T) {
 		t.Error("a complete subtree was reported as a floor")
 	}
 }
+
+// A bundle of one file is "1 file". The count is read by somebody deciding
+// whether to take a check on, and a reply that cannot count to one reads as a
+// bot that has not understood the question.
+func TestOneFileIsNotOneFiles(t *testing.T) {
+	for _, test := range []struct {
+		files int
+		bytes int64
+		want  string
+	}{
+		{files: 0, want: "no files"},
+		{files: 1, bytes: 700, want: "1 file, 700 bytes"},
+		{files: 2, bytes: 1400, want: "2 files, 1.4 kB"},
+	} {
+		description := Description{Tally: Tally{Files: test.files, Bytes: test.bytes}}
+		if got := description.size(); got != test.want {
+			t.Errorf("%d files reads as %q, want %q", test.files, got, test.want)
+		}
+	}
+	// The unsized wordings carry the same count, so they need it too.
+	one := Description{Tally: Tally{Files: 1, Unsized: 1}}
+	if got := one.size(); got != "1 file, the listing gives no sizes" {
+		t.Errorf("one unsized file reads as %q", got)
+	}
+}

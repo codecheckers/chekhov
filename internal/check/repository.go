@@ -297,7 +297,7 @@ func (d Description) size() string {
 	if d.Files == 0 && !d.Partial {
 		return "no files"
 	}
-	count := fmt.Sprintf("%d files", d.Files)
+	count := fmt.Sprintf("%d file%s", d.Files, plural(d.Files))
 	if d.Partial {
 		count = "more than " + count
 	}
@@ -318,6 +318,17 @@ func (d Description) size() string {
 // does not import the checking, and one shared formatter would be the only
 // reason for it to. This one counts in int64 and knows about gigabytes,
 // because a bundle can be one.
+// plural is the s on a counted noun, for the one case that reads wrong without
+// it: a bundle of one file. internal/command has its own, as it has its own
+// humanBytes - these are how a package words its own answers, and neither
+// package has any other reason to know about the other.
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
 func humanBytes(size int64) string {
 	units := []struct {
 		suffix string
