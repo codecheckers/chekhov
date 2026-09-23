@@ -225,3 +225,56 @@ func PageOf(url string) string {
 	owner, repository, ref, path := pieces[0], pieces[1], pieces[2], pieces[3]
 	return fmt.Sprintf("https://github.com/%s/%s/blob/%s/%s", owner, repository, ref, path)
 }
+
+// InstitutionOf is what the codechecker lists say one person checks for: the
+// institution a row of theirs names, and whether another row of theirs names
+// none.
+//
+// Which list is the institutional one is read from the rows, not from the
+// file's name: the institutional list is the one whose rows carry an
+// `institution` column, and a list picked out by a substring of its URL would
+// be the wrong list the day somebody renames the file. The ordinary list has
+// no such column, so a volunteer is a row that names no institution.
+//
+// A list that could not be read says nothing about anybody, and so does a
+// handle nothing names: this answers what was found and never what was
+// missing, because "could not check" must not read as "this is wrong".
+//
+// A second walk of the same files as Load, deliberately: Load keeps one row
+// per handle and lets the first list win, which drops the very row this exists
+// to find - somebody on both lists. Merging the two would mean changing what
+// Load hands the ranking, which is a question for codecheckers/chekhov#24.
+// The bodies are cached by Services for the life of one command, so the
+// second walk is a second parse and not a second request.
+func InstitutionOf(services *check.Services, settings *config.Settings,
+	handle string) (institution string, alsoVolunteers bool) {
+	handle = command.Handle(handle)
+	if handle == "" {
+		return "", false
+	}
+	lists := settings.CodecheckerLists()
+	for _, table := range services.CSVs(lists...) {
+		if table.Err != nil {
+			continue
+		}
+		for _, row := range table.Rows {
+			if command.Handle(row["handle"]) != handle {
+				continue
+			}
+			named := firstOf(row, "institution", "Institution")
+			if strings.EqualFold(named, "NA") {
+				// The register writes NA for a column it has no value for,
+				// and "checks for NA" is not a sentence to warn anybody with.
+				named = ""
+			}
+			switch {
+			case named == "":
+				alsoVolunteers = true
+			case institution == "":
+				// The first list the settings name wins, as it does in Load.
+				institution = named
+			}
+		}
+	}
+	return institution, alsoVolunteers
+}

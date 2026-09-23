@@ -33,6 +33,14 @@ type Definition struct {
 	// because it is a smoke test rather than something a codechecker needs,
 	// and thanks because a listing is for what to do next, not for manners.
 	Hidden bool
+	// AboutTheCheck says this command's subject is the state of the check
+	// rather than something the check happens to be on - so a label that no
+	// longer describes the check belongs under its answer. Here rather than
+	// in the command, so that "at most one such note per reply" is a property
+	// of the dispatch and not something each command remembers; see
+	// labels.go, and codecheckers/chekhov#44. A command whose subject is not
+	// the check - check, rules, version, hello - leaves it off.
+	AboutTheCheck bool
 }
 
 // registry is every command the bot answers to.
@@ -77,18 +85,20 @@ var registry = []Definition{
 		Role:    RoleEditor,
 	},
 	{
-		Name:    Assign,
-		Summary: "Give somebody a role on this check",
-		Usage:   "assign @user as codechecker|author|handling editor [in <team>]",
-		Group:   GroupPeople,
-		Role:    RoleEditor,
+		Name:          Assign,
+		Summary:       "Give somebody a role on this check",
+		Usage:         "assign @user as codechecker|author|handling editor [in <team>]",
+		Group:         GroupPeople,
+		Role:          RoleEditor,
+		AboutTheCheck: true,
 	},
 	{
-		Name:    Remove,
-		Summary: "Take a role away again",
-		Usage:   "remove @user as codechecker|author|handling editor",
-		Group:   GroupPeople,
-		Role:    RoleEditor,
+		Name:          Remove,
+		Summary:       "Take a role away again",
+		Usage:         "remove @user as codechecker|author|handling editor",
+		Group:         GroupPeople,
+		Role:          RoleEditor,
+		AboutTheCheck: true,
 	},
 	{
 		Name:    Accept,
@@ -98,11 +108,12 @@ var registry = []Definition{
 		Role:    RoleEditor,
 	},
 	{
-		Name:    ListRoles,
-		Summary: "Say who holds which role on this check",
-		Usage:   "roles",
-		Group:   GroupPeople,
-		Role:    RoleAnyone,
+		Name:          ListRoles,
+		Summary:       "Say who holds which role on this check",
+		Usage:         "roles",
+		Group:         GroupPeople,
+		Role:          RoleAnyone,
+		AboutTheCheck: true,
 	},
 	{
 		Name:    ListCodecheckers,
@@ -119,11 +130,12 @@ var registry = []Definition{
 		Role:    RoleEditor,
 	},
 	{
-		Name:    SuggestCodecheckers,
-		Summary: "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
-		Usage:   "suggest codecheckers [<repository>|<DOI>|<certificate>]",
-		Group:   GroupPeople,
-		Role:    RoleEditor,
+		Name:          SuggestCodecheckers,
+		Summary:       "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
+		Usage:         "suggest codecheckers [<repository>|<DOI>|<certificate>]",
+		Group:         GroupPeople,
+		Role:          RoleEditor,
+		AboutTheCheck: true,
 	},
 	{
 		Name:    Check,

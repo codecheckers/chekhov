@@ -28,6 +28,10 @@ type Issue struct {
 	// about it nothing else does: `institution` says an arrangement covers
 	// it, which decides which team a codechecker on it belongs in.
 	Labels []string
+	// Closed says the check is over. A question about what still has to
+	// happen on a check - who should be doing it, whether the queue can see
+	// it - has no business being asked about one that is finished.
+	Closed bool
 }
 
 // Issue reads one issue of the configured repository.
@@ -90,12 +94,15 @@ type wireIssue struct {
 	Labels []struct {
 		Name string `json:"name"`
 	} `json:"labels"`
+	// State is "open" or "closed".
+	State string `json:"state"`
 	// PullRequest is present, and non-nil, only on a pull request.
 	PullRequest *struct{} `json:"pull_request"`
 }
 
 func (i wireIssue) issue() Issue {
-	read := Issue{Number: i.Number, Title: i.Title, Body: i.Body}
+	read := Issue{Number: i.Number, Title: i.Title, Body: i.Body,
+		Closed: strings.EqualFold(i.State, "closed")}
 	for _, assignee := range i.Assignees {
 		read.Assignees = append(read.Assignees, assignee.Login)
 	}

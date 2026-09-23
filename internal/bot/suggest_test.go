@@ -214,9 +214,13 @@ func assertNobodyIsMentioned(t *testing.T, reply string) {
 type issueReader struct {
 	*recorder
 	issues []github.Issue
+	// reads counts what left for the register, so that a test can assert one
+	// command costs one read of its issue.
+	reads int
 }
 
 func (r *issueReader) Issue(_ context.Context, _ string, number int) (github.Issue, error) {
+	r.reads++
 	for _, issue := range r.issues {
 		if issue.Number == number {
 			return issue, nil

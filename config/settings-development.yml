@@ -56,6 +56,18 @@ chekhov:
     # off here, whatever the token's scopes allow. A test asserts it.
     follow: false
 
+  # The register's own labels, which say things about a check the bot can
+  # compare against what it can see. The names belong to the register, not to
+  # this bot, so they are named here rather than written into the code: a
+  # register that renames one needs a settings change, not a new build. The
+  # bot only ever reports a label that no longer describes the check; it
+  # never adds or removes one. An empty name switches that off.
+  labels:
+    # "CODECHECK conducted as part of a service offered by an institution."
+    institution: institution
+    # The queue: a check nobody is doing yet.
+    needs_codechecker: needs codechecker
+
   teams:
     # The standing roles come from the organisation's own teams, read with the
     # token's Members: read permission and held in memory for a day. This file

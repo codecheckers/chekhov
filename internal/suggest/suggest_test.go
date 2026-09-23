@@ -286,3 +286,45 @@ func TestTermsSurviveProseInTheColumn(t *testing.T) {
 		t.Errorf("a note in brackets is not a language: %v", got)
 	}
 }
+
+// Which list is the institutional one is read from the rows, not from the
+// file's name: the institutional list is the one whose rows name an
+// institution, and a list picked out by a substring of its URL would be the
+// wrong list the day somebody renames the file.
+func TestInstitutionOfReadsTheListsRatherThanTheirNames(t *testing.T) {
+	world := newWorld(t)
+
+	for _, test := range []struct {
+		handle      string
+		institution string
+		volunteers  bool
+	}{
+		{handle: "@cy", institution: "FAKE University"},
+		// Ada is on both lists, and checking for an institution is the fact
+		// that matters: she counts as institutional, and the caller is told
+		// she is on the ordinary list as well so that a reply can say so.
+		{handle: "ada", institution: "FAKE University", volunteers: true},
+		{handle: "bo", volunteers: true},
+		// Somebody nothing names, which is also what a list that could not be
+		// read says about everybody: what was found, never what was missing.
+		{handle: "a-stranger"},
+		{handle: ""},
+	} {
+		institution, volunteers := InstitutionOf(world.services, world.settings, test.handle)
+		if institution != test.institution || volunteers != test.volunteers {
+			t.Errorf("%q checks for %q, also a volunteer %v; want %q and %v",
+				test.handle, institution, volunteers, test.institution, test.volunteers)
+		}
+	}
+}
+
+// A list that answered 404 says nothing about anybody, rather than saying that
+// nobody on it is institutional.
+func TestInstitutionOfSkipsAListItCouldNotRead(t *testing.T) {
+	world := newWorld(t)
+	world.Remove(institutionPath)
+
+	if institution, volunteers := InstitutionOf(world.services, world.settings, "cy"); institution != "" || volunteers {
+		t.Errorf("an unreadable list said %q, also a volunteer %v", institution, volunteers)
+	}
+}

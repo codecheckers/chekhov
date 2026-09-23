@@ -236,6 +236,7 @@ func TestANamedTeamMustBeManaged(t *testing.T) {
 	settings.Chekhov.Teams.Editors = "editors"
 	settings.Chekhov.Teams.Codecheckers = "codecheckers"
 	settings.Chekhov.Teams.Institutional = "institutional-codecheckers"
+	settings.Chekhov.Labels.Institution = "institution"
 
 	// Nothing managed at all: the commonest way to get this wrong.
 	err := validate("settings-test.yml", settings)
@@ -267,5 +268,35 @@ func TestShippedSettingsNameTheInstitutionalTeam(t *testing.T) {
 	}
 	if !settings.Managed(settings.InstitutionalTeam()) {
 		t.Error("the institutional team is not in teams.managed")
+	}
+}
+
+// The label names belong to the register, so the shipped file names them: a
+// register that renames `institution` needs a settings change, not a build.
+func TestShippedSettingsNameTheRegistersLabels(t *testing.T) {
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings.InstitutionLabel(); got != "institution" {
+		t.Errorf("institution label = %q", got)
+	}
+	if got := settings.NeedsCodecheckerLabel(); got != "needs codechecker" {
+		t.Errorf("needs codechecker label = %q", got)
+	}
+}
+
+// Which team an institutional check leads to is decided by reading the label
+// that marks one, so naming the team without the label would route every
+// institutional codechecker to the ordinary team in silence.
+func TestTheInstitutionalTeamNeedsTheLabelThatFindsIt(t *testing.T) {
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.Chekhov.Labels.Institution = ""
+	if err := validate("settings-test.yml", settings); err == nil ||
+		!strings.Contains(err.Error(), "labels.institution") {
+		t.Errorf("validate = %v, want a refusal naming labels.institution", err)
 	}
 }

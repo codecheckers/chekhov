@@ -73,6 +73,18 @@ type Settings struct {
 			// the permission its own editor commands are gated on.
 			Managed []string `yaml:"managed"`
 		} `yaml:"teams"`
+		// Labels are the register's own labels, which say things about a
+		// check that the bot can compare against what it can see. The names
+		// are the register's and not this bot's, so they are named here, as
+		// the teams are: a register that renames `institution` needs a
+		// settings change, not a new build. A label left empty switches off
+		// whatever would have been said about it.
+		Labels struct {
+			// Institution marks a check an institution's arrangement covers.
+			Institution string `yaml:"institution"`
+			// NeedsCodechecker is the queue: a check nobody is doing yet.
+			NeedsCodechecker string `yaml:"needs_codechecker"`
+		} `yaml:"labels"`
 	} `yaml:"chekhov"`
 }
 
@@ -222,6 +234,15 @@ func validate(name string, s *Settings) error {
 				"the bot could not put anybody in it", name, named.what, named.team)
 		}
 	}
+	// Which team an institutional check sends a codechecker to is decided by
+	// reading the label that marks one, so a file that names the team and not
+	// the label would route every institutional codechecker to the ordinary
+	// team, and say nothing about it.
+	if s.InstitutionalTeam() != "" && s.InstitutionLabel() == "" {
+		return fmt.Errorf("%s: teams.institutional is %q but labels.institution names no label; "+
+			"nothing would ever be recognised as an institutional check",
+			name, s.InstitutionalTeam())
+	}
 	switch s.Chekhov.Mastodon.Visibility {
 	case "public", "unlisted", "private", "direct":
 	default:
@@ -283,6 +304,18 @@ func (s *Settings) ManagedTeams() []string {
 // treated as an ordinary one.
 func (s *Settings) InstitutionalTeam() string {
 	return strings.TrimSpace(s.Chekhov.Teams.Institutional)
+}
+
+// InstitutionLabel marks a check an institution's arrangement covers, empty
+// when the settings name none.
+func (s *Settings) InstitutionLabel() string {
+	return strings.TrimSpace(s.Chekhov.Labels.Institution)
+}
+
+// NeedsCodecheckerLabel is the queue a check without a codechecker belongs in,
+// empty when the settings name none.
+func (s *Settings) NeedsCodecheckerLabel() string {
+	return strings.TrimSpace(s.Chekhov.Labels.NeedsCodechecker)
 }
 
 // OwnersOverride are the handles to ask instead of the organisation's owners,

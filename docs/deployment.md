@@ -175,36 +175,43 @@ possible from a git repo". Deploy from somewhere in the home directory.
 ### `object not found`, with nothing deployed
 
 `runway app deploy source` reads the repository with go-git rather than with
-`git`, and go-git does not understand a **multi-pack-index**. Background
-maintenance writes one - `git maintenance`, or a client like GitKraken, which
-leaves a `.git/gk` directory and `loose-*.pack` files beside it - and from then
-on every deploy fails with `object not found` before anything is pushed, while
-the platform happily goes on serving the build it received last. `-l debug`
-shows it resolving `refs/heads/main` and then giving up.
+`git`, and go-git only looks for packs named `pack-*.pack`. The `loose-objects`
+task of `git maintenance` packs loose objects into **`loose-*.pack`** files
+instead, and an object that is only there is, to go-git, not there at all
+([go-git#2345](https://github.com/go-git/go-git/issues/2345), open; the fixes,
+[#2390](https://github.com/go-git/go-git/pull/2390) and
+[#2346](https://github.com/go-git/go-git/pull/2346), are not released). From
+then on every deploy fails with `object not found` before anything is pushed,
+while the platform happily goes on serving the build it received last.
+`-l debug` shows it resolving `refs/heads/main` and then giving up.
 
-Check with `ls .git/objects/pack/`: a `multi-pack-index` file is the symptom.
+Check with `ls .git/objects/pack/`: a `loose-*.pack` is the symptom. A
+`multi-pack-index` usually sits beside it, written by the same maintenance run,
+and this file used to name that as the cause; go-git reads each pack's own
+`.idx` and never the multi-pack-index, so it is a bystander.
 
 ```sh
 git multi-pack-index expire --object-dir=.git/objects   # drop the index
-git repack -ad                                          # one pack again
+git repack -ad                                          # one pack-*.pack again
 git commit-graph write --reachable                      # forget what the repack dropped
-git maintenance unregister                              # and stop it coming back
 ```
 
 The repack drops commits nothing reaches any more - a deleted branch, say - and
 the commit-graph still lists them, which `git fsck` reports as a commit it
-cannot read; rewriting the graph from what is reachable clears that. If
-`unregister` answers with exit 5, the repository was never registered with
-`git maintenance`, and the index came from elsewhere: with a `.git/gk`
-directory present, that is GitKraken.
+cannot read; rewriting the graph from what is reachable clears that.
 
-GitKraken writes it again, and soon: on 2026-09-23 a fresh `loose-*.pack` and
-`multi-pack-index` were back 45 minutes after a repack, while the repository
-was open in GitKraken with auto-fetch every three minutes. No GitKraken setting
-for this was found - nothing named maintenance, gc or pack in its profile - and
-whether switching auto-fetch off is enough has not been tried. So while the
-checkout you work in is open in GitKraken, a repack buys a deploy or two, not
-a fix.
+**GitKraken writes them back within the hour**, whatever git is configured to
+do. Opening a repository in a tab starts a background `git maintenance run
+--task=commit-graph --task=loose-objects --task=geometric-repack` (or
+`incremental-repack`) with GitKraken's own bundled git, fifteen seconds later
+and at most once an hour per repository. No preference turns it off - that is
+read from GitKraken's application bundle, as its documentation mentions only
+the manual "Perform Repo Maintenance". Because the tasks are named explicitly,
+git ignores `maintenance.loose-objects.enabled`; `core.multiPackIndex false`
+stops only the index, which does not matter here; and `git maintenance
+unregister` does nothing, since the repository is not registered - it exits 5.
+So while the checkout you work in is open in GitKraken, a repack buys a deploy
+or two, not a fix.
 
 ### Deploying from a clone of its own
 

@@ -450,7 +450,25 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	// its whole life, and a response cached for it would answer a check, or
 	// compose an announcement, from what was published hours ago.
 	services := s.Services.Fresh()
+	// Afresh, and once: within one command the issue cannot change under the
+	// bot, and three parts of a command want it.
+	event.read = s.issueOnce(ctx, event)
 
+	answer := s.run(ctx, event, parsed, roles, services)
+	// A command whose subject is the state of the check says so when the
+	// labels no longer describe it - after it has answered, so that what it
+	// just did is part of what is looked at, and in one place, so that a
+	// reply carries the note at most once. The registry says which commands
+	// those are; see internal/command/labels.go.
+	if found && definition.AboutTheCheck {
+		answer.body = withNote(answer.body, s.labelNote(ctx, event, services))
+	}
+	return answer
+}
+
+// run is the command itself: one case per entry in the registry.
+func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
+	roles command.Roles, services *check.Services) answered {
 	switch parsed.Name {
 	case command.Commands:
 		return said(command.Listing(roles))
@@ -635,7 +653,7 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 		// nothing to do: an editor re-running the command to move somebody
 		// into another team means the team, and saying "already" and stopping
 		// would silently ignore what they asked for.
-		return said(withTeam(fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role),
+		return said(withNote(fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role),
 			s.teamNote(ctx, event, handle, role, team, inside)))
 	case errors.Is(err, people.ErrTampered):
 		return said(tamperedReply(err))
@@ -649,7 +667,7 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	if role == command.RoleAssignedCodechecker {
 		assigned = s.assignee(ctx, event, handle, replaced)
 	}
-	return said(withTeam(command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now()),
+	return said(withNote(command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now()),
 		s.teamNote(ctx, event, handle, role, team, inside)))
 }
 

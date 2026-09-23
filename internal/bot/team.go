@@ -93,14 +93,6 @@ func (s *Server) outsideReply(ctx context.Context, handle string,
 	return command.OutsideReply(request)
 }
 
-// institutionLabel is what the register puts on a check an institution's
-// arrangement covers. The name is the register's, so it belongs in the
-// settings eventually - #44 moves the label names there; until then it is
-// written once, here, and used for nothing but reading a label. Which team an
-// institutional check uses is a named setting, not this string matched against
-// team names.
-const institutionLabel = "institution"
-
 // teamFor is the team a codechecker on this check belongs in.
 //
 // An institutional check is covered by an arrangement an institution has made,
@@ -123,20 +115,22 @@ func (s *Server) teamFor(ctx context.Context, event mention, chosen string) stri
 		return ordinary
 	}
 
-	reader, ok := s.Replies.(Issues)
-	if !ok || event.Issue <= 0 {
+	if event.Issue <= 0 {
 		return ordinary
 	}
-	issue, err := reader.Issue(ctx, event.Repository, event.Issue)
+	issue, err := s.issue(ctx, event)
 	if err != nil {
 		s.Logger.Warn("could not read a check's labels, so the ordinary team was used",
 			"issue", event.Issue, "error", err)
 		return ordinary
 	}
-	for _, label := range issue.Labels {
-		if strings.EqualFold(label, institutionLabel) {
-			return institutional
-		}
+	// What the register puts on a check an institution's arrangement covers.
+	// The name is the register's, so the settings carry it as they carry the
+	// team; and it is asked with the predicate the label rules use, so the
+	// team a check sends somebody to and the warning about that same check
+	// cannot disagree about whether it is institutional.
+	if command.HasLabel(issue.Labels, s.Settings.InstitutionLabel()) {
+		return institutional
 	}
 	return ordinary
 }
@@ -189,8 +183,9 @@ func (s *Server) outstanding(event mention, handle string, role command.Role, te
 	}
 }
 
-// withTeam puts a note about the team under a reply, when there is one.
-func withTeam(reply, note string) string {
+// withNote puts a note under a reply, when there is one: the team an
+// assignment put somebody in, or a label that no longer describes the check.
+func withNote(reply, note string) string {
 	if note == "" {
 		return reply
 	}

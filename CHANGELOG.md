@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-23
+
+### Added
+
+- The commands whose subject is the state of a check now say when the
+  register's labels no longer describe it, in the same comment as their own
+  answer: `assign`, `remove`, `roles` and `suggest codecheckers`. One table
+  decides what follows from what, no command carries its own copy, a reply
+  carries the note at most once, and nothing adds or removes a label
+  (codecheckers/chekhov#44).
+- `assign` warns when the codechecker is on the institutional list and the
+  check does not carry the `institution` label, naming the institution they
+  check for and asking whether the label is missing or the assignment is
+  wrong. A warning, not a refusal: the assignment still happens
+  (codecheckers/chekhov#40).
+- `labels:` in the settings names the register's own label names, as
+  `teams:` names its teams (codecheckers/chekhov#44).
+
 ## [0.4.4] - 2026-09-23
 
 ### Fixed

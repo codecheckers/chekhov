@@ -9,8 +9,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/codecheckers/chekhov/internal/people"
 	"strings"
+
+	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/people"
 )
 
 // event is the part of GitHub's issues and issue_comment payloads the bot
@@ -44,6 +46,15 @@ type mention struct {
 	Issue      int
 	Author     string
 	Body       string
+
+	// read is the issue this mention is on, read once for the whole command.
+	// Three parts of one command want it - which team an assignment leads to,
+	// what the check is about, and whether the labels still describe it - and
+	// nothing the bot does changes a label or a title, so one read serves all
+	// three. Set up by answer and shared by every copy of the mention made
+	// after that; nil means "read it yourself", which is what a caller
+	// outside the dispatch gets. See Server.issue.
+	read func() (github.Issue, error)
 }
 
 // check names the issue, the one way it is written everywhere: in a signed

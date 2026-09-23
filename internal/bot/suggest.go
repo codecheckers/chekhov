@@ -167,11 +167,7 @@ func (s *Server) issueAsHints(ctx context.Context, event mention) []suggest.Hint
 	if event.Issue <= 0 {
 		return nil
 	}
-	reader, ok := s.Replies.(Issues)
-	if !ok {
-		return nil
-	}
-	issue, err := reader.Issue(ctx, event.Repository, event.Issue)
+	issue, err := s.issue(ctx, event)
 	if err != nil {
 		s.Logger.Warn("the checks issue could not be read for a suggestion",
 			"issue", event.Issue, "error", err)
