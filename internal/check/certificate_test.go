@@ -32,6 +32,13 @@ func TestTitleCertificates(t *testing.T) {
 	}
 }
 
+func TestTitleMentionsKeepsARangeARange(t *testing.T) {
+	got := TitleMentions("AGILE Reproducibility Reviews 2025 (2025-008 - 2025-017) and 2025-020")
+	if want := []string{"2025-008 - 2025-017", "2025-020"}; !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestTitleWithCertificate(t *testing.T) {
 	cases := []struct{ title, id, want string }{
 		{"Baetzel", "2026-020", "Baetzel | 2026-020"},

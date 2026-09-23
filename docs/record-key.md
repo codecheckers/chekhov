@@ -1,11 +1,17 @@
-# The key the bot signs a check's roles with
+# The key the bot signs the record of a check with
 
 The per-check roles — handling editor, assigned codechecker, authors — live in
 a comment the bot posted on the checks issue, because the bot has no storage
 but the issues themselves. See [`../CLAUDE.md`](../CLAUDE.md) and
 codecheckers/chekhov#18. The certificate identifier `set certificate` reserves
 lives there too, as `"certificate":"YYYY-NNN"` inside `roles`, and a
-`**Certificate**` line under the table (codecheckers/chekhov#20).
+`**Certificate**` line under the table (codecheckers/chekhov#20) - which is why
+it is the *record of the check*, marked `chekhov:record`.
+
+A record written while it held only roles is marked `chekhov:roles`. The bot
+still reads one, and it verifies as written, because the signature covers the
+marker as it stands; the next change the bot makes writes it with
+`chekhov:record`, in the same comment. A verifier should accept both markers.
 
 A comment by the bot cannot be edited by somebody without write access to the
 repository. It **can** be edited by anyone who has it, and GitHub keeps the bot
@@ -82,8 +88,8 @@ the bot writes, in full — `TestTheRecordHasTheDocumentedShape` keeps this file
 and the code in step:
 
 ```
-<!-- chekhov:roles {"v":1,"check":"codecheckers/register#42","key":"9M8SoHGUZ2PC+Ujpxj2mVwFEJfcQJX1TgH7K1dHxrXE=","roles":{"handling_editor":"nuest","assigned_codechecker":"a-codechecker","authors":["an-author"]}} -->
-<!-- chekhov:sig b/FiuZlKy4RtkczF3EJWFdFzEh1Z5HmhBGA3KzoKqOImvyLxXdZnuWzPYARz4did4MOwb0mllEsRN26a+FOeBw== -->
+<!-- chekhov:record {"v":1,"check":"codecheckers/register#42","key":"b3k1I+XJkHBpX7v3DA2ty6mpiLAL7Ka1Wx5DzV5fmcM=","roles":{"handling_editor":"nuest","assigned_codechecker":"a-codechecker","authors":["an-author"],"certificate":"2026-001"}} -->
+<!-- chekhov:sig Zg4Yk2rp4XJT8GG4lJb6oWOtqPq6Ng8sT0uAGDIaSwhaQ5BjP3ROQ9OG/vuWVVqh6zwtOgRJEZYnOK50mE5lBQ== -->
 
 **Roles on this check**
 
@@ -92,6 +98,8 @@ and the code in step:
 | handling editor | `@nuest` |
 | assigned codechecker | `@a-codechecker` |
 | author | `@an-author` |
+
+**Certificate**: `2026-001`
 
 I read the record at the top, not this table. It is signed.
 ```
@@ -125,7 +133,7 @@ under a genuine signature indefinitely.
 
 ## When a record does not verify
 
-The bot says what it knows and no more: **the roles record was edited after I
+The bot says what it knows and no more: **the record of this check was edited after I
 wrote it**, and the reason — the signature does not match, it carries none, the
 comment around it was changed, or it names a key that is not accepted. It does
 *not* say who edited it: it cannot tell, and a rotation that drops a key from
@@ -139,7 +147,7 @@ editor finds out that it was edited at all.
 An editor who is content with what it says adopts it:
 
 ```
-@chekhovbot accept roles
+@chekhovbot accept record
 ```
 
 That re-signs the record as it stands and writes `accepted_by` and
@@ -173,7 +181,7 @@ roles, drop the `sig` line, and the bot would not only believe it but re-sign
 it on the next change, laundering the forgery into its own signature.
 
 So there is no legacy path. A record written before a key existed is read as
-"edited after I wrote it", and an editor adopts it with `accept roles` — or deletes
+"edited after I wrote it", and an editor adopts it with `accept record` — or deletes
 the comment and lets the bot start again.
 
 A deployment **without** a key writes unsigned records and reads them: the

@@ -69,6 +69,13 @@ func TitleCertificates(title string) []string {
 	return ids
 }
 
+// TitleMentions is the identifiers of a title as it writes them, a range kept
+// a range - for telling a person what a title says, where TitleCertificates
+// is for counting what it claims.
+func TitleMentions(title string) []string {
+	return certificateInTitle.FindAllString(title, -1)
+}
+
 // TitleCertificate is the identifier a check's title carries in its own
 // place, after the last `|` of `Author names | YYYY-NNN`.
 func TitleCertificate(title string) (string, bool) {

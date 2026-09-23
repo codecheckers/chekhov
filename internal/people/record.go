@@ -45,12 +45,21 @@ import (
 // much it looks like one. Replies also have HTML comments stripped out of any
 // text they quote, see command.Defuse - two defences, because this one decides
 // who holds a role.
-const marker = "<!-- chekhov:roles "
+//
+// "record" rather than "roles", because it holds more than the roles: the
+// certificate identifier lives here too (#20), and whatever else a check
+// needs the bot to keep will.
+const marker = "<!-- chekhov:record "
 
-// rolesBlock is the record as the comment carries it: the marker above, and
+// legacyMarker is what the record was marked with while it held only roles.
+// A record written then is still read, and verifies as written; the next
+// change writes it with marker.
+const legacyMarker = "<!-- chekhov:roles "
+
+// recordBlock is the record as the comment carries it: the marker above, and
 // the signed-block format every kind of record the bot writes shares. See
 // block.go.
-var rolesBlock = Block{Marker: marker, Name: "roles record"}
+var recordBlock = Block{Marker: marker, Legacy: []string{legacyMarker}, Name: "record of this check"}
 
 // A Record is who holds which per-check role on one issue, and the
 // certificate identifier the check was given.
@@ -215,7 +224,7 @@ func (c content) Comment() string {
 	var body strings.Builder
 	body.Write(c.payload)
 	body.WriteString("\n")
-	body.WriteString(rolesBlock.Line(c.Signature))
+	body.WriteString(recordBlock.Line(c.Signature))
 	body.WriteString("\n")
 	body.WriteString(command.RolesTable(c.Roles.Holders()))
 	body.WriteString(command.CertificateLine(c.Roles.Certificate))
@@ -253,7 +262,7 @@ type record struct {
 // render writes a record and signs it as written.
 func render(what record, signer *Signer) (content, error) {
 	what.Key = signer.PublicKey()
-	whole, signature, err := rolesBlock.Render(what, signer)
+	whole, signature, err := recordBlock.Render(what, signer)
 	if err != nil {
 		return content{}, err
 	}
@@ -267,7 +276,7 @@ func render(what record, signer *Signer) (content, error) {
 // same thing at all.
 func parseContent(body string) (content, error) {
 	var read content
-	whole, signature, err := rolesBlock.Parse(body, &read.record)
+	whole, signature, err := recordBlock.Parse(body, &read.record)
 	switch {
 	case errors.Is(err, ErrNoBlock):
 		return content{}, errNoRecord
@@ -321,10 +330,10 @@ type Checks struct {
 }
 
 // errNoRecord is a comment that is not the record: most of them.
-var errNoRecord = errors.New("not a roles record")
+var errNoRecord = errors.New("not a record of this check")
 
 // errNoComments is a store with no way to reach the issue.
-var errNoComments = errors.New("no GitHub access to read the check's roles with")
+var errNoComments = errors.New("no GitHub access to read the record of the check with")
 
 // ErrUnchanged is what a change returns when the record already says what was
 // asked for: nothing is written, and the caller reports it as such.
@@ -387,7 +396,7 @@ func (c *Checks) Read(ctx context.Context, repository string, issue int) (Readin
 		}
 		if err != nil {
 			return Reading{Comment: comment.ID}, fmt.Errorf(
-				"the roles of %s#%d could not be read: %w (comment %d is the one to fix)",
+				"the record of %s#%d could not be read: %w (comment %d is the one to fix)",
 				repository, issue, err, comment.ID)
 		}
 
@@ -413,7 +422,7 @@ func (c *Checks) check(read content, body, repository string, issue int) error {
 	if !strings.EqualFold(read.Check, CheckOf(repository, issue)) {
 		return fmt.Errorf("%w: it says it belongs to %s", ErrTampered, read.Check)
 	}
-	if err := rolesBlock.Verify(read.payload, read.Signature, read.Key, c.Signer); err != nil {
+	if err := recordBlock.Verify(read.payload, read.Signature, read.Key, c.Signer); err != nil {
 		return err
 	}
 	// The table under the record is what people read, and it is not covered by
@@ -494,7 +503,7 @@ func (c *Checks) Accept(ctx context.Context, repository string, issue int,
 		return reading, err
 	}
 	if reading.Comment == 0 {
-		return reading, fmt.Errorf("there is no roles record here to adopt")
+		return reading, fmt.Errorf("there is no record here to adopt")
 	}
 	if reading.Tampered == nil && !reading.Unsigned {
 		return reading, ErrUnchanged

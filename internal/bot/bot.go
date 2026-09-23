@@ -272,7 +272,7 @@ func (s *Server) post(ctx context.Context, event mention, result answered) (int6
 
 // signer is the key the bot signs its records with, nil when it has none -
 // a deployment without one writes records nothing will trust later, which is
-// the same bargain the roles record makes.
+// the same bargain the record of a check makes.
 func (s *Server) signer() *people.Signer {
 	if s.Checks == nil {
 		return nil
@@ -742,11 +742,13 @@ func (s *Server) listRoles(ctx context.Context, event mention, roles command.Rol
 
 // accept adopts a record the bot did not write, so that work can go on.
 func (s *Server) accept(ctx context.Context, event mention, parsed command.Command) string {
-	if reply, ok := s.noCheck(event, "the roles of a check"); !ok {
+	if reply, ok := s.noCheck(event, "the record of a check"); !ok {
 		return reply
 	}
-	if what := strings.ToLower(strings.Join(parsed.Args, " ")); what != "" && what != "roles" {
-		return fmt.Sprintf("I can accept `roles`, not %q.\n", what)
+	// `record` is the word now; `roles` is what it was called while it held
+	// nothing else, and is still understood.
+	if what := strings.ToLower(strings.Join(parsed.Args, " ")); !slices.Contains([]string{"", "record", "roles"}, what) {
+		return fmt.Sprintf("I can accept the `record` of this check, not %s.\n", command.Code(what))
 	}
 
 	reading, err := s.Checks.Accept(ctx, event.Repository, event.Issue, event.Author, time.Now())
@@ -754,7 +756,7 @@ func (s *Server) accept(ctx context.Context, event mention, parsed command.Comma
 	case errors.Is(err, people.ErrUnchanged):
 		return "This record is the one I wrote, so there is nothing to adopt.\n"
 	case err != nil:
-		return fmt.Sprintf("I could not adopt the roles of this check: %s\n", err)
+		return fmt.Sprintf("I could not adopt the record of this check: %s\n", err)
 	}
 	return command.AcceptedReply(reading.Record.Holders(), event.Author, reading.Signed(), time.Now())
 }
@@ -1415,7 +1417,12 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 	// none it falls back to a stranger's reply, which is what a deployment
 	// without the permission would give.
 	if token := os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"); token != "" {
-		server.Teams = TeamsFor(settings, github.New(token, settings.TargetRepository(), ""), server.Logger)
+		client := github.New(token, settings.TargetRepository(), "")
+		server.Teams = TeamsFor(settings, client, server.Logger)
+		// The register's issues too, so that `next certificate` answers as it
+		// would on an issue - and through a path that can do nothing else, so
+		// that no command writes to GitHub from a preview.
+		server.Replies = readOnly{client}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
@@ -1424,4 +1431,15 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 	// same comment a deployment would. A preview posts nothing, so whatever
 	// the answer left outstanding is not written here either.
 	return server.answer(ctx, mention{Author: author, Body: body}, parsed).body, true
+}
+
+// readOnly is the reply path of a preview: the reads it embeds and nothing
+// more. Embedding an interface promotes only that interface's methods, so the
+// client's writes stay out of reach: every command that would write finds no
+// Reserving, Assigner or Organisation, and says so. Comment refuses, because
+// a preview posts nothing.
+type readOnly struct{ Claims }
+
+func (readOnly) Comment(context.Context, string, int, string) (int64, error) {
+	return 0, errors.New("a preview posts nothing")
 }

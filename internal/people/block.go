@@ -9,7 +9,7 @@ import (
 
 // The bot's own record inside a comment, which is the only store it has.
 //
-// There are two kinds now - the roles of a check, and what a reply left
+// There are two kinds now - the record of a check, and what a reply left
 // outstanding (internal/followup) - and there will be more. They are the same
 // thing on the wire, and this is that thing in one place: the format a reader
 // of docs/record-key.md is told about, and the parse that decides whether the
@@ -38,9 +38,17 @@ type Block struct {
 	// Being a comment by the bot is not enough: the bot quotes people, so a
 	// marker can appear in a bot comment without the bot having meant it.
 	Marker string
-	// Name is the kind in words, for the errors: "roles record".
+	// Legacy are markers this kind was written with before, still read so
+	// that a record on an issue does not stop counting when the name changes.
+	// The signature covers the marker, so an old record verifies as written,
+	// and the next write puts the current marker in its place.
+	Legacy []string
+	// Name is the kind in words, for the errors: "record of this check".
 	Name string
 }
+
+// all is every marker this kind has been written with, current first.
+func (b Block) all() []string { return append([]string{b.Marker}, b.Legacy...) }
 
 // Render writes a payload as the block, signed as written.
 //
@@ -74,10 +82,20 @@ func (b Block) Line(signature string) string {
 // what is verified is what was written and not a re-marshal of it.
 func (b Block) Parse(body string, into any) (whole []byte, signature string, err error) {
 	body = strings.TrimLeft(body, " \t\r\n")
-	if !strings.HasPrefix(body, b.Marker) {
+	// The marker it opens with, current or legacy; and every marker in it, of
+	// either kind, because a comment carrying an old and a new record carries
+	// two.
+	marker, count := "", 0
+	for _, known := range b.all() {
+		if marker == "" && strings.HasPrefix(body, known) {
+			marker = known
+		}
+		count += strings.Count(body, known)
+	}
+	if marker == "" {
 		return nil, "", ErrNoBlock
 	}
-	if strings.Count(body, b.Marker) > 1 {
+	if count > 1 {
 		return nil, "", fmt.Errorf("the comment carries more than one %s", b.Name)
 	}
 	end := strings.Index(body, blockEnd)
@@ -86,7 +104,7 @@ func (b Block) Parse(body string, into any) (whole []byte, signature string, err
 	}
 
 	whole = []byte(body[:end+len(blockEnd)])
-	if err := json.Unmarshal([]byte(strings.TrimSpace(body[len(b.Marker):end])), into); err != nil {
+	if err := json.Unmarshal([]byte(strings.TrimSpace(body[len(marker):end])), into); err != nil {
 		return nil, "", fmt.Errorf("the %s could not be read: %w", b.Name, err)
 	}
 	return whole, signatureIn(body[end:]), nil

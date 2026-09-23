@@ -149,7 +149,7 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader, event mention
 		// The signature is the second defence and not the first: a deployment
 		// without a record key signs nothing, and anybody who can comment
 		// could otherwise write themselves a follow-up for the sweep to act
-		// on. The roles record is read the same way; see people.Checks.Read.
+		// on. The record of a check is read the same way; see people.Checks.Read.
 		if !strings.EqualFold(comment.Author, bot) {
 			continue
 		}

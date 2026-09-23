@@ -6,7 +6,7 @@
 // lives where everything else about a check lives - in the issue, as a record
 // in the comment that raised it.
 //
-// The record is marked and **signed**, for the reason the roles record is: a
+// The record is marked and **signed**, for the reason the record of a check is: a
 // bot comment is safe from a passer-by and not from a repository collaborator,
 // and an edited record would send a later sweep after a different person.
 //

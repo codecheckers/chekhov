@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-23
+
+### Added
+
+- `accept record` adopts an edited record of a check, now that it holds the
+  certificate identifier as well as the roles; `accept roles` still works
+  (codecheckers/chekhov#20).
+- `chekhov comment` answers `next certificate` from the register's issues when
+  a token is set, and still writes nothing: `set certificate` refuses there
+  (codecheckers/chekhov#20).
+
+### Changed
+
+- The record of a check is marked `chekhov:record` instead of
+  `chekhov:roles`, and a refusal over an edited record says it covers the
+  certificate identifier too. A record under the old marker is still read and
+  verifies as written; the next change rewrites it (codecheckers/chekhov#20).
+- `CC-REG-007` finds the certificate among every identifier in the issue
+  title, a range spelled out, instead of as a substring: a workshop's range
+  carries its members, and `2026-001` is no longer found inside a longer
+  number (codecheckers/chekhov#20).
+- `next certificate` lists an unlabelled issue's identifiers as its title
+  writes them, a range as a range (codecheckers/chekhov#20).
+- The settings are refused when `labels.id_assigned` is not in
+  `labels.managed.add`: every reservation would stay unlabelled and invisible
+  to the next one (codecheckers/chekhov#20).
+
 ## [0.8.0] - 2026-09-23
 
 ### Added

@@ -23,24 +23,30 @@ import (
 // so both are read, the way the launch-pad reads the issues and an editor
 // reads both.
 
-// Certificates is what the certificate commands need of GitHub beyond a
-// comment: every issue, to see which identifiers are claimed, and the two
-// writes that put an identifier on this check where people and the
-// launch-pad look.
-type Certificates interface {
+// Claims is what `next certificate` needs of GitHub: every issue, to see
+// which identifiers are claimed. Reading only, so the command line preview
+// can answer it too.
+type Claims interface {
 	AllIssues(ctx context.Context, repository string) ([]github.Issue, error)
+}
+
+// Reserving is what `set certificate` needs on top: the two writes that put
+// an identifier on this check where people and the launch-pad look. A reply
+// path without them - the preview - reads the claims and reserves nothing.
+type Reserving interface {
+	Claims
 	AddLabel(ctx context.Context, repository string, issue int, label string) error
 	SetTitle(ctx context.Context, repository string, issue int, title string) error
 }
 
-var _ Certificates = (*github.Client)(nil)
+var _ Reserving = (*github.Client)(nil)
 
 // nextCertificate says which identifier comes next.
 func (s *Server) nextCertificate(ctx context.Context, parsed command.Command, services *check.Services) string {
 	if len(parsed.Args) != 1 || !strings.EqualFold(parsed.Args[0], "certificate") {
 		return fmt.Sprintf("Usage: `%s next certificate`\n", command.Bot)
 	}
-	_, claims, issues, err := s.claims(ctx, services)
+	claims, issues, err := s.claims(ctx, services)
 	if err != nil {
 		return err.Error() + "\n"
 	}
@@ -69,7 +75,12 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	s.reserving.Lock()
 	defer s.reserving.Unlock()
 
-	writer, claims, issues, err := s.claims(ctx, services)
+	writer, ok := s.Replies.(Reserving)
+	if !ok {
+		return "I cannot change an issue from here, so I reserve nothing: " +
+			"ask me on the checks issue.\n"
+	}
+	claims, issues, err := s.claims(ctx, services)
 	if err != nil {
 		return err.Error() + "\n"
 	}
@@ -163,7 +174,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 // either is missing. A failure is reported as not done rather than undoing
 // the record, which is what the bot reads; the title and the label are for
 // people and the launch-pad, and anybody can put them right.
-func (s *Server) putOnIssue(ctx context.Context, writer Certificates, event mention,
+func (s *Server) putOnIssue(ctx context.Context, writer Reserving, event mention,
 	this github.Issue, set *command.CertificateSet) {
 	if title := check.TitleWithCertificate(this.Title, set.ID); title != this.Title {
 		if err := writer.SetTitle(ctx, event.Repository, event.Issue, title); err != nil {
@@ -186,29 +197,25 @@ func (s *Server) putOnIssue(ctx context.Context, writer Certificates, event ment
 // claims reads every identifier the register and its issues hold, and the
 // issues themselves. Either source unread is a refusal, never a guess: an
 // identifier proposed from half the claims is how two checks get one.
-//
-// It returns the reply path as Certificates too, for set to write through: the
-// one place that asks whether this deployment can.
-func (s *Server) claims(ctx context.Context, services *check.Services) (
-	Certificates, []check.Claim, []github.Issue, error) {
+func (s *Server) claims(ctx context.Context, services *check.Services) ([]check.Claim, []github.Issue, error) {
 	label := s.Settings.IDAssignedLabel()
 	if label == "" {
-		return nil, nil, nil, errors.New("The settings name no `labels.id_assigned`, so I cannot tell " +
+		return nil, nil, errors.New("The settings name no `labels.id_assigned`, so I cannot tell " +
 			"which issues hold an identifier.")
 	}
-	register, ok := s.Replies.(Certificates)
+	register, ok := s.Replies.(Claims)
 	if !ok {
-		return nil, nil, nil, errors.New("I cannot read the issues of the register here, " +
+		return nil, nil, errors.New("I cannot read the issues of the register here, " +
 			"and `register.csv` alone does not know the identifiers reserved on checks in progress.")
 	}
 	claims, err := services.Certificates()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"I could not read `register.csv`, so I cannot tell which identifiers are taken: %w", err)
 	}
 	issues, err := register.AllIssues(ctx, s.Settings.TargetRepository())
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf(
+		return nil, nil, fmt.Errorf(
 			"I could not read the issues, so I cannot tell which identifiers are taken: %w", err)
 	}
 	for _, issue := range issues {
@@ -219,7 +226,7 @@ func (s *Server) claims(ctx context.Context, services *check.Services) (
 			claims = append(claims, check.Claim{ID: id, Issue: issue.Number})
 		}
 	}
-	return register, claims, issues, nil
+	return claims, issues, nil
 }
 
 // unlabelled is the open issues whose titles carry identifiers that were not
@@ -230,7 +237,7 @@ func unlabelled(issues []github.Issue, label string) []command.Unlabelled {
 		if issue.Closed || command.HasLabel(issue.Labels, label) {
 			continue
 		}
-		if ids := check.TitleCertificates(issue.Title); len(ids) > 0 {
+		if ids := check.TitleMentions(issue.Title); len(ids) > 0 {
 			found = append(found, command.Unlabelled{Issue: issue.Number, IDs: ids})
 		}
 	}

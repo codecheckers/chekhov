@@ -2,6 +2,7 @@ package check
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -148,7 +149,12 @@ func issueReferencesCertificate(c Context) Result {
 	if result != nil {
 		return *result
 	}
-	if strings.Contains(issue.Title, certificate) {
+	// Read as `next certificate` reads a title: every identifier in it, a
+	// range spelled out, so a workshop's issue titled 2026-004/2026-017
+	// carries 2026-009. A substring match found no range member, and would
+	// find 2026-001 inside 12026-0012. The R package matches the identifier
+	// as a word, which agrees except on ranges, which it does not expand.
+	if slices.Contains(TitleCertificates(issue.Title), certificate) {
 		return pass(issue.Title)
 	}
 	return fail(fmt.Sprintf("issue #%d is titled '%s', which does not carry %s",

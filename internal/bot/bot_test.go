@@ -794,7 +794,7 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 
 	reply := server.answer(ctx, event,
 		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body
-	if !strings.Contains(reply, "accept roles") || !strings.Contains(reply, "edited after I wrote it") {
+	if !strings.Contains(reply, "accept record") || !strings.Contains(reply, "edited after I wrote it") {
 		t.Errorf("the refusal does not say what to do: %s", reply)
 	}
 
@@ -805,7 +805,7 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 	}
 
 	// And an editor can adopt it, after which work goes on.
-	adopted := server.answer(ctx, event, command.Command{Name: command.Accept, Args: []string{"roles"}}).body
+	adopted := server.answer(ctx, event, command.Command{Name: command.Accept, Args: []string{"record"}}).body
 	if !strings.Contains(adopted, "Adopted") || !strings.Contains(adopted, "nuest") {
 		t.Errorf("the adoption does not say who did it: %s", adopted)
 	}
@@ -815,12 +815,31 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 	}
 }
 
+// `record` is the word since the record holds a certificate identifier too;
+// `roles`, what it was called before, and no word at all still adopt it, and
+// anything else is refused rather than guessed at.
+func TestAcceptTakesRecordAndStillRoles(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+	for _, args := range [][]string{{"record"}, {"roles"}, nil, {"Record"}} {
+		reply := server.answer(context.Background(), event, command.Command{Name: command.Accept, Args: args}).body
+		if strings.Contains(reply, "I can accept") {
+			t.Errorf("accept %v was refused: %s", args, reply)
+		}
+	}
+	reply := server.answer(context.Background(), event,
+		command.Command{Name: command.Accept, Args: []string{"certificate"}}).body
+	if !strings.Contains(reply, "I can accept the `record`") {
+		t.Errorf("accept certificate was not refused: %s", reply)
+	}
+}
+
 // Adopting is an editor's to do.
 func TestAcceptingIsForEditors(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
-		command.Command{Name: command.Accept, Args: []string{"roles"}}).body
+		command.Command{Name: command.Accept, Args: []string{"record"}}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a codechecker adopted a record: %s", reply)
 	}

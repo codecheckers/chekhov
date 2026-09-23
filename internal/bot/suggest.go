@@ -197,7 +197,7 @@ func (s *Server) exclusions(ctx context.Context, event mention) (suggest.Exclude
 		// prize for doing so.
 		if err != nil || reading.Tampered != nil {
 			notChecked = append(notChecked,
-				"Roles record not trusted, so authors are not excluded: "+
+				"Authors are not excluded: "+
 					errors.Join(err, reading.Tampered).Error())
 			break
 		}

@@ -345,3 +345,60 @@ func (c *threads) Edit(_ context.Context, _ string, comment int64, body string) 
 	}
 	return nil
 }
+
+// The identifier shares the record with the roles, so an edited record stops
+// `set certificate` as it stops `assign` - and the refusal says so in the
+// record's own terms, rather than sending an editor to adopt "roles" to get
+// a certificate identifier through.
+func TestAnEditedRecordStopsSetCertificate(t *testing.T) {
+	server, register, _ := registered(t)
+	answer(t, server, command.Set, []string{"certificate", year(7)}, "")
+	comments := server.Checks.Comments.(*issueComments)
+	comments.comments[0].Body = strings.Replace(comments.comments[0].Body, year(7), year(4), 1)
+
+	reply := answer(t, server, command.Set, []string{"certificate", year(8)}, "")
+	for _, want := range []string{"record of this check was edited", "certificate identifier", "accept record"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the refusal does not say %q:\n%s", want, reply)
+		}
+	}
+	if last := register.titled[len(register.titled)-1]; strings.HasSuffix(last, year(8)) {
+		t.Errorf("an edited record did not stop the title change: %q", last)
+	}
+}
+
+// The preview answers `next certificate` from the register's issues, and
+// cannot reserve anything: its reply path reads the issues and has no way to
+// write to one, whatever command asks.
+func TestThePreviewReadsTheClaimsAndWritesNothing(t *testing.T) {
+	server, register, _ := registered(t)
+	server.Replies = readOnly{register}
+
+	if reply := answer(t, server, command.Next, []string{"certificate"}, ""); !strings.Contains(reply,
+		"The next certificate identifier is `"+year(7)+"`") {
+		t.Errorf("the preview did not answer next certificate:\n%s", reply)
+	}
+	if reply := answer(t, server, command.Set, []string{"certificate"}, ""); !strings.Contains(reply,
+		"I cannot change an issue from here") {
+		t.Errorf("the preview did not refuse to reserve:\n%s", reply)
+	}
+	if len(register.titled)+len(register.labelled) != 0 {
+		t.Errorf("the preview wrote to an issue: %v %v", register.titled, register.labelled)
+	}
+
+	var replies Poster = readOnly{register}
+	if _, err := replies.Comment(context.Background(), "", 1, "hello"); err == nil {
+		t.Error("the preview posted a comment")
+	}
+	for name, writes := range map[string]bool{
+		"Reserving":    is[Reserving](replies),
+		"Assigner":     is[Assigner](replies),
+		"Organisation": is[Organisation](replies),
+	} {
+		if writes {
+			t.Errorf("the preview's reply path is a %s, and could write through it", name)
+		}
+	}
+}
+
+func is[T any](value any) bool { _, ok := value.(T); return ok }

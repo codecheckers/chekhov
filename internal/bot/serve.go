@@ -77,7 +77,7 @@ func Serve(address string) error {
 	}
 	server.Checks = &people.Checks{Comments: replies, Bot: settings.BotUser(), Signer: signer}
 	if !signer.Signs() {
-		slog.Warn("no record key: the roles of a check will be written unsigned, " +
+		slog.Warn("no record key: the record of a check will be written unsigned, " +
 			"and an edit of them will go unnoticed. See docs/record-key.md")
 	}
 	reloadTeams(server, settings)

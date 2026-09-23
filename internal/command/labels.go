@@ -45,7 +45,7 @@ type LabelNames struct {
 //
 // Every fact here has a companion saying whether it could be read at all,
 // because "could not check" must never read as "this is wrong": an unreadable
-// issue or an untrustworthy roles record leaves a rule with nothing to say,
+// issue or an untrustworthy record of the check leaves a rule with nothing to say,
 // which is not the same as a rule that looked and found agreement.
 type CheckState struct {
 	Names LabelNames

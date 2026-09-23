@@ -23,7 +23,7 @@ import (
 // knowingly adopts them - which is itself recorded and signed.
 //
 // Ed25519 rather than a shared secret, so that the public key can be published
-// and anybody can verify a roles record years later without asking the bot. A
+// and anybody can verify a record years later without asking the bot. A
 // project about independently verifiable records should not keep its own
 // provenance in a form only it can check. For that to be true the signature
 // has to cover the bytes in the comment rather than something reconstructed
@@ -40,7 +40,7 @@ const recordVersion = 1
 // there are honest causes - a key dropped from the accepted list during a
 // rotation, or a record written by another deployment. What it knows is that
 // the bytes are not the ones it signed, and that is what it says.
-var ErrTampered = errors.New("the roles record was edited after I wrote it")
+var ErrTampered = errors.New("the record of this check was edited after I wrote it")
 
 // Why is what is wrong with a record, without the sentence a reply already
 // leads with: a note that repeats the sentinel reads as a stutter.

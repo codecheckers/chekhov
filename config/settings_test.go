@@ -307,6 +307,27 @@ func TestShippedSettingsLetTheBotAddOnlyIDAssigned(t *testing.T) {
 	}
 }
 
+// A label the bot counts reservations by, but may not add, would leave every
+// reservation unlabelled and invisible to the next one. The file is refused
+// rather than the command failing quietly on every check.
+func TestTheIDAssignedLabelMustBeOneTheBotMayAdd(t *testing.T) {
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings.Chekhov.Labels.Managed.Add = []string{"id-assigned"}
+	if err := validate("settings-test.yml", settings); err == nil ||
+		!strings.Contains(err.Error(), "labels.managed.add") {
+		t.Errorf("validate = %v, want a refusal naming labels.managed.add", err)
+	}
+
+	// Written differently is the same label, as GitHub has it.
+	settings.Chekhov.Labels.Managed.Add = []string{"ID Assigned"}
+	if err := validate("settings-test.yml", settings); err != nil {
+		t.Errorf("validate = %v, want the label accepted", err)
+	}
+}
+
 // Which team an institutional check leads to is decided by reading the label
 // that marks one, so naming the team without the label would route every
 // institutional codechecker to the ordinary team in silence.

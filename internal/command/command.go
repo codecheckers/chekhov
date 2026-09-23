@@ -37,7 +37,7 @@ const (
 	// does rather than for the word people type, because Roles is the set of
 	// roles one person holds.
 	ListRoles Name = "roles"
-	// Accept adopts a roles record the bot did not write.
+	// Accept adopts a record of a check the bot did not write.
 	Accept Name = "accept"
 	// ListCodecheckers points at the lists of codecheckers. Named for what it
 	// does rather than for the word people type, as ListRoles is.

@@ -102,8 +102,8 @@ var registry = []Definition{
 	},
 	{
 		Name:    Accept,
-		Summary: "Adopt a roles record I did not write, after somebody edited it",
-		Usage:   "accept roles",
+		Summary: "Adopt the record of this check - roles, certificate - after somebody edited it",
+		Usage:   "accept record",
 		Group:   GroupPeople,
 		Role:    RoleEditor,
 	},

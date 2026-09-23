@@ -23,7 +23,7 @@ import (
 // the labels are compared against. Appended centrally, so it appears at most
 // once however many commands could have produced it.
 //
-// The roles record is therefore read again here rather than carried out of
+// The record of the check is therefore read again here rather than carried out of
 // the command. For `assign` and `remove` there is no choice - a note built on
 // what the record said before the write would be a note about the wrong
 // check - and for `roles` and `suggest codecheckers` it costs a second

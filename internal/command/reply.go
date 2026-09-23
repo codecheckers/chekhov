@@ -589,7 +589,7 @@ func AcceptedReply(holders Holders, editor string, signed bool, when time.Time) 
 	return reply.String()
 }
 
-// RecordNote is the foot of the comment the bot keeps a check's roles in: what
+// RecordNote is the foot of the comment the bot keeps a check's record in: what
 // the comment is, and what editing it by hand would and would not do.
 //
 // Here rather than in internal/people because every other rendering of a
@@ -622,8 +622,9 @@ func adoptionNote(by, at string) string {
 // It says what happened to the record, not who did it - the bot cannot tell,
 // and saying so would be a guess dressed as a fact.
 func TamperedNote(why string) string {
-	return fmt.Sprintf("\n⚠ **The roles record was edited after I wrote it**: %s. "+
-		"I will not change the roles of this check until an editor runs `%s accept roles`.\n",
+	return fmt.Sprintf("\n⚠ **The record of this check was edited after I wrote it**: %s. "+
+		"I will not change it - the roles or the certificate identifier - "+
+		"until an editor runs `%s accept record`.\n",
 		why, Bot)
 }
 

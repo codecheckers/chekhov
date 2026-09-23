@@ -580,6 +580,28 @@ var stubCases = []stubCase{
 		detail: "does not carry 2026-001",
 	},
 	{
+		name: "a workshop's issue carries the certificate as a member of its range",
+		rule: "CC-REG-007",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/github/repos/codecheckers/testing/issues/42",
+				`{"number": 42, "title": "A workshop 2026 | 2025-998/2026-000 and (2026-000 - 2026-004)", "state": "open"}`)
+		},
+		want:   OutcomeOK,
+		detail: "A workshop",
+	},
+	{
+		name: "an identifier inside a longer number is not the certificate",
+		rule: "CC-REG-007",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/github/repos/codecheckers/testing/issues/42",
+				`{"number": 42, "title": "Carberry | 12026-0010", "state": "open"}`)
+		},
+		want:   OutcomeWarning,
+		detail: "does not carry 2026-001",
+	},
+	{
 		name: "the register names no issue for this certificate",
 		rule: "CC-REG-006",
 		routes: func(s *stub) {

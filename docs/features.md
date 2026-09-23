@@ -45,7 +45,7 @@ for completeness of the conversational set.
 | Command | Effect | Prio |
 |---|---|---|
 | `@chekhovbot register` | Open a PR adding the row to `register.csv` | MVP |
-| `@chekhovbot set certificate [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the roles record, the title, the `id assigned` label (#20) | done |
+| `@chekhovbot set certificate [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the record of the check, the title, the `id assigned` label (#20) | done |
 | `@chekhovbot set venue <name>` / `set type <type>` | Record register metadata on the issue | high |
 | `@chekhovbot set repository <url>` | Record the code repository under check | high |
 | `@chekhovbot check register` | Validate the row against `register.csv` rules before the PR | high |

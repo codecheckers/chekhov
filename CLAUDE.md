@@ -477,15 +477,17 @@ than a `switch`.
   one place. The cache is
   the transient copy; `Teams.Refresh` rebuilds it from the persistent one, at
   startup and whenever an editor runs `refresh teams`.
-- Per-check roles live in a **comment the bot posted**, found by its marker on
+- Per-check roles, and the certificate identifier, live in a **comment the bot
+  posted** - the record of the check, marked `chekhov:record` (`chekhov:roles`
+  before #20, still read) - found by its marker on
   the comment's first line - not by position, and never in somebody else's
   comment. A bot comment is safe from a passer-by, **not** from a repository
   collaborator, who can edit it with the bot left as the author - so **the bot
   signs the record** (Ed25519, `internal/people/sign.go`) and refuses to change
   one it did not write. The signature covers the repository and issue too, so a
   valid record cannot be lifted between checks. An editor adopts an edited
-  record with `accept roles`, and who adopted it is written into the signed
-  block. The private key exists only in the deployment's configuration; the
+  record with `accept record` (`accept roles` still works), and who adopted it
+  is written into the signed block. The private key exists only in the deployment's configuration; the
   public key is published in `docs/record-keys.pub`, deliberately **not** in
   the register - the people who could edit a record must not also be able to
   change the key it is checked against. See `docs/record-key.md`. Nothing the bot posts may look like a

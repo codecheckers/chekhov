@@ -253,7 +253,7 @@ func TestSuggestDoesNotTrustAnEditedRecord(t *testing.T) {
 	if strings.Contains(reply, "Left out: `@a-codechecker` (author of the paper)") {
 		t.Errorf("an edited record was trusted:\n%s", reply)
 	}
-	if !strings.Contains(reply, "Roles record not trusted") {
+	if !strings.Contains(reply, "Authors are not excluded: the record of this check was edited") {
 		t.Errorf("the reply does not say the record could not be trusted:\n%s", reply)
 	}
 }

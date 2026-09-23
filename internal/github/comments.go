@@ -60,7 +60,7 @@ func (c *Client) Comments(ctx context.Context, repository string, issue int) ([]
 // Post writes a comment exactly, without the signature a reply carries and
 // without truncating it.
 //
-// The roles record is read back byte for byte, so nothing may be appended to
+// The record of a check is read back byte for byte, so nothing may be appended to
 // it or cut off it; Comment is for replies, which are read by people.
 func (c *Client) Post(ctx context.Context, repository string, issue int, body string) (int64, error) {
 	if err := c.mine(repository, "comment"); err != nil {

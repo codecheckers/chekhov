@@ -301,6 +301,7 @@ func TestTheCheckIdentityIgnoresCase(t *testing.T) {
 func TestTheRecordHasTheDocumentedShape(t *testing.T) {
 	body := comment(t, signer(t), "codecheckers/register", 42, Record{
 		HandlingEditor: "nuest", AssignedCodechecker: "a-codechecker", Authors: []string{"an-author"},
+		Certificate: "2026-001",
 	})
 	lines := strings.Split(body, "\n")
 

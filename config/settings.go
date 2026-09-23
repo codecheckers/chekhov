@@ -256,6 +256,16 @@ func validate(name string, s *Settings) error {
 			"nothing would ever be recognised as an institutional check",
 			name, s.InstitutionalTeam())
 	}
+	// `set certificate` puts labels.id_assigned on the check it reserves an
+	// identifier for, and `next certificate` counts only the checks carrying
+	// it. A label the bot may not add would leave every reservation invisible
+	// to the next one - the duplicate the label exists to prevent - so a file
+	// that names the label has to let the bot add it.
+	if label := s.IDAssignedLabel(); label != "" && !s.Addable(label) {
+		return fmt.Errorf("%s: labels.id_assigned is %q, which is not in labels.managed.add; "+
+			"set certificate could not put it on the check it reserves an identifier for",
+			name, label)
+	}
 	switch s.Chekhov.Mastodon.Visibility {
 	case "public", "unlisted", "private", "direct":
 	default:
@@ -332,6 +342,17 @@ func (s *Settings) IDAssignedLabel() string {
 // AddableLabels are the labels the bot may put on an issue, trimmed, empty
 // names dropped.
 func (s *Settings) AddableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Add) }
+
+// Addable reports whether the bot may put a label on an issue, compared as
+// GitHub and internal/github compare label names: case aside.
+func (s *Settings) Addable(label string) bool {
+	for _, addable := range s.AddableLabels() {
+		if strings.EqualFold(addable, strings.TrimSpace(label)) {
+			return true
+		}
+	}
+	return false
+}
 
 // RemovableLabels are the labels the bot may take off an issue.
 func (s *Settings) RemovableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Remove) }
