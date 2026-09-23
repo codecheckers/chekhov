@@ -141,6 +141,42 @@ func TestCommentChecksOnePart(t *testing.T) {
 	}
 }
 
+// `metadata references` is two words, in either order, on the command line
+// and in a comment alike (chekhov#11).
+func TestCheckMetadataReferences(t *testing.T) {
+	for _, words := range [][]string{{"metadata", "references"}, {"references", "metadata"}} {
+		var out bytes.Buffer
+		args := append(append([]string{"check"}, words...), fixture("valid-2.0"))
+		if err := run(args, &out); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		report := out.String()
+		if !strings.Contains(report, "CC-MET-009") || strings.Contains(report, "CC-MET-005") {
+			t.Errorf("%v should run the references and not the paper comparison:\n%s", args, report)
+		}
+		if !strings.Contains(report, "metadata references only") {
+			t.Errorf("%v should say it covered the references:\n%s", args, report)
+		}
+
+		out.Reset()
+		comment := t.TempDir() + "/comment.md"
+		writeFile(t, comment, "@chekhovbot check "+strings.Join(words, " ")+" "+fixture("valid-2.0")+"\n")
+		if err := run([]string{"comment", comment}, &out); err != nil {
+			t.Fatalf("comment %v: %v", words, err)
+		}
+		if !strings.Contains(out.String(), "metadata references only") {
+			t.Errorf("the reply to %v should cover the references only:\n%s", words, out.String())
+		}
+	}
+
+	// The old spelling is answered with the new one, not with the catalogue.
+	var out bytes.Buffer
+	err := run([]string{"check", "references", fixture("valid-2.0")}, &out)
+	if err == nil || !strings.Contains(err.Error(), "check metadata references") {
+		t.Errorf("check references should say where it went, got %v", err)
+	}
+}
+
 // "check repository" describes rather than judges, so it has no verdict to
 // exit non-zero on - not even for a bundle whose configuration is invalid.
 func TestCheckRepositoryDescribesADirectory(t *testing.T) {

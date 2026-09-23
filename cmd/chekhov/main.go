@@ -133,7 +133,7 @@ func runCheck(args []string, out io.Writer) error {
 		case argument == "--online":
 			online = true
 		case check.IsWord(argument):
-			part = argument
+			part = check.Narrow(part, argument)
 		case target != "":
 			return fmt.Errorf("check takes one target, but got %q and %q", target, argument)
 		default:

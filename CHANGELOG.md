@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-23
+
+### Changed
+
+- `check metadata references` checks the paper's reference and its
+  `reference-other` entries, their form and whether they resolve, and replaces
+  `check references`; the comparison of title and authors is left to
+  `check metadata`, which now runs the reference rules as well
+  (codecheckers/chekhov#11).
+
+### Removed
+
+- `check references`, which answers with where it went
+  (codecheckers/chekhov#11).
+
+### Fixed
+
+- A `reference-other` entry that does not resolve is listed with the reason,
+  and entries that could not be reached are named rather than counted as
+  resolving, so a server that is down no longer reads as a pass
+  (codecheckers/chekhov#11).
+- The same for the repositories under CC-BUN-004: a repository that answers
+  403, 429 or 5xx, or cannot be reached, is "could not check" rather than a
+  pass, and one that does not answer is listed with the reason
+  (codecheckers/chekhov#11).
+
 ## [0.6.1] - 2026-09-23
 
 ### Fixed

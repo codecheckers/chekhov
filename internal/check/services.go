@@ -371,6 +371,53 @@ func (s *Services) resolves(url string) Result {
 	return pass("")
 }
 
+// resolution is what resolving several URLs said, with the reason for each one
+// that did not: a 404 and a server that could not be asked send the
+// codechecker to do different things, so "does not resolve" alone is not
+// enough.
+type resolution struct {
+	resolved   int
+	unresolved []string // why each URL that does not resolve does not
+	failed     []int    // which of the URLs those were, by position
+	unreached  []string // why each URL that could not be asked could not
+}
+
+// resolveAll resolves every URL, see resolves.
+func (s *Services) resolveAll(urls []string) resolution {
+	var r resolution
+	for i, url := range urls {
+		switch result := s.resolves(url); result.Status {
+		case StatusFail:
+			r.unresolved = append(r.unresolved, result.Detail)
+			r.failed = append(r.failed, i)
+		case StatusSkip:
+			r.unreached = append(r.unreached, result.Detail)
+		default:
+			r.resolved++
+		}
+	}
+	return r
+}
+
+// verdict is the rule's result for a resolution. A URL that does not resolve
+// is a finding whatever else is down, and one that could not be asked is never
+// a pass, or an outage would read as "everything resolves" (chekhov#11).
+func (r resolution) verdict(failing string, lines []int, passing string) Result {
+	notChecked := strings.Join(r.unreached, "; ")
+	switch {
+	case len(r.unresolved) > 0:
+		detail := failing + ": " + strings.Join(r.unresolved, "; ")
+		if notChecked != "" {
+			detail += "; not checked: " + notChecked
+		}
+		return fail(detail).at(lines...)
+	case len(r.unreached) > 0:
+		return skip(fmt.Sprintf("%d of %d could not be checked: %s",
+			len(r.unreached), len(r.unreached)+r.resolved, notChecked))
+	}
+	return pass(passing)
+}
+
 // --- register.csv and venues.csv -------------------------------------------
 
 type registerEntry struct {

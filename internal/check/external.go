@@ -52,31 +52,30 @@ func referenceOtherResolves(c Context) Result {
 		return needsServices(RequiresService["CC-MET-009"])
 	}
 
-	var unresolved []string
-	var lines []int
-	reached := 0
+	var urls, paths []string
 	for i, entry := range c.Config.Paper.ReferenceOther {
 		entry = strings.TrimSpace(entry)
 		if !bareURL.MatchString(entry) {
+			// Not a URL is a finding about the form, CC-CFG-030's to report.
 			continue
 		}
-		switch result := c.Services.resolves(entry); result.Status {
-		case StatusFail:
-			unresolved = append(unresolved, entry)
-			lines = append(lines, c.Config.Line(referenceOtherPath(i)))
-			reached++
-		case StatusPass:
-			reached++
-		}
+		urls = append(urls, entry)
+		paths = append(paths, referenceOtherPath(i))
 	}
-	if reached == 0 {
-		return skip("could not reach any reference-other entry")
+	if len(urls) == 0 {
+		return skip("no reference-other entry is a URL, so there is nothing to resolve")
 	}
-	if len(unresolved) > 0 {
-		return fail("reference-other entries that do not resolve: " +
-			strings.Join(unresolved, ", ")).at(lines...)
+
+	// The R package differs, deliberately not followed: its url_resolves fails
+	// on a 403, 429 or 5xx, it passes when some entries could not be reached
+	// as long as none failed, and it lists the URLs without their reasons.
+	resolution := c.Services.resolveAll(urls)
+	var lines []int
+	for _, i := range resolution.failed {
+		lines = append(lines, c.Config.Line(paths[i]))
 	}
-	return pass(fmt.Sprintf("%d entry(s) resolve", reached))
+	return resolution.verdict("reference-other entries that do not resolve", lines,
+		fmt.Sprintf("%d entry(s) resolve", resolution.resolved))
 }
 
 // rule: CC-BUN-004 repository-reachable
@@ -88,17 +87,10 @@ func repositoryReachable(c Context) Result {
 		return needsServices(RequiresService["CC-BUN-004"])
 	}
 
-	var unreachable []string
-	for _, repository := range c.Config.Repository {
-		if result := c.Services.resolves(repository); result.Status == StatusFail {
-			unreachable = append(unreachable, repository)
-		}
-	}
-	if len(unreachable) > 0 {
-		return fail("repository(s) that do not answer: " + strings.Join(unreachable, ", ")).
-			at(c.Config.Line("repository"))
-	}
-	return pass(strings.Join(c.Config.Repository, ", "))
+	// A repository that answered 403 or 503 used to pass: only a 404 was
+	// counted against it (chekhov#11).
+	return c.Services.resolveAll(c.Config.Repository).verdict("repository(s) that do not answer",
+		[]int{c.Config.Line("repository")}, strings.Join(c.Config.Repository, ", "))
 }
 
 // rule: CC-BUN-001 manifest-files-exist

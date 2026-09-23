@@ -143,12 +143,15 @@ func with(key, line string) string {
 	return strings.Join(out, "\n")
 }
 
-// withReferenceOther adds a further reference, which 2.0 introduced and no
+// withReferenceOther adds further references, which 2.0 introduced and no
 // published certificate carries yet.
-func withReferenceOther(entry string) string {
+func withReferenceOther(entries ...string) string {
 	const reference = `  reference: "{{server}}/doi/10.5555/preprint.1"`
-	return strings.Replace(stubConfig, reference,
-		reference+"\n  reference-other:\n    - \""+entry+"\"", 1)
+	other := reference + "\n  reference-other:"
+	for _, entry := range entries {
+		other += "\n    - \"" + entry + "\""
+	}
+	return strings.Replace(stubConfig, reference, other, 1)
 }
 
 const (
@@ -623,6 +626,18 @@ var stubCases = []stubCase{
 		want:   OutcomeError,
 		detail: "do not answer",
 	},
+	{
+		// Used to pass: only a 404 counted against a repository (chekhov#11).
+		name:          "a repository that could not be asked is not a pass",
+		rule:          "CC-BUN-004",
+		configuration: with("repository", `repository: "{{server}}/unavailable"`),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/unavailable", http.StatusServiceUnavailable)
+		},
+		want:   OutcomeSkipped,
+		detail: "1 of 1 could not be checked",
+	},
 
 	// --- URLs taken from the file ---
 	{
@@ -668,7 +683,42 @@ var stubCases = []stubCase{
 			s.Status("/gone-reference", http.StatusNotFound)
 		},
 		want:   OutcomeWarning,
-		detail: "do not resolve",
+		detail: "gone-reference' answers 404",
+	},
+	{
+		// The outage is named beside the finding, not instead of it.
+		name:          "a broken reference is reported although another server is down",
+		rule:          "CC-MET-009",
+		configuration: withReferenceOther("{{server}}/gone-reference", "{{server}}/unavailable"),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/gone-reference", http.StatusNotFound)
+			s.Status("/unavailable", http.StatusServiceUnavailable)
+		},
+		want:   OutcomeWarning,
+		detail: "not checked: '",
+	},
+	{
+		// Used to pass as "1 entry(s) resolve", which read an outage as a
+		// clean bill of health (chekhov#11).
+		name:          "one reference down and one resolving is not a pass",
+		rule:          "CC-MET-009",
+		configuration: withReferenceOther("{{server}}/version-of-record", "{{server}}/unavailable"),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Text("/version-of-record", "the version of record")
+			s.Status("/unavailable", http.StatusServiceUnavailable)
+		},
+		want:   OutcomeSkipped,
+		detail: "1 of 2 could not be checked",
+	},
+	{
+		name:          "a reference that is not a URL is the form rule's to report",
+		rule:          "CC-MET-009",
+		configuration: withReferenceOther("see the supplement"),
+		routes:        func(s *stub) { s.serveEverythingWell() },
+		want:          OutcomeSkipped,
+		detail:        "nothing to resolve",
 	},
 	{
 		name:          "a server having a bad moment is not a broken reference",

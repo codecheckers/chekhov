@@ -235,6 +235,10 @@ func Run(context Context, specVersion string, strict bool) (Report, error) {
 func RunPart(context Context, specVersion string, strict bool, part string) (Report, error) {
 	// What was asked comes before what the file says: a mistyped part is the
 	// caller's to fix, whatever version the file declares.
+	// A part up to 0.6.1, and answered with where it went.
+	if part == "references" {
+		return Report{}, fmt.Errorf("`check references` is now `check metadata references`")
+	}
 	if !IsPart(part) {
 		return Report{}, fmt.Errorf("no such check %q; try one of %s, or leave it off for all of them",
 			part, strings.Join(Parts(), ", "))
@@ -351,19 +355,29 @@ func (r Report) FailureMessage() string {
 // again - so a part is chosen before the checks run, not filtered out of the
 // answer afterwards.
 //
-// All but one are a rule area, which the catalogue carries. The exception is
-// `references`, which crosses two areas because the catalogue separates the
-// form of a reference from what resolving it says.
-var partNames = []string{"bundle", "config", "metadata", "references", "register", "report"}
+// Each is a rule area, which the catalogue carries, with one addition:
+// `metadata` also runs the rules about the form of a reference, and
+// `metadata references` runs only the references, form and resolution. The
+// catalogue separates the form of a reference (config) from what resolving it
+// says (metadata), and a codechecker asking about references wants both
+// (chekhov#11).
+var partNames = []string{"bundle", "config", "metadata", MetadataReferences, "register", "report"}
 
-// referenceRules are the rules about what the paper is and where it is, which
-// is what "check references" means to a codechecker.
+// MetadataReferences is the part `check metadata references` names: two words,
+// read by Narrow.
+const MetadataReferences = "metadata references"
+
+// referenceRules are the rules about where the paper and its related work are,
+// which is what "check metadata references" means to a codechecker. What the
+// paper is - its title and authors against the metadata source - is the rest
+// of `check metadata`.
 //
 // Hand-maintained, and the one place in this package where a rule's properties
 // are written in code rather than read from the register. TestReferenceRules
 // guards it: a rule the register adds with a reference-shaped name has to be
 // classified here. A `tags:` field in the rule files would remove the list
-// entirely, see the note in CLAUDE.md.
+// entirely, see the note in CLAUDE.md; both `metadata` and
+// `metadata references` would then read the tag.
 var referenceRules = map[string]bool{
 	"CC-CFG-021": true, // paper-reference
 	"CC-CFG-022": true, // reference-not-bare-pdf
@@ -373,29 +387,50 @@ var referenceRules = map[string]bool{
 	"CC-CFG-030": true, // reference-other-item-form
 	"CC-CFG-031": true, // reference-pdf-is-archived
 	"CC-MET-004": true, // paper-reference-resolves
-	"CC-MET-005": true, // paper-title-match
-	"CC-MET-006": true, // paper-author-count-match
-	"CC-MET-007": true, // paper-author-name-match
-	"CC-MET-008": true, // paper-author-orcid-match
 	"CC-MET-009": true, // reference-other-resolves
 }
 
 // Parts are the names a check may be narrowed to.
 func Parts() []string { return partNames }
 
-// Words are what `check` takes before its target: the parts of the catalogue,
-// and AboutRepository, which is a description rather than a part.
+// Words are what `check` takes before its target: the single words of the
+// parts, and AboutRepository, which is a description rather than a part.
 //
 // One list, so that a caller parsing a command has no vocabulary of its own to
 // keep in step - and so that the usage a reader is shown is the one the parser
 // actually uses.
-func Words() []string { return append(slices.Clone(partNames), AboutRepository) }
+func Words() []string { return slices.Clone(words) }
+
+var words = func() []string {
+	words := []string{AboutRepository}
+	for _, part := range partNames {
+		for _, word := range strings.Fields(part) {
+			if !slices.Contains(words, word) {
+				words = append(words, word)
+			}
+		}
+	}
+	return words
+}()
 
 // IsWord reports whether an argument says what to answer rather than what to
 // read. The empty string is not one: only IsPart treats it as "all of them",
 // and a caller reading a comment word by word must not.
 func IsWord(name string) bool {
-	return name != "" && (IsPart(name) || name == AboutRepository)
+	return name != "" && slices.Contains(words, name)
+}
+
+// Narrow adds a word to the part named so far, which is how a caller reading
+// `check metadata references` word by word arrives at one part. The two words
+// may come in either order; any other word replaces what came before it, as a
+// single word always has.
+func Narrow(part, word string) string {
+	for _, joined := range []string{part + " " + word, word + " " + part} {
+		if slices.Contains(partNames, joined) {
+			return joined
+		}
+	}
+	return word
 }
 
 // IsPart reports whether a name selects part of the catalogue. "all" and the
@@ -410,7 +445,9 @@ func inPart(rule rules.Rule, part string) bool {
 	switch part {
 	case "", "all":
 		return true
-	case "references":
+	case "metadata":
+		return rule.Area == part || referenceRules[rule.ID]
+	case MetadataReferences:
 		return referenceRules[rule.ID]
 	default:
 		return rule.Area == part

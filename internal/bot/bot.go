@@ -867,7 +867,7 @@ func (s *Server) check(parsed command.Command, services *check.Services) string 
 			continue
 		}
 		if check.IsWord(argument) {
-			part = argument
+			part = check.Narrow(part, argument)
 		} else if target == "" {
 			// The first target wins. A comment is prose, and "check 2020-001
 			// please" must not be read as a request to check "please".

@@ -140,7 +140,7 @@ var registry = []Definition{
 	{
 		Name:    Check,
 		Summary: "Validate a `codecheck.yml` against the CODECHECK rules, or describe the repository under check",
-		Usage:   "check [config|metadata|bundle|references|report|register|repository] <repository, or certificate>",
+		Usage:   "check [config|metadata [references]|bundle|report|register|repository] <repository, or certificate>",
 		Group:   GroupValidation,
 		Role:    RoleAnyone,
 	},

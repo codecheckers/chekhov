@@ -532,7 +532,7 @@ func TestRunPart(t *testing.T) {
 		t.Fatalf("fixture: %v", err)
 	}
 
-	for _, name := range []string{"config", "metadata", "bundle", "report", "register"} {
+	for _, name := range []string{"config", "bundle", "report", "register"} {
 		report, err := RunPart(context, "2.0", false, name)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
@@ -548,22 +548,38 @@ func TestRunPart(t *testing.T) {
 	}
 
 	// The references cross two areas, because the catalogue separates the form
-	// of a reference from what resolving it says.
-	references, err := RunPart(context, "2.0", false, "references")
-	if err != nil {
-		t.Fatalf("references: %v", err)
+	// of a reference from what resolving it says, and metadata runs both.
+	ran := func(part string) map[string]bool {
+		report, err := RunPart(context, "2.0", false, part)
+		if err != nil {
+			t.Fatalf("%s: %v", part, err)
+		}
+		ids := map[string]bool{}
+		for _, result := range report.Results {
+			ids[result.Rule.ID] = true
+		}
+		return ids
 	}
-	ran := map[string]bool{}
-	for _, result := range references.Results {
-		ran[result.Rule.ID] = true
-	}
-	for _, id := range []string{"CC-CFG-021", "CC-CFG-031", "CC-MET-005", "CC-MET-009"} {
-		if !ran[id] {
-			t.Errorf("the references part should run %s", id)
+	references := ran(MetadataReferences)
+	for _, id := range []string{"CC-CFG-021", "CC-CFG-031", "CC-MET-004", "CC-MET-009"} {
+		if !references[id] {
+			t.Errorf("metadata references should run %s", id)
 		}
 	}
-	if ran["CC-CFG-001"] {
-		t.Error("the references part should not run the parsing rule")
+	// What the paper is belongs to metadata, not to its references.
+	for _, id := range []string{"CC-CFG-001", "CC-MET-001", "CC-MET-005"} {
+		if references[id] {
+			t.Errorf("metadata references should not run %s", id)
+		}
+	}
+	metadata := ran("metadata")
+	for id := range references {
+		if !metadata[id] {
+			t.Errorf("metadata should run %s, which metadata references runs", id)
+		}
+	}
+	if metadata["CC-CFG-001"] {
+		t.Error("metadata should not run the parsing rule")
 	}
 
 	// Nothing is lost: no part and "all" are the whole catalogue.
@@ -605,7 +621,7 @@ func TestNarrowedReportSaysWhatItCovered(t *testing.T) {
 
 // The one list of rule properties this package keeps in code. A rule the
 // register adds with a reference-shaped name has to be classified, or
-// "check references" would quietly stop covering it.
+// "check metadata references" would quietly stop covering it.
 func TestReferenceRulesCoverTheRegister(t *testing.T) {
 	for _, version := range rules.SpecVersions() {
 		catalogue, err := rules.For(version)

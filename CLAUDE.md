@@ -270,9 +270,9 @@ scheme in
   requirement hardened in 2.0 is reported more loudly, not checked differently.
   `strict` escalates warnings to errors and never the other way round.
 - The one exception is `referenceRules` in `internal/check/run.go`, the
-  cross-area group behind `check references`. It is hand-written because the
-  rule files have no way to express it yet, guarded by a test, and it goes away
-  when codecheckers/register#216 lands. Do not add a second such list.
+  cross-area group behind `check metadata references`. It is hand-written
+  because the rule files have no way to express it yet, guarded by a test, and
+  it goes away when codecheckers/register#216 lands. Do not add a second such list.
 
 ### Where a paper's metadata comes from
 
@@ -558,10 +558,14 @@ file of that name. The R package looks only for the file, deliberately: it only
 ever sees a bundle on disk.
 
 A check command can be narrowed to one part of the catalogue with
-`Report.Subset`: the rule areas, plus `references`, which crosses two areas
-because the catalogue separates the form of a reference from what resolving it
-says. A narrowed report says so in its heading, so that "0 failed" cannot be
-read as "this file is fine".
+`Report.Subset`: the rule areas, where `metadata` also runs the rules about the
+form of a reference, and `metadata references`, which runs only those and their
+resolution, because the catalogue separates the form of a reference (config)
+from what resolving it says (metadata). `check.Narrow` reads the two words in
+either order; `check references` is gone and says so. `config` stays a part of
+its own: most of it is about the file rather than the paper, and it runs
+offline where `metadata` asks the world. A narrowed report says so in its
+heading, so that "0 failed" cannot be read as "this file is fine".
 
 ## Where things stand
 
@@ -574,7 +578,8 @@ exists; read the issues for what does not.
 | Issue | State |
 |---|---|
 | #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused. Closes once the deployment has answered a real check |
-| #9 metadata, #10 bundle, #11 references | Commands exist; small criteria left (ORCID checksum digit, bundle size, the certificate's own references) |
+| #9 metadata, #10 bundle | Commands exist; small criteria left (ORCID checksum digit, bundle size) |
+| #11 references | Done: `check metadata references` |
 | #8 repository, #12 links | Not started |
 | #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
 | #4 version SHA and target register | `version` and `/healthz` report the version constant and the register. The commit is deliberately not reported: open for the VCS-stamp route, which needs `.git` in the deployment's builder |
