@@ -40,6 +40,31 @@ chekhov:
     # faster pool. A project address, never a person's.
     mailto: ${CHEKHOV_METADATA_MAILTO:-chekhov@cdchck.science}
 
+  links:
+    # Sites `check links` does not ask, because they refuse an automated
+    # request - or answer it with a login page - whatever the link is, so the
+    # answer would say "blocked" and nothing about the link. A link to one is
+    # reported as not checked. A host covers its subdomains.
+    skip_hosts:
+      # Log-in walls and bot challenges for anything without a session.
+      - linkedin.com
+      - researchgate.net
+      - x.com
+      - twitter.com
+      - facebook.com
+      - instagram.com
+      # Answers every client it does not recognise with 403.
+      - sciencedirect.com
+      - academic.oup.com
+      - onlinelibrary.wiley.com
+      - tandfonline.com
+    # The largest certificate source read for links, in bytes. A notebook with
+    # its figure outputs embedded runs to tens of megabytes; its links are in
+    # the text. At most 8 MiB, which is as much of any response as the bot
+    # reads. The size is checked before downloading where the repository's
+    # listing says it.
+    max_certificate_bytes: ${CHEKHOV_LINKS_MAX_CERTIFICATE_BYTES:-5242880}
+
   mastodon:
     # Where "@chekhovbot announce"/"follow" act. The token is
     # CHEKHOV_MASTODON_TOKEN; without it both are switched off. See

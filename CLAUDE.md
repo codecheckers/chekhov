@@ -615,7 +615,8 @@ exists; read the issues for what does not.
 | #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused. Closes once the deployment has answered a real check |
 | #9 metadata, #10 bundle | Commands exist; small criteria left (ORCID checksum digit, bundle size) |
 | #11 references | Done: `check metadata references` |
-| #8 repository, #12 links | Not started |
+| #8 repository | Not started |
+| #12 links | `check links`: the issue, `codecheck.yml`, the certificate source and the deposit; closes once the testing register has answered it |
 | #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
 | #4 version SHA and target register | `version` and `/healthz` report the version constant and the register. The commit is deliberately not reported: open for the VCS-stamp route, which needs `.git` in the deployment's builder |
 | #5 thanks, #6 goodbye | One registry entry each, not written |
@@ -674,12 +675,14 @@ internal/check/     one check function per rule, the runner and the formatting
   external.go       the checks that ask the metadata source, ORCID or a repository
   openalex.go       what a paper is: title, authors, and what it is about
   zenodo.go         the certificate's archive record
+  researchequals.go the certificate's deposit when it is on ResearchEquals
   register.go       the register-wide rules and the checks issue
   drift.go          are the bundled rules the register's current ones?
   services.go       the outside world: base URLs, cache, register.csv
   source.go         reading a codecheck.yml from github::, gitlab::, osf::, zenodo::
   bundle.go         the files around it, on disk or in the repository
   repository.go     what the repository under check is: a description, not a verdict
+  links.go          which links around a check still answer: advice, not a verdict
 internal/command/   the command registry, the parser, and the reply bodies
   data/quotes.yml   Chekhov quotes from Wikiquote, for `thanks`
 testdata/           codecheck.yml fixtures, valid and failing, one per directory

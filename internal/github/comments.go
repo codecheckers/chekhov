@@ -101,12 +101,24 @@ func (c *Client) Post(ctx context.Context, repository string, issue int, body st
 // a comment by the bot is safe from a passer-by - but not from a collaborator,
 // who may edit it with the bot left as its author.
 func (c *Client) Edit(ctx context.Context, repository string, comment int64, body string) error {
-	if err := c.mine(repository, "edit a comment"); err != nil {
-		return err
-	}
 	if len(body) > MaxCommentLength {
 		return fmt.Errorf("refusing to edit comment %d: %d characters is over GitHub's limit of %d, "+
 			"and cutting it would lose what is at the end", comment, len(body), MaxCommentLength)
+	}
+	return c.edit(ctx, repository, comment, body)
+}
+
+// EditReply rewrites a reply the bot posted, as Comment would have written it:
+// with the signature, and cut to fit rather than refused. A command that takes
+// a while posts that it has started and replaces the notice with its answer,
+// and the answer is a reply like any other, read by people.
+func (c *Client) EditReply(ctx context.Context, repository string, comment int64, body string) error {
+	return c.edit(ctx, repository, comment, c.compose(body))
+}
+
+func (c *Client) edit(ctx context.Context, repository string, comment int64, body string) error {
+	if err := c.mine(repository, "edit a comment"); err != nil {
+		return err
 	}
 	payload, err := json.Marshal(map[string]string{"body": body})
 	if err != nil {

@@ -1,6 +1,7 @@
 package check
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -258,6 +259,38 @@ func TestCassetteReferenceOtherResolves(t *testing.T) {
 	result := resultFor(t, report, "CC-MET-009")
 	if result.Outcome != OutcomeOK {
 		t.Errorf("CC-MET-009: outcome %q, want ok (%s)", result.Outcome, result.Detail)
+	}
+}
+
+// `check links` reads a certificate's deposit for the links in it: a real
+// Zenodo record, and a real ResearchEquals version found through where the
+// DOI system says its DOI points. The stubs decide what the fields mean; this
+// proves they are the fields the services send.
+func TestCassetteDepositMetadata(t *testing.T) {
+	services := replayServices(t, "deposit-metadata")
+
+	record, err := services.zenodoRecord(context.Background(), RepositorySpec{Type: "zenodo", Path: "3674056"})
+	if err != nil {
+		t.Fatalf("the Zenodo record: %v", err)
+	}
+	links := &Links{index: map[string]*Link{}}
+	links.addZenodo(record, "Zenodo record 3674056")
+	for _, want := range []string{
+		"https://github.com/codecheckers/Piccolo-2020",
+		"https://doi.org/10.1093/gigascience/giaa026",
+	} {
+		linkFor(t, links, want)
+	}
+	if record.Metadata.Description == "" {
+		t.Error("the record's description was not read")
+	}
+
+	version, err := services.researchEqualsVersion(context.Background(), "10.53962/nsys-9a40")
+	if err != nil {
+		t.Fatalf("the ResearchEquals version: %v", err)
+	}
+	if !strings.Contains(version.Description, "Reproducibility review") {
+		t.Errorf("the version's description was not read: %q", version.Description)
 	}
 }
 

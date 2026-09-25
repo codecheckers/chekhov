@@ -34,6 +34,19 @@ import (
 // Crossref and Zenodo can take a minute, and one that hangs must not pile up.
 const commandTimeout = 5 * time.Minute
 
+// timeoutFor is how long one command may take. `check links` asks every link
+// around a check, with no cap on how many, and says so in the thread while it
+// works - so it gets longer than a command that answers in one go, and a link
+// it did not reach in that time is reported as not checked.
+func timeoutFor(parsed command.Command) time.Duration {
+	if parsed.Name == command.Check {
+		if part, _ := checkArguments(parsed); part == check.AboutLinks {
+			return linksTimeout
+		}
+	}
+	return commandTimeout
+}
+
 // Poster is the part of the reply path the bot needs, so a test can watch what
 // would be posted without a server.
 type Poster interface {
@@ -225,7 +238,7 @@ func (s *Server) act(event mention, parsed command.Command) {
 	}()
 	defer s.recoverCommand(event, parsed)
 
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(parsed))
 	defer cancel()
 
 	started := time.Now()
@@ -512,7 +525,7 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 	case command.Version:
 		return said(s.version())
 	case command.Check:
-		return said(s.check(ctx, parsed, services))
+		return s.check(ctx, event, parsed, services)
 	case command.CheckStart:
 		return s.checkStart(ctx, event, parsed, services)
 	case command.Status:
@@ -906,8 +919,54 @@ func (s *Server) version() string {
 // spec, a shortcut, or a certificate identifier the register knows - and
 // check.ResolveTarget decides which. Working out from the issue alone which
 // configuration it is about is still to come.
-func (s *Server) check(ctx context.Context, parsed command.Command, services *check.Services) string {
-	part, target := "", ""
+func (s *Server) check(ctx context.Context, event mention, parsed command.Command, services *check.Services) answered {
+	part, target := checkArguments(parsed)
+	// A mistyped subcommand lands here, as `check` with a word it cannot read:
+	// the registry knows what it was meant to be, and saying so is the whole
+	// point of having the registry answer for the vocabulary.
+	if len(parsed.Args) > 0 && !check.IsWord(parsed.Args[0]) {
+		if meant, ok := command.SuggestSub(command.Check, parsed.Args[0]); ok {
+			return said(fmt.Sprintf("I do not know `%s %s %s`. Did you mean `%s %s`?\n",
+				command.Bot, command.Check, parsed.Args[0], command.Bot, meant))
+		}
+	}
+	if target == "" {
+		return said(fmt.Sprintf("I need to be told what to check:\n\n"+
+			"    %s check codecheckers/repository\n"+
+			"    %s check 2020-001\n\n"+
+			"A repository may also be named the way `register.csv` does, "+
+			"`github::owner/repo`, with `|sub/dir` when the configuration is not at the root.\n",
+			command.Bot, command.Bot))
+	}
+
+	// Not a part of the catalogue but a description of the repository the
+	// configuration would come from, which is asked before there is one to
+	// check. See check.AboutRepository.
+	if part == check.AboutRepository {
+		return said(s.describing(target, services)(ctx))
+	}
+
+	// Not a part either: the links around the check, which are asked rather
+	// than judged. See check.AboutLinks.
+	if part == check.AboutLinks {
+		configuration, err := s.read(target, services)
+		if err != nil {
+			return said(fmt.Sprintf("I could not read `%s`: %s\n", target, err))
+		}
+		return s.links(ctx, event, configuration, services)
+	}
+
+	report, err := s.reportOn(target, part, services)
+	if err != nil {
+		return said(fmt.Sprintf("%s\n", err))
+	}
+	return said(report.Markdown())
+}
+
+// checkArguments reads what `check` was asked: the part, or the description,
+// and the target. timeoutFor reads the same words, so that how long a command
+// may take and what it does cannot disagree about which command it is.
+func checkArguments(parsed command.Command) (part, target string) {
 	for _, argument := range parsed.Args {
 		// A part name is never a target: the catalogue's own words come first,
 		// and everything else is what to read.
@@ -922,36 +981,7 @@ func (s *Server) check(ctx context.Context, parsed command.Command, services *ch
 			target = argument
 		}
 	}
-	// A mistyped subcommand lands here, as `check` with a word it cannot read:
-	// the registry knows what it was meant to be, and saying so is the whole
-	// point of having the registry answer for the vocabulary.
-	if len(parsed.Args) > 0 && !check.IsWord(parsed.Args[0]) {
-		if meant, ok := command.SuggestSub(command.Check, parsed.Args[0]); ok {
-			return fmt.Sprintf("I do not know `%s %s %s`. Did you mean `%s %s`?\n",
-				command.Bot, command.Check, parsed.Args[0], command.Bot, meant)
-		}
-	}
-	if target == "" {
-		return fmt.Sprintf("I need to be told what to check:\n\n"+
-			"    %s check codecheckers/repository\n"+
-			"    %s check 2020-001\n\n"+
-			"A repository may also be named the way `register.csv` does, "+
-			"`github::owner/repo`, with `|sub/dir` when the configuration is not at the root.\n",
-			command.Bot, command.Bot)
-	}
-
-	// Not a part of the catalogue but a description of the repository the
-	// configuration would come from, which is asked before there is one to
-	// check. See check.AboutRepository.
-	if part == check.AboutRepository {
-		return s.describing(target, services)(ctx)
-	}
-
-	report, err := s.reportOn(target, part, services)
-	if err != nil {
-		return fmt.Sprintf("%s\n", err)
-	}
-	return report.Markdown()
+	return part, target
 }
 
 // reportOn runs part of the catalogue against a target.
@@ -1474,7 +1504,7 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 		// that no command writes to GitHub from a preview.
 		server.Replies = readOnly{client}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(parsed))
 	defer cancel()
 	// The body travels with the mention: a command may be followed by prose -
 	// an abstract, an availability statement - and the preview has to read the

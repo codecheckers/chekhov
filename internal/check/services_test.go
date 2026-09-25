@@ -3,6 +3,7 @@ package check
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -14,9 +15,8 @@ import (
 // and the OpenAlex base URL went missing, leaving every command in a
 // deployment talking to nowhere.
 //
-// One comparison rather than a field-by-field check, because Access is
-// comparable and that is the point of the split: the test cannot fall behind
-// the struct either.
+// One comparison of the whole struct rather than a field-by-field check, which
+// is the point of the split: the test cannot fall behind the struct either.
 func TestFreshCarriesTheWholeOfAccess(t *testing.T) {
 	services := &Services{Access: Access{
 		HTTP: http.DefaultClient, GitHubToken: "token", Metadata: "crossref",
@@ -24,9 +24,11 @@ func TestFreshCarriesTheWholeOfAccess(t *testing.T) {
 		Zenodo: "zenodo", ZenodoSandbox: "sandbox", ORCID: "orcid",
 		Crossref: "crossref", OpenAlex: "openalex", GitHub: "github",
 		RawContent: "raw", GitLab: "gitlab", OSF: "osf",
+		DOI: "doi", ResearchEquals: "researchequals",
+		LinkSkipHosts: []string{"linkedin.com"}, MaxCertificateBytes: 1000,
 	}}
 
-	if fresh := services.Fresh(); fresh.Access != services.Access {
+	if fresh := services.Fresh(); !reflect.DeepEqual(fresh.Access, services.Access) {
 		t.Errorf("Fresh() changed the access:\n got %+v\nwant %+v", fresh.Access, services.Access)
 	}
 }

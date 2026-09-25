@@ -1,6 +1,7 @@
 package check
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -60,15 +61,23 @@ type Access struct {
 
 	// Base URLs of the services, so that a sandbox, a mirror or a test server
 	// can be used instead. Empty means the real one, see defaults().
-	Zenodo        string // https://zenodo.org/api
-	ZenodoSandbox string // https://sandbox.zenodo.org/api
-	ORCID         string // https://pub.orcid.org/v3.0
-	Crossref      string // https://api.crossref.org
-	OpenAlex      string // https://api.openalex.org
-	GitHub        string // https://api.github.com
-	RawContent    string // https://raw.githubusercontent.com
-	GitLab        string // https://gitlab.com
-	OSF           string // https://api.osf.io/v2
+	Zenodo         string // https://zenodo.org/api
+	ZenodoSandbox  string // https://sandbox.zenodo.org/api
+	ORCID          string // https://pub.orcid.org/v3.0
+	Crossref       string // https://api.crossref.org
+	OpenAlex       string // https://api.openalex.org
+	GitHub         string // https://api.github.com
+	RawContent     string // https://raw.githubusercontent.com
+	GitLab         string // https://gitlab.com
+	OSF            string // https://api.osf.io/v2
+	DOI            string // https://doi.org, whose /api/handles says where a DOI points
+	ResearchEquals string // https://researchequals.com/api
+
+	// LinkSkipHosts and MaxCertificateBytes bound `check links`, see
+	// config.Links: the sites not worth asking, and the largest certificate
+	// source worth reading. Zero MaxCertificateBytes means the default.
+	LinkSkipHosts       []string
+	MaxCertificateBytes int64
 }
 
 // ServicesFromEnv builds the services from the environment, or returns nil
@@ -98,6 +107,8 @@ func Online() *Services {
 	if settings, err := config.Current(); err == nil {
 		services.Metadata = settings.MetadataSource()
 		services.Mailto = settings.MetadataMailto()
+		services.LinkSkipHosts = settings.LinkSkipHosts()
+		services.MaxCertificateBytes = settings.MaxCertificateBytes()
 	}
 	services.defaults()
 	return services
@@ -132,6 +143,8 @@ func (s *Services) defaults() {
 		{&s.RawContent, "https://raw.githubusercontent.com"},
 		{&s.GitLab, "https://gitlab.com"},
 		{&s.OSF, "https://api.osf.io/v2"},
+		{&s.DOI, "https://doi.org"},
+		{&s.ResearchEquals, "https://researchequals.com/api"},
 	} {
 		if *field.value == "" {
 			*field.value = field.url
@@ -268,6 +281,13 @@ func IsNotFound(err error) bool {
 }
 
 func (s *Services) request(method, url string, header map[string]string) (int, []byte, error) {
+	return s.requestContext(context.Background(), method, url, header)
+}
+
+// requestContext is request for a caller with a deadline of its own. An answer
+// cut short by that deadline is not remembered: it says how long the caller
+// was willing to wait, not how the service answers.
+func (s *Services) requestContext(ctx context.Context, method, url string, header map[string]string) (int, []byte, error) {
 	// The Accept header is part of the key: the same URL answers JSON or text
 	// depending on what was asked for.
 	key := method + " " + url + " " + header["Accept"]
@@ -276,18 +296,18 @@ func (s *Services) request(method, url string, header map[string]string) (int, [
 		return response.status, response.body, response.err
 	}
 
-	status, body, err := s.fetch(method, url, header)
-	s.cache.Store(key, &cachedResponse{status: status, body: body, err: err})
+	status, body, err := s.fetch(ctx, method, url, header)
+	if ctx.Err() == nil {
+		s.cache.Store(key, &cachedResponse{status: status, body: body, err: err})
+	}
 	return status, body, err
 }
 
-func (s *Services) fetch(method, url string, header map[string]string) (int, []byte, error) {
-	request, err := http.NewRequest(method, url, nil)
+func (s *Services) fetch(ctx context.Context, method, url string, header map[string]string) (int, []byte, error) {
+	request, err := newRequest(ctx, method, url)
 	if err != nil {
 		return 0, nil, err
 	}
-	request.Header.Set("User-Agent",
-		"chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)")
 	for key, value := range header {
 		request.Header.Set(key, value)
 	}
@@ -298,13 +318,34 @@ func (s *Services) fetch(method, url string, header map[string]string) (int, []b
 	}
 	defer response.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(response.Body, 8<<20))
+	body, err := io.ReadAll(io.LimitReader(response.Body, fetchLimit))
 	return response.StatusCode, body, err
+}
+
+// fetchLimit is the most of one response that is read. A body that reaches it
+// may have been cut, which a caller parsing the whole of it has to know.
+const fetchLimit = 8 << 20
+
+// newRequest is a request that says who is asking, which is the least a bot
+// owes the services it reads.
+func newRequest(ctx context.Context, method, url string) (*http.Request, error) {
+	request, err := http.NewRequestWithContext(ctx, method, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("User-Agent",
+		"chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)")
+	return request, nil
 }
 
 // getJSON fetches and decodes, and reports a non-200 as an error so that every
 // caller does not repeat the same three lines.
 func (s *Services) getJSON(url string, header map[string]string, into any) error {
+	return s.getJSONContext(context.Background(), url, header, into)
+}
+
+// getJSONContext is getJSON for a caller with a deadline of its own.
+func (s *Services) getJSONContext(ctx context.Context, url string, header map[string]string, into any) error {
 	if header == nil {
 		header = map[string]string{}
 	}
@@ -312,7 +353,7 @@ func (s *Services) getJSON(url string, header map[string]string, into any) error
 		header["Accept"] = "application/json"
 	}
 
-	status, body, err := s.get(url, header)
+	status, body, err := s.requestContext(ctx, http.MethodGet, url, header)
 	if err != nil {
 		return err
 	}

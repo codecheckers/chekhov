@@ -7,6 +7,7 @@
 package main
 
 import (
+	stdcontext "context"
 	"fmt"
 	"io"
 	"os"
@@ -24,7 +25,7 @@ var usage = fmt.Sprintf(`chekhov - the CODECHECK register bot
 
 Usage:
   chekhov check [options] <path to codecheck.yml, a repository, or a certificate>
-  chekhov check [options] [<part>|repository] <target>
+  chekhov check [options] [<part>|repository|links] <target>
   chekhov comment [--as <handle>] [--online] <path to a comment file, or - for stdin>
   chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
@@ -47,7 +48,9 @@ Naming a part of the catalogue checks only that part, which is what the bot's
 "@chekhovbot check bundle" asks for. "check repository" is not a part: it
 describes the repository under check - languages, licence, size, whether there
 is a codecheck.yml - rather than judging one, and nothing in it passes or
-fails.
+fails. "check links" is not a part either: it asks every link in the
+codecheck.yml, the certificate's source and the deposit the report names
+whether it still answers. It is advice, and never exits non-zero for a link.
 
 "rules --check" asks the register whether the bundled rules are still its
 current ones, and exits non-zero when they are behind - and when it could not
@@ -92,6 +95,16 @@ func run(args []string, out io.Writer) error {
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], usage)
 	}
+}
+
+// checkLinks answers "check links": which links around the check no longer
+// answer. Advice rather than a verdict, so a dead link does not exit non-zero.
+// There is no issue at a terminal, so the issue is not read.
+func checkLinks(configuration check.Context, services *check.Services, out io.Writer) error {
+	links := check.CollectLinks(stdcontext.Background(), configuration, check.LinkSource{})
+	links.Probe(stdcontext.Background(), services)
+	fmt.Fprint(out, links.Markdown())
+	return nil
 }
 
 // describeRepository answers "check repository", which reports what the
@@ -154,6 +167,9 @@ func runCheck(args []string, out io.Writer) error {
 	context, err := check.Load(target, true, services)
 	if err != nil {
 		return err
+	}
+	if part == check.AboutLinks {
+		return checkLinks(context, services, out)
 	}
 
 	report, err := check.RunPart(context, specVersion, strict, part)

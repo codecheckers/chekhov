@@ -2,6 +2,8 @@ package github
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -50,6 +52,34 @@ func TestEditingWritesTheBodyExactly(t *testing.T) {
 	}
 }
 
+// A reply that replaces a notice is still a reply: signed, and cut to fit
+// rather than refused, as Comment would have written it.
+func TestEditingAReplyComposesItAsAReply(t *testing.T) {
+	var path, sent string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		var payload map[string]string
+		_ = json.Unmarshal(raw, &payload)
+		path, sent = r.Method+" "+r.URL.Path, payload["body"]
+		_, _ = w.Write([]byte(`{"id": 5}`))
+	})
+
+	err := client.EditReply(context.Background(), "codecheckers/testing-dev-register", 5,
+		strings.Repeat("a line\n", MaxCommentLength/7+1))
+	if err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	if path != "PATCH /repos/codecheckers/testing-dev-register/issues/comments/5" {
+		t.Errorf("the edit went to %s", path)
+	}
+	if len(sent) > MaxCommentLength || !strings.Contains(sent, "was cut here") {
+		t.Errorf("an over-long reply was not cut to fit: %d characters", len(sent))
+	}
+	if !strings.Contains(sent, "chekhov test") {
+		t.Error("the edited reply carries no signature")
+	}
+}
+
 // The bot writes to one repository, whatever it is asked.
 func TestTheCommentMethodsRefuseAnotherRepository(t *testing.T) {
 	client := stub(t, func(w http.ResponseWriter, _ *http.Request) {
@@ -63,6 +93,9 @@ func TestTheCommentMethodsRefuseAnotherRepository(t *testing.T) {
 	}
 	if err := client.Edit(ctx, "codecheckers/register", 1, "hello"); err == nil {
 		t.Error("a comment on another repository was edited")
+	}
+	if err := client.EditReply(ctx, "codecheckers/register", 1, "hello"); err == nil {
+		t.Error("a reply on another repository was edited")
 	}
 	if _, err := client.Assign(ctx, "codecheckers/register", 1, "nuest"); err == nil {
 		t.Error("somebody was assigned on another repository")

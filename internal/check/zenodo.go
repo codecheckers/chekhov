@@ -1,6 +1,7 @@
 package check
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -33,7 +34,17 @@ type zenodoRecord struct {
 			Name  string `json:"name"`
 			ORCID string `json:"orcid"`
 		} `json:"creators"`
-		Relations struct {
+		// What the record says in prose and in its links, read by
+		// `check links`: the description is HTML, the notes plain text.
+		Description          string             `json:"description"`
+		Notes                string             `json:"notes"`
+		RelatedIdentifiers   []zenodoIdentifier `json:"related_identifiers"`
+		AlternateIdentifiers []zenodoIdentifier `json:"alternate_identifiers"`
+		// References are strings on the records seen so far; read as they
+		// come, so that an object in their place is walked rather than
+		// failing the whole record.
+		References json.RawMessage `json:"references"`
+		Relations  struct {
 			Version []struct {
 				Index  int  `json:"index"`
 				IsLast bool `json:"is_last"`
@@ -41,6 +52,13 @@ type zenodoRecord struct {
 			} `json:"version"`
 		} `json:"relations"`
 	} `json:"metadata"`
+}
+
+// zenodoIdentifier is one identifier a record relates itself to, with the
+// scheme that says how to read it: a URL, a DOI, an ORCID.
+type zenodoIdentifier struct {
+	Identifier string `json:"identifier"`
+	Scheme     string `json:"scheme"`
 }
 
 // licence is the licence the record states, empty when it states none.
@@ -260,13 +278,21 @@ func zenodoRecordFor(c Context, rule string) (zenodoRecord, *Result) {
 		return zenodoRecord{}, &result
 	}
 
-	var record zenodoRecord
-	url := fmt.Sprintf("%s/records/%s", c.Services.Zenodo, recordID[1])
-	if err := c.Services.getJSON(url, nil, &record); err != nil {
+	record, err := c.Services.zenodoRecord(context.Background(), RepositorySpec{Type: "zenodo", Path: recordID[1]})
+	if err != nil {
 		result := skip(fmt.Sprintf("could not read the Zenodo record %s: %s", recordID[1], err))
 		return zenodoRecord{}, &result
 	}
 	return record, nil
+}
+
+// zenodoRecord reads one record, of Zenodo or its sandbox as the spec says.
+// The rules about the report and `check links` both ask, and the response
+// cache makes that one request.
+func (s *Services) zenodoRecord(ctx context.Context, spec RepositorySpec) (zenodoRecord, error) {
+	var record zenodoRecord
+	err := s.getJSONContext(ctx, fmt.Sprintf("%s/records/%s", spec.zenodoAPI(s), spec.Path), nil, &record)
+	return record, err
 }
 
 var zenodoRecordID = regexp.MustCompile(`zenodo\.([0-9]+)`)

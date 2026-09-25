@@ -65,6 +65,7 @@ go run ./cmd/chekhov check codecheckers/Piccolo-2020          # the same, platfo
 go run ./cmd/chekhov check 2020-001                 # the certificate, looked up in the register
 go run ./cmd/chekhov check bundle github::codecheckers/demo   # one part of the catalogue
 go run ./cmd/chekhov check repository codecheckers/demo       # what the repository is, not a verdict
+go run ./cmd/chekhov check links codecheckers/Piccolo-2020     # which links no longer answer, advice only
 go run ./cmd/chekhov check --markdown path/to/codecheck.yml   # the reply the bot posts
 go run ./cmd/chekhov rules                          # the rules, and which are checked
 go run ./cmd/chekhov rules --check                  # are they the register's current ones?

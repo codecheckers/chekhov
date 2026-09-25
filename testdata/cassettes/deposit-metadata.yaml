@@ -1,0 +1,159 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: zenodo.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://zenodo.org/api/records/3674056
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        content_length: -1
+        uncompressed: true
+        body: '{"created": "2020-02-18T19:31:23.331108+00:00", "modified": "2026-08-25T21:23:56.635836+00:00", "id": 3674056, "conceptrecid": "3674055", "doi": "10.5281/zenodo.3674056", "conceptdoi": "10.5281/zenodo.3674055", "doi_url": "https://doi.org/10.5281/zenodo.3674056", "metadata": {"title": "CODECHECK Certificate 2020-001", "doi": "10.5281/zenodo.3674056", "publication_date": "2020-02-18", "description": "<p>CODECHECK Certificate 2020-001</p>\n\n<p>Files relating to this certificate can be found in&nbsp;<a href=\"https://github.com/codecheckers/Piccolo-2020\">https://github.com/codecheckers/Piccolo-2020</a></p>\n\n<p>The paper that was codechecked has now been published in Gigascience:&nbsp;<a href=\"https://doi.org/10.1093/gigascience/giaa026\">https://doi.org/10.1093/gigascience/giaa026</a></p>", "access_right": "open", "creators": [{"name": "Eglen, Stephen J", "affiliation": "University of Cambridge", "orcid": "0000-0001-8607-8025"}], "related_identifiers": [{"identifier": "https://github.com/codecheckers/Piccolo-2020", "relation": "isSupplementedBy", "resource_type": "software", "scheme": "url"}, {"identifier": "10.1093/gigascience/giaa026", "relation": "reviews", "resource_type": "publication-article", "scheme": "doi"}], "language": "eng", "resource_type": {"title": "Report", "type": "publication", "subtype": "report"}, "alternate_identifiers": [{"identifier": "http://cdchck.science/register/certs/2020-001"}, {"identifier": "cdchck.science/register/certs/2020-001"}], "license": {"id": "cc-by-4.0"}, "communities": [{"id": "codecheck"}], "relations": {"version": [{"index": 0, "is_last": true, "parent": {"pid_type": "recid", "pid_value": "3674055"}}]}}, "title": "CODECHECK Certificate 2020-001", "links": {"self": "https://zenodo.org/api/records/3674056", "self_html": "https://zenodo.org/records/3674056", "preview_html": "https://zenodo.org/records/3674056?preview=1", "doi": "https://doi.org/10.5281/zenodo.3674056", "self_doi": "https://doi.org/10.5281/zenodo.3674056", "self_doi_html": "https://zenodo.org/doi/10.5281/zenodo.3674056", "reserve_doi": "https://zenodo.org/api/records/3674056/draft/pids/doi", "parent": "https://zenodo.org/api/records/3674055", "parent_html": "https://zenodo.org/records/3674055", "parent_doi": "https://doi.org/10.5281/zenodo.3674055", "parent_doi_html": "https://zenodo.org/doi/10.5281/zenodo.3674055", "self_iiif_manifest": "https://zenodo.org/api/iiif/record:3674056/manifest", "self_iiif_sequence": "https://zenodo.org/api/iiif/record:3674056/sequence/default", "files": "https://zenodo.org/api/records/3674056/files", "media_files": "https://zenodo.org/api/records/3674056/media-files", "thumbnails": {"10": "https://zenodo.org/api/iiif/record:3674056:codecheck.pdf/full/%5E10,/0/default.jpg", "50": "https://zenodo.org/api/iiif/record:3674056:codecheck.pdf/full/%5E50,/0/default.jpg", "100": "https://zenodo.org/api/iiif/record:3674056:codecheck.pdf/full/%5E100,/0/default.jpg", "250": "https://zenodo.org/api/iiif/record:3674056:codecheck.pdf/full/%5E250,/0/default.jpg", "750": "https://zenodo.org/api/iiif/record:3674056:codecheck.pdf/full/%5E750,/0/default.jpg", "1200": "https://zenodo.org/api/iiif/record:3674056:codecheck.pdf/full/%5E1200,/0/default.jpg"}, "archive": "https://zenodo.org/api/records/3674056/files-archive", "archive_media": "https://zenodo.org/api/records/3674056/media-files-archive", "latest": "https://zenodo.org/api/records/3674056/versions/latest", "latest_html": "https://zenodo.org/records/3674056/latest", "versions": "https://zenodo.org/api/records/3674056/versions", "draft": "https://zenodo.org/api/records/3674056/draft", "access_links": "https://zenodo.org/api/records/3674056/access/links", "access_grants": "https://zenodo.org/api/records/3674056/access/grants", "access_users": "https://zenodo.org/api/records/3674056/access/users", "access_request": "https://zenodo.org/api/records/3674056/access/request", "access": "https://zenodo.org/api/records/3674056/access", "communities": "https://zenodo.org/api/records/3674056/communities", "communities-suggestions": "https://zenodo.org/api/records/3674056/communities-suggestions", "request_deletion": "https://zenodo.org/api/records/3674056/request-deletion", "file_modification": "https://zenodo.org/api/records/3674056/file-modification", "quota_increase": "https://zenodo.org/api/records/3674056/quota-increase", "requests": "https://zenodo.org/api/records/3674056/requests"}, "updated": "2026-08-25T21:23:56.635836+00:00", "recid": "3674056", "revision": 11, "files": [{"id": "98fd5c89-bb3c-4bfa-95c3-19cc5d6e76c3", "key": "codecheck.pdf", "size": 226842, "checksum": "md5:cee2e5fd3381b0a2173f2b8639e5d1d3", "links": {"self": "https://zenodo.org/api/records/3674056/files/codecheck.pdf/content"}}], "swh": {}, "owners": [{"id": "5138"}], "status": "published", "stats": {"downloads": 642, "unique_downloads": 554, "views": 1410, "unique_views": 1182, "version_downloads": 641, "version_unique_downloads": 553, "version_unique_views": 1180, "version_views": 1408}, "state": "done", "submitted": true}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Access-Control-Expose-Headers:
+                - Content-Type, ETag, Link, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+            Content-Security-Policy:
+                - 'default-src ''self'' fonts.googleapis.com *.gstatic.com data: ''unsafe-inline'' ''unsafe-eval'' blob: zenodo-broker.web.cern.ch zenodo-broker-qa.web.cern.ch maxcdn.bootstrapcdn.com cdnjs.cloudflare.com ajax.googleapis.com webanalytics.web.cern.ch'
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 25 Sep 2026 10:44:49 GMT
+            Etag:
+                - W/"11"
+            Link:
+                - <https://zenodo.org/api/records/3674056> ; rel="linkset" ; type="application/linkset+json"
+            Permissions-Policy:
+                - interest-cohort=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Retry-After:
+                - "60"
+            Server:
+                - nginx
+            Strict-Transport-Security:
+                - max-age=31556926; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - sameorigin
+            X-Ratelimit-Limit:
+                - "133"
+            X-Ratelimit-Remaining:
+                - "132"
+            X-Ratelimit-Reset:
+                - "1790333150"
+            X-Source:
+                - api
+            X-Xss-Protection:
+                - 1; mode=block
+        status: 200 OK
+        code: 200
+        duration: 227.393183ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: doi.org
+        form:
+            type:
+                - URL
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://doi.org/api/handles/10.53962/nsys-9a40?type=URL
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"responseCode":1,"handle":"10.53962/nsys-9a40","values":[{"index":1,"type":"URL","data":{"format":"string","value":"https://researchequals.com/versions/8d0a10a6-c84b-4505-903a-f55224441a40"},"ttl":86400,"timestamp":"2026-07-03T08:25:09Z"}]}'
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=86400
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a4096f91da134522-TXL
+            Content-Type:
+                - application/json;charset=UTF-8
+            Date:
+                - Fri, 25 Sep 2026 10:44:49 GMT
+            Nel:
+                - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+            Permissions-Policy:
+                - interest-cohort=(),browsing-topics=()
+            Report-To:
+                - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0xwmQ3NTMXo3aeVj4SgYu3pNdyCcMRV520EhwoGfPVHy58Fv6lDsqWBbLFhrYmq2av14zknp2jwUBgbAbt3V%2FRexzPoWXYuRbTRj6ECkKRSb3%2BvxNOUMFoE%3D"}]}'
+            Server:
+                - cloudflare
+            Strict-Transport-Security:
+                - max-age=31536000; includeSubDomains; preload
+            Vary:
+                - Origin
+                - accept-encoding
+        status: 200 OK
+        code: 200
+        duration: 90.022315ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: researchequals.com
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://researchequals.com/api/versions/8d0a10a6-c84b-4505-903a-f55224441a40
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 2338
+        body: '{"id":"8d0a10a6-c84b-4505-903a-f55224441a40","output_id":"96e06840-c430-40e7-b7b3-e91670ffb432","version":1,"version_label":"1.0.0","changelog":null,"created_at":"2026-01-31T22:02:34","updated_at":"2026-03-30T17:17:59","published_at":"2025-05-20T20:57:24","title":"CODECHECK Certificate 2020-007","description":"Reproducibility review of [Re] Spike Timing Dependent Plasticity Finds the Start of Repeating Patterns in Continuous Spike Trains.\n\nThe code was straightforward to codecheck. All figures could be recreated with the original code and data as described in the README file. Only the computing environment could not be recreated exactly, as a lot of time has passed since the publication of the original code. Both a quick (saved data) execution and a longer (seemingly new data) execution were successful and yielded figures who by visual inspection matched the figures in the original article. Errors and warnings were mostly related to deprecation of libraries and missing libraries.","content_s3":"fbdeef1a-eec8-46bb-9131-939a5e8d4f52","refs":[],"supporting_files":[{"name":"environment.yml","s3":"16db3c64-2a28-429d-af79-d1d99722a67d","type":"application/x-yaml"},{"name":"log-new-true.txt","s3":"1f892978-242a-48b5-b34b-0badb84d702b","type":"text/plain"},{"name":"screenshot-figure-1-to-11.png","s3":"a88d09a6-a22d-4369-b9e9-37c0aa0a5592","type":"image/png"},{"name":"figure_5_created_250520.pdf","s3":"b0612808-fdb0-41fa-b687-ffad02458ed7","type":"application/pdf"},{"name":"figure_6_created_250520.pdf","s3":"8fbd43f3-4058-40e3-8c88-07ede398e4a1","type":"application/pdf"},{"name":"figure_7CD_seed28_created_250520.pdf","s3":"c02d07d0-ef5c-4970-ab62-7b388b099dc4","type":"application/pdf"},{"name":"figure_8_created_250520.pdf","s3":"ba3e2175-3eb3-4c03-b533-397a2e331680","type":"application/pdf"}],"published":true,"type_id":"Q116740071","license_id":"Q20007257","language":"en","contributors":[{"role":"author","position":0,"given_name":"Daniel","surname":"Nüst","username":"nuest","orcid":"0000-0002-0024-5046"}],"pids":["doi:10.53962/nsys-9a40"],"output_pids":["doi:10.53962/s7vk-0nw3"],"version_history":[{"id":"8d0a10a6-c84b-4505-903a-f55224441a40","version":1,"version_label":"1.0.0","changelog":null,"published_at":"2025-05-20T20:57:24","pids":["doi:10.53962/nsys-9a40"]}],"content_mediatype":"application/pdf"}'
+        headers:
+            Access-Control-Allow-Credentials:
+                - "true"
+            Alt-Svc:
+                - h3=":443"; ma=2592000
+            Content-Length:
+                - "2338"
+            Content-Type:
+                - application/json
+            Date:
+                - Fri, 25 Sep 2026 10:44:49 GMT
+            Vary:
+                - Origin, Access-Control-Request-Method, Access-Control-Request-Headers
+            Via:
+                - 1.1 Caddy
+        status: 200 OK
+        code: 200
+        duration: 97.97651ms

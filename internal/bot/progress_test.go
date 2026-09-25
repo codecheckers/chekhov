@@ -43,6 +43,11 @@ func (s *staging) Edit(_ context.Context, _ string, comment int64, body string) 
 	return nil
 }
 
+// EditReply is how a reply is rewritten; the double keeps no footer to add.
+func (s *staging) EditReply(ctx context.Context, repository string, comment int64, body string) error {
+	return s.Edit(ctx, repository, comment, body)
+}
+
 // counting is three stages that record the order they ran in.
 func counting(ran *[]string) []stage {
 	names := []string{"the first", "the second", "the third"}

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-25
+
+### Added
+
+- `check links <target>` reports which links no longer answer, in the check
+  issue, the `codecheck.yml`, the certificate source (R Markdown, Quarto,
+  notebook, Markdown or LaTeX) and the Zenodo or ResearchEquals deposit the
+  check names; it tells a dead link from a refusal, a rate limit, a timeout
+  and a server error, and says it has started when that will take a while
+  (codecheckers/chekhov#12).
+
 ## [0.11.0] - 2026-09-25
 
 ### Added

@@ -61,7 +61,7 @@ for completeness of the conversational set.
 | `@chekhovbot check metadata` | Verify ORCIDs, DOIs, author and venue metadata resolve, and the references | high | #9 |
 | `@chekhovbot check bundle` | Verify the CODECHECK bundle contents (report, manifest, outputs) | high | #10 |
 | `@chekhovbot check metadata references` | Check the form of the paper's references and whether they resolve | medium | #11 |
-| `@chekhovbot check links` | Report dead links in the issue and the bundle | low | #12 |
+| `@chekhovbot check links` | Report dead links in the issue, `codecheck.yml`, the certificate source and the deposit | low | #12 |
 | `@chekhovbot rules` | Say which rules the build judges by, and whether the register has moved on | medium | #43 |
 
 **Open design question across this group:** the R package `codecheck` already

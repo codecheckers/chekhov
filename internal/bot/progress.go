@@ -29,8 +29,14 @@ import (
 // Editing is the part of the reply path that can rewrite a comment the bot
 // posted. The deployment's client can, which a type assertion would otherwise
 // only discover at run time.
+//
+// EditReply rather than Edit: a rewritten reply is still a reply, signed with
+// the development footer and cut to fit as Comment writes it. Edit writes a
+// body exactly, which is what a record needs and what a reply must not get -
+// the footer would vanish on the first rewrite, and a long answer would be
+// refused rather than cut.
 type Editing interface {
-	Edit(ctx context.Context, repository string, comment int64, body string) error
+	EditReply(ctx context.Context, repository string, comment int64, body string) error
 }
 
 var _ Editing = (*github.Client)(nil)
@@ -80,7 +86,7 @@ func (r *reply) write(ctx context.Context, body string) error {
 		r.comment = comment
 		return err
 	}
-	return r.editor.Edit(ctx, r.event.Repository, r.comment, body)
+	return r.editor.EditReply(ctx, r.event.Repository, r.comment, body)
 }
 
 // A stage is one piece of a staged reply: what it is reading, and the markdown

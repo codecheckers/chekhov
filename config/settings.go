@@ -40,6 +40,7 @@ type Settings struct {
 			AdminIssue IssueNumber `yaml:"admin_issue"`
 		} `yaml:"env"`
 		Metadata Metadata `yaml:"metadata"`
+		Links    Links    `yaml:"links"`
 		Mastodon Mastodon `yaml:"mastodon"`
 		Teams    struct {
 			// Organisation the teams belong to.
@@ -149,6 +150,37 @@ func (s *Settings) MetadataSource() string { return s.Chekhov.Metadata.Source }
 
 // MetadataMailto is the address sent to OpenAlex for its polite pool.
 func (s *Settings) MetadataMailto() string { return s.Chekhov.Metadata.Mailto }
+
+// Links is how `check links` keeps its noise down and its downloads small.
+type Links struct {
+	// SkipHosts are sites that answer an automated request with a refusal
+	// or a login page whatever the link is, so asking them says nothing but
+	// "blocked". A link to one is reported as not checked, and no request is
+	// made. A host matches itself and its subdomains, so `linkedin.com`
+	// covers `www.linkedin.com`.
+	SkipHosts []string `yaml:"skip_hosts"`
+	// MaxCertificateBytes is the largest certificate source that is read for
+	// links. A notebook with its figures embedded in the outputs runs to tens
+	// of megabytes, all of it held in memory to be parsed, for the handful of
+	// links in its text. Zero means DefaultMaxCertificateBytes.
+	MaxCertificateBytes int64 `yaml:"max_certificate_bytes"`
+}
+
+// DefaultMaxCertificateBytes is the certificate size limit when the settings
+// name none: a text certificate is a few tens of kilobytes, and a notebook
+// with its outputs cleared not much more.
+const DefaultMaxCertificateBytes int64 = 5 << 20
+
+// LinkSkipHosts are the sites `check links` does not ask.
+func (s *Settings) LinkSkipHosts() []string { return s.Chekhov.Links.SkipHosts }
+
+// MaxCertificateBytes is the largest certificate source `check links` reads.
+func (s *Settings) MaxCertificateBytes() int64 {
+	if s.Chekhov.Links.MaxCertificateBytes == 0 {
+		return DefaultMaxCertificateBytes
+	}
+	return s.Chekhov.Links.MaxCertificateBytes
+}
 
 // Mastodon is where the announcements go and what they are composed from.
 type Mastodon struct {
@@ -282,6 +314,10 @@ func validate(name string, s *Settings) error {
 	// costs correctness: an identifier reserved without the label is
 	// invisible to the next reservation, which is the duplicate the label
 	// exists to prevent, and nothing would say so.
+	if s.Chekhov.Links.MaxCertificateBytes < 0 {
+		return fmt.Errorf("%s: links.max_certificate_bytes is %d; a size is not negative, and 0 means the default",
+			name, s.Chekhov.Links.MaxCertificateBytes)
+	}
 	switch s.Chekhov.Mastodon.Visibility {
 	case "public", "unlisted", "private", "direct":
 	default:

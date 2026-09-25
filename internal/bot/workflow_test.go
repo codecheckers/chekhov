@@ -46,6 +46,11 @@ func (w *workflow) Edit(_ context.Context, _ string, comment int64, body string)
 	return nil
 }
 
+// EditReply is how a reply is rewritten; the double keeps no footer to add.
+func (w *workflow) EditReply(ctx context.Context, repository string, comment int64, body string) error {
+	return w.Edit(ctx, repository, comment, body)
+}
+
 func (w *workflow) AddLabel(_ context.Context, _ string, number int, label string) error {
 	if w.refuse != nil {
 		return w.refuse

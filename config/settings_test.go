@@ -353,3 +353,35 @@ func TestTheInstitutionalTeamNeedsTheLabelThatFindsIt(t *testing.T) {
 		t.Errorf("validate = %v, want a refusal naming labels.institution", err)
 	}
 }
+
+// The links command asks third-party sites, and the shipped files decide how
+// noisy that is and how much it downloads: both carry the list of sites that
+// refuse every robot, and a size limit a deployment can change without a build.
+func TestShippedSettingsBoundTheLinksCommand(t *testing.T) {
+	for _, environment := range []string{"development", "live-test"} {
+		settings, err := Load(environment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Contains(settings.LinkSkipHosts(), "linkedin.com") {
+			t.Errorf("%s: skip hosts = %q, want the sites that refuse robots", environment, settings.LinkSkipHosts())
+		}
+		if got := settings.MaxCertificateBytes(); got != DefaultMaxCertificateBytes {
+			t.Errorf("%s: certificate limit = %d, want the default %d", environment, got, DefaultMaxCertificateBytes)
+		}
+	}
+
+	t.Setenv("CHEKHOV_LINKS_MAX_CERTIFICATE_BYTES", "1000")
+	if got := mustLoad(t).MaxCertificateBytes(); got != 1000 {
+		t.Errorf("certificate limit = %d, want the one from the environment", got)
+	}
+}
+
+func TestANegativeCertificateLimitIsRefused(t *testing.T) {
+	settings := mustLoad(t)
+	settings.Chekhov.Links.MaxCertificateBytes = -1
+	if err := validate("settings-test.yml", settings); err == nil ||
+		!strings.Contains(err.Error(), "links.max_certificate_bytes") {
+		t.Errorf("validate = %v, want a refusal naming links.max_certificate_bytes", err)
+	}
+}

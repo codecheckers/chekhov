@@ -394,7 +394,8 @@ var referenceRules = map[string]bool{
 func Parts() []string { return partNames }
 
 // Words are what `check` takes before its target: the single words of the
-// parts, and AboutRepository, which is a description rather than a part.
+// parts, and AboutRepository and AboutLinks, which are descriptions rather
+// than parts.
 //
 // One list, so that a caller parsing a command has no vocabulary of its own to
 // keep in step - and so that the usage a reader is shown is the one the parser
@@ -402,7 +403,7 @@ func Parts() []string { return partNames }
 func Words() []string { return slices.Clone(words) }
 
 var words = func() []string {
-	words := []string{AboutRepository}
+	words := []string{AboutRepository, AboutLinks}
 	for _, part := range partNames {
 		for _, word := range strings.Fields(part) {
 			if !slices.Contains(words, word) {
