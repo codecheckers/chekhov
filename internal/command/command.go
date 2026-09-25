@@ -26,8 +26,10 @@ const (
 	// on.
 	Version Name = "version"
 	// Refresh reads the organisation's teams again, for an editor who has
-	// just changed one. The command takes what to refresh as an argument, so
-	// that the parser stays one word per command.
+	// just changed one. The command takes what to refresh as an argument
+	// rather than being the phrase `refresh teams`, which the registry would
+	// now allow: there is nothing else to refresh, so the second word gates
+	// nothing. See Definition.
 	Refresh Name = "refresh"
 	// Assign gives somebody a role on this check.
 	Assign Name = "assign"
@@ -43,14 +45,24 @@ const (
 	// does rather than for the word people type, as ListRoles is.
 	ListCodecheckers Name = "codecheckers"
 	// SuggestCodecheckers proposes who could check this paper. The word people
-	// type is `suggest`, with what to suggest as an argument, so that the
-	// parser stays one word per command - as `refresh teams` does.
+	// type is `suggest`, with what to suggest as an argument, as
+	// `refresh teams` is.
 	SuggestCodecheckers Name = "suggest"
 	// Nudge walks the register for what earlier replies left outstanding, and
 	// acts on it.
 	Nudge Name = "nudge"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
+	// CheckStart begins a check: the labels move, the repository is described
+	// and the codechecker gets their checklist. A phrase, because it is a
+	// subcommand of Check with a role of its own; see the registry.
+	CheckStart Name = "check start"
+	// CheckFinish ends one: the rules are run, the labels move, and the
+	// register pull request is the next step.
+	CheckFinish Name = "check finish"
+	// Status says where a check stands. Its own command rather than
+	// `check status`, because it reports rather than judges.
+	Status Name = "status"
 	// Rules says which rule catalogue this build judges by, and whether it is
 	// the register's current one.
 	Rules Name = "rules"
@@ -61,7 +73,7 @@ const (
 	Follow Name = "follow"
 	// Next says which certificate identifier comes next. The word people type
 	// is `next`, with what as an argument - `next certificate` - as
-	// `refresh teams` does.
+	// `refresh teams` is.
 	Next Name = "next"
 	// Set reserves a certificate identifier for this check: `set certificate`.
 	Set Name = "set"
@@ -107,6 +119,18 @@ func Parse(comment string) (Command, bool) {
 	// entry rather than a case here and a line in the help text. "check",
 	// "check codecheck.yml" and "check config" all mean the same thing; the
 	// file name is the phrasing people will write, and is an argument.
+	//
+	// Two words before one, so that a subcommand wins over the command it
+	// belongs to: `check start` is its own entry with its own role, and
+	// `check config github::owner/repo` is still the `check` command with two
+	// arguments, because "config" names no entry. A second word that names no
+	// entry is therefore an argument as it always was - nothing the `check`
+	// command used to accept has stopped being accepted.
+	if len(rest) > 1 {
+		if definition, found := Lookup(rest[0] + " " + rest[1]); found {
+			return Command{Name: definition.Name, Raw: raw, Args: rest[2:]}, true
+		}
+	}
 	if definition, found := Lookup(rest[0]); found {
 		return Command{Name: definition.Name, Raw: raw, Args: rest[1:]}, true
 	}

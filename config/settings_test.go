@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -287,22 +288,32 @@ func TestShippedSettingsNameTheRegistersLabels(t *testing.T) {
 	if got := settings.IDAssignedLabel(); got != "id assigned" {
 		t.Errorf("id assigned label = %q", got)
 	}
+	if got := settings.WorkInProgressLabel(); got != "work in progress" {
+		t.Errorf("work in progress label = %q", got)
+	}
+	if got := settings.MetadataPendingLabel(); got != "metadata pending" {
+		t.Errorf("metadata pending label = %q", got)
+	}
 }
 
-// The labels the bot may change are few and named: `set certificate` adds
-// `id assigned`, and nothing else is added or removed. Both shipped files say
-// so, because live-test is development with one switch flipped.
-func TestShippedSettingsLetTheBotAddOnlyIDAssigned(t *testing.T) {
+// The labels the bot may change are few and named, and the list is the whole
+// of what it can do to a register's labels: `set certificate` adds
+// `id assigned`, and the workflow commands move the other three. Anything not
+// here is only ever read. Both shipped files say so, because live-test is
+// development with one switch flipped.
+func TestShippedSettingsLetTheBotChangeOnlyTheNamedLabels(t *testing.T) {
+	addable := []string{"id assigned", "work in progress", "metadata pending"}
+	removable := []string{"needs codechecker", "work in progress", "metadata pending"}
 	for _, environment := range []string{"development", "live-test"} {
 		settings, err := Load(environment)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := settings.AddableLabels(); len(got) != 1 || got[0] != "id assigned" {
-			t.Errorf("%s: addable labels = %q", environment, got)
+		if got := settings.AddableLabels(); !slices.Equal(got, addable) {
+			t.Errorf("%s: addable labels = %q, want %q", environment, got, addable)
 		}
-		if got := settings.RemovableLabels(); len(got) != 0 {
-			t.Errorf("%s: removable labels = %q", environment, got)
+		if got := settings.RemovableLabels(); !slices.Equal(got, removable) {
+			t.Errorf("%s: removable labels = %q, want %q", environment, got, removable)
 		}
 	}
 }
@@ -315,14 +326,14 @@ func TestTheIDAssignedLabelMustBeOneTheBotMayAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	settings.Chekhov.Labels.Managed.Add = []string{"id-assigned"}
+	settings.Chekhov.Labels.Managed.Add = []string{"id-assigned", "work in progress"}
 	if err := validate("settings-test.yml", settings); err == nil ||
 		!strings.Contains(err.Error(), "labels.managed.add") {
 		t.Errorf("validate = %v, want a refusal naming labels.managed.add", err)
 	}
 
 	// Written differently is the same label, as GitHub has it.
-	settings.Chekhov.Labels.Managed.Add = []string{"ID Assigned"}
+	settings.Chekhov.Labels.Managed.Add = []string{"ID Assigned", "work in progress"}
 	if err := validate("settings-test.yml", settings); err != nil {
 		t.Errorf("validate = %v, want the label accepted", err)
 	}

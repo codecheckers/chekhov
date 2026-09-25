@@ -88,6 +88,14 @@ type Settings struct {
 			// title: what `next certificate` counts, and what
 			// `set certificate` puts on the check it reserves one for.
 			IDAssigned string `yaml:"id_assigned"`
+			// WorkInProgress says a codechecker is assigned and working on
+			// the check: what `check start` puts on and `check finish` takes
+			// off again.
+			WorkInProgress string `yaml:"work_in_progress"`
+			// MetadataPending says the check is done but something it needs
+			// is not settled yet - a DOI still a placeholder, most often -
+			// so `check finish` leaves this on instead of clearing.
+			MetadataPending string `yaml:"metadata_pending"`
 			// Managed is what the bot may do to labels itself, as
 			// teams.managed is what it may do to teams: the labels it may add
 			// and the ones it may remove, by name, and nothing else. A label
@@ -266,6 +274,14 @@ func validate(name string, s *Settings) error {
 			"set certificate could not put it on the check it reserves an identifier for",
 			name, label)
 	}
+	// The workflow labels - needs_codechecker, work_in_progress,
+	// metadata_pending - are deliberately *not* held to the same rule. A
+	// label the bot may not move costs nothing there: `check start` and
+	// `check finish` say in the reply which label they left alone and why,
+	// and a register may reasonably keep the key to its own queue. Here it
+	// costs correctness: an identifier reserved without the label is
+	// invisible to the next reservation, which is the duplicate the label
+	// exists to prevent, and nothing would say so.
 	switch s.Chekhov.Mastodon.Visibility {
 	case "public", "unlisted", "private", "direct":
 	default:
@@ -339,6 +355,19 @@ func (s *Settings) IDAssignedLabel() string {
 	return strings.TrimSpace(s.Chekhov.Labels.IDAssigned)
 }
 
+// WorkInProgressLabel says a codechecker is working on the check, empty when
+// the settings name none - and then `check start` and `check finish` have no
+// label to move and say so.
+func (s *Settings) WorkInProgressLabel() string {
+	return strings.TrimSpace(s.Chekhov.Labels.WorkInProgress)
+}
+
+// MetadataPendingLabel says the check is waiting on metadata, empty when the
+// settings name none.
+func (s *Settings) MetadataPendingLabel() string {
+	return strings.TrimSpace(s.Chekhov.Labels.MetadataPending)
+}
+
 // AddableLabels are the labels the bot may put on an issue, trimmed, empty
 // names dropped.
 func (s *Settings) AddableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Add) }
@@ -346,16 +375,26 @@ func (s *Settings) AddableLabels() []string { return trimmed(s.Chekhov.Labels.Ma
 // Addable reports whether the bot may put a label on an issue, compared as
 // GitHub and internal/github compare label names: case aside.
 func (s *Settings) Addable(label string) bool {
-	for _, addable := range s.AddableLabels() {
-		if strings.EqualFold(addable, strings.TrimSpace(label)) {
+	return containsFold(s.AddableLabels(), label)
+}
+
+// RemovableLabels are the labels the bot may take off an issue.
+func (s *Settings) RemovableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Remove) }
+
+// Removable reports whether the bot may take a label off an issue, compared
+// the way Addable compares: case aside.
+func (s *Settings) Removable(label string) bool {
+	return containsFold(s.RemovableLabels(), label)
+}
+
+func containsFold(names []string, want string) bool {
+	for _, name := range names {
+		if strings.EqualFold(name, strings.TrimSpace(want)) {
 			return true
 		}
 	}
 	return false
 }
-
-// RemovableLabels are the labels the bot may take off an issue.
-func (s *Settings) RemovableLabels() []string { return trimmed(s.Chekhov.Labels.Managed.Remove) }
 
 func trimmed(names []string) []string {
 	kept := make([]string, 0, len(names))

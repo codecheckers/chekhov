@@ -68,10 +68,15 @@ chekhov:
     needs_codechecker: needs codechecker
     # A check holding a certificate identifier, in its title.
     id_assigned: id assigned
+    # A codechecker is assigned and working: `check start` puts it on,
+    # `check finish` takes it off again.
+    work_in_progress: work in progress
+    # The check is done but something it needs is not settled yet.
+    metadata_pending: metadata pending
     # What the bot may do to labels itself, by name.
     managed:
-      add: [id assigned]
-      remove: []
+      add: [id assigned, work in progress, metadata pending]
+      remove: [needs codechecker, work in progress, metadata pending]
 
   teams:
     # The standing roles come from the organisation's own teams, read with the

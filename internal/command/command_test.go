@@ -1,6 +1,9 @@
 package command
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParse(t *testing.T) {
 	cases := []struct {
@@ -114,6 +117,45 @@ func TestCheckPhrasings(t *testing.T) {
 		parsed, addressed := Parse(comment)
 		if !addressed || parsed.Name != Check {
 			t.Errorf("%q: command = %q, addressed = %v", comment, parsed.Name, addressed)
+		}
+	}
+}
+
+// A subcommand is matched before the command it belongs to, and only when the
+// second word names one: everything `check` took before it still parses the
+// same way (codecheckers/chekhov#22).
+func TestASubcommandIsMatchedBeforeItsCommand(t *testing.T) {
+	for _, want := range []struct {
+		comment string
+		name    Name
+		args    []string
+	}{
+		{"@chekhovbot check start", CheckStart, nil},
+		{"@chekhovbot check start github::codecheckers/demo", CheckStart,
+			[]string{"github::codecheckers/demo"}},
+		{"@chekhovbot check finish 2026-001", CheckFinish, []string{"2026-001"}},
+		{"@chekhovbot Check Start", CheckStart, nil},
+		// The second word names no entry, so it is an argument, as it always
+		// was: none of what `check` accepted has stopped being accepted.
+		{"@chekhovbot check config codecheckers/demo", Check,
+			[]string{"config", "codecheckers/demo"}},
+		{"@chekhovbot check codecheckers/demo", Check, []string{"codecheckers/demo"}},
+		{"@chekhovbot check", Check, nil},
+		// A repository whose first path segment happens to be the word is
+		// still a repository: only the bare word is a subcommand.
+		{"@chekhovbot check start/here", Check, []string{"start/here"}},
+		{"@chekhovbot status", Status, nil},
+	} {
+		parsed, addressed := Parse(want.comment)
+		if !addressed {
+			t.Errorf("%q was not addressed to the bot", want.comment)
+			continue
+		}
+		if parsed.Name != want.name {
+			t.Errorf("%q parsed as %q, want %q", want.comment, parsed.Name, want.name)
+		}
+		if strings.Join(parsed.Args, " ") != strings.Join(want.args, " ") {
+			t.Errorf("%q args = %q, want %q", want.comment, parsed.Args, want.args)
 		}
 	}
 }

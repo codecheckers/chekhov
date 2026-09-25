@@ -114,24 +114,34 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 	followers := s.followers()
 	for _, issue := range issues {
 		event := mention{Repository: register, Issue: issue.Number}
-		for _, record := range s.outstandingIn(ctx, reader, event, &sweep) {
+		records, unread := s.outstandingIn(ctx, reader, event)
+		for _, problem := range unread {
+			sweep.problem(event, "%s", problem)
+		}
+		for _, record := range records {
 			s.resume(ctx, event, record, followers, &sweep)
 		}
 	}
 	return sweep
 }
 
-// outstandingIn is the newest record per subject and kind on one issue.
+// outstandingIn is the newest record per subject and kind on one issue, and
+// what could not be read while looking.
 //
 // Per subject, because a reminder posts a fresh record beside the old one and
 // only the last one is the state; the older ones are the history of what was
 // asked, which is worth keeping in the thread and not worth acting on.
-func (s *Server) outstandingIn(ctx context.Context, reader Reader, event mention,
-	sweep *Sweep) []followup.Record {
+//
+// The problems come back rather than going into the sweep, because two
+// callers want them said differently: the nightly walk counts them across the
+// register, and `status` shows them under the one check it is about. This is
+// the only place that knows a record is only a record because the bot wrote
+// it, and neither caller may grow a second copy of that rule.
+func (s *Server) outstandingIn(ctx context.Context, reader Reader,
+	event mention) (records []followup.Record, unread []string) {
 	comments, err := reader.Comments(ctx, event.Repository, event.Issue)
 	if err != nil {
-		sweep.problem(event, "could not read the comments: %s", err)
-		return nil
+		return nil, []string{fmt.Sprintf("could not read the comments: %s", err)}
 	}
 
 	bot := s.Settings.BotUser()
@@ -139,8 +149,8 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader, event mention
 		// Without the bot's own name there is no way to tell its comments
 		// from anybody else's, and a record is only a record because the bot
 		// wrote it.
-		sweep.problem(event, "I do not know my own account name, so I cannot tell my records from anybody else's")
-		return nil
+		return nil, []string{
+			"I do not know my own account name, so I cannot tell my records from anybody else's"}
 	}
 
 	check := event.check()
@@ -160,7 +170,7 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader, event mention
 		case err != nil:
 			// A record somebody edited is not one to act on, and saying so is
 			// the point: silence would look like there was nothing there.
-			sweep.problem(event, "%s", err)
+			unread = append(unread, err.Error())
 			continue
 		}
 		key := record.Kind + "\x00" + record.Subject
@@ -169,7 +179,7 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader, event mention
 		}
 	}
 
-	records := make([]followup.Record, 0, len(newest))
+	records = make([]followup.Record, 0, len(newest))
 	for _, record := range newest {
 		records = append(records, record)
 	}
@@ -180,7 +190,7 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader, event mention
 		}
 		return records[i].Subject < records[j].Subject
 	})
-	return records
+	return records, unread
 }
 
 // resume hands one record to its handler and posts whatever it says.

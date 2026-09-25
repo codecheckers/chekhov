@@ -16,6 +16,8 @@ goes on the first line of the comment, one command per comment.**
 @chekhovbot assign @user as codechecker
 @chekhovbot suggest codecheckers
 @chekhovbot check codecheck.yml
+@chekhovbot check start
+@chekhovbot status
 @chekhovbot register
 ```
 
@@ -38,7 +40,11 @@ the toot is a direct message with every mention defused. `@chekhovbot
 codecheckers` says where the codechecker lists are, and an editor can ask
 `@chekhovbot suggest codecheckers` for candidates, named without notifying
 them. `@chekhovbot next certificate` says which certificate identifier comes
-next, and `@chekhovbot set certificate` reserves it for the check. It runs
+next, and `@chekhovbot set certificate` reserves it for the check.
+`@chekhovbot check start`, `@chekhovbot status` and `@chekhovbot check finish`
+say where a check stands and move the register's labels with it, running the
+checks that already exist rather than repeating them: because those take time,
+the reply is posted at once and rewritten in place as each answers. It runs
 against
 [`codecheckers/testing-dev-register`](https://github.com/codecheckers/testing-dev-register)
 only; the production register is not configured anywhere. See

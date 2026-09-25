@@ -355,3 +355,98 @@ func TestTheRequestPromisesNoTeamForARoleThatNeedsNone(t *testing.T) {
 		t.Errorf("the owners are still asked to invite them:\n%s", reply)
 	}
 }
+
+// A command can be for more than one kind of person: `check start` is the
+// assigned codechecker's own command, and an editor's too
+// (codecheckers/chekhov#22).
+func TestACommandMayNameSeveralRoles(t *testing.T) {
+	definition, found := Lookup(string(CheckStart))
+	if !found {
+		t.Fatal("check start is not in the registry")
+	}
+
+	for _, who := range []struct {
+		roles   Roles
+		permits bool
+	}{
+		{Roles{RoleEditor}, true},
+		{Roles{RoleAssignedCodechecker}, true},
+		{Roles{RoleCodechecker}, false},
+		{nil, false},
+	} {
+		if got := definition.Permits(who.roles); got != who.permits {
+			t.Errorf("permits(%v) = %v, want %v", who.roles, got, who.permits)
+		}
+	}
+	if got := definition.Who(); got != "editors or the assigned codechecker" {
+		t.Errorf("who = %q", got)
+	}
+	// One of its roles belongs to the check, so answering "may they?" costs a
+	// read of the record - and a definition that said otherwise would refuse
+	// the codechecker whose command it is.
+	if !definition.NeedsCheckRoles() {
+		t.Error("check start does not ask for the per-check roles, so its codechecker would be refused")
+	}
+	if standing, _ := Lookup(string(Version)); standing.NeedsCheckRoles() {
+		t.Error("version asks for the per-check roles, which costs a listing of the comments")
+	}
+}
+
+// A command someone may not run is absent from the listing rather than shown
+// and refused, and the workflow group is where that is easiest to get wrong:
+// `status` is for anyone and the other two are not.
+func TestTheWorkflowGroupIsListedByRole(t *testing.T) {
+	passerBy := Listing(nil)
+	if !strings.Contains(passerBy, "status") {
+		t.Errorf("a passer-by is not offered `status`:\n%s", passerBy)
+	}
+	for _, hidden := range []string{"check start", "check finish"} {
+		if strings.Contains(passerBy, hidden) {
+			t.Errorf("a passer-by is offered `%s`:\n%s", hidden, passerBy)
+		}
+	}
+
+	codechecker := Listing(Roles{RoleAssignedCodechecker})
+	if !strings.Contains(codechecker, "check start") {
+		t.Errorf("the assigned codechecker is not offered `check start`:\n%s", codechecker)
+	}
+	if strings.Contains(codechecker, "check finish") {
+		t.Errorf("the assigned codechecker is offered `check finish`, which is an editor's:\n%s",
+			codechecker)
+	}
+}
+
+// The parser learned about phrases, so the typo hint had to as well: without
+// SuggestSub a mistyped subcommand falls through to its parent, which answers
+// with whatever the typo looked like as an argument.
+func TestASubcommandTypoIsSuggested(t *testing.T) {
+	for _, want := range []struct {
+		word  string
+		meant Name
+		found bool
+	}{
+		{"fnish", CheckFinish, true},
+		{"strt", CheckStart, true},
+		// Spelled perfectly and attached to the wrong parent: `check status`
+		// is the mistake `check start` and `check finish` invite, and the
+		// answer is the plain command. A correctly spelled *subcommand* never
+		// reaches here - Parse matches the phrase and never asks.
+		{"status", Status, true},
+		{"rules", Rules, true},
+		{"config", "", false}, // a part of the catalogue, not a near miss
+		{"codecheckers/demo", "", false},
+		{"", "", false},
+	} {
+		meant, found := SuggestSub(Check, want.word)
+		if found != want.found || meant != want.meant {
+			t.Errorf("SuggestSub(check, %q) = %q, %v; want %q, %v",
+				want.word, meant, found, want.meant, want.found)
+		}
+	}
+
+	// A phrase can never be a near miss for one typed word, so it stays out
+	// of the single-word candidates rather than sitting there unmatched.
+	if meant, found := Suggest("chek"); !found || meant != Check {
+		t.Errorf("Suggest(chek) = %q, %v; want check", meant, found)
+	}
+}

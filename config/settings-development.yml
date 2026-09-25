@@ -71,11 +71,20 @@ chekhov:
     # A check holding a certificate identifier, in its title: what
     # `next certificate` counts and `set certificate` puts on.
     id_assigned: id assigned
+    # A codechecker is assigned and working on the check: what `check start`
+    # puts on and `check finish` takes off again, so the bot needs both an
+    # add and a remove below. A register that withholds either is not refused
+    # at load - the commands say in the reply which label they left alone.
+    work_in_progress: work in progress
+    # The check is finished but something it needs is not settled - a DOI
+    # still a placeholder, most often - so `check finish` leaves this on
+    # instead of clearing the workflow labels.
+    metadata_pending: metadata pending
     # What the bot may do to labels itself, by name - as teams.managed is for
     # teams. A label in neither list is only ever read.
     managed:
-      add: [id assigned]
-      remove: []
+      add: [id assigned, work in progress, metadata pending]
+      remove: [needs codechecker, work in progress, metadata pending]
 
   teams:
     # The standing roles come from the organisation's own teams, read with the

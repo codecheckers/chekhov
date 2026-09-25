@@ -125,6 +125,13 @@ that way.
 If a test genuinely needs a real account - checking that an assignee sticks,
 say - **ask first**, every time.
 
+**The live tests that have not been run yet live in `docs/live-tests.md`.**
+Offline tests prove the bot decides correctly; they cannot prove GitHub accepts
+the write or that the reply renders the way it reads in a test. A feature whose
+live test has not been run is implemented, not done - so the test goes in that
+file when the change lands, and is ticked when it has been run. The bot account
+being blocked is why the file exists rather than a run happening.
+
 **One live test issue per change set.** Live testing happens on a new issue in
 the testing register, named for what is being tried and listing what each
 command should answer. A single long-running issue buries the run that matters
@@ -359,6 +366,24 @@ usage - which the platform reads as a crash loop.
 - **Answer, then work.** The delivery gets a 202 and the command runs in a
   goroutine: GitHub times out at ten seconds, and a `check` that asks Crossref
   and Zenodo takes longer.
+- **A record that does not verify decides nothing.** `check start` and
+  `check finish` act on what the record says - who may start the check, which
+  repository to run the rules against - so `command.about` refuses a reading
+  whose signature does not hold, as every other reader of the record does.
+  `status` is the exception on purpose: it reports rather than acts, and
+  showing what an edited record says, with the provenance beside it, is how an
+  editor finds out it was edited.
+- **A slow reply is written more than once.** The commands about the state of a
+  check wrap the checks that already exist, and those take a minute; GitHub has
+  its 202 long before then, but the person who typed the command is looking at
+  an issue with nothing on it. So `internal/bot/progress.go` posts the reply as
+  soon as its first stage answers and **rewrites the same comment** as the rest
+  come in - one comment, not two, as a reply to a role change already is. A
+  reply path that cannot edit posts once at the end, which is the ordinary path
+  and needs no special case. Every body goes through `Server.bodyOf`, so the
+  rule that nothing the bot posts may look like a record is in one place; the
+  follow-up record goes only on the finished body, because a record saying
+  something is outstanding must not exist while the command is still deciding.
 - Three guards, in this order: the repository is the configured target, the
   author is not the bot itself, the event is an opened issue or a created
   comment. Everything else is a 204 with a log line, never an error.
@@ -467,6 +492,14 @@ than a `switch`.
 
 - A command someone may not run is **absent** from the listing, not shown and
   refused.
+- A definition's **name may be a phrase** - `check start`, `check finish` -
+  and the parser matches two words before one. A subcommand is its own entry
+  with its own role, which is the whole point: `check` is for anybody and
+  `check finish` is for editors, and the registry is where that is decided. A
+  second word naming no entry is an argument, as it always was. `Definition.Or`
+  names the other roles that may run a command, for the few where one role is
+  not the whole answer, and `Who` words the refusal so it and the listing
+  cannot disagree.
 - A person holds a *set* of roles, `command.Roles`, not one: the same person
   can be an editor and the codechecker assigned to a check. Standing roles
   (`editor`, `codechecker`) come from the organisation's GitHub teams, read
@@ -591,6 +624,7 @@ exists; read the issues for what does not.
 | #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
+| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply. Closes once the testing register has answered |
 | #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
 | #20 certificate identifier | `next certificate` and `set certificate` implemented, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); CC-REG-002 now allows the R package's slack of 9. Closes once the testing register has answered both |
@@ -625,6 +659,8 @@ cmd/chekhov/        command line entry point, and `serve`
 Procfile            what the deployment runs: `web: chekhov serve`
 config/             the settings file, and the code that reads it
 internal/bot/       the listener: webhook, signature, dispatch, /healthz
+  progress.go       a reply posted at once and rewritten as each stage answers
+  workflow.go       where a check stands: check start, status, check finish
 internal/github/    the reply path: the one place that writes to GitHub
 internal/people/    who holds a role: the teams cache, and the per-check record
 internal/mastodon/  the one place that writes to Mastodon

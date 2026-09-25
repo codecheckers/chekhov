@@ -229,7 +229,8 @@ func (s *Server) act(event mention, parsed command.Command) {
 	defer cancel()
 
 	started := time.Now()
-	id, err := s.post(ctx, event, s.answer(ctx, event, parsed))
+	result := s.answer(ctx, event, parsed)
+	id, err := s.post(ctx, event, result)
 	if err != nil {
 		s.Logger.Error("the answer could not be posted", "command", parsed.Name,
 			"issue", event.Issue, "error", err)
@@ -256,18 +257,42 @@ func (s *Server) act(event mention, parsed command.Command) {
 // A reply whose record cannot be written is not posted at all: posting it
 // would say the thing is in hand and leave nothing to chase it with.
 func (s *Server) post(ctx context.Context, event mention, result answered) (int64, error) {
+	body, err := s.bodyOf(result)
+	if err != nil || body == "" {
+		return 0, err
+	}
+	// A staged reply may already be on the issue, and then the last word
+	// rewrites it rather than following it with a second comment saying the
+	// same thing. The reply itself knows which; see progress.go.
+	if result.to != nil {
+		// Written first, then asked which comment it went in: write is what
+		// sets that on the first post, and Go does not order the two operands
+		// of a return against each other.
+		err := result.to.write(ctx, body)
+		return result.to.comment, err
+	}
+	return s.Replies.Comment(ctx, event.Repository, event.Issue, body)
+}
+
+// bodyOf is what actually goes on the issue: the reply defused, with the
+// follow-up record in front of it when there is one.
+//
+// One function, because there are now two ways a body reaches GitHub - posted
+// and rewritten - and the rule that nothing the bot posts may look like a
+// record must not be something each of them remembers.
+func (s *Server) bodyOf(result answered) (string, error) {
 	body := command.Defuse(result.body)
 	if body == "" {
-		return 0, nil
+		return "", nil
 	}
 	if result.follow != nil {
 		block, err := followup.Render(*result.follow, s.signer())
 		if err != nil {
-			return 0, fmt.Errorf("the follow-up could not be written, so nothing would chase it: %w", err)
+			return "", fmt.Errorf("the follow-up could not be written, so nothing would chase it: %w", err)
 		}
 		body = block + body
 	}
-	return s.Replies.Comment(ctx, event.Repository, event.Issue, body)
+	return body, nil
 }
 
 // signer is the key the bot signs its records with, nil when it has none -
@@ -430,6 +455,10 @@ func (s *Server) reportPanic(headline string, r any, trace string) {
 type answered struct {
 	body   string
 	follow *followup.Record
+	// to is where a staged reply is already being written, nil for the
+	// ordinary case. The final body goes to the same comment instead of
+	// following it: one comment, not two. See progress.go.
+	to *reply
 }
 
 // said is an answer with nothing outstanding, which is almost all of them.
@@ -441,13 +470,13 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	// The per-check roles cost a read of the issue's comments, so they are
 	// resolved only for a command that is gated on one. Nothing else - hello,
 	// version, a check - is about who somebody is on this check.
-	if found && definition.Role != command.RoleAnyone && !definition.Role.Standing() {
+	if found && definition.NeedsCheckRoles() {
 		roles = s.checkRoles(ctx, event, roles)
 	}
 
 	if found && !definition.Permits(roles) {
 		return said(fmt.Sprintf("`%s %s` is for %s.\n",
-			command.Bot, parsed.Name, definition.Role.Description()))
+			command.Bot, parsed.Name, definition.Who()))
 	}
 
 	// Every command reads the world afresh. A deployment keeps one Services for
@@ -483,7 +512,13 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 	case command.Version:
 		return said(s.version())
 	case command.Check:
-		return said(s.check(parsed, services))
+		return said(s.check(ctx, parsed, services))
+	case command.CheckStart:
+		return s.checkStart(ctx, event, parsed, services)
+	case command.Status:
+		return s.status(ctx, event, parsed, services)
+	case command.CheckFinish:
+		return s.checkFinish(ctx, event, parsed, services)
 	case command.Rules:
 		return said(s.rules(services))
 	case command.Nudge:
@@ -871,7 +906,7 @@ func (s *Server) version() string {
 // spec, a shortcut, or a certificate identifier the register knows - and
 // check.ResolveTarget decides which. Working out from the issue alone which
 // configuration it is about is still to come.
-func (s *Server) check(parsed command.Command, services *check.Services) string {
+func (s *Server) check(ctx context.Context, parsed command.Command, services *check.Services) string {
 	part, target := "", ""
 	for _, argument := range parsed.Args {
 		// A part name is never a target: the catalogue's own words come first,
@@ -887,6 +922,15 @@ func (s *Server) check(parsed command.Command, services *check.Services) string 
 			target = argument
 		}
 	}
+	// A mistyped subcommand lands here, as `check` with a word it cannot read:
+	// the registry knows what it was meant to be, and saying so is the whole
+	// point of having the registry answer for the vocabulary.
+	if len(parsed.Args) > 0 && !check.IsWord(parsed.Args[0]) {
+		if meant, ok := command.SuggestSub(command.Check, parsed.Args[0]); ok {
+			return fmt.Sprintf("I do not know `%s %s %s`. Did you mean `%s %s`?\n",
+				command.Bot, command.Check, parsed.Args[0], command.Bot, meant)
+		}
+	}
 	if target == "" {
 		return fmt.Sprintf("I need to be told what to check:\n\n"+
 			"    %s check codecheckers/repository\n"+
@@ -900,22 +944,28 @@ func (s *Server) check(parsed command.Command, services *check.Services) string 
 	// configuration would come from, which is asked before there is one to
 	// check. See check.AboutRepository.
 	if part == check.AboutRepository {
-		description, err := check.DescribeRepository(target, s.LocalPaths, services)
-		if err != nil {
-			return fmt.Sprintf("I could not look at `%s`: %s\n", target, err)
-		}
-		return description.Markdown()
+		return s.describing(target, services)(ctx)
 	}
 
-	context, err := s.read(target, services)
-	if err != nil {
-		return fmt.Sprintf("I could not read `%s`: %s\n", target, err)
-	}
-	report, err := check.RunPart(context, "", false, part)
+	report, err := s.reportOn(target, part, services)
 	if err != nil {
 		return fmt.Sprintf("%s\n", err)
 	}
 	return report.Markdown()
+}
+
+// reportOn runs part of the catalogue against a target.
+//
+// The one path from "a target somebody wrote" to "a report", so that `check`
+// and the commands that wrap it - `check start`, `status`, `check finish` -
+// cannot end up with two ideas of what `check config` means. What differs is
+// how much of the report each of them shows.
+func (s *Server) reportOn(target, part string, services *check.Services) (check.Report, error) {
+	context, err := s.read(target, services)
+	if err != nil {
+		return check.Report{}, fmt.Errorf("I could not read `%s`: %w", target, err)
+	}
+	return check.RunPart(context, "", false, part)
 }
 
 // rules says which catalogue this build judges by, and whether the register

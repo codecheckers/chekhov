@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/codecheckers/chekhov/internal/check"
@@ -29,7 +30,12 @@ import (
 // check - and for `roles` and `suggest codecheckers` it costs a second
 // listing of the issue's comments, which is the price of not keeping a memo
 // that every future writing command would have to remember to invalidate.
-// The issue itself is memoised, because nothing the bot does changes a label.
+//
+// The issue is memoised, and the memo is kept honest: the bot does now change
+// labels - `check start` takes `needs codechecker` off - so moveLabels tells
+// the memo what it moved. Without that the note is built on the labels as they
+// were before the write, and the same comment reports a label removed and
+// then warns that the check still carries it.
 //
 // Everything here fails quiet, and in the cheap order: no label named means
 // no rule can fire, so nothing is read at all; an issue that will not answer
@@ -80,17 +86,73 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 // wanted the issue each do without it, and say so.
 var errNoIssueReader = errors.New("this reply path cannot read the register's issues")
 
-// issueOnce is the memo answer puts in the mention: one read of the check,
-// however many parts of the command ask for it. The error is remembered too,
-// so a register having a bad moment costs one request rather than three.
-func (s *Server) issueOnce(ctx context.Context, event mention) func() (github.Issue, error) {
-	return sync.OnceValues(func() (github.Issue, error) {
+// An issueMemo is one read of the check, however many parts of a command ask
+// for it - and whatever the command has since done to its labels.
+//
+// A pointer, and carried as one on the mention, because a mention is copied
+// freely: a command that moved a label has to be able to tell the copy the
+// dispatch will judge the labels from. The alternative is reading the issue
+// again after every write, which costs a request to learn what the bot itself
+// just did.
+type issueMemo struct {
+	read func() (github.Issue, error)
+	mu   sync.Mutex
+	// moved is what the bot has changed in this command: label to whether it
+	// is now on. Applied over what was read, so the memo answers with the
+	// check as it is rather than as it was found.
+	moved map[string]bool
+}
+
+// get is the check, with the bot's own changes applied.
+func (m *issueMemo) get() (github.Issue, error) {
+	issue, err := m.read()
+	if err != nil {
+		return issue, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.moved) == 0 {
+		return issue, nil
+	}
+	labels := make([]string, 0, len(issue.Labels)+len(m.moved))
+	for _, carried := range issue.Labels {
+		if _, changed := m.moved[strings.ToLower(strings.TrimSpace(carried))]; !changed {
+			labels = append(labels, carried)
+		}
+	}
+	for label, on := range m.moved {
+		if on {
+			labels = append(labels, label)
+		}
+	}
+	issue.Labels = labels
+	return issue, nil
+}
+
+// moveLabel records what the bot did, so that everything reading the memo
+// afterwards sees it.
+func (m *issueMemo) moveLabel(label string, add bool) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.moved == nil {
+		m.moved = map[string]bool{}
+	}
+	m.moved[strings.ToLower(strings.TrimSpace(label))] = add
+}
+
+// issueOnce is the memo answer puts in the mention. The error is remembered
+// too, so a register having a bad moment costs one request rather than three.
+func (s *Server) issueOnce(ctx context.Context, event mention) *issueMemo {
+	return &issueMemo{read: sync.OnceValues(func() (github.Issue, error) {
 		reader, ok := s.Replies.(Issues)
 		if !ok {
 			return github.Issue{}, errNoIssueReader
 		}
 		return reader.Issue(ctx, event.Repository, event.Issue)
-	})
+	})}
 }
 
 // issue is the check a command is on. A mention the dispatch set up answers
@@ -99,5 +161,5 @@ func (s *Server) issue(ctx context.Context, event mention) (github.Issue, error)
 	if event.read == nil {
 		event.read = s.issueOnce(ctx, event)
 	}
-	return event.read()
+	return event.read.get()
 }

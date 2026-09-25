@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-25
+
+### Added
+
+- `check start`, `status` and `check finish` say where a check stands and move
+  the register's labels with it: `check start` takes the check out of the
+  queue, describes the repository and posts the codechecker's checklist;
+  `status` reports the record, the certificate, the labels and what earlier
+  replies left open; `check finish` runs the rules, and leaves
+  `metadata pending` on rather than clearing when `CC-CFG-023` still finds
+  placeholder values (codecheckers/chekhov#22).
+- A reply that takes time is posted as soon as its first stage answers and
+  rewritten in place as the rest come in, so one comment carries the whole
+  answer (codecheckers/chekhov#22).
+- `labels.work_in_progress` and `labels.metadata_pending` in the settings, and
+  the labels the bot may move listed under `labels.managed`
+  (codecheckers/chekhov#22).
+- `docs/live-tests.md`: the live tests each merged change still owes, since the
+  bot account cannot post while it is blocked.
+
+### Fixed
+
+- A reply no longer reports a label as removed and then warns that the check
+  still carries it: the check the label note is judged against now knows what
+  the command just changed (codecheckers/chekhov#22).
+- A check whose `codecheck.yml` could not be read is no longer told its
+  register entry is ready (codecheckers/chekhov#22).
+- A warning is listed as well as counted, with its own symbol, instead of a
+  report reading as a pass because nothing failed outright
+  (codecheckers/chekhov#22).
+
+### Changed
+
+- A command's name may be a phrase, so `check start` and `check finish` are
+  their own entries in the registry with their own roles: `check` is for
+  anybody and `check finish` is for editors. Everything `check` accepted before
+  parses unchanged (codecheckers/chekhov#22).
+- A mistyped or misplaced subcommand is answered with the command it was meant
+  to be: `check fnish` suggests `check finish`, and `check status` suggests
+  `status` (codecheckers/chekhov#22).
+- `set certificate` says why a label could not be added, in the same words the
+  workflow commands use (codecheckers/chekhov#22).
+
 ## [0.10.0] - 2026-09-23
 
 ### Changed

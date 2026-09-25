@@ -82,9 +82,12 @@ type CertificateSet struct {
 	// TitleFailed says it should have and could not.
 	Title       string
 	TitleFailed bool
-	// Labelled says the label was added; LabelFailed that it could not be.
+	// Labelled says the label was added; LabelFailed that it could not be,
+	// and LabelWhy why - in the same words the workflow commands use, so a
+	// refusal reads the same wherever it came from.
 	Labelled    bool
 	LabelFailed bool
+	LabelWhy    string
 }
 
 // CertificateSetReply says what `set certificate` did, and is the record of
@@ -115,7 +118,8 @@ func CertificateSetReply(set CertificateSet, by string, when time.Time) string {
 	case set.Labelled:
 		fmt.Fprintf(&reply, "\nLabel `%s` added.\n", set.Label)
 	case set.LabelFailed:
-		fmt.Fprintf(&reply, "\nThe label `%s` could not be added; please add it.\n", set.Label)
+		fmt.Fprintf(&reply, "\nThe label `%s` could not be added: %s. Please add it.\n",
+			set.Label, oneLine(set.LabelWhy))
 	}
 	if !set.Unchanged || set.Title != "" || set.Labelled {
 		reply.WriteString(entry("set", by, when))

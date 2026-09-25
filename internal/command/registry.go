@@ -11,6 +11,7 @@ const (
 	GroupValidation = "Validation"
 	GroupRegister   = "Register"
 	GroupPeople     = "People"
+	GroupWorkflow   = "Workflow"
 )
 
 // A Definition is one command the bot knows: what it is called, what it does,
@@ -20,6 +21,19 @@ const (
 // generated from it, so a command cannot be added and then forgotten in the
 // documentation - which is the whole point of having a registry rather than a
 // switch.
+//
+// A Definition's Name may be a **phrase** - `check start` - and then it is a
+// subcommand: the parser matches the two words before it tries the first one
+// alone. A subcommand is its own entry, with its own role, summary and line in
+// the listing, which is the point: `check` is for anyone and `check finish` is
+// for editors, and a command someone may not run is absent from the listing
+// rather than shown and refused.
+//
+// `refresh teams`, `next certificate`, `set certificate`, `accept record` and
+// `suggest codecheckers` are still one word with an argument. That reads the
+// same to somebody typing, and their second word gates nothing - there is only
+// one thing to refresh, one thing to set. Make one a phrase when its second
+// word starts deciding who may run it, or what it does.
 type Definition struct {
 	Name    Name
 	Aliases []string
@@ -29,6 +43,11 @@ type Definition struct {
 	Usage string
 	Group string
 	Role  Role
+	// Or are the other roles that may run the command, for the few where one
+	// role is not the whole answer: `check start` is the codechecker's own
+	// command and an editor's alike. Empty for everything else, and Role is
+	// then the whole of it.
+	Or []Role
 	// Hidden keeps a working command out of the listing. hello is hidden
 	// because it is a smoke test rather than something a codechecker needs,
 	// and thanks because a listing is for what to do next, not for manners.
@@ -145,6 +164,31 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:          CheckStart,
+		Summary:       "Begin this check: the labels, what the repository holds, and the checklist",
+		Usage:         "check start [<repository>|<certificate>]",
+		Group:         GroupWorkflow,
+		Role:          RoleEditor,
+		Or:            []Role{RoleAssignedCodechecker},
+		AboutTheCheck: true,
+	},
+	{
+		Name:          Status,
+		Summary:       "Say where this check stands: the record, the labels, and what is still open",
+		Usage:         "status [<repository>|<certificate>]",
+		Group:         GroupWorkflow,
+		Role:          RoleAnyone,
+		AboutTheCheck: true,
+	},
+	{
+		Name:          CheckFinish,
+		Summary:       "Finish this check: run the rules, move the labels, and point at `register`",
+		Usage:         "check finish [<repository>|<certificate>]",
+		Group:         GroupWorkflow,
+		Role:          RoleEditor,
+		AboutTheCheck: true,
+	},
+	{
 		Name:    Rules,
 		Summary: "Say which rules I judge by, and whether they are the register's current ones",
 		Usage:   "rules",
@@ -182,7 +226,8 @@ var registry = []Definition{
 	},
 }
 
-// index maps every name and alias to its definition.
+// index maps every name and alias to its definition. A phrase name is keyed
+// whole, so that looking one up is the same operation as looking up a word.
 var index = func() map[string]Definition {
 	byWord := make(map[string]Definition, len(registry)*2)
 	for _, definition := range registry {
@@ -211,9 +256,50 @@ func normalize(word string) string {
 	return strings.TrimRight(strings.ToLower(strings.TrimSpace(word)), "!.,;:?")
 }
 
-// Permits reports whether a role may run the command.
+// Permits reports whether somebody's roles let them run the command: the
+// command's own role, or any of the others it names.
 func (d Definition) Permits(roles Roles) bool {
-	return roles.Has(d.Role)
+	for _, may := range d.roles() {
+		if roles.Has(may) {
+			return true
+		}
+	}
+	return false
+}
+
+// roles is every role that may run the command: its own, and the others it
+// names. One union, because three questions are asked of it - may they, who is
+// it for, and does answering cost a read of the record - and a fourth that
+// forgot `Or` would refuse the person whose command it is.
+func (d Definition) roles() []Role {
+	return append([]Role{d.Role}, d.Or...)
+}
+
+// Who is who the command is for, in words, for the refusal that has to say
+// what the asker would have to be. One function, so the refusal and anything
+// else describing the command cannot word it differently.
+func (d Definition) Who() string {
+	who := make([]string, 0, len(d.Or)+1)
+	for _, may := range d.roles() {
+		who = append(who, may.Description())
+	}
+	return list(who, "or")
+}
+
+// NeedsCheckRoles reports whether answering "may they run this?" costs a read
+// of the check's own record, which is a listing of the issue's comments.
+//
+// Asked of every role the command names, not only the first: a command an
+// editor **or** the assigned codechecker may run is gated on a per-check role,
+// and resolving only the standing ones would refuse the codechecker whose
+// command it is.
+func (d Definition) NeedsCheckRoles() bool {
+	for _, role := range d.roles() {
+		if role != RoleAnyone && !role.Standing() {
+			return true
+		}
+	}
+	return false
 }
 
 // Visible returns the commands a role should be told about: the ones they may
@@ -260,11 +346,66 @@ func Suggest(word string) (Name, bool) {
 	return definition.Name, true
 }
 
+// SuggestSub finds the subcommand a misspelling was probably meant to be:
+// `check fnish` for `check finish`.
+//
+// The parser learned about phrases; without this the hint did not, and a
+// mistyped subcommand falls through to its parent command, which answers with
+// whatever the typo looked like as an argument.
+//
+// Measured on the second word alone, against the second words of that parent's
+// subcommands and against the one-word commands - `check status` is what
+// somebody types once `check start` and `check finish` exist, and the answer
+// is the plain `status` command. The parent is only ever a phrase's first
+// word here, so it can never be suggested as its own subcommand.
+func SuggestSub(parent Name, word string) (Name, bool) {
+	word = normalize(word)
+	if word == "" {
+		return "", false
+	}
+	prefix := string(parent) + " "
+	best, distance := Name(""), 0
+	for _, definition := range registry {
+		// The parent's own subcommands, and the commands whose whole name is
+		// one word: `check status` is the mistake somebody makes once
+		// `check start` and `check finish` exist, and the answer to it is the
+		// plain `status` command rather than a near miss among the two.
+		candidate, isSub := strings.CutPrefix(string(definition.Name), prefix)
+		if !isSub && strings.Contains(string(definition.Name), " ") {
+			continue
+		}
+		if !isSub {
+			candidate = string(definition.Name)
+		}
+		if d := editDistance(word, candidate); best == "" || d < distance {
+			best, distance = definition.Name, d
+		}
+	}
+	// The same budget Suggest allows: a third of the word, at most two
+	// characters. Enough for a slip of the finger, not enough to turn a
+	// repository name into a command.
+	//
+	// Unlike Suggest, a distance of nought counts. There it means the word
+	// was a command and needs no hint; here it means the word is spelled
+	// perfectly and is attached to the wrong parent - `check status` for
+	// `status` - which is the mistake most worth answering. A subcommand
+	// cannot reach this with a distance of nought, because Parse would have
+	// matched the phrase and never asked.
+	if best == "" || distance > min(len(word)/3, 2) {
+		return "", false
+	}
+	return best, true
+}
+
 // candidates are the words Suggest compares against, in a fixed order.
 func candidates() []string {
 	words := make([]string, 0, len(index))
 	for _, definition := range registry {
-		words = append(words, string(definition.Name))
+		// A phrase can never be a near miss for one typed word, and
+		// SuggestSub is what answers for those.
+		if !strings.Contains(string(definition.Name), " ") {
+			words = append(words, string(definition.Name))
+		}
 	}
 	for _, definition := range registry {
 		words = append(words, definition.Aliases...)
@@ -297,7 +438,7 @@ func editDistance(a, b string) int {
 // declared order first, anything new after it, alphabetically, so a group
 // added without a thought here is still listed.
 func groups() []string {
-	known := []string{GroupBasics, GroupPeople, GroupValidation, GroupRegister}
+	known := []string{GroupBasics, GroupPeople, GroupValidation, GroupWorkflow, GroupRegister}
 	var extra []string
 	for _, definition := range registry {
 		if !contains(known, definition.Group) && !contains(extra, definition.Group) {

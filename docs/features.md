@@ -88,10 +88,10 @@ for the whole group, before writing #7.
 
 | Command | Effect | Prio |
 |---|---|---|
-| `@chekhovbot start check` | Move the issue into the checking state, apply labels, post the checklist | high |
+| `@chekhovbot check start` | Move the issue into the checking state, apply labels, describe the repository, post the checklist (#22) | done |
 | `@chekhovbot checklist` | Post/refresh the codechecker's checklist comment | high |
-| `@chekhovbot status` | Summarise this check: role assignments, metadata, open items | high |
-| `@chekhovbot finish check` | Mark the check complete, apply labels, prompt for the register PR | high |
+| `@chekhovbot status` | Summarise this check: roles, certificate, labels, the configuration, what is still open (#22) | done |
+| `@chekhovbot check finish` | Run the rules, move the labels, prompt for the register PR (#22) | done |
 | `@chekhovbot label <command>` | Apply/remove configured label sets (buffy `label_command`) | medium |
 | `@chekhovbot close` | Close the issue with a templated message | low |
 

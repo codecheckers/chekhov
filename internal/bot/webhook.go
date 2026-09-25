@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 )
 
@@ -47,14 +46,15 @@ type mention struct {
 	Author     string
 	Body       string
 
-	// read is the issue this mention is on, read once for the whole command.
+	// read is the issue this mention is on, read once for the whole command,
+	// with whatever the command has since done to its labels applied.
 	// Three parts of one command want it - which team an assignment leads to,
 	// what the check is about, and whether the labels still describe it - and
 	// nothing the bot does changes a label or a title, so one read serves all
 	// three. Set up by answer and shared by every copy of the mention made
 	// after that; nil means "read it yourself", which is what a caller
 	// outside the dispatch gets. See Server.issue.
-	read func() (github.Issue, error)
+	read *issueMemo
 }
 
 // check names the issue, the one way it is written everywhere: in a signed

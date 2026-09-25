@@ -3,6 +3,7 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -191,6 +192,15 @@ func (c *Client) RemoveLabel(ctx context.Context, repository string, issue int, 
 	return err
 }
 
+// ErrLabelNotAllowed is a label change the settings do not list.
+//
+// Typed, because a caller wants to say it in its own words: the fence is here
+// and stays here, and a reply that tells somebody a label could not be moved
+// reads better than the client's sentence. Without this the bot layer grows a
+// second copy of the lists to check before calling, which is a second place
+// for the policy to be wrong.
+var ErrLabelNotAllowed = errors.New("the settings do not allow this label to be changed")
+
 // allowed refuses a label change the settings do not list, before any request.
 // The name is quoted with %q because it reaches a posted comment, where it is
 // somebody's free text.
@@ -200,7 +210,8 @@ func allowed(label string, list []string, verb string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("refusing to %s the label %q: it is not in labels.managed.%s", verb, label, verb)
+	return fmt.Errorf("refusing to %s the label %q: it is not in labels.managed.%s: %w",
+		verb, label, verb, ErrLabelNotAllowed)
 }
 
 // SetTitle changes the title of an issue, and nothing else about it.

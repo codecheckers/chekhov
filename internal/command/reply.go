@@ -470,9 +470,9 @@ func Defuse(text string) string {
 	return strings.ReplaceAll(text, "<!--", "&lt;!--")
 }
 
-// oneLine puts a message in a table cell: a GitHub error carries the response
-// body, and a proxy's HTML page would otherwise end the row and the table with
-// it.
+// oneLine puts a message in a table cell, or in a sentence: a GitHub error
+// carries the response body, and a proxy's HTML page would otherwise end the
+// row and the table with it.
 func oneLine(message string) string {
 	return Defuse(escapePipes(strings.Join(strings.Fields(message), " ")))
 }

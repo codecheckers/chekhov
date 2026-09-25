@@ -173,7 +173,8 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 // putOnIssue writes the identifier into the title and adds the label, where
 // either is missing. A failure is reported as not done rather than undoing
 // the record, which is what the bot reads; the title and the label are for
-// people and the launch-pad, and anybody can put them right.
+// people and the launch-pad, and anybody can put them right - and it is said
+// in the same words the workflow commands use, through labelFailure.
 func (s *Server) putOnIssue(ctx context.Context, writer Reserving, event mention,
 	this github.Issue, set *command.CertificateSet) {
 	if title := check.TitleWithCertificate(this.Title, set.ID); title != this.Title {
@@ -185,8 +186,8 @@ func (s *Server) putOnIssue(ctx context.Context, writer Reserving, event mention
 		}
 	}
 	if !command.HasLabel(this.Labels, set.Label) {
-		if err := writer.AddLabel(ctx, event.Repository, event.Issue, set.Label); err != nil {
-			s.Logger.Warn("the label could not be added", "issue", event.Issue, "error", err)
+		err := writer.AddLabel(ctx, event.Repository, event.Issue, set.Label)
+		if set.LabelWhy = s.labelFailure(err, event, set.Label, true); set.LabelWhy != "" {
 			set.LabelFailed = true
 		} else {
 			set.Labelled = true
