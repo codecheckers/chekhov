@@ -45,6 +45,7 @@ func newInstance(t *testing.T) (*instance, *Client) {
 	client.HTTP = server.Client()
 	client.RetryWait = time.Millisecond
 	client.MediaWait = time.Second
+	client.WriteInterval = 0 // pacing has tests of its own, in httpretry
 	client.Logger = slog.New(slog.DiscardHandler)
 	return stub, client
 }

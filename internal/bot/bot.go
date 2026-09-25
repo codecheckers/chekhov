@@ -47,6 +47,12 @@ func timeoutFor(parsed command.Command) time.Duration {
 	return commandTimeout
 }
 
+// reportTimeout bounds the apology for a panic and its report on the admin
+// issue. They wait in the same queue as every other write, so the bound has to
+// outlast a queue held by a rate limit - two minutes at most, see httpretry -
+// or the one report of a panic would be the write that is dropped.
+const reportTimeout = 3 * time.Minute
+
 // Poster is the part of the reply path the bot needs, so a test can watch what
 // would be posted without a server.
 type Poster interface {
@@ -339,7 +345,7 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 		return
 	}
 	s.survive("apologising for the panic", func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), reportTimeout)
 		defer cancel()
 		_, _ = s.Replies.Comment(ctx, event.Repository, event.Issue,
 			fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
@@ -428,7 +434,7 @@ func (s *Server) reportPanic(headline string, r any, trace string) {
 	if admin.Issue == 0 {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), reportTimeout)
 	defer cancel()
 	// The panic value can quote whatever a command was given, so it goes in
 	// an indented code block with the trace, which nothing in it can end and

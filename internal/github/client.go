@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -55,6 +56,11 @@ type Client struct {
 	// RetryWait is how long to wait before the one retry, unless GitHub sends
 	// a Retry-After of its own.
 	RetryWait time.Duration
+	// WriteInterval is the least time between two writes; a write that comes
+	// sooner waits its turn in writes. httpretry.WriteInterval unless a test
+	// says otherwise.
+	WriteInterval time.Duration
+	writes        httpretry.Pacer
 
 	// tokenExpiry is what GitHub last said about the token's lifetime. A
 	// fine-grained token expires, and a bot that goes quiet on a Monday is
@@ -66,13 +72,14 @@ type Client struct {
 // New builds a client for one repository.
 func New(token, repository, signature string) *Client {
 	return &Client{
-		HTTP:       &http.Client{Timeout: 30 * time.Second},
-		Token:      token,
-		BaseURL:    "https://api.github.com",
-		Repository: repository,
-		Signature:  signature,
-		Logger:     slog.Default(),
-		RetryWait:  time.Second,
+		HTTP:          &http.Client{Timeout: 30 * time.Second},
+		Token:         token,
+		BaseURL:       "https://api.github.com",
+		Repository:    repository,
+		Signature:     signature,
+		Logger:        slog.Default(),
+		RetryWait:     time.Second,
+		WriteInterval: httpretry.WriteInterval,
 	}
 }
 
@@ -168,7 +175,7 @@ func (c *Client) post(ctx context.Context, url string, payload []byte) (int64, e
 // Every call carries the same headers, the same body limit and the same
 // reading of a failure, so that reading the API and writing to it cannot drift
 // apart - a new header GitHub asks for is added once.
-func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]byte, error) {
+func (c *Client) do(ctx context.Context, method, url string, payload []byte) (_ []byte, failure error) {
 	var body io.Reader
 	if payload != nil {
 		body = bytes.NewReader(payload)
@@ -180,6 +187,18 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]
 	// Before anything is set on it, the token least of all. See guard.go.
 	if err := c.guard(method, request.URL); err != nil {
 		return nil, err
+	}
+	// Writes queue, one at a time and WriteInterval apart, so that a burst of
+	// commands does not become a burst of replies. Here, under attempt, so a
+	// retried write waits its turn again: GitHub sees a retry as a write like
+	// any other. The turn ends when the answer is in, and a rate limit holds
+	// back the whole queue rather than only the write that was told.
+	if method != http.MethodGet {
+		done, err := c.writes.Turn(ctx, c.WriteInterval)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { done(hold(failure)) }()
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
@@ -291,6 +310,26 @@ func (c *Client) noteTokenExpiry(response *http.Response) {
 //
 // The headers are consulted first, in httpretry: GitHub owns the wording of
 // its messages and has changed it before.
+// secondaryLimitPause is how long the queue holds after a secondary rate
+// limit that names no time: GitHub's documentation asks for at least a minute.
+const secondaryLimitPause = time.Minute
+
+// hold is how long every write waits after this one failed: what
+// httpretry.Hold reads from the headers, or - for the secondary limit, a 403
+// that says so only in its body - the minute GitHub asks for. Without it the
+// queue would keep writing three seconds apart into the limit, which is the
+// burst the queue is there to prevent.
+func hold(failure error) time.Duration {
+	if pause := httpretry.Hold(failure); pause > 0 {
+		return pause
+	}
+	var status *httpretry.StatusError
+	if errors.As(failure, &status) && status.Status == http.StatusForbidden && bodySaysRateLimited(status.Body) {
+		return secondaryLimitPause
+	}
+	return 0
+}
+
 func bodySaysRateLimited(body string) bool {
 	body = strings.ToLower(body)
 	return strings.Contains(body, "rate limit") || strings.Contains(body, "abuse")

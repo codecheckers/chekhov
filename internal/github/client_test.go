@@ -25,6 +25,9 @@ func stub(t *testing.T, handler http.HandlerFunc) *Client {
 	client.HTTP = server.Client()
 	client.Logger = slog.New(slog.DiscardHandler)
 	client.RetryWait = 0
+	// Unpaced, so a test that writes twice does not wait for it; pacing has
+	// tests of its own, in guard_test.go.
+	client.WriteInterval = 0
 	return client
 }
 

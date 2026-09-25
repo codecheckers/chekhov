@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/httpretry"
 )
@@ -132,5 +134,101 @@ func TestARefusedWriteNeverLeaves(t *testing.T) {
 	}
 	if requests != 1 {
 		t.Errorf("%d request(s) reached the server, want 1", requests)
+	}
+}
+
+// Writes queue rather than burst: several sent at once reach GitHub one
+// interval apart, every one of them, and a read is not held up by the queue.
+func TestWritesArePacedAndQueued(t *testing.T) {
+	const interval = 60 * time.Millisecond
+	var mu sync.Mutex
+	var writes []time.Time
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			mu.Lock()
+			writes = append(writes, time.Now())
+			mu.Unlock()
+		}
+		_, _ = w.Write([]byte(`{"id": 1}`))
+	})
+	client.WriteInterval = interval
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := client.Comment(ctx, client.Repository, 7, "hello"); err != nil {
+				t.Errorf("a queued comment failed: %v", err)
+			}
+		}()
+	}
+	// A read while the writes queue is answered at once.
+	time.Sleep(interval / 4)
+	started := time.Now()
+	if _, err := client.Issue(ctx, client.Repository, 7); err != nil {
+		t.Fatal(err)
+	}
+	if waited := time.Since(started); waited > interval {
+		t.Errorf("a read waited %v behind the writes", waited)
+	}
+	wg.Wait()
+
+	if len(writes) != 4 {
+		t.Fatalf("%d writes reached GitHub, want all 4", len(writes))
+	}
+	for i := 1; i < len(writes); i++ {
+		// A little slack for the clock the handler reads on the other side.
+		if gap := writes[i].Sub(writes[i-1]); gap < interval-5*time.Millisecond {
+			t.Errorf("writes %d and %d were %v apart, want at least %v", i, i+1, gap, interval)
+		}
+	}
+}
+
+// A write whose context ends while it waits for its turn gives up its place:
+// it is not sent, and the caller is told it was not made.
+func TestAWriteThatStopsWaitingIsNotSent(t *testing.T) {
+	requests := 0
+	client := stub(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		_, _ = w.Write([]byte(`{"id": 1}`))
+	})
+	client.WriteInterval = time.Hour
+	if _, err := client.Comment(context.Background(), client.Repository, 7, "first"); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	_, err := client.Comment(ctx, client.Repository, 7, "second")
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("the queued write did not say it gave up: %v", err)
+	}
+	if requests != 1 {
+		t.Errorf("%d requests reached GitHub, want only the first", requests)
+	}
+}
+
+// GitHub's secondary limit is a 403 that says so only in its body, and names
+// no time; the queue holds for the minute GitHub asks for, rather than writing
+// on into it three seconds apart.
+func TestTheSecondaryLimitHoldsTheQueue(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want time.Duration
+	}{
+		"a secondary limit": {&httpretry.StatusError{Status: http.StatusForbidden,
+			Body: `{"message":"You have exceeded a secondary rate limit"}`}, secondaryLimitPause},
+		"one that names its time": {&httpretry.StatusError{Status: http.StatusForbidden,
+			Body: "secondary rate limit", RetryAfter: 30 * time.Second}, 30 * time.Second},
+		"a 403 that is a refusal": {&httpretry.StatusError{Status: http.StatusForbidden,
+			Body: "Resource not accessible by integration"}, 0},
+		"no failure": {nil, 0},
+	}
+	for name, testCase := range cases {
+		if got := hold(testCase.err); got != testCase.want {
+			t.Errorf("%s: hold = %v, want %v", name, got, testCase.want)
+		}
 	}
 }

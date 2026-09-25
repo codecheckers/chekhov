@@ -43,20 +43,26 @@ type Client struct {
 	RetryWait time.Duration
 	// MediaWait bounds how long an upload may stay in processing.
 	MediaWait time.Duration
+	// WriteInterval is the least time between two writes; a write that comes
+	// sooner waits its turn in writes. httpretry.WriteInterval unless a test
+	// says otherwise.
+	WriteInterval time.Duration
+	writes        httpretry.Pacer
 }
 
 // New builds a client for one account on one instance, posting with one
 // visibility.
 func New(baseURL, account, token, visibility string) *Client {
 	return &Client{
-		HTTP:       &http.Client{Timeout: 60 * time.Second},
-		Token:      token,
-		BaseURL:    strings.TrimSuffix(baseURL, "/"),
-		Account:    strings.TrimPrefix(account, "@"),
-		Visibility: visibility,
-		Logger:     slog.Default(),
-		RetryWait:  2 * time.Second,
-		MediaWait:  time.Minute,
+		HTTP:          &http.Client{Timeout: 60 * time.Second},
+		Token:         token,
+		BaseURL:       strings.TrimSuffix(baseURL, "/"),
+		Account:       strings.TrimPrefix(account, "@"),
+		Visibility:    visibility,
+		Logger:        slog.Default(),
+		RetryWait:     2 * time.Second,
+		MediaWait:     time.Minute,
+		WriteInterval: httpretry.WriteInterval,
 	}
 }
 
@@ -484,7 +490,7 @@ func (c *Client) withRetry(ctx context.Context, what string, attempt func() erro
 }
 
 // do sends one request and decodes a 2xx answer into `into`, when given.
-func (c *Client) do(ctx context.Context, method, path string, header http.Header, body []byte, into any) (int, error) {
+func (c *Client) do(ctx context.Context, method, path string, header http.Header, body []byte, into any) (_ int, failure error) {
 	var reader io.Reader
 	if body != nil {
 		reader = bytes.NewReader(body)
@@ -500,6 +506,17 @@ func (c *Client) do(ctx context.Context, method, path string, header http.Header
 	request.Header.Set("User-Agent", "chekhov (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)")
 	if c.Token != "" {
 		request.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+	// Writes queue, one at a time and WriteInterval apart, as the GitHub
+	// client's do: `follow ... confirm` makes a follow and a collection change
+	// per account, and a burst of them is what an instance's spam limits
+	// watch for. A rate limit holds back the whole queue.
+	if method != http.MethodGet {
+		done, err := c.writes.Turn(ctx, c.WriteInterval)
+		if err != nil {
+			return 0, err
+		}
+		defer func() { done(httpretry.Hold(failure)) }()
 	}
 
 	response, err := c.HTTP.Do(request)

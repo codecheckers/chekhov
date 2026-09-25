@@ -384,6 +384,13 @@ usage - which the platform reads as a crash loop.
   rule that nothing the bot posts may look like a record is in one place; the
   follow-up record goes only on the finished body, because a record saying
   something is outstanding must not exist while the command is still deciding.
+- **One write at a time, three seconds apart.** Writes to GitHub and to
+  Mastodon each queue on the client's `httpretry.Pacer`, one client per
+  service per deployment, so every command of every editor shares the queue:
+  a burst of comments from a young account is what GitHub's spam detection
+  hid `@chekhovbot` for, after a live test. A rate limit holds the whole
+  queue; reads are not held up. Never build a second writing client - it
+  would bring a second queue. Tests set `WriteInterval` to 0.
 - Three guards, in this order: the repository is the configured target, the
   author is not the bot itself, the event is an opened issue or a created
   comment. Everything else is a 204 with a log line, never an error.

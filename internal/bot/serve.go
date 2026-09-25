@@ -40,6 +40,12 @@ func Serve(address string) error {
 	deployment := deploymentFor(settings)
 	// Only a development deployment signs its comments with what it is; see
 	// command.Deployment.
+	//
+	// One client, and everything that writes to GitHub goes through it -
+	// replies, the record, the teams, the nightly sweep - because the pace of
+	// writes is kept by the client: every command of every editor queues on
+	// the same httpretry.Pacer. A second client would bring a second queue,
+	// and two bursts are a burst. The same holds for Toots below.
 	replies := github.New(token, settings.TargetRepository(), deployment.Signature())
 	// The one organisation whose membership this deployment may change, and
 	// the teams within it it may add anybody to. The editors team is refused

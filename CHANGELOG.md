@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-09-25
+
+### Changed
+
+- The bot writes one thing at a time, to GitHub and to Mastodon each, and
+  three seconds after the last one finished: a reply, an edit, a label, a
+  title, a toot or a follow that comes sooner waits its turn in a queue that
+  every command of every editor shares, so a burst of commands no longer
+  produces a burst of writes. A rate limit told to one write holds back the
+  whole queue, a write whose command gives up leaves the queue unsent, and
+  reading is not held up (codecheckers/chekhov#52).
+
 ## [0.12.1] - 2026-09-25
 
 ### Changed
