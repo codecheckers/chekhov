@@ -391,7 +391,9 @@ usage - which the platform reads as a crash loop.
   path in a comment is not a target; only a `github::owner/repo` spec is. The
   command line preview turns it on, because there the path is the user's own.
 - `internal/github` is the only code that writes to GitHub, and it refuses any
-  repository but the configured one before making a request.
+  repository but the configured one before making a request - in each method,
+  and again in `do`; a new write endpoint has to be added to `guard.go` too,
+  on purpose.
 - `chekhov comment` renders its answer through the same `bot.Preview` the
   listener uses, so what you read on the command line is what would be posted.
 

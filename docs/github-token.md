@@ -17,6 +17,20 @@ production one" from a convention into something enforced.
 The cost is that a fine-grained token expires — one year at the most, there is
 no "never" — and that an organisation-owned one may need an owner's approval.
 
+The token is the outermost of four layers that keep the bot to its register,
+and the only one outside this repository's code:
+
+| Layer | Where | Refuses |
+|---|---|---|
+| The token | GitHub | a write to any repository it does not name |
+| The webhook | `bot.refuse` | a delivery from any repository but the configured one, before its command is read |
+| Each method | `github.Client.mine`, the team fence, the label lists | a call naming another repository, organisation, team or label |
+| The request guard | `github.Client.guard`, in `do` | any write that is not to an issue of the configured repository or the membership of a managed team, and any request at all to a host but the API's |
+
+The last one exists because the third holds only while every method remembers
+to call it: `guard` sits in the one function every request leaves through, so
+a method added later that builds its own URL is stopped there, not only here.
+
 ## Creating it
 
 Signed in as `chekhovbot`: Settings → Developer settings → Personal access

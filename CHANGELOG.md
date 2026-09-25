@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-09-25
+
+### Changed
+
+- Every request to GitHub passes one guard before it is sent, and again at
+  every hop of a redirect: a write that is not to an issue of the configured
+  repository or the membership of a managed team is refused, and so is any
+  request to a host but the API's, whichever method built it
+  (codecheckers/chekhov#52).
+
 ## [0.12.0] - 2026-09-25
 
 ### Added

@@ -107,8 +107,19 @@ func (p Policy) Do(ctx context.Context, what string, request func() error) error
 	return lastErr
 }
 
+// Refused is a request the caller would not send: nothing about it will be
+// different a second later, so it is not tried again.
+type Refused struct{ Err error }
+
+func (r *Refused) Error() string { return r.Err.Error() }
+func (r *Refused) Unwrap() error { return r.Err }
+
 // retryable says whether trying again could work.
 func (p Policy) retryable(ctx context.Context, err error) bool {
+	var refused *Refused
+	if errors.As(err, &refused) {
+		return false
+	}
 	var status *StatusError
 	if !errors.As(err, &status) {
 		// The caller's own context ending will not come back; a connection

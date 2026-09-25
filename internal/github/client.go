@@ -177,6 +177,10 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]
 	if err != nil {
 		return nil, err
 	}
+	// Before anything is set on it, the token least of all. See guard.go.
+	if err := c.guard(method, request.URL); err != nil {
+		return nil, err
+	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 	if payload != nil {
@@ -186,7 +190,7 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) ([]
 		request.Header.Set("Authorization", "Bearer "+c.Token)
 	}
 
-	response, err := c.HTTP.Do(request)
+	response, err := c.guarded().Do(request)
 	if err != nil {
 		return nil, err
 	}
