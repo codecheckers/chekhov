@@ -6,13 +6,16 @@ that a label the settings name is a label the register has. That is what a live
 test is for, and until one has been run a feature is implemented rather than
 done.
 
-**The bot account is blocked on GitHub**, so nothing here can be run — still
-blocked when last checked, **2026-09-28**. This file is the queue: every live
-test a merged change still owes, so that when the account is back the run is a
-checklist rather than an archaeology of the changelog.
+**The bot account was blocked on GitHub, and reads as unblocked** as of
+**2026-10-15**: its profile and its earlier replies are visible to an anonymous
+reader again. Only reads were checked; that a write is accepted is established
+by the first live test below. This file is the queue: every live test a merged
+change still owes, so that the run is a checklist rather than an archaeology of
+the changelog.
 
-Update the date above whenever the block is checked, so that "still blocked"
-stays a fact somebody established rather than an assumption carried forward.
+Update the date above whenever the account's state is checked, so that
+"unblocked" stays a fact somebody established rather than an assumption carried
+forward.
 
 ## How a live test is run
 
@@ -24,6 +27,11 @@ easiest to lose:
   the chekhov issue from it, and it from the closing comment.
 - **One command at a time, each reply read before the next.** The bot answers
   in a goroutine, so a burst of comments comes back out of order.
+
+**The bot is never the one who types.** The issue and every command are posted
+with `gh`, as the maintainer's own account (`gh issue create`, `gh issue
+comment`); `@chekhovbot` only answers. Its token is fenced to what a reply
+needs, and a test must not use it - or any other - to do the asking.
 
 A handle used in a test must be one nobody owns -
 `gh api users/<handle> --silent || echo "free to use"` - except `@nuest` and
