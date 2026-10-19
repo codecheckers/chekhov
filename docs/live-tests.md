@@ -119,8 +119,11 @@ show live beyond every other test still working. The queue has:
       finish`) still arrives and is rewritten, its edits paced like any write
       (`check links codecheckers/Piccolo-2020`: the notice, then the answer in
       the same comment)
-- [ ] reading is **not** held up behind the queue: `status` on another issue
-      answers promptly while a burst of writes is still going out
+- [x] reading is **not** held up behind the queue - proved offline for both
+      writing clients (`TestWritesArePacedAndQueued`,
+      `TestAReadIsNotHeldUpBehindTheWrites`), not live: a read never shows in
+      a thread, and its reply is a write that waits its turn by design, so a
+      burst and a `status` would measure nothing
 - [x] `/healthz` and the development footer report `0.12.2`
 
 ### #11 — `check metadata references`
@@ -137,7 +140,11 @@ hidden. Rerun it once the account is back, rather than count it as done.
 
 - [ ] `@chekhovbot assign @a-codechecker as codechecker` records the role,
       assigns the issue, and puts a member into the codecheckers team
-- [ ] somebody outside the organisation produces the `OutsideReply`, and a
+      (postponed: needs an account that is in the organisation but not yet in
+      the team)
+- [ ] (postponed: needs a real GitHub account outside the organisation, which
+      the maintainer does not want to create for a test) somebody outside the
+      organisation produces the `OutsideReply`, and a
       **development** deployment asks `teams.owners` rather than the
       organisation's real owners - the reply says which list it used
 - [x] a record edited by hand is refused, and `@chekhovbot accept record`
@@ -179,7 +186,9 @@ Merged as `42b5d33` (0.12.0). #12 closes once these have been answered.
 
 - [x] `@chekhovbot nudge` walks the open issues and reports what it found
       (198 open issues, nothing outstanding; testing-dev-register#222)
-- [ ] a follow-up the sweep has already answered is not answered twice
+- [ ] (postponed, with the item above: the only follow-up kind starts with an
+      outside invitation) a follow-up the sweep has already answered is not
+      answered twice
 - [x] `GET /nudges` reports the sweeps without naming anybody (21 nightly
       sweeps since 2026-09-23, the last 2026-10-15, no handle in the body)
 

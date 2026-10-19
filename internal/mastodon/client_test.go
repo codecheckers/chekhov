@@ -258,6 +258,43 @@ func TestLimitsAreRead(t *testing.T) {
 	}
 }
 
+// A write that is waiting out the interval holds up the next write, never a
+// read: the queue is for what leaves a mark on the instance, and a read changes
+// nothing. The GitHub client has the same test.
+func TestAReadIsNotHeldUpBehindTheWrites(t *testing.T) {
+	stub, client := newInstance(t)
+	stub.handle("POST /api/v1/statuses", answer(200, `{"id":"1","url":"https://example.social/@codecheck/1"}`))
+	stub.handle("GET /api/v2/instance", answer(200, `{"configuration":{"statuses":{"max_characters":500}}}`))
+	client.WriteInterval = time.Hour
+	ctx := context.Background()
+
+	if _, err := client.PostDirect(ctx, "first", ""); err != nil {
+		t.Fatal(err)
+	}
+	// The next write now waits an hour for its turn.
+	waiting := make(chan error, 1)
+	waitCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		_, err := client.PostDirect(waitCtx, "second", "")
+		waiting <- err
+	}()
+	time.Sleep(50 * time.Millisecond)
+
+	// A deadline, so that a read held in the queue fails here rather than
+	// waiting out the hour.
+	readCtx, stop := context.WithTimeout(ctx, time.Second)
+	defer stop()
+	if _, err := client.Limits(readCtx); err != nil {
+		t.Fatalf("a read behind a waiting write did not come back: %v", err)
+	}
+	if n := stub.count("POST /api/v1/statuses"); n != 1 {
+		t.Errorf("%d statuses were posted, want only the first", n)
+	}
+	cancel()
+	<-waiting
+}
+
 func TestResolveAccountSearchesWithResolve(t *testing.T) {
 	stub, client := newInstance(t)
 	stub.handle("GET /api/v2/search", answer(200, `{"accounts":[{"id":"9","acct":"alice@example.social"}]}`))
