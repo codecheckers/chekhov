@@ -61,13 +61,14 @@ not a tick:
 
 ### #59, #60 — what `check finish` says next
 
-Owed by 0.12.3.
+Run on testing-dev-register#224 against 0.12.3, 2026-10-19.
 
-- [ ] **A clean `check finish`** (`testdata/valid-2.0`) names the pull request
+- [x] **A clean `check finish`** (`testdata/valid-2.0`) names the pull request
       against `register.csv` in words, with no code block.
-- [ ] **A `check finish` on `testdata/placeholders`** says the check is waiting
+- [x] **A `check finish` on `testdata/placeholders`** says the check is waiting
       on metadata and `CC-CFG-023`, and says nothing about the register rules or
       the entry being ready.
+- [x] **`@chekhovbot register`** is answered "I do not know the command".
 
 ### #1, #2, #3 — `commands`, `hello`, the unknown-command hint
 
