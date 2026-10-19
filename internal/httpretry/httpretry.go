@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -107,24 +108,15 @@ func (p Policy) Do(ctx context.Context, what string, request func() error) error
 	return lastErr
 }
 
-// Refused is a request the caller would not send: nothing about it will be
-// different a second later, so it is not tried again.
-type Refused struct{ Err error }
-
-func (r *Refused) Error() string { return r.Err.Error() }
-func (r *Refused) Unwrap() error { return r.Err }
-
-// retryable says whether trying again could work.
+// retryable says whether trying again could work: a status that qualifies, or
+// a request lost on the wire. Any other error happened after the service
+// answered - an answer that cannot be decoded, say - and a resend would repeat
+// its effect, which for a comment is posting it twice.
 func (p Policy) retryable(ctx context.Context, err error) bool {
-	var refused *Refused
-	if errors.As(err, &refused) {
-		return false
-	}
 	var status *StatusError
 	if !errors.As(err, &status) {
-		// The caller's own context ending will not come back; a connection
-		// that failed may.
-		if ctx.Err() != nil {
+		// The caller's own context ending will not come back.
+		if ctx.Err() != nil || !transport(err) {
 			return false
 		}
 		return p.RetryTimeouts || !timedOut(err)
@@ -135,6 +127,26 @@ func (p Policy) retryable(ctx context.Context, err error) bool {
 		return false
 	}
 	return status.Status >= 500 || p.rateLimited(status)
+}
+
+// transport reports whether a request failed on the wire: what
+// http.Client.Do returns when the connection could not be made, was dropped, or
+// timed out. A caller that refuses a request itself - the guard, in a redirect
+// - must return its own error, not one http.Client wrapped in a *url.Error.
+func transport(err error) bool {
+	var failure *url.Error
+	return errors.As(err, &failure)
+}
+
+// BodyError is the error for a 2xx response whose body could not be read to
+// its end. A read is lost on the wire like any other and may be sent again; a
+// write may already have taken effect, and sending it again would do it twice,
+// so it is final.
+func BodyError(method, rawURL string, err error) error {
+	if method == http.MethodGet || method == http.MethodHead {
+		return &url.Error{Op: strings.ToUpper(method[:1]) + strings.ToLower(method[1:]), URL: rawURL, Err: err}
+	}
+	return fmt.Errorf("the answer to %s %s could not be read: %w", method, rawURL, err)
 }
 
 // timedOut reports whether a request failed for want of time: a client

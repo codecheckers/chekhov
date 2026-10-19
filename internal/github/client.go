@@ -211,14 +211,23 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) (_ 
 
 	response, err := c.guarded().Do(request)
 	if err != nil {
+		// The guard's refusal comes back wrapped in a *url.Error, which the
+		// retry reads as the network; it is not, and is not sent again.
+		var blocked *refusal
+		if errors.As(err, &blocked) {
+			return nil, blocked
+		}
 		return nil, err
 	}
 	defer response.Body.Close()
 
 	c.noteTokenExpiry(response)
-	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	raw, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, httpretry.FromResponse("GitHub", response, raw)
+	}
+	if readErr != nil {
+		return nil, httpretry.BodyError(method, request.URL.Redacted(), readErr)
 	}
 	return raw, nil
 }

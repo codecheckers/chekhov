@@ -131,6 +131,47 @@ func TestATransientFailureIsRetriedOnce(t *testing.T) {
 	}
 }
 
+// A read whose body is cut off by a dropped connection is a read lost on the
+// wire, and a read may be sent again; the write below must not be.
+func TestAReadCutOffMidBodyIsRetried(t *testing.T) {
+	requests := 0
+	client := stub(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		if requests == 1 {
+			w.Header().Set("Content-Length", "100")
+			_, _ = w.Write([]byte(`[{"id"`))
+			return // the server closes the connection with the body short
+		}
+		_, _ = w.Write([]byte(`[]`))
+	})
+
+	if _, err := client.Comments(context.Background(), client.Repository, 7); err != nil {
+		t.Fatalf("the read was not retried: %v", err)
+	}
+	if requests != 2 {
+		t.Errorf("%d requests, want 2", requests)
+	}
+}
+
+// GitHub answers 201 and the answer cannot be read: the comment is on the
+// issue, and sending the request again would put it there twice.
+func TestAnAnswerThatCannotBeReadIsNotSentAgain(t *testing.T) {
+	requests := 0
+	client := stub(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("<html>not json</html>"))
+	})
+
+	_, err := client.Comment(context.Background(), client.Repository, 7, "hello")
+	if err == nil || !strings.Contains(err.Error(), "could not be read") {
+		t.Fatalf("err = %v, want the unreadable answer reported", err)
+	}
+	if requests != 1 {
+		t.Errorf("%d requests, want exactly 1: the comment would be posted twice", requests)
+	}
+}
+
 // A refusal will be refused again: retrying it only delays the log line.
 func TestARefusalIsNotRetried(t *testing.T) {
 	attempts := 0

@@ -527,9 +527,12 @@ func (c *Client) do(ctx context.Context, method, path string, header http.Header
 	}
 	defer response.Body.Close()
 
-	raw, _ := io.ReadAll(io.LimitReader(response.Body, 4<<20))
+	raw, readErr := io.ReadAll(io.LimitReader(response.Body, 4<<20))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return response.StatusCode, httpretry.FromResponse("Mastodon", response, raw)
+	}
+	if readErr != nil {
+		return response.StatusCode, httpretry.BodyError(method, request.URL.Redacted(), readErr)
 	}
 	if into != nil && response.StatusCode != http.StatusPartialContent && len(raw) > 0 {
 		if err := json.Unmarshal(raw, into); err != nil {

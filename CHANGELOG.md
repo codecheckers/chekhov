@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-10-19
+
+### Fixed
+
+- A request is sent a second time only when it was lost on the way or the
+  service answered with a server error or a rate limit: a comment, a toot or a
+  collection that was created but whose answer could not be read is no longer
+  created again (codecheckers/chekhov#53).
+
 ## [0.12.3] - 2026-10-19
 
 ### Fixed

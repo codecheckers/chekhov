@@ -5,10 +5,13 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -38,7 +41,14 @@ func TestDoRetriesWhatMayPassAndNothingElse(t *testing.T) {
 		// refusal does not make the refusal a rate limit.
 		{"a 422 with the budget spent", &StatusError{Status: http.StatusUnprocessableEntity, RateLimited: true}, 1},
 		{"a validation error", &StatusError{Status: http.StatusUnprocessableEntity}, 1},
-		{"a dropped connection", errors.New("connection reset by peer"), 2},
+		{"a dropped connection", &url.Error{Op: "Post", URL: "https://x", Err: io.EOF}, 2},
+		{"a connection reset", &url.Error{Op: "Post", URL: "https://x",
+			Err: &net.OpError{Op: "read", Err: syscall.ECONNRESET}}, 2},
+		// The service answered and the client could not use the answer: the
+		// request went out, and sending it again does it twice.
+		{"an answer that could not be read", errors.New("the comment posted but the answer could not be read"), 1},
+		{"a stream reset that is not a net.Error", &url.Error{Op: "Get", URL: "https://x",
+			Err: errors.New("http2: server sent GOAWAY")}, 2},
 		{"a pause longer than a retry may wait", &StatusError{Status: http.StatusTooManyRequests, RetryAfter: time.Hour}, 1},
 		// A deadline, but not the caller's: it may pass, and only a client
 		// that would rather send twice tries it again.

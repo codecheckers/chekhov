@@ -102,6 +102,23 @@ func TestPostSendsTheStatusOnceWithItsKey(t *testing.T) {
 	}
 }
 
+// The instance created the collection and the answer cannot be read: a second
+// request would create a second collection on a public account.
+func TestAnAnswerThatCannotBeReadIsNotSentAgain(t *testing.T) {
+	instance, client := newInstance(t)
+	instance.handle("POST /api/v1/collections", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("<html>not json</html>"))
+	})
+
+	_, err := client.CreateCollection(context.Background(), "Codecheckers", "who check")
+	if err == nil || !strings.Contains(err.Error(), "could not be read") {
+		t.Fatalf("err = %v, want the unreadable answer reported", err)
+	}
+	if n := instance.count("POST /api/v1/collections"); n != 1 {
+		t.Errorf("%d requests, want exactly 1", n)
+	}
+}
+
 // A development deployment must never post in public, whatever a caller asks.
 func TestAnotherVisibilityIsRefusedBeforeAnyRequest(t *testing.T) {
 	stub, client := newInstance(t)

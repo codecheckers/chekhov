@@ -6,8 +6,6 @@ import (
 	"net/url"
 	"slices"
 	"strings"
-
-	"github.com/codecheckers/chekhov/internal/httpretry"
 )
 
 // The last fence, in do: every request this package makes passes it.
@@ -91,6 +89,13 @@ func (c *Client) guarded() *http.Client {
 	return &client
 }
 
+// refusal is a request the guard would not let leave. A type of its own because
+// it has to be told from a failure of the network once http.Client has wrapped
+// it: see do.
+type refusal struct{ error }
+
+func (r *refusal) Unwrap() error { return r.error }
+
 func refused(format string, args ...any) error {
-	return &httpretry.Refused{Err: fmt.Errorf(format, args...)}
+	return &refusal{fmt.Errorf(format, args...)}
 }
