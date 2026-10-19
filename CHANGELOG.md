@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-10-19
+
+### Fixed
+
+- `check finish` no longer tells the codechecker to type `@chekhovbot register`,
+  which is not a command yet: it names the pull request against `register.csv`
+  in words (codecheckers/chekhov#59).
+- `check finish` on a check waiting on metadata no longer says the entry is
+  "ready to be opened" above the line saying it is not finished; the register
+  rules' line now names them (`CC-REG`) and is left out while metadata is
+  pending (codecheckers/chekhov#60).
+
 ## [0.12.2] - 2026-09-25
 
 ### Changed

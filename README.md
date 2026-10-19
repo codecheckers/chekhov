@@ -18,7 +18,6 @@ goes on the first line of the comment, one command per comment.**
 @chekhovbot check codecheck.yml
 @chekhovbot check start
 @chekhovbot status
-@chekhovbot register
 ```
 
 Tracking issue: <https://github.com/codecheckers/register/issues/209>

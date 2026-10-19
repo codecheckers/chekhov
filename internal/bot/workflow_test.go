@@ -202,6 +202,9 @@ func TestCheckFinishHoldsAPlaceholderCheckPending(t *testing.T) {
 	if !strings.Contains(reply, "CC-CFG-023") {
 		t.Errorf("the reply does not name the rule that held it back:\n%s", reply)
 	}
+	if strings.Contains(reply, "CC-REG") || strings.Contains(reply, "ready to be opened") {
+		t.Errorf("a check waiting on metadata says anything about the entry being ready:\n%s", reply)
+	}
 }
 
 // A clean configuration clears the workflow labels and nothing else, and the
@@ -219,7 +222,7 @@ func TestCheckFinishClearsACleanCheck(t *testing.T) {
 			t.Errorf("%q was taken off; only the workflow labels are the bot's", kept)
 		}
 	}
-	if !strings.Contains(reply, command.Bot+" register") {
+	if !strings.Contains(reply, "register.csv") {
 		t.Errorf("the reply does not point at the next step:\n%s", reply)
 	}
 }

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -172,13 +173,41 @@ func TestFinishedSaysWhyItIsStillPending(t *testing.T) {
 			t.Errorf("the reply does not say %q:\n%s", say, pending)
 		}
 	}
-	if strings.Contains(pending, Bot+" register") {
+	if strings.Contains(pending, "register.csv") {
 		t.Errorf("a check waiting on metadata is pointed at the register entry:\n%s", pending)
 	}
 
 	done := FinishedBody(false, "")
-	if !strings.Contains(done, Bot+" register") {
+	if !strings.Contains(done, "register.csv") {
 		t.Errorf("a finished check is not pointed at the next step:\n%s", done)
+	}
+}
+
+// The register rules' line names them, so that it is not read as the verdict
+// on the configuration's.
+func TestRegisterFindingsNameTheirRules(t *testing.T) {
+	if got := RegisterFindings(nil); !strings.Contains(got, "CC-REG") || strings.Contains(got, "ready") {
+		t.Errorf("the passing line must name CC-REG and not promise readiness:\n%s", got)
+	}
+}
+
+// A reply that tells somebody to type a command must tell them one the bot
+// answers: `check finish` once pointed at `register`, which did not exist yet.
+func TestRepliesNameOnlyCommandsThatExist(t *testing.T) {
+	typed := regexp.MustCompile(regexp.QuoteMeta(Bot) + " [^`\n]*")
+	// Extend the list when a reply that names a command is added.
+	bodies := []string{
+		FinishedBody(true, "CC-CFG-023"), FinishedBody(false, ""),
+		RegisterFindings(nil), RegisterFindings([]string{"CC-REG-001"}),
+		Checklist(), ReadingReply("github::codecheckers/demo"),
+	}
+	for _, body := range bodies {
+		for _, line := range typed.FindAllString(body, -1) {
+			parsed, _ := Parse(line)
+			if parsed.Name == Unknown {
+				t.Errorf("a reply tells somebody to type %q, which is not a command:\n%s", line, body)
+			}
+		}
 	}
 }
 

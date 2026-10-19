@@ -129,32 +129,39 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 	// the staging buys this command, the slowest of the three, nothing.
 	var report check.Report
 	var reportErr error
+	// What the placeholder rule decided, read once: the register stage and the
+	// labels stage must agree on it, or #60 comes back.
+	var pending, decided bool
 	stages := []stage{
 		fixed(command.ReadingReply(target)),
 		{Name: "the rules", Run: func(context.Context) string {
 			report, reportErr = s.reportOn(target, "", services)
+			pending, decided = placeholdersLeft(report)
 			return command.CheckSummary(summarised("", target, report, reportErr))
 		}},
-		// What has to be true before `register` opens the pull request, said
-		// on its own because that is the next step. The rules ran with the
-		// rest of the catalogue a moment ago, so this reads the results in
-		// hand rather than asking again: "narrow before running" is the rule
-		// when the wide run has not happened, and here it has and has paid
-		// for it.
+		// What has to be true of the register entry, said on its own because
+		// it is the next step. It reads the results in hand rather than
+		// asking again: the wide run has happened and has paid for itself.
 		fixed2(func() string {
 			if reportErr != nil || report.Refused != nil {
 				// The rules did not run, so they did not pass: saying the
 				// entry is ready would be the one sentence somebody acts on.
 				return ""
 			}
-			return command.RegisterFindings(registerFailures(report))
+			findings := registerFailures(report)
+			if pending && len(findings) == 0 {
+				// Waiting on metadata: a passing line would sit above "not
+				// finished", and a failure is still news the codechecker
+				// would otherwise meet for the first time after the DOIs.
+				return ""
+			}
+			return command.RegisterFindings(findings)
 		}),
 		{Name: "the labels", Run: func(context.Context) string {
 			if reportErr != nil || report.Refused != nil {
 				return "… I could not read the configuration, so I have moved no label: " +
 					"a rule that could not be asked is not a rule that passed.\n"
 			}
-			pending, decided := placeholdersLeft(report)
 			if !decided {
 				return fmt.Sprintf("… `%s` could not be checked, so I have moved no label. "+
 					"Run `%s check config %s` to see why.\n",

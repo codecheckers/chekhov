@@ -52,13 +52,22 @@ not a tick:
   it holds an identifier the register knows, which `set certificate` refuses
   to hand out; the step was run by editing the record's header and adopting it.
 - A clean `check finish` tells the codechecker to run `@chekhovbot register`,
-  which is not a command yet; `RegisterFindings` and the reply name it ahead of
-  its time.
+  which is not a command yet (#59, fixed in 0.12.3; see the live test below).
 - The placeholders `check finish` says "the register rules pass, so the entry
-  is ready to be opened" and, below it, that the check is not finished: true of
-  two different sets of rules, but it reads as a contradiction.
+  is ready to be opened" and, below it, that the check is not finished (#60,
+  fixed in 0.12.3; see the live test below).
 - `assign` on a check whose codechecker belongs to an institution warns that the
   `institution` label is missing, on every reply from then on.
+
+### #59, #60 — what `check finish` says next
+
+Owed by 0.12.3.
+
+- [ ] **A clean `check finish`** (`testdata/valid-2.0`) names the pull request
+      against `register.csv` in words, with no code block.
+- [ ] **A `check finish` on `testdata/placeholders`** says the check is waiting
+      on metadata and `CC-CFG-023`, and says nothing about the register rules or
+      the entry being ready.
 
 ### #1, #2, #3 — `commands`, `hello`, the unknown-command hint
 

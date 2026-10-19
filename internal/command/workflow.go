@@ -242,12 +242,16 @@ func ReadingReply(target string) string {
 	return fmt.Sprintf("Running the rules against %s.\n", Code(target))
 }
 
-// RegisterFindings is what has to be true before `register` opens the pull
-// request: the register rules' findings out of the report that has just run,
-// and silence when there are none to report.
+// RegisterFindings is what has to be true of the register entry before the
+// pull request adding it is opened: the register rules' findings out of the
+// report that has just run.
+//
+// The passing line names `CC-REG` so it is not read as a verdict on the
+// `CC-CFG` rules, and does not claim the entry is ready: this does not know
+// whether the check is finished.
 func RegisterFindings(findings []string) string {
 	if len(findings) == 0 {
-		return "✔ The register rules pass, so the entry is ready to be opened.\n"
+		return "✔ The register rules (`CC-REG`) pass.\n"
 	}
 	var out strings.Builder
 	out.WriteString("The register entry needs attention first:\n")
@@ -377,10 +381,13 @@ func (o Outstanding) Line() string {
 // FinishedBody is what `check finish` says once the labels have moved: what
 // the rules decided, and what happens next.
 //
-// The next step is `register`, and it is named because the thread is where
-// somebody finds out what to do and the register pull request is what closes
-// the issue. Closing it is deliberately not a command here: the merged pull
-// request does that, with `closes #N`.
+// The next step is the register entry, and it is named because the thread is
+// where somebody finds out what to do and the register pull request is what
+// closes the issue. Closing it is deliberately not a command here: the merged
+// pull request does that, with `closes #N`.
+//
+// It is named in words because there is no `register` command yet (#21);
+// TestRepliesNameOnlyCommandsThatExist keeps it that way.
 func FinishedBody(pending bool, ruleNote string) string {
 	var out strings.Builder
 	if pending {
@@ -392,7 +399,7 @@ func FinishedBody(pending bool, ruleNote string) string {
 		out.WriteString("\nRun me again once the DOIs are real.\n")
 		return out.String()
 	}
-	fmt.Fprintf(&out, "✔ Nothing is left pending. The next step is the register entry:\n\n"+
-		"```\n%s register\n```\n", Bot)
+	out.WriteString("✔ Nothing is left pending. The next step is the register entry: " +
+		"a pull request adding the certificate to `register.csv`.\n")
 	return out.String()
 }
