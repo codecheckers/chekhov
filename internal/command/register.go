@@ -50,7 +50,9 @@ func RowTable(row Row) string {
 		if field.Value != "" {
 			value, from = Code(field.Value), field.From
 		}
-		fmt.Fprintf(&table, "| %s | %s | %s |\n", rowColumns[i], value, from)
+		// A repository with a sub-directory is written with a pipe, which
+		// would end the cell, code span or not.
+		fmt.Fprintf(&table, "| %s | %s | %s |\n", rowColumns[i], escapePipes(value), escapePipes(from))
 	}
 	return table.String()
 }
@@ -70,7 +72,7 @@ func RowIncomplete(row Row) string {
 // certificate is not the one the configuration carries: the register would
 // name one identifier and point at a `codecheck.yml` that says another.
 func CertificateMismatch(configured, reserved string) string {
-	return fmt.Sprintf("… The `codecheck.yml` says certificate %s, and this check reserved %s, "+
+	return fmt.Sprintf("\n… The `codecheck.yml` says certificate %s, and this check reserved %s, "+
 		"so I have not run the register rules: put the reserved identifier in the configuration, "+
 		"or `%s set certificate` the one it carries.\n",
 		certificateOrNone(configured), Code(reserved), Bot)

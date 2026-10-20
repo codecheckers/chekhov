@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-20
+
+### Fixed
+
+- The register row in `check register` keeps a repository with a sub-directory,
+  written with `|`, in one table cell (#21).
+- `CC-REG-008` quotes each label, so `'id assigned', 'journal'` reads as two
+  labels, and says what the row wants as `the row (journal, GigaScience) wants
+  'journal' and 'GigaScience'` (#21).
+- The refusal to run the register rules for a configuration that carries
+  another certificate is its own paragraph, not the end of the list above it
+  (#21).
+
 ## [0.14.0] - 2026-10-20
 
 ### Added

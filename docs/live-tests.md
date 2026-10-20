@@ -61,31 +61,37 @@ not a tick:
 
 ### #21 — `check register`, `set repository`, `set venue`
 
-Not run yet. Against 0.14.0, on a new testing-register issue named for #21
-whose body's Repository line names
+Run on testing-dev-register#225 against 0.14.0, 2026-10-20: every command
+answered as below. Three things rendered badly and are fixed in 0.14.1 - the
+row table split a repository written with `|`, `CC-REG-008` ran the labels and
+the row together, and the refusal to run the register rules was glued to the
+list above it - so the first two items are to be looked at again once 0.14.1 is
+deployed. A new testing-register issue named for #21, whose body's Repository line names
 `github::codecheckers/testing-dev-register|testdata/register-row` (a bundle
 carrying certificate `1970-021`) and whose labels are `journal` and
 `FAKE eLife`.
 
-- [ ] **`@chekhovbot set certificate 1970-021`** reserves it.
-- [ ] **`@chekhovbot check register`** shows the row - the certificate from
+- [x] **`@chekhovbot set certificate 1970-021`** reserves it.
+- [x] **`@chekhovbot check register`** shows the row - the certificate from
       the record, the repository from the Repository line, `journal` and
       `FAKE eLife` from the labels, each with where it came from - then the
       configuration and register rules with nothing to report, and no label
       moved.
-- [ ] **`@chekhovbot set venue journal FAKE PeerJ Computer Science`** records
+- [x] **`@chekhovbot set venue journal FAKE PeerJ Computer Science`** records
       both, and the record comment shows `**Register row**`; `check register`
       then names them as from the record and warns `CC-REG-008`, which wants
       `journal and FAKE PeerJ Computer Science`.
-- [ ] **`@chekhovbot set repository github::codecheckers/testing-dev-register|testdata/no-version`**,
+- [x] **`@chekhovbot set repository github::codecheckers/testing-dev-register|testdata/no-version`**,
       whose `codecheck.yml` carries `1970-001`: `check register` runs the
       configuration rules and refuses the register rules, naming both
       identifiers.
-- [ ] **`@chekhovbot check register please`** reads no venue out of prose, and
+- [x] **`@chekhovbot check register please`** reads no venue out of prose, and
       **`@chekhovbot check register 1970-004`** points at `check certificate`.
-- [ ] **`@chekhovbot check certificate github::codecheckers/testing-dev-register|testdata/no-version`**
+- [x] **`@chekhovbot check certificate github::codecheckers/testing-dev-register|testdata/no-version`**
       runs the register rules on row `1970-001`.
-- [ ] **`@chekhovbot set`** offers the three `set` commands to an editor.
+- [x] **`@chekhovbot set`** offers the three `set` commands to an editor.
+- [ ] Against 0.14.1: the row table shows the repository in one cell, and a
+      `CC-REG-008` warning quotes each label.
 
 ### register#232, #57 — the labels of the checks issue, the files of the deposit
 

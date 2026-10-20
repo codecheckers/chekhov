@@ -198,16 +198,27 @@ func issueLabelsMatchRow(c Context) Result {
 		matches = matches && slices.Equal(register.venues.named(labels), []string{v.Name})
 	}
 
+	// Each label quoted, as CC-REG-007 quotes a title: a label is a phrase,
+	// and `id assigned, journal, FAKE eLife` does not say where one ends.
 	has := "no labels"
 	if len(labels) > 0 {
-		has = strings.Join(labels, ", ")
+		has = quotedList(labels, ", ")
 	}
 	if matches {
 		return pass(fmt.Sprintf("issue #%d is labelled %s", issue.Number, has))
 	}
 	row := strings.Join(slices.DeleteFunc([]string{entry.Type, entry.Venue}, func(s string) bool { return s == "" }), ", ")
-	return fail(fmt.Sprintf("issue #%d is labelled %s, where %s wants %s", issue.Number, has,
-		row, strings.Join(register.venues.labelsFor(entry.Type, entry.Venue), " and ")))
+	return fail(fmt.Sprintf("issue #%d is labelled %s; the row (%s) wants %s", issue.Number, has,
+		row, quotedList(register.venues.labelsFor(entry.Type, entry.Venue), " and ")))
+}
+
+// quotedList is each value in single quotes, joined.
+func quotedList(values []string, separator string) string {
+	quoted := make([]string, len(values))
+	for i, value := range values {
+		quoted[i] = "'" + value + "'"
+	}
+	return strings.Join(quoted, separator)
 }
 
 // issueFor reads the checks issue named in the register entry. Only an issue
