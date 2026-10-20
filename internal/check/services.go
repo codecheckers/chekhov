@@ -465,7 +465,8 @@ func (r resolution) verdict(failing string, lines []int, passing string) Result 
 
 // --- register.csv and venues.csv -------------------------------------------
 
-type registerEntry struct {
+// A RegisterRow is one row of register.csv.
+type RegisterRow struct {
 	Certificate string
 	Repository  string
 	Type        string
@@ -474,7 +475,7 @@ type registerEntry struct {
 }
 
 type registerData struct {
-	entries []registerEntry
+	entries []RegisterRow
 	venues  venues
 }
 
@@ -497,7 +498,7 @@ func (s *Services) registerCSV() (*registerData, error) {
 				}
 				return row[key]
 			}
-			data.entries = append(data.entries, registerEntry{
+			data.entries = append(data.entries, RegisterRow{
 				Certificate: cell("Certificate"),
 				Repository:  cell("Repository"),
 				Type:        cell("Type"),
@@ -585,11 +586,11 @@ func (s *Services) CSVs(urls ...string) []Table {
 }
 
 // entryFor finds the register row of one certificate.
-func (d *registerData) entryFor(certificate string) (registerEntry, bool) {
+func (d *registerData) entryFor(certificate string) (RegisterRow, bool) {
 	for _, entry := range d.entries {
 		if entry.Certificate == certificate {
 			return entry, true
 		}
 	}
-	return registerEntry{}, false
+	return RegisterRow{}, false
 }

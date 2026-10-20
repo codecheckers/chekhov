@@ -32,6 +32,15 @@ func certificateUnique(c Context) Result {
 			occurrences++
 		}
 	}
+	// A row not in register.csv yet is the one more it would add: a
+	// certificate already there is taken.
+	if c.Row != nil {
+		if occurrences > 0 {
+			return fail(fmt.Sprintf("%s is already in register.csv", certificate)).
+				at(c.Config.Line("certificate"))
+		}
+		return pass(fmt.Sprintf("%s is not in register.csv yet", certificate))
+	}
 	if occurrences > 1 {
 		return fail(fmt.Sprintf("%s appears %d times in register.csv", certificate, occurrences)).
 			at(c.Config.Line("certificate"))
@@ -97,7 +106,7 @@ func typeKnown(c Context) Result {
 	if result != nil {
 		return *result
 	}
-	if isVenueType(entry.Type) {
+	if IsVenueType(entry.Type) {
 		return pass(entry.Type)
 	}
 	return fail(fmt.Sprintf("'%s' is not one of %s", entry.Type,
@@ -245,25 +254,34 @@ func registerFor(c Context, rule string) (*registerData, *Result) {
 	return register, nil
 }
 
-// registerEntryFor finds this certificate's row. A certificate that is not in
-// the register yet is the normal case while a check is under way, and its row
-// cannot be judged before it exists. The register comes back with the row,
+// registerEntryFor finds this certificate's row: the one the context carries
+// when the row is not in register.csv yet, or else the register's. A
+// certificate that is in neither is the normal case while a check is under
+// way, and there is no row to judge. The register comes back with the row,
 // for the rules that compare the row with the rest of it.
-func registerEntryFor(c Context, rule string) (*registerData, registerEntry, *Result) {
+func registerEntryFor(c Context, rule string) (*registerData, RegisterRow, *Result) {
 	certificate := strings.TrimSpace(c.Config.Certificate)
 	if certificate == "" {
 		result := skip("no certificate identifier to look up")
-		return nil, registerEntry{}, &result
+		return nil, RegisterRow{}, &result
 	}
 	register, result := registerFor(c, rule)
 	if result != nil {
-		return nil, registerEntry{}, result
+		return nil, RegisterRow{}, result
+	}
+	if c.Row != nil {
+		if c.Row.Certificate != certificate {
+			skipped := skip(fmt.Sprintf("the row is for %s, and the configuration says %s",
+				c.Row.Certificate, certificate))
+			return nil, RegisterRow{}, &skipped
+		}
+		return register, *c.Row, nil
 	}
 
 	entry, found := register.entryFor(certificate)
 	if !found {
 		skipped := skip(fmt.Sprintf("%s is not in register.csv yet", certificate))
-		return nil, registerEntry{}, &skipped
+		return nil, RegisterRow{}, &skipped
 	}
 	return register, entry, nil
 }

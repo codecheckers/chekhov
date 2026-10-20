@@ -43,7 +43,12 @@ next, and `@chekhovbot set certificate` reserves it for the check.
 `@chekhovbot check start`, `@chekhovbot status` and `@chekhovbot check finish`
 say where a check stands and move the register's labels with it, running the
 checks that already exist rather than repeating them: because those take time,
-the reply is posted at once and rewritten in place as each answers. It runs
+the reply is posted at once and rewritten in place as each answers.
+`@chekhovbot check register` builds the row the check would get in
+`register.csv` - from the issue's Repository line and labels, or what an editor
+set with `set repository` and `set venue` - and runs the rules on it before
+anything is written; `@chekhovbot check certificate <certificate>` runs them on
+a row already there. It runs
 against
 [`codecheckers/testing-dev-register`](https://github.com/codecheckers/testing-dev-register)
 only; the production register is not configured anywhere. See

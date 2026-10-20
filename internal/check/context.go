@@ -134,6 +134,12 @@ type Context struct {
 	// RepositorySpec is set when the configuration was fetched from a
 	// repository rather than read from disk, see source.go.
 	RepositorySpec RepositorySpec
+
+	// Row is the register row this configuration is to be registered with,
+	// when it is not in register.csv yet: the register rules judge it in
+	// place of looking the certificate up, so a row can be judged before the
+	// pull request that adds it (#21). Nil for a row that is already there.
+	Row *RegisterRow
 }
 
 // WithServices returns the context with the outside world attached.

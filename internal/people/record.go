@@ -76,6 +76,13 @@ type Record struct {
 	// and the `id assigned` label repeat it where people and the launch-pad
 	// look, and anybody can edit those.
 	Certificate string `json:"certificate,omitempty"`
+	// Repository, Type and Venue are the rest of the register row, as an
+	// editor set them with `set repository` and `set venue`. Empty means
+	// whatever the issue says when the row is built: its Repository line and
+	// its labels (#21).
+	Repository string `json:"repository,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Venue      string `json:"venue,omitempty"`
 }
 
 // RolesOf is what one person is on this check.
@@ -110,6 +117,9 @@ func (r Record) Holders() command.Holders {
 		AssignedCodechecker: r.AssignedCodechecker,
 		Authors:             append([]string(nil), r.Authors...),
 		Certificate:         r.Certificate,
+		Repository:          r.Repository,
+		Type:                r.Type,
+		Venue:               r.Venue,
 	}
 }
 

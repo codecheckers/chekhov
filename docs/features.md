@@ -46,9 +46,10 @@ for completeness of the conversational set.
 |---|---|---|
 | `@chekhovbot register` | Open a PR adding the row to `register.csv` | MVP |
 | `@chekhovbot set certificate [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the record of the check, the title, the `id assigned` label (#20) | done |
-| `@chekhovbot set venue <name>` / `set type <type>` | Record register metadata on the issue | high |
-| `@chekhovbot set repository <url>` | Record the code repository under check | high |
-| `@chekhovbot check register` | Validate the row against `register.csv` rules before the PR | high |
+| `@chekhovbot set venue [<type>] <venue>` | Record the row's Type and Venue in the record of the check, where the labels do not say (#21) | done |
+| `@chekhovbot set repository <repository>` | Record the repository the row names, where the issue's Repository line does not (#21) | done |
+| `@chekhovbot check register [<repository>] [<type>] [<venue>]` | Build the row from the issue and the record, and run the rules on it before the PR (#21) | done |
+| `@chekhovbot check certificate <certificate>` | The register rules against a row already in `register.csv` (was `check register <certificate>`) | done |
 | `@chekhovbot next certificate` | Suggest the next free certificate id for the year, from `register.csv` and every issue labelled `id assigned` (#20) | done |
 | `@chekhovbot show entry <id>` | Print an existing register entry | low |
 

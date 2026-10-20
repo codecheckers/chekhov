@@ -100,7 +100,7 @@ func TestNextCertificateReadsTheRegisterAndTheIssues(t *testing.T) {
 func TestSetCertificateRecordsTitlesAndLabels(t *testing.T) {
 	server, register, _ := registered(t)
 
-	reply := answer(t, server, command.Set, []string{"certificate"}, "")
+	reply := answer(t, server, command.Set, nil, "")
 	if !strings.Contains(reply, "`"+year(7)+"` is now the certificate identifier") {
 		t.Fatalf("the next identifier was not set:\n%s", reply)
 	}
@@ -120,7 +120,7 @@ func TestSetCertificateRecordsTitlesAndLabels(t *testing.T) {
 	}
 
 	// Asking again changes nothing, and says so.
-	reply = answer(t, server, command.Set, []string{"certificate", year(7)}, "")
+	reply = answer(t, server, command.Set, []string{year(7)}, "")
 	if !strings.Contains(reply, "is already the certificate identifier") || strings.Contains(reply, "— set by") {
 		t.Errorf("a repeat was not answered as one:\n%s", reply)
 	}
@@ -131,9 +131,9 @@ func TestSetCertificateRecordsTitlesAndLabels(t *testing.T) {
 
 func TestChangingTheCertificateSaysWhatItWas(t *testing.T) {
 	server, register, _ := registered(t)
-	answer(t, server, command.Set, []string{"certificate", year(7)}, "")
+	answer(t, server, command.Set, []string{year(7)}, "")
 
-	reply := answer(t, server, command.Set, []string{"certificate", year(8)}, "")
+	reply := answer(t, server, command.Set, []string{year(8)}, "")
 	if !strings.Contains(reply, "Replaces `"+year(7)+"`") {
 		t.Errorf("the change does not say what it replaced:\n%s", reply)
 	}
@@ -149,7 +149,7 @@ func TestChangingAHandSetCertificateSaysWhatItWas(t *testing.T) {
 	register.issues[0].Title = "Baetzel | " + year(4)
 	register.issues[0].Labels = []string{"id assigned"}
 
-	reply := answer(t, server, command.Set, []string{"certificate", year(7)}, "")
+	reply := answer(t, server, command.Set, []string{year(7)}, "")
 	if !strings.Contains(reply, "Replaces `"+year(4)+"`") {
 		t.Errorf("the hand-set identifier is not named:\n%s", reply)
 	}
@@ -165,7 +165,7 @@ func TestSetCertificateRefusesATakenIdentifier(t *testing.T) {
 		year(2): "`" + year(2) + "` is taken: it is in `register.csv`.",
 		year(6): "`" + year(6) + "` is taken: it is on #11.",
 	} {
-		reply := answer(t, server, command.Set, []string{"certificate", id}, "")
+		reply := answer(t, server, command.Set, []string{id}, "")
 		if !strings.Contains(reply, want) || !strings.Contains(reply, "CC-REG-001") ||
 			!strings.Contains(reply, "does not already exist in register.csv") {
 			t.Errorf("%s was not refused with the rule:\n%s", id, reply)
@@ -180,7 +180,7 @@ func TestSetCertificateAsksBeforeAJump(t *testing.T) {
 	server, register, _ := registered(t)
 	id := year(16)
 
-	reply := answer(t, server, command.Set, []string{"certificate", id}, "")
+	reply := answer(t, server, command.Set, []string{id}, "")
 	for _, want := range []string{
 		"is 10 past the year's previous identifier, `" + year(6) + "`, on #11",
 		"CC-REG-002",
@@ -194,7 +194,7 @@ func TestSetCertificateAsksBeforeAJump(t *testing.T) {
 		t.Fatalf("a refused jump retitled the issue: %v", register.titled)
 	}
 
-	reply = answer(t, server, command.Set, []string{"certificate", id, "anyway"}, "")
+	reply = answer(t, server, command.Set, []string{id, "anyway"}, "")
 	if !strings.Contains(reply, "is now the certificate identifier") ||
 		!strings.Contains(reply, "Confirmed with `anyway`") {
 		t.Errorf("a confirmed jump was not set, or not said to be one:\n%s", reply)
@@ -206,7 +206,7 @@ func TestSetCertificateIsForEditors(t *testing.T) {
 
 	reply := server.answer(context.Background(), mention{
 		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker",
-	}, command.Command{Name: command.Set, Args: []string{"certificate"}}).body
+	}, command.Command{Name: command.Set}).body
 	if !strings.Contains(reply, "is for") || len(register.titled) != 0 {
 		t.Errorf("a codechecker set an identifier:\n%s", reply)
 	}
@@ -214,7 +214,7 @@ func TestSetCertificateIsForEditors(t *testing.T) {
 
 func TestSetCertificateRefusesArgumentsItDoesNotKnow(t *testing.T) {
 	server, _, _ := registered(t)
-	for _, args := range [][]string{{"venue"}, {"certificate", "26-1"}, {"certificate", year(7), year(8)}} {
+	for _, args := range [][]string{{"venue"}, {"26-1"}, {year(7), year(8)}} {
 		if reply := answer(t, server, command.Set, args, ""); !strings.Contains(reply, "Usage") {
 			t.Errorf("%v was not refused:\n%s", args, reply)
 		}
@@ -227,8 +227,8 @@ func TestTheCertificateCommandsRefuseWithoutTheRegister(t *testing.T) {
 	server, register, stub := registered(t)
 	stub.Status("/raw/"+server.Settings.TargetRepository()+"/HEAD/register.csv", http.StatusNotFound)
 
-	for _, name := range []command.Name{command.Next, command.Set} {
-		reply := answer(t, server, name, []string{"certificate"}, "")
+	for name, args := range map[command.Name][]string{command.Next: {"certificate"}, command.Set: nil} {
+		reply := answer(t, server, name, args, "")
 		if !strings.Contains(reply, "could not read `register.csv`") {
 			t.Errorf("%s did not refuse:\n%s", name, reply)
 		}
@@ -248,7 +248,7 @@ func TestTheCertificateCommandsRefuseWithoutTheRegister(t *testing.T) {
 // the other.
 func TestTheCertificateAndTheRolesKeepEachOther(t *testing.T) {
 	server, _, _ := registered(t)
-	answer(t, server, command.Set, []string{"certificate"}, "")
+	answer(t, server, command.Set, nil, "")
 	answer(t, server, command.Assign, []string{"a-codechecker", "as", "codechecker"}, "")
 
 	reading, err := server.Checks.Read(context.Background(), server.Settings.TargetRepository(), 1)
@@ -268,7 +268,7 @@ func TestSetCertificateWithoutAnIdentifierKeepsTheOneHeld(t *testing.T) {
 	register.issues[0].Title = "Baetzel | " + year(4)
 	register.issues[0].Labels = []string{"id assigned"}
 
-	reply := answer(t, server, command.Set, []string{"certificate"}, "")
+	reply := answer(t, server, command.Set, nil, "")
 	if !strings.Contains(reply, "`"+year(4)+"` is now the certificate identifier") ||
 		strings.Contains(reply, "Replaces") {
 		t.Fatalf("the hand-set identifier was not kept:\n%s", reply)
@@ -276,7 +276,7 @@ func TestSetCertificateWithoutAnIdentifierKeepsTheOneHeld(t *testing.T) {
 
 	// Somebody removes the label; the record holds the identifier now.
 	register.issues[0].Labels = nil
-	reply = answer(t, server, command.Set, []string{"certificate"}, "")
+	reply = answer(t, server, command.Set, nil, "")
 	if !strings.Contains(reply, "`"+year(4)+"` is already the certificate identifier") ||
 		!strings.Contains(reply, "Label `id assigned` added") {
 		t.Errorf("the label was not put back on the identifier held:\n%s", reply)
@@ -296,7 +296,7 @@ func TestTwoReservationsAtOnceGetTwoNumbers(t *testing.T) {
 			defer wg.Done()
 			server.answer(context.Background(), mention{
 				Repository: server.Settings.TargetRepository(), Issue: issue, Author: "nuest",
-			}, command.Command{Name: command.Set, Args: []string{"certificate"}})
+			}, command.Command{Name: command.Set})
 		}()
 	}
 	wg.Wait()
@@ -352,11 +352,11 @@ func (c *threads) Edit(_ context.Context, _ string, comment int64, body string) 
 // a certificate identifier through.
 func TestAnEditedRecordStopsSetCertificate(t *testing.T) {
 	server, register, _ := registered(t)
-	answer(t, server, command.Set, []string{"certificate", year(7)}, "")
+	answer(t, server, command.Set, []string{year(7)}, "")
 	comments := server.Checks.Comments.(*issueComments)
 	comments.comments[0].Body = strings.Replace(comments.comments[0].Body, year(7), year(4), 1)
 
-	reply := answer(t, server, command.Set, []string{"certificate", year(8)}, "")
+	reply := answer(t, server, command.Set, []string{year(8)}, "")
 	for _, want := range []string{"record of this check was edited", "certificate identifier", "accept record"} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the refusal does not say %q:\n%s", want, reply)
@@ -378,7 +378,7 @@ func TestThePreviewReadsTheClaimsAndWritesNothing(t *testing.T) {
 		"The next certificate identifier is `"+year(7)+"`") {
 		t.Errorf("the preview did not answer next certificate:\n%s", reply)
 	}
-	if reply := answer(t, server, command.Set, []string{"certificate"}, ""); !strings.Contains(reply,
+	if reply := answer(t, server, command.Set, nil, ""); !strings.Contains(reply,
 		"I cannot change an issue from here") {
 		t.Errorf("the preview did not refuse to reserve:\n%s", reply)
 	}

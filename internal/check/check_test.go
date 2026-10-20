@@ -550,7 +550,10 @@ func TestRunPart(t *testing.T) {
 		t.Fatalf("fixture: %v", err)
 	}
 
-	for _, name := range []string{"config", "bundle", "report", "register"} {
+	// Each part is one area; `certificate` is the area the catalogue calls
+	// `register` (#21).
+	for name, area := range map[string]string{"config": "config", "bundle": "bundle", "report": "report",
+		Certificate: "register"} {
 		report, err := RunPart(context, "2.0", false, name)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
@@ -559,7 +562,7 @@ func TestRunPart(t *testing.T) {
 			t.Errorf("%s: no rules", name)
 		}
 		for _, result := range report.Results {
-			if result.Rule.Area != name {
+			if result.Rule.Area != area {
 				t.Errorf("%s ran %s, which is a %s rule", name, result.Rule.ID, result.Rule.Area)
 			}
 		}
@@ -696,5 +699,19 @@ func TestAPinnedVersionCarriesNoReason(t *testing.T) {
 	}
 	if report.SpecVersionReason != "" {
 		t.Errorf("reason = %q, want none for a pinned version", report.SpecVersionReason)
+	}
+}
+
+// A part asked for by the name it had before is told where it went, on the
+// command line as in a comment (#21).
+func TestARetiredPartSaysWhereItWent(t *testing.T) {
+	context := FromBytes([]byte("certificate: 2026-001\n"))
+	for part, now := range map[string]string{"register": "check certificate", "references": "check metadata references"} {
+		if !IsWord(part) {
+			t.Errorf("%s is read as a target", part)
+		}
+		if _, err := RunPart(context, "2.0", false, part); err == nil || !strings.Contains(err.Error(), now) {
+			t.Errorf("%s: %v, want a pointer to %s", part, err, now)
+		}
 	}
 }

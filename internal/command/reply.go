@@ -168,7 +168,7 @@ func (d Deployment) VersionReply(rulesCommit, rulesRetrieved string) string {
 // UnknownReply answers a comment addressed to the bot that it cannot read,
 // quoting back what it saw so the writer can tell a typo from a
 // misunderstanding.
-func UnknownReply(parsed Command) string {
+func UnknownReply(parsed Command, roles Roles) string {
 	var out strings.Builder
 	if parsed.Raw == "" {
 		out.WriteString("You called, but did not say what for.\n")
@@ -176,7 +176,24 @@ func UnknownReply(parsed Command) string {
 		fmt.Fprintf(&out, "I do not know the command `%s`.\n", Defuse(parsed.Raw))
 	}
 
-	if suggestion, found := Suggest(firstWord(parsed.Raw)); found {
+	words := strings.Fields(parsed.Raw)
+	if subs := Subcommands(firstWord(parsed.Raw), roles); len(subs) > 0 {
+		// The first word of a phrase that is no command alone - `set` - and
+		// either a mistyped second word or none.
+		if len(words) > 1 {
+			if meant, found := SuggestSub(Name(normalize(words[0])), words[1]); found {
+				fmt.Fprintf(&out, "\nDid you mean `%s %s`?\n", Bot, meant)
+				subs = nil
+			}
+		}
+		if len(subs) > 0 {
+			named := make([]string, len(subs))
+			for i, sub := range subs {
+				named[i] = fmt.Sprintf("`%s %s`", Bot, sub)
+			}
+			fmt.Fprintf(&out, "\nDid you mean %s?\n", list(named, "or"))
+		}
+	} else if suggestion, found := Suggest(firstWord(parsed.Raw)); found {
 		fmt.Fprintf(&out, "\nDid you mean `%s %s`?\n", Bot, suggestion)
 	}
 	fmt.Fprintf(&out, "\nType `%s commands` for the list.\n", Bot)
@@ -259,7 +276,7 @@ func AnnouncePreview(a Announcement) string {
 	}
 	out.WriteString("\n")
 	if len(a.Mentioned) > 0 {
-		fmt.Fprintf(&out, "- mentions: %s\n", codeList(a.Mentioned))
+		fmt.Fprintf(&out, "- mentions: %s\n", CodeList(a.Mentioned))
 	} else {
 		out.WriteString("- mentions: nobody\n")
 	}
@@ -357,14 +374,14 @@ func FollowPreview(f Following) string {
 		fmt.Fprintf(&out, "- no fediverse account on record for: %s\n", strings.Join(f.Unmatched, ", "))
 	}
 	if len(f.Unresolved) > 0 {
-		fmt.Fprintf(&out, "- on record, but the instance could not resolve: %s\n", codeList(f.Unresolved))
+		fmt.Fprintf(&out, "- on record, but the instance could not resolve: %s\n", CodeList(f.Unresolved))
 	}
 	if f.Enabled {
 		if len(f.AlreadyFollowed) > 0 {
-			fmt.Fprintf(&out, "- already followed: %s\n", codeList(f.AlreadyFollowed))
+			fmt.Fprintf(&out, "- already followed: %s\n", CodeList(f.AlreadyFollowed))
 		}
 		if len(f.NewlyFollowed) > 0 {
-			fmt.Fprintf(&out, "- not yet followed: %s\n", codeList(f.NewlyFollowed))
+			fmt.Fprintf(&out, "- not yet followed: %s\n", CodeList(f.NewlyFollowed))
 		}
 	}
 
@@ -385,17 +402,17 @@ func FollowPosted(f Following) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "**Followed for certificate %s**\n\n", f.Certificate)
 	if len(f.NewlyFollowed) > 0 {
-		fmt.Fprintf(&out, "- followed: %s\n", codeList(f.NewlyFollowed))
+		fmt.Fprintf(&out, "- followed: %s\n", CodeList(f.NewlyFollowed))
 	} else {
 		out.WriteString("- followed: nobody new, everyone matched was already followed\n")
 	}
 	if len(f.Unresolved) > 0 {
-		fmt.Fprintf(&out, "- on record, but the instance could not resolve: %s\n", codeList(f.Unresolved))
+		fmt.Fprintf(&out, "- on record, but the instance could not resolve: %s\n", CodeList(f.Unresolved))
 	}
 	any := false
 	for _, title := range FollowListTitles {
 		if requested := f.Requested[title]; len(requested) > 0 {
-			fmt.Fprintf(&out, "- requested for the %s collection: %s\n", title, codeList(requested))
+			fmt.Fprintf(&out, "- requested for the %s collection: %s\n", title, CodeList(requested))
 			any = true
 		}
 		if evicted := f.Evicted[title]; evicted > 0 {
@@ -403,12 +420,12 @@ func FollowPosted(f Following) string {
 			any = true
 		}
 		if notEligible := f.NotEligible[title]; len(notEligible) > 0 {
-			fmt.Fprintf(&out, "- not yet eligible for the %s collection (they do not follow @codecheck back): %s\n", title, codeList(notEligible))
+			fmt.Fprintf(&out, "- not yet eligible for the %s collection (they do not follow @codecheck back): %s\n", title, CodeList(notEligible))
 			any = true
 		}
 	}
 	if len(f.Asked) > 0 {
-		fmt.Fprintf(&out, "- privately asked to follow back: %s\n", codeList(f.Asked))
+		fmt.Fprintf(&out, "- privately asked to follow back: %s\n", CodeList(f.Asked))
 		any = true
 	}
 	if !any {
@@ -421,10 +438,12 @@ func writeMentionGroup(out *strings.Builder, label string, handles []string) {
 	if len(handles) == 0 {
 		return
 	}
-	fmt.Fprintf(out, "- %s: %s\n", label, codeList(handles))
+	fmt.Fprintf(out, "- %s: %s\n", label, CodeList(handles))
 }
 
-func codeList(items []string) string {
+// CodeList is a list of words, each in a code span, as a reply names labels,
+// handles or venues.
+func CodeList(items []string) string {
 	quoted := make([]string, len(items))
 	for i, item := range items {
 		quoted[i] = Code(item)
@@ -543,6 +562,11 @@ type Holders struct {
 	// renderer: `roles` used to leave it out while the record comment carried
 	// it, which is the drift RolesTable exists to prevent.
 	Certificate string
+	// Repository, Type and Venue are what an editor set for the register row,
+	// each empty when it is left to the issue (#21).
+	Repository string
+	Type       string
+	Venue      string
 }
 
 // Teams are the teams the standing roles come from, for a reply that says
@@ -644,6 +668,7 @@ func RolesTable(holders Holders) string {
 	fmt.Fprintf(&table, "| %s | %s |\n", RoleAssignedCodechecker, mention(holders.AssignedCodechecker))
 	fmt.Fprintf(&table, "| %s | %s |\n", RoleAuthor, mentions(holders.Authors))
 	table.WriteString(CertificateLine(holders.Certificate))
+	table.WriteString(RowLine(holders))
 	return table.String()
 }
 
@@ -905,9 +930,9 @@ const mostTermsShown = 8
 
 func codeListUpTo(items []string, most int) string {
 	if len(items) <= most {
-		return codeList(items)
+		return CodeList(items)
 	}
-	return fmt.Sprintf("%s and %d more", codeList(items[:most]), len(items)-most)
+	return fmt.Sprintf("%s and %d more", CodeList(items[:most]), len(items)-most)
 }
 
 // An OutsideRequest is somebody an editor tried to give a role to who is not
@@ -989,7 +1014,7 @@ func UnmanagedTeamReply(team string, managed []string) string {
 	if len(managed) == 0 {
 		return "I am not set up to put anybody in a team.\n"
 	}
-	return fmt.Sprintf("I can only put somebody in %s, not in `%s`.\n", codeList(managed), team)
+	return fmt.Sprintf("I can only put somebody in %s, not in `%s`.\n", CodeList(managed), team)
 }
 
 // rest is what the bot promises to do once the person has joined, said from

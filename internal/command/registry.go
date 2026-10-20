@@ -29,11 +29,12 @@ const (
 // for editors, and a command someone may not run is absent from the listing
 // rather than shown and refused.
 //
-// `refresh teams`, `next certificate`, `set certificate`, `accept record` and
+// `refresh teams`, `next certificate`, `accept record` and
 // `suggest codecheckers` are still one word with an argument. That reads the
 // same to somebody typing, and their second word gates nothing - there is only
-// one thing to refresh, one thing to set. Make one a phrase when its second
-// word starts deciding who may run it, or what it does.
+// one thing to refresh. Make one a phrase when its second word starts deciding
+// who may run it, or what it does, as it did for `set certificate` once
+// `set repository` and `set venue` existed.
 type Definition struct {
 	Name    Name
 	Aliases []string
@@ -159,7 +160,7 @@ var registry = []Definition{
 	{
 		Name:    Check,
 		Summary: "Validate a `codecheck.yml` against the CODECHECK rules, describe the repository under check, or ask whether its links answer",
-		Usage:   "check [config|metadata [references]|bundle|report|register|repository|links] <repository, or certificate>",
+		Usage:   "check [config|metadata [references]|bundle|report|certificate|repository|links] <repository, or certificate>",
 		Group:   GroupValidation,
 		Role:    RoleAnyone,
 	},
@@ -208,6 +209,28 @@ var registry = []Definition{
 		Usage:   "set certificate [YYYY-NNN] [anyway]",
 		Group:   GroupRegister,
 		Role:    RoleEditor,
+	},
+	{
+		Name:    SetRepository,
+		Summary: "Record the repository this check's register row names, where the issue's Repository line does not",
+		Usage:   "set repository <repository>",
+		Group:   GroupRegister,
+		Role:    RoleEditor,
+	},
+	{
+		Name:    SetVenue,
+		Summary: "Record the Type and Venue of this check's register row, where its labels do not say",
+		Usage:   "set venue [<type>] <venue>",
+		Group:   GroupRegister,
+		Role:    RoleEditor,
+	},
+	{
+		Name:          CheckRegister,
+		Summary:       "Build this check's register row and run the rules on it, before anything is written",
+		Usage:         "check register [<repository>] [<type>] [<venue>]",
+		Group:         GroupRegister,
+		Role:          RoleAnyone,
+		AboutTheCheck: true,
 	},
 	{
 		Name:    Announce,
@@ -395,6 +418,25 @@ func SuggestSub(parent Name, word string) (Name, bool) {
 		return "", false
 	}
 	return best, true
+}
+
+// Subcommands are the phrases a word begins that somebody may run, when the
+// word is no command on its own: `set` is `set certificate`, `set repository`
+// or `set venue`, for an editor. Empty for a word that is a command, whose own
+// reply answers for its arguments - and for somebody who may run none of
+// them, because a command someone may not run is absent, not offered.
+func Subcommands(word string, roles Roles) []Name {
+	word = normalize(word)
+	if _, isCommand := index[word]; isCommand || word == "" {
+		return nil
+	}
+	var subs []Name
+	for _, definition := range Visible(roles) {
+		if strings.HasPrefix(string(definition.Name), word+" ") {
+			subs = append(subs, definition.Name)
+		}
+	}
+	return subs
 }
 
 // candidates are the words Suggest compares against, in a fixed order.

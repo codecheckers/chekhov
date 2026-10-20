@@ -26,6 +26,9 @@ import (
 type stub struct {
 	*testserver.Server
 	services *Services
+	// row is the register row the configuration is judged as, when a case
+	// proposes one that is not in register.csv (#21).
+	row *RegisterRow
 }
 
 func newStub(t *testing.T) *stub {
@@ -50,6 +53,26 @@ func newStub(t *testing.T) *stub {
 }
 
 // register serves a register.csv, and venues.csv when venues is not empty.
+// proposedRow is the row stubConfig's certificate would be registered with,
+// agreeing with issueJSON and venuesRow.
+var proposedRow = RegisterRow{Certificate: "2026-001", Repository: "github::codecheckers/demo",
+	Type: "journal", Venue: "GigaScience", Issue: "42"}
+
+// proposing serves a register that does not have 2026-001 yet and proposes
+// its row, changed by edit, as `check register` does (#21).
+func proposing(edit func(*RegisterRow)) func(*stub) {
+	return func(s *stub) {
+		s.serveEverythingWell()
+		s.register("Certificate,Repository,Type,Venue,Issue\n"+
+			"2025-001,github::codecheckers/older,journal,GigaScience,41\n", venuesRow)
+		row := proposedRow
+		if edit != nil {
+			edit(&row)
+		}
+		s.row = &row
+	}
+}
+
 func (s *stub) register(registerCSV, venuesCSV string) {
 	s.Text("/raw/codecheckers/testing/HEAD/register.csv", registerCSV)
 	if venuesCSV == "" {
@@ -74,6 +97,7 @@ func (s *stub) runFrom(t *testing.T, configuration, repository, rule string) Rul
 	s.services.reset()
 
 	context := s.context(t, configuration, repository)
+	context.Row = s.row
 	report, err := Run(context, "2.0", false)
 	if err != nil {
 		t.Fatalf("run: %v", err)
@@ -857,6 +881,84 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeSkipped,
 		detail: "names no checks issue",
+	},
+
+	// --- a row proposed before it is in the register (#21) ---
+	{
+		name:   "a proposed row is judged before it is in the register",
+		rule:   "CC-REG-003",
+		routes: proposing(nil),
+		want:   OutcomeOK,
+		detail: "github::codecheckers/demo",
+	},
+	{
+		name:   "a proposed row's certificate is not taken",
+		rule:   "CC-REG-001",
+		routes: proposing(nil),
+		want:   OutcomeOK,
+		detail: "2026-001 is not in register.csv yet",
+	},
+	{
+		name: "a proposed row's certificate is already in the register",
+		rule: "CC-REG-001",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.register(registerRow, venuesRow)
+			row := proposedRow
+			s.row = &row
+		},
+		want:   OutcomeError,
+		detail: "2026-001 is already in register.csv",
+	},
+	{
+		// The register's row for the same certificate names GigaScience; the
+		// rules judge the row proposed, not the first one with its identifier.
+		name: "a proposed row is judged, not the register's row for its certificate",
+		rule: "CC-REG-005",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.register(registerRow, venuesRow)
+			row := proposedRow
+			row.Venue = "Somewhere else"
+			s.row = &row
+		},
+		want:   OutcomeWarning,
+		detail: "'Somewhere else' is not listed in venues.csv",
+	},
+	{
+		name:   "a proposed row names a repository without a known prefix",
+		rule:   "CC-REG-003",
+		routes: proposing(func(row *RegisterRow) { row.Repository = "https://github.com/codecheckers/demo" }),
+		want:   OutcomeError,
+		detail: "https://github.com/codecheckers/demo",
+	},
+	{
+		name:   "a proposed row has a type that is not one",
+		rule:   "CC-REG-004",
+		routes: proposing(func(row *RegisterRow) { row.Type = "magazine" }),
+		want:   OutcomeError,
+		detail: "'magazine' is not one of",
+	},
+	{
+		name:   "a proposed row names a venue venues.csv does not list",
+		rule:   "CC-REG-005",
+		routes: proposing(func(row *RegisterRow) { row.Venue = "Somewhere else" }),
+		want:   OutcomeWarning,
+		detail: "'Somewhere else' is not listed in venues.csv",
+	},
+	{
+		name:   "a proposed row agrees with the labels of its issue",
+		rule:   "CC-REG-008",
+		routes: proposing(nil),
+		want:   OutcomeOK,
+		detail: "issue #42 is labelled",
+	},
+	{
+		name:   "a proposed row names a venue its issue's labels do not",
+		rule:   "CC-REG-008",
+		routes: proposing(func(row *RegisterRow) { row.Venue = "JOSIS" }),
+		want:   OutcomeWarning,
+		detail: "wants journal and JOSIS",
 	},
 
 	// --- the repository under check ---

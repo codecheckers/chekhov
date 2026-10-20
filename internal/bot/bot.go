@@ -564,8 +564,14 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.nextCertificate(ctx, parsed, services))
 	case command.Set:
 		return said(s.setCertificate(ctx, event, parsed, services))
+	case command.SetRepository:
+		return said(s.setRepository(ctx, event, parsed))
+	case command.SetVenue:
+		return said(s.setVenue(ctx, event, parsed, services))
+	case command.CheckRegister:
+		return s.checkRegister(ctx, event, parsed, services)
 	default:
-		return said(command.UnknownReply(parsed))
+		return said(command.UnknownReply(parsed, roles))
 	}
 }
 

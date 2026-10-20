@@ -245,12 +245,9 @@ func unlabelled(issues []github.Issue, label string) []command.Unlabelled {
 	return found
 }
 
-// setArguments reads `certificate [YYYY-NNN] [anyway]`.
+// setArguments reads `[YYYY-NNN] [anyway]`.
 func setArguments(args []string) (id string, anyway bool, err error) {
-	if len(args) == 0 || !strings.EqualFold(args[0], "certificate") {
-		return "", false, errors.New("Set what? Only a certificate identifier can be set.")
-	}
-	for _, arg := range args[1:] {
+	for _, arg := range args {
 		switch {
 		case strings.EqualFold(arg, "anyway") && !anyway:
 			anyway = true

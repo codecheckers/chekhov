@@ -326,7 +326,7 @@ func StatusBody(s Standing) string {
 	out.WriteString("\n| | |\n|---|---|\n")
 	fmt.Fprintf(&out, "| Assignees | %s |\n", mentions(s.Assignees))
 	if s.LabelsRead {
-		fmt.Fprintf(&out, "| Labels | %s |\n", codeList(s.Labels))
+		fmt.Fprintf(&out, "| Labels | %s |\n", CodeList(s.Labels))
 	} else {
 		out.WriteString("| Labels | I could not read them |\n")
 	}
@@ -400,6 +400,7 @@ func FinishedBody(pending bool, ruleNote string) string {
 		return out.String()
 	}
 	out.WriteString("✔ Nothing is left pending. The next step is the register entry: " +
-		"a pull request adding the certificate to `register.csv`.\n")
+		"a pull request adding the certificate to `register.csv`. " +
+		"`" + Bot + " check register` shows the row it would add, and runs the rules on it.\n")
 	return out.String()
 }

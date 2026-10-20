@@ -143,7 +143,7 @@ func TestTheLineIsRendered(t *testing.T) {
 	}
 
 	// A report with nothing to point at has no empty column.
-	registerOnly, err := RunPart(FromBytes([]byte(linesFixture)), "2.0", false, "register")
+	registerOnly, err := RunPart(FromBytes([]byte(linesFixture)), "2.0", false, Certificate)
 	if err != nil {
 		t.Fatal(err)
 	}

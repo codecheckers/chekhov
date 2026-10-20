@@ -59,18 +59,49 @@ not a tick:
 - `assign` on a check whose codechecker belongs to an institution warns that the
   `institution` label is missing, on every reply from then on.
 
+### #21 — `check register`, `set repository`, `set venue`
+
+Not run yet. Against 0.14.0, on a new testing-register issue named for #21
+whose body's Repository line names
+`github::codecheckers/testing-dev-register|testdata/register-row` (a bundle
+carrying certificate `1970-021`) and whose labels are `journal` and
+`FAKE eLife`.
+
+- [ ] **`@chekhovbot set certificate 1970-021`** reserves it.
+- [ ] **`@chekhovbot check register`** shows the row - the certificate from
+      the record, the repository from the Repository line, `journal` and
+      `FAKE eLife` from the labels, each with where it came from - then the
+      configuration and register rules with nothing to report, and no label
+      moved.
+- [ ] **`@chekhovbot set venue journal FAKE PeerJ Computer Science`** records
+      both, and the record comment shows `**Register row**`; `check register`
+      then names them as from the record and warns `CC-REG-008`, which wants
+      `journal and FAKE PeerJ Computer Science`.
+- [ ] **`@chekhovbot set repository github::codecheckers/testing-dev-register|testdata/no-version`**,
+      whose `codecheck.yml` carries `1970-001`: `check register` runs the
+      configuration rules and refuses the register rules, naming both
+      identifiers.
+- [ ] **`@chekhovbot check register please`** reads no venue out of prose, and
+      **`@chekhovbot check register 1970-004`** points at `check certificate`.
+- [ ] **`@chekhovbot check certificate github::codecheckers/testing-dev-register|testdata/no-version`**
+      runs the register rules on row `1970-001`.
+- [ ] **`@chekhovbot set`** offers the three `set` commands to an editor.
+
 ### register#232, #57 — the labels of the checks issue, the files of the deposit
 
 Not run yet. Against 0.13.0.
 
-- [ ] **`@chekhovbot check register <certificate>`** for a row of the testing
-      register whose issue lacks its type label warns `CC-REG-008` and names
-      the labels the row wants. The testing register's `venues.csv` has one
-      venue, `FAKE PeerJ Computer Science` with the label `journal`, so a
-      journal row there wants `journal` alone, and so does a row whose venue
-      is not in `venues.csv` - which is `CC-REG-005`'s warning, not this one's.
-- [ ] After the labels are added by hand, the same command passes
-      `CC-REG-008` - the issue is read afresh, not from a copy of the first run.
+- [ ] **`@chekhovbot check certificate github::codecheckers/testing-dev-register|testdata/no-version`**
+      judges row `1970-001`, whose issue is 101, and passes `CC-REG-008`: the
+      testing register's rows all agree with their issues' labels since
+      register#232. (The `1970-*` rows name made-up repositories, so a
+      certificate alone has no configuration to read.) Take
+      `FAKE PeerJ Computer Science` off issue 101 by hand, and the same command
+      warns and names the labels the row wants,
+      `journal and FAKE PeerJ Computer Science`. (`check certificate` from
+      0.14.0; before it, `check register`.)
+- [ ] After the label is put back, the same command passes `CC-REG-008`
+      again - the issue is read afresh, not from a copy of the first run.
 - [ ] **`@chekhovbot check <certificate>`** for a certificate whose Zenodo
       deposit holds `CODECHECK_certificate_YYYY-NNN.pdf` and no source warns
       `CC-REP-008` and `CC-REP-009`, and says nothing about `CC-REP-003`.

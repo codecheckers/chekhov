@@ -138,7 +138,7 @@ func TestSuggestionsOnlyForNearMisses(t *testing.T) {
 
 func TestUnknownReplyQuotesAndPointsAtTheListing(t *testing.T) {
 	parsed, _ := Parse(Bot + " polish the certificate")
-	reply := UnknownReply(parsed)
+	reply := UnknownReply(parsed, nil)
 	if !strings.Contains(reply, "polish the certificate") {
 		t.Error("the reply does not quote what was written")
 	}
@@ -448,5 +448,26 @@ func TestASubcommandTypoIsSuggested(t *testing.T) {
 	// of the single-word candidates rather than sitting there unmatched.
 	if meant, found := Suggest("chek"); !found || meant != Check {
 		t.Errorf("Suggest(chek) = %q, %v; want check", meant, found)
+	}
+}
+
+// A word that only begins phrases is answered with the phrases: `set` alone is
+// none of the three things it could set, and `set venu` is one of them
+// mistyped (#21).
+func TestTheFirstWordOfAPhraseIsAnsweredWithThePhrases(t *testing.T) {
+	for raw, want := range map[string]string{
+		"set":             "`@chekhovbot set certificate`, `@chekhovbot set repository` or `@chekhovbot set venue`",
+		"set venu Nature": "Did you mean `@chekhovbot set venue`?",
+	} {
+		parsed, _ := Parse(Bot + " " + raw)
+		if reply := UnknownReply(parsed, Roles{RoleEditor}); !strings.Contains(reply, want) {
+			t.Errorf("%q: the reply does not say %q:\n%s", raw, want, reply)
+		}
+	}
+
+	// Somebody who may set nothing is offered nothing to set.
+	parsed, _ := Parse(Bot + " set")
+	if reply := UnknownReply(parsed, Roles{RoleAnyone}); strings.Contains(reply, "set certificate") {
+		t.Errorf("an editor's command was offered to anybody:\n%s", reply)
 	}
 }

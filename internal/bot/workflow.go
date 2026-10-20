@@ -256,16 +256,21 @@ func (s *Server) standing(ctx context.Context, event mention, reading people.Rea
 
 // targetFor is what to read a `codecheck.yml` from.
 //
-// What an editor named, or else the certificate identifier this check has
-// reserved, which `register.csv` can turn into a repository. Nothing is read
-// out of the issue's prose: the bot uses what it keeps or what it is told,
-// because a label moved on a guess is worse than a label not moved. When
-// `set repository` exists this is where it will be read from.
+// What an editor named, or the repository an editor set for the register row,
+// or else the certificate identifier this check has reserved, which
+// `register.csv` can turn into a repository. Nothing is read out of the
+// issue's prose here: these commands move labels, and a label moved on a
+// guess is worse than a label not moved. `check register` does read the
+// Repository line, because it moves nothing and shows where each column came
+// from.
 func (s *Server) targetFor(args []string, record people.Record, services *check.Services) string {
 	for _, argument := range args {
 		if target := check.TargetIn(argument); target != "" {
 			return target
 		}
+	}
+	if record.Repository != "" {
+		return record.Repository
 	}
 	if record.Certificate == "" {
 		return ""
@@ -375,7 +380,7 @@ func needingAttention(report check.Report) []check.RuleResult {
 }
 
 // registerArea is the rule area about the register's own row and issue, as the
-// catalogue names it - the same word `check register` narrows by.
+// catalogue names it - the part `check certificate` narrows to.
 const registerArea = "register"
 
 // placeholdersLeft says whether CC-CFG-023 found placeholder values, and

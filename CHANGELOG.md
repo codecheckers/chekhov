@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-20
+
+### Added
+
+- `check register` builds the row this check would get in `register.csv` -
+  the certificate from the record, the repository from the issue's Repository
+  line, Type and Venue from its labels as `CC-REG-008` reads them - says where
+  each column came from, and runs the configuration and register rules on it
+  before it exists, writing nothing (#21).
+- `set repository` and `set venue [<type>] <venue>` record what the row says
+  where the issue does not; the record of the check shows them, and
+  `check start`, `status` and `check finish` read the recorded repository (#21).
+
+### Changed
+
+- `check register <certificate>`, the register rules against a row already in
+  `register.csv`, is now `check certificate <certificate>`, in a comment and on
+  the command line; `check register` is the new command above, and answers the
+  old form with a pointer to the new one (#21).
+- `check finish` points at `check register` for the next step (#21).
+
 ## [0.13.1] - 2026-10-20
 
 ### Fixed

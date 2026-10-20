@@ -48,3 +48,24 @@ func TestEveryReadingOfTheRecordShowsTheCertificate(t *testing.T) {
 		t.Errorf("a check with no certificate mentions one:\n%s", body)
 	}
 }
+
+// What an editor set for the register row is part of the record as well, and
+// shown wherever the certificate is (#21); a field left to the issue is not.
+func TestEveryReadingOfTheRecordShowsTheRegisterRow(t *testing.T) {
+	holders := Holders{Certificate: "2026-072", Type: "community", Venue: "codecheck NL"}
+	teams := Teams{Editors: "editors", Codecheckers: "codecheckers"}
+
+	for name, body := range map[string]string{
+		"the roles table": RolesTable(holders),
+		"the roles reply": RolesReply(holders, teams, nil, Provenance{}),
+		"an adoption":     AcceptedReply(holders, "nuest", true, time.Now()),
+	} {
+		if !strings.Contains(body, "**Register row**: type `community`, venue `codecheck NL`") {
+			t.Errorf("%s does not show the register row:\n%s", name, body)
+		}
+	}
+
+	if body := RolesTable(Holders{Certificate: "2026-072"}); strings.Contains(body, "Register row") {
+		t.Errorf("a check with nothing set for its row mentions one:\n%s", body)
+	}
+}

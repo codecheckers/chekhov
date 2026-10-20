@@ -235,9 +235,10 @@ func Run(context Context, specVersion string, strict bool) (Report, error) {
 func RunPart(context Context, specVersion string, strict bool, part string) (Report, error) {
 	// What was asked comes before what the file says: a mistyped part is the
 	// caller's to fix, whatever version the file declares.
-	// A part up to 0.6.1, and answered with where it went.
-	if part == "references" {
-		return Report{}, fmt.Errorf("`check references` is now `check metadata references`")
+	// A part that used to be asked for by another name is answered with
+	// where it went, rather than with "no such check".
+	if now, retired := retiredParts[part]; retired {
+		return Report{}, fmt.Errorf("`check %s` is now `check %s`", part, now)
 	}
 	if !IsPart(part) {
 		return Report{}, fmt.Errorf("no such check %q; try one of %s, or leave it off for all of them",
@@ -361,7 +362,13 @@ func (r Report) FailureMessage() string {
 // catalogue separates the form of a reference (config) from what resolving it
 // says (metadata), and a codechecker asking about references wants both
 // (chekhov#11).
-var partNames = []string{"bundle", "config", "metadata", MetadataReferences, "register", "report"}
+var partNames = []string{"bundle", "config", "metadata", MetadataReferences, Certificate, "report"}
+
+// Certificate is the part with the rules about a certificate's row in the
+// register, the area the catalogue calls `register`. Not named for the area,
+// because the bot's `check register` builds a row that is not there yet, and
+// these rules judge one that is (#21).
+const Certificate = "certificate"
 
 // MetadataReferences is the part `check metadata references` names: two words,
 // read by Narrow.
@@ -389,6 +396,12 @@ var referenceRules = map[string]bool{
 	"CC-MET-004": true, // paper-reference-resolves
 	"CC-MET-009": true, // reference-other-resolves
 }
+
+// retiredParts are names a part used to be asked for by, and the name it has
+// now: `references` up to 0.6.1, `register` up to 0.13.1 (#21). A word here is
+// still a word, so that `check 2024-001 register` is told where the part went
+// rather than read as a request for the whole catalogue.
+var retiredParts = map[string]string{"references": MetadataReferences, "register": Certificate}
 
 // Parts are the names a check may be narrowed to.
 func Parts() []string { return partNames }
@@ -418,7 +431,8 @@ var words = func() []string {
 // read. The empty string is not one: only IsPart treats it as "all of them",
 // and a caller reading a comment word by word must not.
 func IsWord(name string) bool {
-	return name != "" && slices.Contains(words, name)
+	_, retired := retiredParts[name]
+	return name != "" && (slices.Contains(words, name) || retired)
 }
 
 // Narrow adds a word to the part named so far, which is how a caller reading
@@ -450,6 +464,8 @@ func inPart(rule rules.Rule, part string) bool {
 		return rule.Area == part || referenceRules[rule.ID]
 	case MetadataReferences:
 		return referenceRules[rule.ID]
+	case Certificate:
+		return rule.Area == "register"
 	default:
 		return rule.Area == part
 	}

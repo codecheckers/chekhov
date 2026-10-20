@@ -75,8 +75,18 @@ const (
 	// is `next`, with what as an argument - `next certificate` - as
 	// `refresh teams` is.
 	Next Name = "next"
-	// Set reserves a certificate identifier for this check: `set certificate`.
-	Set Name = "set"
+	// Set reserves a certificate identifier for this check. A phrase, as
+	// `set repository` and `set venue` are: the second word decides what is
+	// set and how the rest is read.
+	Set Name = "set certificate"
+	// SetRepository and SetVenue record what the register row says where the
+	// issue does not (#21).
+	SetRepository Name = "set repository"
+	SetVenue      Name = "set venue"
+	// CheckRegister builds the register row this check would get and runs the
+	// rules on it, writing nothing; the rules on a row already in register.csv
+	// are `check certificate` (#21).
+	CheckRegister Name = "check register"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

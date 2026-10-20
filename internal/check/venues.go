@@ -50,7 +50,7 @@ func (vs venues) named(labels []string) []string {
 	var named []string
 	for _, label := range labels {
 		named = append(named, vs.names(func(v venue) bool {
-			return strings.EqualFold(v.Name, label) || strings.EqualFold(v.Label, label) && !isVenueType(label)
+			return strings.EqualFold(v.Name, label) || strings.EqualFold(v.Label, label) && !IsVenueType(label)
 		})...)
 	}
 	if len(named) == 0 {
@@ -74,7 +74,7 @@ func (vs venues) labelsFor(venueType, name string) []string {
 	if !listed || slices.Equal(vs.named(wanted), []string{v.Name}) {
 		return wanted
 	}
-	if v.Label != "" && !isVenueType(v.Label) {
+	if v.Label != "" && !IsVenueType(v.Label) {
 		return append(wanted, v.Label)
 	}
 	return append(wanted, v.Name)
@@ -84,11 +84,49 @@ func (vs venues) labelsFor(venueType, name string) []string {
 func typeLabels(labels []string) []string {
 	var types []string
 	for _, label := range labels {
-		if isVenueType(label) {
+		if IsVenueType(label) {
 			types = append(types, label)
 		}
 	}
 	return types
 }
 
-func isVenueType(word string) bool { return ContainsFold(knownVenueTypes, word) }
+// IsVenueType reports whether a word is one of the values the Type column
+// may take, ignoring case.
+func IsVenueType(word string) bool { return ContainsFold(knownVenueTypes, word) }
+
+// Labelled is what an issue's labels say of its register row.
+type Labelled struct {
+	// Types are the labels that are a Type. A row has one.
+	Types []string
+	// Venues are the venues the labels name, as venues.csv spells them. A row
+	// has one.
+	Venues []string
+}
+
+// RowLabels reads an issue's labels the way CC-REG-008 reads them, so that a
+// row filled in from them is a row the rule passes (#21). Without venues.csv
+// only the types can be read, and the error says why.
+func (s *Services) RowLabels(labels []string) (Labelled, error) {
+	read := Labelled{Types: typeLabels(labels)}
+	register, err := s.registerCSV()
+	if err != nil {
+		return read, err
+	}
+	read.Venues = register.venues.named(labels)
+	return read, nil
+}
+
+// Venue is a venue as venues.csv spells it, looked up ignoring case. listed
+// is false for a venue venues.csv does not have, which CC-REG-005 warns about
+// and does not refuse.
+func (s *Services) Venue(name string) (canonical string, listed bool, err error) {
+	register, err := s.registerCSV()
+	if err != nil {
+		return name, false, err
+	}
+	if v, found := register.venues.find(name); found {
+		return v.Name, true, nil
+	}
+	return name, false, nil
+}

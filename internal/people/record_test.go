@@ -18,6 +18,10 @@ func TestARecordSurvivesItsComment(t *testing.T) {
 		HandlingEditor:      "nuest",
 		AssignedCodechecker: "a-codechecker",
 		Authors:             []string{"an-author", "another-author"},
+		Certificate:         "2026-072",
+		Repository:          "github::codecheckers/demo",
+		Type:                "community",
+		Venue:               "codecheck NL",
 	}
 
 	body := comment(t, signer(t), "codecheckers/testing", 1, record)
@@ -31,6 +35,10 @@ func TestARecordSurvivesItsComment(t *testing.T) {
 	if read.Roles.HandlingEditor != "nuest" || read.Roles.AssignedCodechecker != "a-codechecker" ||
 		len(read.Roles.Authors) != 2 {
 		t.Errorf("read back %+v", read.Roles)
+	}
+	if read.Roles.Certificate != record.Certificate || read.Roles.Repository != record.Repository ||
+		read.Roles.Type != record.Type || read.Roles.Venue != record.Venue {
+		t.Errorf("the register row did not survive: read back %+v", read.Roles)
 	}
 }
 

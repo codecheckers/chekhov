@@ -61,7 +61,7 @@ func unlabelledNote(label string, unlabelled []Unlabelled) string {
 	var note strings.Builder
 	fmt.Fprintf(&note, "\n**Not counted**, no `%s` label:\n\n", label)
 	for _, issue := range unlabelled {
-		fmt.Fprintf(&note, "- #%d has %s in its title\n", issue.Issue, codeList(issue.IDs))
+		fmt.Fprintf(&note, "- #%d has %s in its title\n", issue.Issue, CodeList(issue.IDs))
 	}
 	return note.String()
 }
@@ -161,4 +161,23 @@ func CertificateLine(id string) string {
 		return ""
 	}
 	return fmt.Sprintf("\n**Certificate**: `%s`\n", id)
+}
+
+// RowLine shows, under the certificate, what an editor set for the register
+// row; a field left to the issue is not shown, so an empty record says nothing.
+func RowLine(holders Holders) string {
+	var set []string
+	for _, field := range []struct{ name, value string }{
+		{"repository", holders.Repository},
+		{"type", holders.Type},
+		{"venue", holders.Venue},
+	} {
+		if field.value != "" {
+			set = append(set, fmt.Sprintf("%s %s", field.name, Code(field.value)))
+		}
+	}
+	if len(set) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n**Register row**: %s\n", strings.Join(set, ", "))
 }

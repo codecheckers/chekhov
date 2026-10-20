@@ -200,6 +200,8 @@ func TestRepliesNameOnlyCommandsThatExist(t *testing.T) {
 		FinishedBody(true, "CC-CFG-023"), FinishedBody(false, ""),
 		RegisterFindings(nil), RegisterFindings([]string{"CC-REG-001"}),
 		Checklist(), ReadingReply("github::codecheckers/demo"),
+		RowIncomplete(Row{}), CertificateMismatch("1970-001", "1970-002"),
+		RowSet(Holders{Venue: "codecheck"}, "nuest"),
 	}
 	for _, body := range bodies {
 		for _, line := range typed.FindAllString(body, -1) {
