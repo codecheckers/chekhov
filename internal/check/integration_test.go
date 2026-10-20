@@ -96,10 +96,11 @@ func TestIntegrationRegisterEntry(t *testing.T) {
 		// the manifest files are in the repository
 		"CC-BUN-001",
 		// the archive record
-		"CC-REP-001", "CC-REP-002", "CC-REP-003", "CC-REP-004", "CC-REP-005", "CC-REP-006",
+		"CC-REP-001", "CC-REP-002", "CC-REP-004", "CC-REP-005", "CC-REP-006",
+		"CC-REP-007", "CC-REP-008", "CC-REP-009", "CC-REP-010",
 		// the register row and the issue it names
 		"CC-REG-001", "CC-REG-002", "CC-REG-003", "CC-REG-004", "CC-REG-005",
-		"CC-REG-006", "CC-REG-007",
+		"CC-REG-006", "CC-REG-007", "CC-REG-008",
 	)
 
 	// A published certificate should be in order. A failure here is a finding

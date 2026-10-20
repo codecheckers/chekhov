@@ -59,6 +59,22 @@ not a tick:
 - `assign` on a check whose codechecker belongs to an institution warns that the
   `institution` label is missing, on every reply from then on.
 
+### register#232, #57 — the labels of the checks issue, the files of the deposit
+
+Not run yet. Against 0.13.0.
+
+- [ ] **`@chekhovbot check register <certificate>`** for a row of the testing
+      register whose issue lacks its type label warns `CC-REG-008` and names
+      the labels the row wants. The testing register's `venues.csv` has one
+      venue, `FAKE PeerJ Computer Science` with the label `journal`, so a
+      journal row there wants `journal` alone, and so does a row whose venue
+      is not in `venues.csv` - which is `CC-REG-005`'s warning, not this one's.
+- [ ] After the labels are added by hand, the same command passes
+      `CC-REG-008` - the issue is read afresh, not from a copy of the first run.
+- [ ] **`@chekhovbot check <certificate>`** for a certificate whose Zenodo
+      deposit holds `CODECHECK_certificate_YYYY-NNN.pdf` and no source warns
+      `CC-REP-008` and `CC-REP-009`, and says nothing about `CC-REP-003`.
+
 ### #59, #60 — what `check finish` says next
 
 Run on testing-dev-register#224 against 0.12.3, 2026-10-19.

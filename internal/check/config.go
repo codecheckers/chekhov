@@ -115,10 +115,13 @@ var Checks = map[string]Func{
 	"CC-BUN-004": repositoryReachable,
 	"CC-REP-001": reportDOIVersionSpecific,
 	"CC-REP-002": reportDOINewestVersion,
-	"CC-REP-003": zenodoFilesPresent,
 	"CC-REP-004": zenodoCertificateIDMatch,
 	"CC-REP-005": zenodoCodecheckerNamesMatch,
 	"CC-REP-006": zenodoCodecheckerORCIDsMatch,
+	"CC-REP-007": zenodoCertificatePDFPresent,
+	"CC-REP-008": zenodoCertificatePDFName,
+	"CC-REP-009": zenodoCertificateSourcePresent,
+	"CC-REP-010": zenodoCertificateSourceUnambiguous,
 	"CC-REG-001": certificateUnique,
 	"CC-REG-002": certificateIDSequence,
 	"CC-REG-003": repositorySpecFormat,
@@ -126,6 +129,7 @@ var Checks = map[string]Func{
 	"CC-REG-005": venueKnown,
 	"CC-REG-006": issueExists,
 	"CC-REG-007": issueReferencesCertificate,
+	"CC-REG-008": issueLabelsMatchRow,
 }
 
 // NotImplemented are the rules nothing checks yet, each with the reason. It is

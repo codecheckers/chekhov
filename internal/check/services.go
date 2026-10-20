@@ -210,10 +210,13 @@ var RequiresService = map[string]string{
 	"CC-BUN-004": "the checked repository",
 	"CC-REP-001": "the Zenodo API",
 	"CC-REP-002": "the Zenodo API",
-	"CC-REP-003": "the Zenodo API",
 	"CC-REP-004": "the Zenodo API",
 	"CC-REP-005": "the Zenodo API",
 	"CC-REP-006": "the Zenodo API",
+	"CC-REP-007": "the Zenodo API",
+	"CC-REP-008": "the Zenodo API",
+	"CC-REP-009": "the Zenodo API",
+	"CC-REP-010": "the Zenodo API",
 	"CC-REG-001": "register.csv",
 	"CC-REG-002": "register.csv",
 	"CC-REG-003": "register.csv",
@@ -221,6 +224,7 @@ var RequiresService = map[string]string{
 	"CC-REG-005": "venues.csv",
 	"CC-REG-006": "the GitHub API",
 	"CC-REG-007": "the GitHub API",
+	"CC-REG-008": "the GitHub API",
 }
 
 type cachedResponse struct {
@@ -471,13 +475,13 @@ type registerEntry struct {
 
 type registerData struct {
 	entries []registerEntry
-	venues  map[string]bool
+	venues  venues
 }
 
 // registerCSV loads the register once per run.
 func (s *Services) registerCSV() (*registerData, error) {
 	s.once.Do(func() {
-		data := &registerData{venues: map[string]bool{}}
+		data := &registerData{}
 		tables := s.CSVs(s.RegisterFile("register.csv"), s.RegisterFile("venues.csv"))
 		register, venues := tables[0], tables[1]
 		if register.Err != nil {
@@ -499,8 +503,9 @@ func (s *Services) registerCSV() (*registerData, error) {
 		if venues.Err == nil {
 			for _, row := range venues.Rows {
 				for _, key := range []string{"Venue", "name", "Name"} {
-					if value := strings.TrimSpace(row[key]); value != "" {
-						data.venues[strings.ToLower(value)] = true
+					if name := row[key]; name != "" {
+						data.venues = append(data.venues, venue{Name: name, Label: row["label"]})
+						break
 					}
 				}
 			}

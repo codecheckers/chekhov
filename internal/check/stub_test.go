@@ -159,7 +159,7 @@ const (
 	  "id": 1234567,
 	  "doi": "10.5281/zenodo.1234567",
 	  "conceptdoi": "10.5281/zenodo.1234566",
-	  "files": [{"key": "CODECHECK_certificate_2026-001.pdf"}],
+	  "files": [{"key": "codecheck.pdf"}, {"key": "codecheck.Rmd"}],
 	  "metadata": {
 	    "title": "CODECHECK Certificate 2026-001",
 	    "creators": [{"name": "Eglen, Stephen J.", "orcid": "0000-0001-8607-8025"}],
@@ -189,8 +189,16 @@ const (
 	}]}`
 	registerRow = "Certificate,Repository,Type,Venue,Issue\n" +
 		"2026-001,github::codecheckers/demo,journal,GigaScience,42\n"
-	venuesRow = "name,longname\nGigaScience,GigaScience\n"
-	issueJSON = `{"number": 42, "title": "Carberry | 2026-001", "state": "closed"}`
+	// Two journals, so a journal's issue needs a label naming it; one
+	// community venue, which its type label names alone; and one whose
+	// label in venues.csv is an issue label rather than a type.
+	venuesRow = "name,longname,label\n" +
+		"GigaScience,GigaScience,journal\n" +
+		"JOSIS,Journal of Spatial Information Science,journal\n" +
+		"codecheck,CODECHECK,community\n" +
+		"codecheck NL,CODECHECK NL,check-nl\n"
+	issueJSON = `{"number": 42, "title": "Carberry | 2026-001", "state": "closed",
+	  "labels": [{"name": "id assigned"}, {"name": "journal"}, {"name": "GigaScience"}]}`
 )
 
 // serveEverythingWell wires the answers a certificate in good order gets, so a
@@ -215,6 +223,42 @@ func (s *stub) serveEverythingWell() {
 	s.Text("/doi/10.5555/preprint.1", "the paper")
 	s.Text("/github.com/codecheckers/demo", "the repository")
 	s.register(registerRow, venuesRow)
+}
+
+// withFiles serves everything well, with a Zenodo record carrying these files.
+func withFiles(names ...string) func(*stub) {
+	return func(s *stub) {
+		s.serveEverythingWell()
+		s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
+			`"files": [{"key": "codecheck.pdf"}, {"key": "codecheck.Rmd"}]`, `"files": `+jsonList("key", names...), 1))
+	}
+}
+
+// withLabels serves everything well, with the checks issue carrying these labels.
+func withLabels(names ...string) func(*stub) {
+	return func(s *stub) {
+		s.serveEverythingWell()
+		s.JSON("/github/repos/codecheckers/testing/issues/42", strings.Replace(issueJSON,
+			`"labels": [{"name": "id assigned"}, {"name": "journal"}, {"name": "GigaScience"}]`,
+			`"labels": `+jsonList("name", names...), 1))
+	}
+}
+
+// withRow is withLabels for a row of another type and venue, "community,codecheck".
+func withRow(typeAndVenue string, labels ...string) func(*stub) {
+	return func(s *stub) {
+		withLabels(labels...)(s)
+		s.register(strings.Replace(registerRow, "journal,GigaScience", typeAndVenue, 1), venuesRow)
+	}
+}
+
+// jsonList is a JSON list of objects with one key each.
+func jsonList(key string, values ...string) string {
+	objects := make([]string, 0, len(values))
+	for _, value := range values {
+		objects = append(objects, `{"`+key+`": "`+value+`"}`)
+	}
+	return "[" + strings.Join(objects, ", ") + "]"
 }
 
 // --- the cases -------------------------------------------------------------
@@ -267,15 +311,67 @@ var stubCases = []stubCase{
 		lines:  []int{15},
 	},
 	{
-		name: "the record has no files, so the certificate cannot be read",
-		rule: "CC-REP-003",
-		routes: func(s *stub) {
-			s.serveEverythingWell()
-			s.JSON("/zenodo/records/1234567", strings.Replace(zenodoRecordJSON,
-				`"files": [{"key": "CODECHECK_certificate_2026-001.pdf"}],`, `"files": [],`, 1))
-		},
+		name:   "the record has no files",
+		rule:   "CC-REP-007",
+		routes: withFiles(),
 		want:   OutcomeWarning,
-		detail: "no files",
+		detail: "has no files",
+	},
+	{
+		name:   "the record carries a source but no PDF",
+		rule:   "CC-REP-007",
+		routes: withFiles("codecheck.Rmd"),
+		want:   OutcomeWarning,
+		detail: "no PDF in the Zenodo record: codecheck.Rmd",
+	},
+	{
+		name:   "the certificate PDF goes by another name",
+		rule:   "CC-REP-008",
+		routes: withFiles("CODECHECK_certificate_2026-001.pdf", "codecheck.Rmd"),
+		want:   OutcomeWarning,
+		detail: "CODECHECK_certificate_2026-001.pdf, where the policy expects",
+	},
+	{
+		name:   "codecheck.pdf is found whatever its case",
+		rule:   "CC-REP-008",
+		routes: withFiles("figure.pdf", "CodeCheck.PDF"),
+		want:   OutcomeOK,
+		detail: "CodeCheck.PDF",
+	},
+	{
+		name:   "without a PDF there is no name to judge",
+		rule:   "CC-REP-008",
+		routes: withFiles("codecheck.Rmd"),
+		want:   OutcomeSkipped,
+		detail: "see CC-REP-007",
+	},
+	{
+		name:   "the record carries only the PDF",
+		rule:   "CC-REP-009",
+		routes: withFiles("codecheck.pdf"),
+		want:   OutcomeWarning,
+		detail: "should carry the certificate source",
+	},
+	{
+		name:   "a notebook is a certificate source",
+		rule:   "CC-REP-009",
+		routes: withFiles("codecheck.pdf", "codecheck.ipynb"),
+		want:   OutcomeOK,
+		detail: "codecheck.ipynb",
+	},
+	{
+		name:   "two executable sources leave it unclear which made the certificate",
+		rule:   "CC-REP-010",
+		routes: withFiles("codecheck.pdf", "codecheck.Rmd", "codecheck.ipynb"),
+		want:   OutcomeWarning,
+		detail: "codecheck.Rmd, codecheck.ipynb: keep one",
+	},
+	{
+		name:   "a notebook of the checked workflow is not a second certificate source",
+		rule:   "CC-REP-010",
+		routes: withFiles("codecheck.pdf", "codecheck.Rmd", "analysis.ipynb"),
+		want:   OutcomeOK,
+		detail: "codecheck.Rmd",
 	},
 	{
 		name: "the record title does not carry the certificate identifier",
@@ -315,7 +411,7 @@ var stubCases = []stubCase{
 	},
 	{
 		name: "the record is not there",
-		rule: "CC-REP-003",
+		rule: "CC-REP-007",
 		routes: func(s *stub) {
 			s.serveEverythingWell()
 			s.Status("/zenodo/records/1234567", http.StatusNotFound)
@@ -535,6 +631,144 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeSkipped,
 		detail: "no venues.csv",
+	},
+	{
+		name:   "the labels name the row's type and venue",
+		rule:   "CC-REG-008",
+		routes: func(s *stub) { s.serveEverythingWell() },
+		want:   OutcomeOK,
+		detail: "issue #42 is labelled id assigned, journal, GigaScience",
+	},
+	{
+		name:   "the type label disagrees with the row",
+		rule:   "CC-REG-008",
+		routes: withLabels("community", "GigaScience"),
+		want:   OutcomeWarning,
+		detail: "labelled community, GigaScience, where journal, GigaScience wants journal and GigaScience",
+	},
+	{
+		name:   "two type labels",
+		rule:   "CC-REG-008",
+		routes: withLabels("community", "journal", "GigaScience"),
+		want:   OutcomeWarning,
+		detail: "wants journal and GigaScience",
+	},
+	{
+		name:   "a type label that several venues carry names none of them",
+		rule:   "CC-REG-008",
+		routes: withLabels("journal"),
+		want:   OutcomeWarning,
+		detail: "labelled journal, where journal, GigaScience wants journal and GigaScience",
+	},
+	{
+		name:   "labels naming two venues",
+		rule:   "CC-REG-008",
+		routes: withLabels("journal", "GigaScience", "JOSIS"),
+		want:   OutcomeWarning,
+		detail: "wants journal and GigaScience",
+	},
+	{
+		name:   "an issue with no labels",
+		rule:   "CC-REG-008",
+		routes: withLabels(),
+		want:   OutcomeWarning,
+		detail: "labelled no labels",
+	},
+	{
+		name:   "the type label names the only venue that carries it",
+		rule:   "CC-REG-008",
+		routes: withRow("community,codecheck", "community"),
+		want:   OutcomeOK,
+		detail: "labelled community",
+	},
+	{
+		name:   "a venue's own label wins over the type label naming the generic venue",
+		rule:   "CC-REG-008",
+		routes: withRow("community,codecheck NL", "community", "check-nl"),
+		want:   OutcomeOK,
+		detail: "labelled community, check-nl",
+	},
+	{
+		name:   "the generic venue's issue labelled as the specific one",
+		rule:   "CC-REG-008",
+		routes: withRow("community,codecheck", "community", "check-nl"),
+		want:   OutcomeWarning,
+		detail: "where community, codecheck wants community",
+	},
+	{
+		name:   "the row's venue is wanted by its own label in venues.csv",
+		rule:   "CC-REG-008",
+		routes: withRow("community,codecheck NL", "community"),
+		want:   OutcomeWarning,
+		detail: "wants community and check-nl",
+	},
+	{
+		name:   "labels are compared ignoring case",
+		rule:   "CC-REG-008",
+		routes: withLabels("Journal", "gigascience"),
+		want:   OutcomeOK,
+		detail: "labelled Journal, gigascience",
+	},
+	{
+		name:   "a venue venues.csv does not list wants only the type label",
+		rule:   "CC-REG-008",
+		routes: withRow("community,Somewhere", "community"),
+		want:   OutcomeOK,
+		detail: "labelled community",
+	},
+	{
+		name:   "a venue venues.csv does not list is still a row of its type",
+		rule:   "CC-REG-008",
+		routes: withRow("community,Somewhere", "journal"),
+		want:   OutcomeWarning,
+		detail: "where community, Somewhere wants community",
+	},
+	{
+		name: "without venues.csv only the type label is compared",
+		rule: "CC-REG-008",
+		routes: func(s *stub) {
+			withLabels("journal")(s)
+			s.register(registerRow, "")
+		},
+		want:   OutcomeOK,
+		detail: "labelled journal",
+	},
+	{
+		name: "GitHub rate limiting the issue read is not a finding",
+		rule: "CC-REG-006",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/github/repos/codecheckers/testing/issues/42", http.StatusTooManyRequests)
+		},
+		want:   OutcomeSkipped,
+		detail: "could not be read",
+	},
+	{
+		name: "GitHub failing to answer leaves the labels unjudged",
+		rule: "CC-REG-008",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/github/repos/codecheckers/testing/issues/42", http.StatusBadGateway)
+		},
+		want:   OutcomeSkipped,
+		detail: "could not be read",
+	},
+	{
+		name:   "a row without a venue is named by its type alone",
+		rule:   "CC-REG-008",
+		routes: withRow("journal,", "community"),
+		want:   OutcomeWarning,
+		detail: "labelled community, where journal wants journal",
+	},
+	{
+		name: "an issue that cannot be read has no labels to judge",
+		rule: "CC-REG-008",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/github/repos/codecheckers/testing/issues/42", http.StatusNotFound)
+		},
+		want:   OutcomeWarning,
+		detail: "could not be read",
 	},
 	{
 		name:          "the certificate is not in the register yet, which is the normal case mid-check",

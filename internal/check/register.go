@@ -76,7 +76,7 @@ func certificateIDSequence(c Context) Result {
 
 // rule: CC-REG-003 repository-spec-format
 func repositorySpecFormat(c Context) Result {
-	entry, result := registerEntryFor(c, "CC-REG-003")
+	_, entry, result := registerEntryFor(c, "CC-REG-003")
 	if result != nil {
 		return *result
 	}
@@ -93,14 +93,12 @@ func repositorySpecFormat(c Context) Result {
 
 // rule: CC-REG-004 type-known
 func typeKnown(c Context) Result {
-	entry, result := registerEntryFor(c, "CC-REG-004")
+	_, entry, result := registerEntryFor(c, "CC-REG-004")
 	if result != nil {
 		return *result
 	}
-	for _, known := range knownVenueTypes {
-		if strings.EqualFold(entry.Type, known) {
-			return pass(entry.Type)
-		}
+	if isVenueType(entry.Type) {
+		return pass(entry.Type)
 	}
 	return fail(fmt.Sprintf("'%s' is not one of %s", entry.Type,
 		strings.Join(knownVenueTypes, ", ")))
@@ -108,18 +106,17 @@ func typeKnown(c Context) Result {
 
 // rule: CC-REG-005 venue-known
 func venueKnown(c Context) Result {
-	entry, result := registerEntryFor(c, "CC-REG-005")
+	register, entry, result := registerEntryFor(c, "CC-REG-005")
 	if result != nil {
 		return *result
 	}
-	register, _ := c.Services.registerCSV()
 	if len(register.venues) == 0 {
 		return skip("the register carries no venues.csv to compare against")
 	}
 	if entry.Venue == "" {
 		return fail("the register entry has no Venue")
 	}
-	if register.venues[strings.ToLower(entry.Venue)] {
+	if _, listed := register.venues.find(entry.Venue); listed {
 		return pass(entry.Venue)
 	}
 	return fail(fmt.Sprintf("'%s' is not listed in venues.csv", entry.Venue))
@@ -131,6 +128,17 @@ type gitHubIssue struct {
 	Number int    `json:"number"`
 	Title  string `json:"title"`
 	State  string `json:"state"`
+	Labels []struct {
+		Name string `json:"name"`
+	} `json:"labels"`
+}
+
+func (i gitHubIssue) labelNames() []string {
+	names := make([]string, 0, len(i.Labels))
+	for _, label := range i.Labels {
+		names = append(names, label.Name)
+	}
+	return names
 }
 
 // rule: CC-REG-006 issue-exists
@@ -161,9 +169,43 @@ func issueReferencesCertificate(c Context) Result {
 		issue.Number, issue.Title, certificate))
 }
 
-// issueFor reads the checks issue named in the register entry.
+// rule: CC-REG-008 issue-labels-match-row
+func issueLabelsMatchRow(c Context) Result {
+	register, entry, result := registerEntryFor(c, "CC-REG-008")
+	if result != nil {
+		return *result
+	}
+	issue, result := issueFor(c, "CC-REG-008")
+	if result != nil {
+		return *result
+	}
+
+	// A venue venues.csv does not list has no labels to want: CC-REG-005 says
+	// so, and the type label is all there is to compare.
+	labels := issue.labelNames()
+	types := typeLabels(labels)
+	matches := len(types) == 1 && strings.EqualFold(types[0], entry.Type)
+	if v, listed := register.venues.find(entry.Venue); listed {
+		matches = matches && slices.Equal(register.venues.named(labels), []string{v.Name})
+	}
+
+	has := "no labels"
+	if len(labels) > 0 {
+		has = strings.Join(labels, ", ")
+	}
+	if matches {
+		return pass(fmt.Sprintf("issue #%d is labelled %s", issue.Number, has))
+	}
+	row := strings.Join(slices.DeleteFunc([]string{entry.Type, entry.Venue}, func(s string) bool { return s == "" }), ", ")
+	return fail(fmt.Sprintf("issue #%d is labelled %s, where %s wants %s", issue.Number, has,
+		row, strings.Join(register.venues.labelsFor(entry.Type, entry.Venue), " and ")))
+}
+
+// issueFor reads the checks issue named in the register entry. Only an issue
+// that is not there is a finding: GitHub refusing, rate limiting or failing
+// says nothing about the register, so that is a skip.
 func issueFor(c Context, rule string) (gitHubIssue, *Result) {
-	entry, result := registerEntryFor(c, rule)
+	_, entry, result := registerEntryFor(c, rule)
 	if result != nil {
 		return gitHubIssue{}, result
 	}
@@ -176,6 +218,10 @@ func issueFor(c Context, rule string) (gitHubIssue, *Result) {
 	var issue gitHubIssue
 	url := fmt.Sprintf("%s/repos/%s/issues/%s", c.Services.GitHub, c.Services.Register, number)
 	if err := c.Services.github(url, &issue); err != nil {
+		if !IsNotFound(err) {
+			skipped := skip(fmt.Sprintf("issue #%s of %s could not be read: %s", number, c.Services.Register, err))
+			return gitHubIssue{}, &skipped
+		}
 		failed := fail(fmt.Sprintf("issue #%s of %s could not be read: %s",
 			number, c.Services.Register, err))
 		return gitHubIssue{}, &failed
@@ -201,24 +247,25 @@ func registerFor(c Context, rule string) (*registerData, *Result) {
 
 // registerEntryFor finds this certificate's row. A certificate that is not in
 // the register yet is the normal case while a check is under way, and its row
-// cannot be judged before it exists.
-func registerEntryFor(c Context, rule string) (registerEntry, *Result) {
+// cannot be judged before it exists. The register comes back with the row,
+// for the rules that compare the row with the rest of it.
+func registerEntryFor(c Context, rule string) (*registerData, registerEntry, *Result) {
 	certificate := strings.TrimSpace(c.Config.Certificate)
 	if certificate == "" {
 		result := skip("no certificate identifier to look up")
-		return registerEntry{}, &result
+		return nil, registerEntry{}, &result
 	}
 	register, result := registerFor(c, rule)
 	if result != nil {
-		return registerEntry{}, result
+		return nil, registerEntry{}, result
 	}
 
 	entry, found := register.entryFor(certificate)
 	if !found {
 		skipped := skip(fmt.Sprintf("%s is not in register.csv yet", certificate))
-		return registerEntry{}, &skipped
+		return nil, registerEntry{}, &skipped
 	}
-	return entry, nil
+	return register, entry, nil
 }
 
 func withSuffix(values []string, suffix string) []string {

@@ -33,9 +33,10 @@ var cassetteRules = map[string][]string{
 	"register-entry": {
 		"CC-CFG-012", "CC-MET-004", "CC-BUN-004", "CC-MET-002", "CC-MET-003",
 		"CC-BUN-001",
-		"CC-REP-001", "CC-REP-002", "CC-REP-003", "CC-REP-004", "CC-REP-005", "CC-REP-006",
+		"CC-REP-001", "CC-REP-002", "CC-REP-004", "CC-REP-005", "CC-REP-006",
+		"CC-REP-007", "CC-REP-008", "CC-REP-009", "CC-REP-010",
 		"CC-REG-001", "CC-REG-002", "CC-REG-003", "CC-REG-004", "CC-REG-005",
-		"CC-REG-006", "CC-REG-007",
+		"CC-REG-006", "CC-REG-007", "CC-REG-008",
 	},
 	"paper-metadata": {
 		"CC-MET-005", "CC-MET-006", "CC-MET-007", "CC-MET-008",
@@ -197,7 +198,6 @@ func TestCassetteRegisterEntryOutcomes(t *testing.T) {
 		"CC-BUN-004": OutcomeOK,
 		"CC-REP-001": OutcomeOK,
 		"CC-REP-002": OutcomeOK,
-		"CC-REP-003": OutcomeOK,
 		"CC-REP-004": OutcomeOK,
 		"CC-REP-005": OutcomeOK,
 		"CC-REP-006": OutcomeOK,
@@ -208,6 +208,17 @@ func TestCassetteRegisterEntryOutcomes(t *testing.T) {
 		"CC-REG-005": OutcomeOK,
 		"CC-REG-006": OutcomeOK,
 		"CC-REG-007": OutcomeOK,
+		// Recorded when issue #187 carried `id assigned` alone; it has carried
+		// `institution` and `TU Delft DCC` since codecheckers/register#232, so
+		// a fresh recording turns this into a pass.
+		"CC-REG-008": OutcomeWarning,
+		"CC-REP-007": OutcomeOK,
+		"CC-REP-010": OutcomeOK,
+		// The deposit holds the certificate as CODECHECK_certificate_2026-001.pdf
+		// and without its source, which the curation policy asks for: findings
+		// about the deposit, pinned so that a fixed one shows up here.
+		"CC-REP-008": OutcomeWarning,
+		"CC-REP-009": OutcomeWarning,
 		// The manifest names its outputs at the bundle root, but the repository
 		// keeps them under codecheck/outputs/. The specification says the paths
 		// are relative to the codecheck.yml, so this is a finding about the

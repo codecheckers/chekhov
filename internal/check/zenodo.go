@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
@@ -155,20 +157,98 @@ func reportDOINewestVersion(c Context) Result {
 		"(version %d of %d)", versions[0].Index+1, versions[0].Count)).at(c.Config.Line("report"))
 }
 
-// rule: CC-REP-003 zenodo-files-present
-func zenodoFilesPresent(c Context) Result {
-	record, result := zenodoRecordFor(c, "CC-REP-003")
+// The files of the record, CC-REP-007 to CC-REP-010, which replace CC-REP-003.
+// They follow zenodo_policy_check() in the R package, which had them first.
+
+// sourceExtensions are what CC-REP-009 accepts as the certificate's source:
+// any file written in one of these, as the rule's description lists them.
+var sourceExtensions = []string{".rmd", ".qmd", ".ipynb", ".docx", ".odt", ".md", ".tex"}
+
+// rule: CC-REP-007 zenodo-certificate-pdf-present
+func zenodoCertificatePDFPresent(c Context) Result {
+	record, result := zenodoRecordFor(c, "CC-REP-007")
 	if result != nil {
 		return *result
 	}
-	if len(record.Files) == 0 {
-		return fail("the Zenodo record has no files, so the certificate cannot be read")
+	if pdfs := record.filesEnding(".pdf"); len(pdfs) > 0 {
+		return pass(strings.Join(pdfs, ", "))
 	}
-	var names []string
-	for _, file := range record.Files {
+	if len(record.Files) == 0 {
+		return fail("the Zenodo record has no files")
+	}
+	return fail("no PDF in the Zenodo record: " + strings.Join(record.fileNames(), ", "))
+}
+
+// rule: CC-REP-008 zenodo-certificate-pdf-name
+func zenodoCertificatePDFName(c Context) Result {
+	record, result := zenodoRecordFor(c, "CC-REP-008")
+	if result != nil {
+		return *result
+	}
+	pdfs := record.filesEnding(".pdf")
+	if len(pdfs) == 0 {
+		return skip("no PDF to look at the name of, see CC-REP-007")
+	}
+	if i := slices.IndexFunc(pdfs, func(pdf string) bool { return strings.EqualFold(pdf, "codecheck.pdf") }); i >= 0 {
+		return pass(pdfs[i])
+	}
+	return fail(strings.Join(pdfs, ", ") + ", where the policy expects the certificate to be named codecheck.pdf")
+}
+
+// rule: CC-REP-009 zenodo-certificate-source-present
+func zenodoCertificateSourcePresent(c Context) Result {
+	record, result := zenodoRecordFor(c, "CC-REP-009")
+	if result != nil {
+		return *result
+	}
+	if sources := record.filesEnding(sourceExtensions...); len(sources) > 0 {
+		return pass(strings.Join(sources, ", "))
+	}
+	return fail("the record should carry the certificate source, e.g. codecheck.Rmd")
+}
+
+// rule: CC-REP-010 zenodo-certificate-source-unambiguous
+func zenodoCertificateSourceUnambiguous(c Context) Result {
+	record, result := zenodoRecordFor(c, "CC-REP-010")
+	if result != nil {
+		return *result
+	}
+	// Only codecheck.* counts: another notebook in the deposit is the
+	// workflow that was checked, not the certificate.
+	var sources []string
+	for _, name := range record.fileNames() {
+		if ContainsFold(executableCertificateSources, name) {
+			sources = append(sources, name)
+		}
+	}
+	switch len(sources) {
+	case 0:
+		return pass("none of " + strings.Join(executableCertificateSources, ", "))
+	case 1:
+		return pass(sources[0])
+	}
+	return fail(strings.Join(sources, ", ") + ": keep one of " + strings.Join(executableCertificateSources, ", ") +
+		", so that it is clear which made the certificate")
+}
+
+// fileNames are the names of the record's files, in the record's order.
+func (r zenodoRecord) fileNames() []string {
+	names := make([]string, 0, len(r.Files))
+	for _, file := range r.Files {
 		names = append(names, file.name())
 	}
-	return pass(strings.Join(names, ", "))
+	return names
+}
+
+// filesEnding are the record's files with one of the extensions, ignoring case.
+func (r zenodoRecord) filesEnding(extensions ...string) []string {
+	var names []string
+	for _, name := range r.fileNames() {
+		if slices.Contains(extensions, strings.ToLower(path.Ext(name))) {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // rule: CC-REP-004 zenodo-certificate-id-match

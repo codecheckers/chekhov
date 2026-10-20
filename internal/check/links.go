@@ -310,9 +310,12 @@ func filepathOrDefault(name string) string {
 // certificateSources are the names the certificate's source goes by, in the
 // order they are looked for: the R package's R Markdown and Quarto templates,
 // codecheck-py's notebook, and what a certificate written by hand is in.
-var certificateSources = []string{
-	"codecheck.Rmd", "codecheck.qmd", "codecheck.ipynb", "codecheck.md", "codecheck.tex",
-}
+var certificateSources = append(slices.Clone(executableCertificateSources), "codecheck.md", "codecheck.tex")
+
+// executableCertificateSources are the sources that make the certificate when
+// run; a deposit carrying more than one leaves the reader to guess which did,
+// which is CC-REP-010.
+var executableCertificateSources = []string{"codecheck.Rmd", "codecheck.qmd", "codecheck.ipynb"}
 
 // certificateDirectory is where the certificate's source lives, relative to
 // the codecheck.yml, as both templates put it.

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-20
+
+### Added
+
+- `CC-REG-008`: the issue a register row names carries exactly one type label,
+  equal to `Type`, and labels that name the row's `Venue` - its name, its label
+  in `venues.csv`, or the type label alone where one venue carries it - and a
+  warning says which labels the row wants (codecheckers/register#232).
+- `CC-REP-007` to `CC-REP-010`: the certificate's Zenodo record carries a PDF,
+  named `codecheck.pdf`, and its source, and no more than one of
+  `codecheck.Rmd`, `codecheck.qmd` and `codecheck.ipynb`
+  (codecheckers/chekhov#57).
+
+### Changed
+
+- The bundled rule files are refreshed from the register, which also brings
+  the descriptions aligned with codecheckers/codecheck#100
+  (codecheckers/chekhov#57, codecheckers/register#232).
+
+### Removed
+
+- `CC-REP-003`, which passed any record with a file in it, is deprecated by
+  the register in favour of `CC-REP-007` to `CC-REP-010`
+  (codecheckers/chekhov#57).
+
+### Fixed
+
+- `CC-REG-006` and `CC-REG-007` no longer warn when GitHub refuses, rate
+  limits or fails to answer for the checks issue: that is "not checked", and
+  only an issue that is not there is a finding (codecheckers/register#232).
+
 ## [0.12.4] - 2026-10-19
 
 ### Fixed

@@ -13,10 +13,24 @@ import (
 // checked, with a reason. A rule added to the register fails this test rather
 // than being quietly ignored, which is the whole point of sharing the
 // identifiers with the codecheck R package.
+//
+// A rule the register has deprecated in every version keeps its identifier,
+// which is never reused, but needs no check - and must not keep one, because
+// the runner never calls it, as CC-REP-003 was split into CC-REP-007 to 010.
 func TestEveryRuleAccountedFor(t *testing.T) {
 	ids, err := rules.IDs()
 	if err != nil {
 		t.Fatalf("rule identifiers: %v", err)
+	}
+	active := map[string]bool{}
+	for _, version := range rules.SpecVersions() {
+		catalogue, err := rules.For(version)
+		if err != nil {
+			t.Fatalf("rules for %s: %v", version, err)
+		}
+		for _, rule := range catalogue {
+			active[rule.ID] = active[rule.ID] || rule.Active()
+		}
 	}
 
 	known := map[string]bool{}
@@ -25,6 +39,10 @@ func TestEveryRuleAccountedFor(t *testing.T) {
 		_, checked := Checks[id]
 		_, excused := NotImplemented[id]
 		switch {
+		case !active[id]:
+			if checked || excused {
+				t.Errorf("%s: deprecated in every version, so neither a check nor an excuse belongs to it", id)
+			}
 		case checked && excused:
 			t.Errorf("%s: both checked and recorded as not checked", id)
 		case !checked && !excused:
