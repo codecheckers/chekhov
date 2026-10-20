@@ -489,12 +489,20 @@ func (s *Services) registerCSV() (*registerData, error) {
 			return
 		}
 		for _, row := range register.Rows {
+			// NA is an empty cell, as read.csv reads it in the R package:
+			// 2020-001 predates the checks issues and says so with NA.
+			cell := func(key string) string {
+				if row[key] == "NA" {
+					return ""
+				}
+				return row[key]
+			}
 			data.entries = append(data.entries, registerEntry{
-				Certificate: row["Certificate"],
-				Repository:  row["Repository"],
-				Type:        row["Type"],
-				Venue:       row["Venue"],
-				Issue:       row["Issue"],
+				Certificate: cell("Certificate"),
+				Repository:  cell("Repository"),
+				Type:        cell("Type"),
+				Venue:       cell("Venue"),
+				Issue:       cell("Issue"),
 			})
 		}
 

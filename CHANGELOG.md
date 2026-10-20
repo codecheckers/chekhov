@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-10-20
+
+### Fixed
+
+- A register row whose `Issue` is `NA`, as `2020-001`'s is, names no checks
+  issue, as the R package reads it, rather than failing `CC-REG-006` to
+  `CC-REG-008` on a request for issue `NA` (codecheckers/register#232).
+
 ## [0.13.0] - 2026-10-20
 
 ### Added

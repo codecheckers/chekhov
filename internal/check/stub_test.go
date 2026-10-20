@@ -846,6 +846,18 @@ var stubCases = []stubCase{
 		want:   OutcomeSkipped,
 		detail: "names no checks issue",
 	},
+	{
+		// 2020-001 predates the checks issues; the R package reads NA as
+		// missing, and asking GitHub for issue NA would be a 404.
+		name: "the register says NA for the issue",
+		rule: "CC-REG-008",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.register(strings.Replace(registerRow, ",42\n", ",NA\n", 1), venuesRow)
+		},
+		want:   OutcomeSkipped,
+		detail: "names no checks issue",
+	},
 
 	// --- the repository under check ---
 	{
