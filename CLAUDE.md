@@ -125,27 +125,53 @@ that way.
 If a test genuinely needs a real account - checking that an assignee sticks,
 say - **ask first**, every time.
 
-**The live tests that have not been run yet live in `docs/live-tests.md`.**
-Offline tests prove the bot decides correctly; they cannot prove GitHub accepts
-the write or that the reply renders the way it reads in a test. A feature whose
-live test has not been run is implemented, not done - so the test goes in that
-file when the change lands, and is ticked when it has been run. The bot account
-being blocked is why the file exists rather than a run happening.
+**A feature is done when the deployment has answered it.** Offline tests prove
+the bot decides correctly; they cannot prove GitHub accepts the write or that
+the reply renders the way it reads in a test. So the live run is part of the
+change, not a queue kept beside it: deploy, run it on the testing register,
+fix what it turns up, and say in the issue what the deployment answered. Until
+then the issue is implemented, not done, and stays In Progress on the board.
+What cannot be run - it needs an account nobody wants to create - waits in
+chekhov#63 rather than in a file.
+
+**Deploying** is from a second checkout, so that the platform builds a commit
+and never a working tree: in `~/git/codecheck/chekhov-deploy`,
+`git pull --ff-only` (from the working checkout, commits only) and
+`runway app deploy source -y`. Then wait for
+`https://chekhov.pqapp.dev/healthz` to report the new version before the
+first command; see `docs/deployment.md`.
 
 **One live test issue per change set.** Live testing happens on a new issue in
 the testing register, named for what is being tried and listing what each
 command should answer. A single long-running issue buries the run that matters
 under a hundred earlier comments, and a reply cannot be read against what was
 expected of it. Link the chekhov issues from the test issue, and the test issue
-from the closing comment, so the proof is one click away.
+from the closing comment, so the proof is one click away. Its first line is
+prose, never a command: the bot answers an opened issue too.
 
 **Post the commands one at a time, and wait for each reply.** The bot answers
 in a goroutine, so a burst of comments comes back out of order: eight commands
 posted in eight seconds produced replies interleaved with the next commands,
 and matching each answer to its question meant reading timestamps. Leave enough
 time for the reply to land - a `check` that asks OpenAlex and Zenodo takes
-longer than `rules` - and read it before posting the next one. The thread is
-the record, and it has to be readable by somebody who was not there.
+longer than `rules` - and read it before posting the next one. A staged reply
+is rewritten as its stages answer, so it is finished when it has stopped
+changing, not when it first appears. The thread is the record, and it has to be
+readable by somebody who was not there.
+
+**Judge a reply by how GitHub renders it**, not by its source: the comment's
+HTML is `gh api repos/<repo>/issues/comments/<id> -H 'Accept:
+application/vnd.github.html+json' --jq .body_html`. A `|` in a table cell ends
+the cell even inside a code span, and a line straight after a list is part of
+its last item; both looked right in the source and wrong on the issue (#21).
+
+**What to point a test at.** The `1970-*` rows of the testing register name
+made-up repositories, so a certificate alone has no configuration to read;
+point at a bundle in `testing-dev-register/testdata/`, one per behaviour, each
+a copy of `testdata/valid-2.0/` with the one line that matters changed. A
+bundle that stands for a row not yet in the register carries the next
+`1970-NNN` after the last row: `CC-REG-002` measures the jump against
+`register.csv` alone, where any other year starts from nothing.
 
 **The board is part of the work.** The register development board
 (<https://github.com/orgs/codecheckers/projects/2>) carries Status and Priority
@@ -625,7 +651,7 @@ exists; read the issues for what does not.
 | #9 metadata, #10 bundle | Commands exist; small criteria left (ORCID checksum digit, bundle size) |
 | #11 references | Done: `check metadata references` |
 | #8 repository | Not started |
-| #12 links | `check links`: the issue, `codecheck.yml`, the certificate source and the deposit; closes once the testing register has answered it |
+| #12 links | Done: `check links`, the issue, `codecheck.yml`, the certificate source and the deposit, answered on the testing register |
 | #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
 | #4 version SHA and target register | `version` and `/healthz` report the version constant and the register. The commit is deliberately not reported: open for the VCS-stamp route, which needs `.git` in the deployment's builder |
 | #5 thanks, #6 goodbye | One registry entry each, not written |
@@ -634,7 +660,8 @@ exists; read the issues for what does not.
 | #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
-| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply. Closes once the testing register has answered |
+| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply, answered on the testing register |
+| #21 register | `check register`, `set repository`, `set venue` and `check certificate` done (0.14), live-tested on testing-dev-register#225; `register`, the pull request, still to come |
 | #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
 | #20 certificate identifier | `next certificate` and `set certificate` implemented, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); CC-REG-002 now allows the R package's slack of 9. Closes once the testing register has answered both |
