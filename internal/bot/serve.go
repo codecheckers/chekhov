@@ -55,6 +55,9 @@ func Serve(address string) error {
 	// The labels it may add and remove, by name; every other label is read
 	// only. See internal/github/comments.go.
 	replies.AddableLabels, replies.RemovableLabels = settings.AddableLabels(), settings.RemovableLabels()
+	// The one file it may write, on a branch of its own, and whose commits
+	// on such a branch are its own to replace; see internal/github/register.go.
+	replies.RegisterFile, replies.Account = settings.RegisterFile(), settings.BotUser()
 
 	server := New(settings, secret, replies, deployment)
 	// A deployment is always online: the checks it runs read repositories and

@@ -44,7 +44,7 @@ for completeness of the conversational set.
 
 | Command | Effect | Prio |
 |---|---|---|
-| `@chekhovbot register` | Open a PR adding the row to `register.csv` | MVP |
+| `@chekhovbot register [<repository>] [<type>] [<venue>]` | Open a PR adding the row to `register.csv`, or update the one it opened (#21) | implemented, live test pending |
 | `@chekhovbot set certificate [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the record of the check, the title, the `id assigned` label (#20) | done |
 | `@chekhovbot set venue [<type>] <venue>` | Record the row's Type and Venue in the record of the check, where the labels do not say (#21) | done |
 | `@chekhovbot set repository <repository>` | Record the repository the row names, where the issue's Repository line does not (#21) | done |

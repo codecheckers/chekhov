@@ -66,15 +66,78 @@ func TestTheGuardLetsThroughOnlyTheBotsOwnWrites(t *testing.T) {
 	}
 	client := guarded()
 	for _, testCase := range cases {
-		target, err := url.Parse(testCase.url)
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = client.guard(testCase.method, target)
-		if (err == nil) != testCase.allowed {
-			t.Errorf("%s: %s %s: allowed %v, got %v", testCase.name, testCase.method, testCase.url,
-				testCase.allowed, err)
-		}
+		testGuard(t, client, guardCase{testCase.name, testCase.method, testCase.url, "", testCase.allowed})
+	}
+}
+
+// With a register file configured, the pull request adding a row gets through
+// and nothing else in the repository does (#21). These writes say in their
+// bodies which branch, which file and which change, so the bodies are part of
+// every case.
+func TestTheGuardLetsThroughThePullRequestAndNothingBesideIt(t *testing.T) {
+	const repo = "https://api.github.com/repos/codecheckers/testing-dev-register"
+	client := guarded()
+	client.RegisterFile = "register.csv"
+	for _, testCase := range []guardCase{
+		{"a tree changing the register file", http.MethodPost, repo + "/git/trees",
+			`{"base_tree": "t", "tree": [{"path": "register.csv", "content": "x"}]}`, true},
+		{"a commit", http.MethodPost, repo + "/git/commits", `{"message": "m", "tree": "t", "parents": ["b"]}`, true},
+		{"creating a register branch", http.MethodPost, repo + "/git/refs",
+			`{"ref": "refs/heads/register-1970-021", "sha": "c"}`, true},
+		{"moving a register branch", http.MethodPatch, repo + "/git/refs/heads/register-1970-021",
+			`{"sha": "c", "force": true}`, true},
+		{"opening a pull request from one", http.MethodPost, repo + "/pulls",
+			`{"title": "t", "head": "register-1970-021", "base": "main", "body": "b"}`, true},
+		{"retitling a pull request", http.MethodPatch, repo + "/pulls/300", `{"title": "t", "body": "b"}`, true},
+
+		{"a tree changing another file", http.MethodPost, repo + "/git/trees",
+			`{"tree": [{"path": "register.csv"}, {"path": ".github/workflows/x.yml"}]}`, false},
+		{"an empty tree", http.MethodPost, repo + "/git/trees", `{"tree": []}`, false},
+		{"creating the default branch", http.MethodPost, repo + "/git/refs", `{"ref": "refs/heads/main", "sha": "c"}`, false},
+		{"creating a tag", http.MethodPost, repo + "/git/refs", `{"ref": "refs/tags/register-1970-021", "sha": "c"}`, false},
+		{"moving the default branch", http.MethodPatch, repo + "/git/refs/heads/main", `{"sha": "c"}`, false},
+		{"moving a branch named like ours", http.MethodPatch, repo + "/git/refs/heads/register-main", `{"sha": "c"}`, false},
+		{"deleting a register branch", http.MethodDelete, repo + "/git/refs/heads/register-1970-021", "", false},
+		{"writing the file through contents", http.MethodPut, repo + "/contents/register.csv",
+			`{"branch": "main", "content": "x"}`, false},
+		{"a pull request from main", http.MethodPost, repo + "/pulls", `{"head": "main", "base": "register-1970-021"}`, false},
+		{"closing a pull request", http.MethodPatch, repo + "/pulls/300", `{"state": "closed"}`, false},
+		{"retargeting a pull request", http.MethodPatch, repo + "/pulls/300", `{"title": "t", "base": "x"}`, false},
+		{"a pull request numbered with a sign", http.MethodPatch, repo + "/pulls/+300", `{"title": "t"}`, false},
+		{"merging a pull request", http.MethodPut, repo + "/pulls/300/merge", `{}`, false},
+		{"a register write without its body", http.MethodPost, repo + "/git/refs", "", false},
+		{"a pull request in production", http.MethodPost, "https://api.github.com/repos/codecheckers/register/pulls",
+			`{"head": "register-1970-021"}`, false},
+	} {
+		testGuard(t, client, testCase)
+	}
+
+	// Without a register file configured, none of it.
+	client.RegisterFile = ""
+	testGuard(t, client, guardCase{"a branch, no register file", http.MethodPost, repo + "/git/refs",
+		`{"ref": "refs/heads/register-1970-021"}`, false})
+}
+
+// A guardCase is one request put to the guard.
+type guardCase struct {
+	name, method, url, payload string
+	allowed                    bool
+}
+
+// testGuard puts one request to the guard.
+func testGuard(t *testing.T, client *Client, testCase guardCase) {
+	t.Helper()
+	target, err := url.Parse(testCase.url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload []byte
+	if testCase.payload != "" {
+		payload = []byte(testCase.payload)
+	}
+	if err := client.guard(testCase.method, target, payload); (err == nil) != testCase.allowed {
+		t.Errorf("%s: %s %s: allowed %v, got %v", testCase.name, testCase.method, testCase.url,
+			testCase.allowed, err)
 	}
 }
 

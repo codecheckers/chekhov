@@ -333,6 +333,10 @@ func Current() (*Settings, error) { return Load(Environment()) }
 // TargetRepository is the register the bot works on, as owner/repo.
 func (s *Settings) TargetRepository() string { return s.Chekhov.Env.TargetRepository }
 
+// RegisterFile is the file of the target repository that `register` adds a
+// row to, in a pull request (#21).
+func (s *Settings) RegisterFile() string { return s.Chekhov.Env.RegisterFile }
+
 // BotUser is the account the bot posts as. A comment by this account is never
 // acted on, so that a reply cannot trigger a reply.
 func (s *Settings) BotUser() string { return s.Chekhov.Env.BotGitHubUser }

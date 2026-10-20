@@ -585,6 +585,14 @@ func (s *Services) CSVs(urls ...string) []Table {
 	return tables
 }
 
+// Cells are the row's values by the column names of register.csv, which
+// registerCSV reads them by: what the pull request adding the row writes,
+// in whatever order the file has its columns (#21).
+func (r RegisterRow) Cells() map[string]string {
+	return map[string]string{"Certificate": r.Certificate, "Repository": r.Repository,
+		"Type": r.Type, "Venue": r.Venue, "Issue": r.Issue}
+}
+
 // entryFor finds the register row of one certificate.
 func (d *registerData) entryFor(certificate string) (RegisterRow, bool) {
 	for _, entry := range d.entries {

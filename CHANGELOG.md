@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-21
+
+### Added
+
+- `register` does what `check register` does, and when no rule fails as an
+  error opens the pull request adding the row to `register.csv`, on a branch
+  `register-YYYY-NNN`, in the file's own column order and line endings. Asked
+  again, it adds the row to the register as it is by then and updates the
+  same pull request, writes nothing when nothing changed, and refuses a branch
+  with anybody else's commits on it. It merges nothing (#21).
+
+### Changed
+
+- `check finish` names `register` as well as `check register` for the next
+  step (#21).
+
 ## [0.14.1] - 2026-10-20
 
 ### Fixed

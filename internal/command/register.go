@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // The register row a check would get, as `check register` shows it (#21).
@@ -81,7 +82,70 @@ func CertificateMismatch(configured, reserved string) string {
 // RowSet is the reply to `set repository` and `set venue`: what the record now
 // says of the row, and that the rest is still read from the issue.
 func RowSet(holders Holders, by string) string {
-	return fmt.Sprintf("Recorded for the register row, as `@%s` asked.\n%s\n"+
+	return fmt.Sprintf("Recorded for the register row, as %s asked.\n%s\n"+
 		"A column not set here is read from the issue when the row is built: "+
-		"`%s check register` shows it.\n", by, RowLine(holders), Bot)
+		"`%s check register` shows it.\n", mention(by), RowLine(holders), Bot)
+}
+
+// NoPullRequest is the last stage of `register` when an earlier one stopped
+// it.
+func NoPullRequest() string {
+	return "\n… I have opened no pull request: the row needs what is above put right first. " +
+		"A warning does not stop it; an error, or a configuration I could not read or that carries " +
+		"another certificate, does.\n"
+}
+
+// PullRequestTitle is the pull request's title and the commit's subject.
+func PullRequestTitle(certificate string) string {
+	return "add " + certificate
+}
+
+// CommitMessage is the commit's, which closes the checks issue when the pull
+// request is merged.
+func CommitMessage(certificate string, issue int) string {
+	return fmt.Sprintf("%s, closes #%d", PullRequestTitle(certificate), issue)
+}
+
+// PullRequestBody is what the pull request says: the row, the checks issue it
+// closes, and who asked - in a code span, so that nobody is notified.
+func PullRequestBody(row Row, issue int, by string) string {
+	return fmt.Sprintf("Adds the register row for #%d, as %s asked with `%s register`.\n\n%s\n"+
+		"An editor reviews and merges it; I merge nothing. Merging closes #%d.\n",
+		issue, mention(by), Bot, RowTable(row), issue)
+}
+
+// PullRequestOpened is the reply once the pull request is there, and the
+// record of who asked for it. updated says it was there already, unchanged
+// that it already proposed exactly this and nothing was written.
+func PullRequestOpened(number int, url string, updated, unchanged bool, by string, when time.Time) string {
+	did := "Opened the pull request adding this row"
+	switch {
+	case unchanged:
+		did = "The pull request already proposes this row, so I have changed nothing"
+	case updated:
+		did = "Brought up to date the pull request adding this row"
+	}
+	return fmt.Sprintf("\n✔ %s: #%d, %s.\n", did, number, url) + entry("asked", by, when)
+}
+
+// PullRequestFailed is the reply when GitHub would not take a write: what it
+// said is in the log, which is no place for a thread.
+func PullRequestFailed() string {
+	return "\n… I could not open the pull request: GitHub refused or failed a request on the way, " +
+		"and what it said is in my log. Ask me again; if it fails twice, it needs somebody who can read the log.\n"
+}
+
+// AlreadyRegistered is the refusal for a certificate the register file has a
+// row for already, found on the default branch at the moment of writing.
+func AlreadyRegistered(certificate string) string {
+	return fmt.Sprintf("\n… `register.csv` already has a row for %s, so I have opened no pull request. "+
+		"`%s check certificate %s` runs the rules on it.\n", Code(certificate), Bot, certificate)
+}
+
+// BranchNotOurs is the refusal when the branch the bot would write has
+// somebody else's commits on it: an editor's fix that a reset would throw
+// away.
+func BranchNotOurs(certificate string) string {
+	return fmt.Sprintf("\n… The branch `register-%s` has commits that are not mine, so I have left it "+
+		"alone and opened no pull request: finish or delete that branch, and ask me again.\n", certificate)
 }

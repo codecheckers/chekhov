@@ -240,22 +240,6 @@ func (c *Client) writeIssue(ctx context.Context, method, repository string, issu
 	if err := c.mine(repository, what); err != nil {
 		return nil, err
 	}
-	// A nil payload is a request with no body, a DELETE's; marshalled it
-	// would be the word null.
-	var body []byte
-	if payload != nil {
-		var err error
-		if body, err = json.Marshal(payload); err != nil {
-			return nil, err
-		}
-	}
 	endpoint := fmt.Sprintf("%s/repos/%s/issues/%d%s", strings.TrimSuffix(c.BaseURL, "/"), repository, issue, path)
-
-	var raw []byte
-	err := c.attempt(ctx, fmt.Sprintf("%s on %s#%d", what, repository, issue), func() error {
-		var err error
-		raw, err = c.do(ctx, method, endpoint, body)
-		return err
-	})
-	return raw, err
+	return c.send(ctx, method, endpoint, fmt.Sprintf("%s on %s#%d", what, repository, issue), payload)
 }

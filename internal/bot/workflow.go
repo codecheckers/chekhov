@@ -306,13 +306,23 @@ func (s *Server) describing(target string, services *check.Services) func(contex
 // saves is the work after them.
 func (s *Server) summarising(loaded func() (check.Context, error), target, part string,
 ) func(context.Context) string {
+	return s.judging(loaded, target, part, nil)
+}
+
+// judging is summarising that also hands the report to judge, for a command
+// whose next step depends on it: `register` opens no pull request when a rule
+// fails. judge may be nil.
+func (s *Server) judging(loaded func() (check.Context, error), target, part string,
+	judge func(check.Report, error)) func(context.Context) string {
 	return func(context.Context) string {
+		var report check.Report
 		context, err := loaded()
-		if err != nil {
-			return command.CheckSummary(command.Summarised{Part: part, Target: target,
-				Problem: err.Error()})
+		if err == nil {
+			report, err = check.RunPart(context, "", false, part)
 		}
-		report, err := check.RunPart(context, "", false, part)
+		if judge != nil {
+			judge(report, err)
+		}
 		return command.CheckSummary(summarised(part, target, report, err))
 	}
 }

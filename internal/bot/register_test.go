@@ -8,6 +8,7 @@ import (
 
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
@@ -259,5 +260,104 @@ func TestTheWorkflowReadsTheRecordedRepository(t *testing.T) {
 	record := people.Record{Repository: "github::codecheckers/other", Certificate: "1970-001"}
 	if target := server.targetFor(nil, record, server.Services); target != "github::codecheckers/other" {
 		t.Errorf("read %q, want the recorded repository", target)
+	}
+}
+
+// proposer is the reply path with the pull request, recording what it was
+// asked to propose.
+type proposer struct {
+	*workflow
+	proposed []github.RowProposal
+	refuse   error
+}
+
+func (p *proposer) ProposeRow(_ context.Context, _ string, proposal github.RowProposal) (github.RowPullRequest, error) {
+	if p.refuse != nil {
+		return github.RowPullRequest{}, p.refuse
+	}
+	p.proposed = append(p.proposed, proposal)
+	return github.RowPullRequest{Number: 300, URL: "https://github.example/pull/300",
+		Updated: len(p.proposed) > 1}, nil
+}
+
+func proposingServer(t *testing.T, listed bool) (*Server, *proposer) {
+	t.Helper()
+	server, path := registering(t, demoIssueBody, listed, "journal", "FAKE Journal")
+	reserve(t, server, "1970-001")
+	writer := &proposer{workflow: path}
+	server.Replies = writer
+	return server, writer
+}
+
+// A row the rules pass is proposed as it was shown: the row in the file's
+// column names, the commit closing the checks issue, and who asked.
+func TestRegisterOpensThePullRequest(t *testing.T) {
+	server, writer := proposingServer(t, false)
+
+	reply := answer(t, server, command.Register, nil, "")
+	if len(writer.proposed) != 1 {
+		t.Fatalf("proposed %d times:\n%s", len(writer.proposed), reply)
+	}
+	proposal := writer.proposed[0]
+	want := map[string]string{"Certificate": "1970-001", "Repository": "github::codecheckers/demo",
+		"Type": "journal", "Venue": "FAKE Journal", "Issue": "1"}
+	for column, value := range want {
+		if proposal.Row[column] != value {
+			t.Errorf("%s = %q, want %q", column, proposal.Row[column], value)
+		}
+	}
+	if proposal.Title != "add 1970-001" || proposal.Message != "add 1970-001, closes #1" {
+		t.Errorf("title %q, message %q", proposal.Title, proposal.Message)
+	}
+	if !strings.Contains(proposal.Body, "as `@nuest` asked") || strings.Contains(proposal.Body, " @nuest") {
+		t.Errorf("the body does not name who asked without notifying them:\n%s", proposal.Body)
+	}
+	if !strings.Contains(reply, "Opened the pull request adding this row: #300") {
+		t.Errorf("the reply does not link the pull request:\n%s", reply)
+	}
+
+	reply = answer(t, server, command.Register, nil, "")
+	if !strings.Contains(reply, "Brought up to date the pull request") {
+		t.Errorf("a second register does not say it updated:\n%s", reply)
+	}
+}
+
+// A rule failing as an error stops the pull request, which is never asked
+// for; the reply says what stopped it.
+func TestRegisterOpensNothingWhenARuleFails(t *testing.T) {
+	server, writer := proposingServer(t, true) // 1970-001 is in register.csv already
+
+	reply := answer(t, server, command.Register, nil, "")
+	if len(writer.proposed) != 0 {
+		t.Errorf("a failing row was proposed: %+v", writer.proposed)
+	}
+	if !strings.Contains(reply, "1970-001 is already in register.csv") || !strings.Contains(reply, "opened no pull request") {
+		t.Errorf("the refusal does not say why:\n%s", reply)
+	}
+}
+
+// What the writer refuses is said in the reply's words.
+func TestRegisterSaysWhyThePullRequestWasRefused(t *testing.T) {
+	for err, want := range map[error]string{
+		github.ErrBranchNotOurs:     "has commits that are not mine",
+		github.ErrAlreadyRegistered: "already has a row for `1970-001`",
+	} {
+		server, writer := proposingServer(t, false)
+		writer.refuse = err
+		if reply := answer(t, server, command.Register, nil, ""); !strings.Contains(reply, want) {
+			t.Errorf("%v: the reply does not say %q:\n%s", err, want, reply)
+		}
+	}
+}
+
+// Without the pull request on the reply path - the preview - the row is
+// judged and nothing is opened.
+func TestRegisterOpensNothingFromThePreview(t *testing.T) {
+	server, _ := registering(t, demoIssueBody, false, "journal", "FAKE Journal")
+	reserve(t, server, "1970-001")
+
+	reply := answer(t, server, command.Register, nil, "")
+	if !strings.Contains(reply, "cannot open a pull request from here") {
+		t.Errorf("the preview did not say it opens nothing:\n%s", reply)
 	}
 }

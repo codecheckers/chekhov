@@ -24,8 +24,8 @@ and the only one outside this repository's code:
 |---|---|---|
 | The token | GitHub | a write to any repository it does not name |
 | The webhook | `bot.refuse` | a delivery from any repository but the configured one, before its command is read |
-| Each method | `github.Client.mine`, the team fence, the label lists | a call naming another repository, organisation, team or label |
-| The request guard | `github.Client.guard`, in `do` | any write that is not to an issue of the configured repository or the membership of a managed team, and any request at all to a host but the API's |
+| Each method | `github.Client.mine`, the team fence, the label lists, the register fence | a call naming another repository, organisation, team, label, file or branch |
+| The request guard | `github.Client.guard`, in `do` | any write that is not to an issue of the configured repository, the membership of a managed team, or the register pull request - read from the request's body where the path does not say: no branch moves but a `register-YYYY-NNN` one, a pull request is opened only from such a branch and otherwise only retitled, and nothing is merged. What the commit on that branch holds is the method's to get right and the merging editor's to see; and any request at all to a host but the API's |
 
 The last one exists because the third holds only while every method remembers
 to call it: `guard` sits in the one function every request leaves through, so
@@ -49,8 +49,8 @@ Permissions, under Repository permissions:
 |---|---|---|
 | Metadata | Read | Mandatory, selected automatically |
 | Issues | **Read and write** | Posting the reply; reading a check's issue and the register's open issues for `suggest codecheckers`; later labels and assignees |
-| Contents | Read | Reading `register.csv` and `venues.csv` through the API |
-| Pull requests | Read and write | Only for `@chekhovbot register`, which opens the PR against `register.csv` |
+| Contents | **Read and write** | Reading `register.csv` and `venues.csv`; writing is `@chekhovbot register` only: a commit changing the configured register file, on a `register-YYYY-NNN` branch it creates or moves (#21) |
+| Pull requests | Read and write | `@chekhovbot register`, which opens or updates the pull request adding the row; it never merges |
 
 Organisation permissions:
 
@@ -183,10 +183,12 @@ when the bot outgrows commenting.
 ## Account prerequisites
 
 - `chekhovbot` is an active member of the `codecheckers` organisation.
-- Its permission on `codecheckers/testing-dev-register` is `read`. That is
-  enough to comment on a public repository, which is all the current commands
-  do. Labels, assignees and pushing a branch need `write`, so that has to be
-  raised before those commands land.
+- Its permission on `codecheckers/testing-dev-register` is `write` (checked
+  2026-10-21): labels, assignees and the `register-*` branches need it.
+- **Protect the default branch** of a register the bot writes to, so that a
+  change reaches it only through a reviewed pull request. The token's Contents
+  write would otherwise reach `main` too; the guard refuses it, and branch
+  protection is the layer that does not depend on this code.
 - 2FA on the account, as the organisation requires.
 
 ## Rotation

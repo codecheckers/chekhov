@@ -568,8 +568,8 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.setRepository(ctx, event, parsed))
 	case command.SetVenue:
 		return said(s.setVenue(ctx, event, parsed, services))
-	case command.CheckRegister:
-		return s.checkRegister(ctx, event, parsed, services)
+	case command.CheckRegister, command.Register:
+		return s.registerRow(ctx, event, parsed, services, parsed.Name == command.Register)
 	default:
 		return said(command.UnknownReply(parsed, roles))
 	}

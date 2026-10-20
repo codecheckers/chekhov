@@ -49,6 +49,13 @@ type Client struct {
 	// otherwise, and then the change is refused. See AddLabel.
 	AddableLabels   []string
 	RemovableLabels []string
+	// RegisterFile is the one file this client will write, and only on a
+	// register-YYYY-NNN branch; Account is the bot's own login, the only
+	// author whose commits on such a branch it may replace. Empty unless a
+	// deployment says otherwise, and the pull request is then refused. See
+	// register.go.
+	RegisterFile string
+	Account      string
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string
@@ -185,7 +192,7 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) (_ 
 		return nil, err
 	}
 	// Before anything is set on it, the token least of all. See guard.go.
-	if err := c.guard(method, request.URL); err != nil {
+	if err := c.guard(method, request.URL, payload); err != nil {
 		return nil, err
 	}
 	// Writes queue, one at a time and WriteInterval apart, so that a burst of
@@ -230,6 +237,45 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) (_ 
 		return nil, httpretry.BodyError(method, request.URL.Redacted(), readErr)
 	}
 	return raw, nil
+}
+
+// send is one request with a JSON payload, retried as attempt retries: the
+// fence is the caller's, and guard's in do.
+func (c *Client) send(ctx context.Context, method, url, what string, payload any) ([]byte, error) {
+	// A nil payload is a request with no body, a DELETE's; marshalled it
+	// would be the word null.
+	var body []byte
+	if payload != nil {
+		var err error
+		if body, err = json.Marshal(payload); err != nil {
+			return nil, err
+		}
+	}
+	var raw []byte
+	err := c.attempt(ctx, what, func() error {
+		var err error
+		raw, err = c.do(ctx, method, url, body)
+		return err
+	})
+	return raw, err
+}
+
+// read is one GET, its answer decoded into into.
+func (c *Client) read(ctx context.Context, url string, into any) error {
+	raw, err := c.send(ctx, http.MethodGet, url, "reading "+url, nil)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, into)
+}
+
+// write is one write, its answer decoded into into unless that is nil.
+func (c *Client) write(ctx context.Context, method, url string, payload, into any) error {
+	raw, err := c.send(ctx, method, url, method+" "+url, payload)
+	if err != nil || into == nil {
+		return err
+	}
+	return json.Unmarshal(raw, into)
 }
 
 // attempt runs a request twice at most, waiting as GitHub asks between the

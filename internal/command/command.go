@@ -87,6 +87,9 @@ const (
 	// rules on it, writing nothing; the rules on a row already in register.csv
 	// are `check certificate` (#21).
 	CheckRegister Name = "check register"
+	// Register does what `check register` does and then opens the pull
+	// request adding the row, for an editor to merge (#21).
+	Register Name = "register"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

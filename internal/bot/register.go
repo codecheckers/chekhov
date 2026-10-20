@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 	"unicode"
 
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 )
 
@@ -22,17 +25,27 @@ import (
 // says - its Repository line and its labels, read as CC-REG-008 reads them, so
 // that a row filled in from the labels is a row the rule passes.
 
-// checkRegister builds the row and runs the configuration and register rules
-// on it. It writes nothing.
-func (s *Server) checkRegister(ctx context.Context, event mention, parsed command.Command,
-	services *check.Services) answered {
+// Registering is what `register` needs of the reply path: the pull request
+// adding the row. A path without it - the preview - judges the row and opens
+// nothing.
+type Registering interface {
+	ProposeRow(ctx context.Context, repository string, proposal github.RowProposal) (github.RowPullRequest, error)
+}
+
+var _ Registering = (*github.Client)(nil)
+
+// registerRow is `check register` and `register`: the row, the rules on it,
+// and - for `register`, when no rule failed - the pull request adding it.
+func (s *Server) registerRow(ctx context.Context, event mention, parsed command.Command,
+	services *check.Services, propose bool) answered {
 	// Before 0.14.0 `check register <certificate>` ran the register rules on
 	// a row already there; that is `check certificate` now, and a certificate
 	// is never a venue.
 	for _, arg := range parsed.Args {
 		if check.IsCertificateID(arg) {
-			return said(fmt.Sprintf("`%s check register` builds this check's row; the rules on a row "+
-				"already in `register.csv` are `%s check %s %s`.\n", command.Bot, command.Bot, check.Certificate, arg))
+			return said(fmt.Sprintf("`%s %s` builds this check's row; the rules on a row "+
+				"already in `register.csv` are `%s check %s %s`.\n", command.Bot, parsed.Name,
+				command.Bot, check.Certificate, arg))
 		}
 	}
 	// The arguments are the row's, not a target: about is asked without them.
@@ -67,7 +80,7 @@ func (s *Server) checkRegister(ctx context.Context, event mention, parsed comman
 	// mismatch is the refusal when the configuration carries another
 	// identifier than the one reserved, empty when it carries that one or
 	// could not be read - which the configuration stage reports already.
-	mismatch := func() string {
+	mismatch := sync.OnceValue(func() string {
 		context, err := loaded()
 		if err != nil {
 			return ""
@@ -76,11 +89,19 @@ func (s *Server) checkRegister(ctx context.Context, event mention, parsed comman
 			return command.CertificateMismatch(configured, proposed.Certificate)
 		}
 		return ""
+	})
+	// failed is whether a rule stopped the pull request: a configuration that
+	// cannot be read, or a rule failing as an error. A warning does not; the
+	// editor who merges reads it. The stages run in order, one after another,
+	// which is progress's contract and what makes this safe to share.
+	failed := false
+	judged := func(report check.Report, err error) {
+		failed = failed || err != nil || !report.OK()
 	}
 	stages := []stage{
 		fixed(command.RowTable(row)),
 		{Name: "the configuration", Run: func(ctx context.Context) string {
-			return s.summarising(loaded, target, "config")(ctx) + mismatch()
+			return s.judging(loaded, target, "config", judged)(ctx) + mismatch()
 		}},
 		{Name: "the register", Run: func(context.Context) string {
 			loadedContext, err := loaded()
@@ -89,10 +110,46 @@ func (s *Server) checkRegister(ctx context.Context, event mention, parsed comman
 			}
 			loadedContext.Row = &proposed
 			report, err := check.RunPart(loadedContext, "", false, check.Certificate)
+			judged(report, err)
 			return command.CheckSummary(summarised(check.Certificate, target, report, err))
 		}},
 	}
+	if propose {
+		stages = append(stages, stage{Name: "the pull request", Run: func(ctx context.Context) string {
+			if failed || mismatch() != "" {
+				return command.NoPullRequest()
+			}
+			return s.proposeRow(ctx, event, row, proposed)
+		}})
+	}
 	return (&progress{server: s, event: event, heading: command.RegisterHeading, stages: stages}).run(ctx)
+}
+
+// proposeRow opens the pull request, or says why it did not.
+func (s *Server) proposeRow(ctx context.Context, event mention, row command.Row, proposed check.RegisterRow) string {
+	writer, ok := s.Replies.(Registering)
+	if !ok {
+		return "… I cannot open a pull request from here: ask me on the checks issue.\n"
+	}
+	pull, err := writer.ProposeRow(ctx, event.Repository, github.RowProposal{
+		Row:     proposed.Cells(),
+		Title:   command.PullRequestTitle(proposed.Certificate),
+		Message: command.CommitMessage(proposed.Certificate, event.Issue),
+		// Defused as every comment is: the row holds what the issue and the
+		// record say, and nothing the bot writes may look like a record.
+		Body: command.Defuse(command.PullRequestBody(row, event.Issue, event.Author)),
+	})
+	switch {
+	case errors.Is(err, github.ErrAlreadyRegistered):
+		return command.AlreadyRegistered(proposed.Certificate)
+	case errors.Is(err, github.ErrBranchNotOurs):
+		return command.BranchNotOurs(proposed.Certificate)
+	case err != nil:
+		// The API's own words, URLs and all, are for the log, not the thread.
+		s.Logger.Warn("the register pull request could not be opened", "issue", event.Issue, "error", err)
+		return command.PullRequestFailed()
+	}
+	return command.PullRequestOpened(pull.Number, pull.URL, pull.Updated, pull.Unchanged, event.Author, time.Now())
 }
 
 // rowFor builds the row as far as it can, and says where each column came

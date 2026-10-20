@@ -233,6 +233,14 @@ var registry = []Definition{
 		AboutTheCheck: true,
 	},
 	{
+		Name:          Register,
+		Summary:       "Open the pull request adding this check's row to `register.csv`, once the rules allow it",
+		Usage:         "register [<repository>] [<type>] [<venue>]",
+		Group:         GroupRegister,
+		Role:          RoleEditor,
+		AboutTheCheck: true,
+	},
+	{
 		Name:    Announce,
 		Summary: "Toot about a published certificate: a preview first, then `confirm` to post",
 		Usage:   "announce <certificate> [confirm]",

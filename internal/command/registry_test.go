@@ -50,7 +50,9 @@ func TestListingShowsEveryVisibleCommand(t *testing.T) {
 	for _, role := range []Role{RoleAnyone, RoleEditor} {
 		listing := Listing(Roles{role})
 		for _, definition := range Definitions() {
-			mentioned := strings.Contains(listing, escapePipes(definition.Usage))
+			// The whole command as listed, mention and code span included:
+			// `register ...` is the end of `check register ...` too.
+			mentioned := strings.Contains(listing, "`"+Bot+" "+escapePipes(definition.Usage)+"`")
 			visible := !definition.Hidden && definition.Permits(Roles{role})
 			if !visible && mentioned {
 				t.Errorf("%s is listed for %s but should not be", definition.Name, role)

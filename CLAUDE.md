@@ -661,7 +661,7 @@ exists; read the issues for what does not.
 | #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
 | #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply, answered on the testing register |
-| #21 register | `check register`, `set repository`, `set venue` and `check certificate` done (0.14), live-tested on testing-dev-register#225; `register`, the pull request, still to come |
+| #21 register | `check register`, `set repository`, `set venue` and `check certificate` done (0.14), live-tested on testing-dev-register#225; `register`, the pull request, implemented (0.15), live test pending |
 | #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
 | #20 certificate identifier | `next certificate` and `set certificate` implemented, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); CC-REG-002 now allows the R package's slack of 9. Closes once the testing register has answered both |

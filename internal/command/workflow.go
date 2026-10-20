@@ -401,6 +401,7 @@ func FinishedBody(pending bool, ruleNote string) string {
 	}
 	out.WriteString("✔ Nothing is left pending. The next step is the register entry: " +
 		"a pull request adding the certificate to `register.csv`. " +
-		"`" + Bot + " check register` shows the row it would add, and runs the rules on it.\n")
+		"`" + Bot + " check register` shows the row it would add and runs the rules on it, " +
+		"and `" + Bot + " register` opens the pull request.\n")
 	return out.String()
 }
