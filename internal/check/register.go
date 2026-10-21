@@ -58,7 +58,7 @@ func certificateIDSequence(c Context) Result {
 	}
 	// A year that has not started needs no register to see, and a jump
 	// measured inside it would say nothing.
-	if year := c.Services.today().Year(); CertificateInFuture(certificate, year) {
+	if year := c.Services.Today().Year(); CertificateInFuture(certificate, year) {
 		return fail(fmt.Sprintf("%s is in a future year; it is %d", certificate, year)).
 			at(c.Config.Line("certificate"))
 	}

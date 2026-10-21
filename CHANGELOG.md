@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-21
+
+### Added
+
+- `set certificate` refuses an identifier numbered in a year that has not
+  started, which `CC-REG-002` would fail, and `anyway` does not override it
+  (#62).
+
 ## [0.16.1] - 2026-10-21
 
 ### Fixed

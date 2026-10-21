@@ -51,7 +51,7 @@ func (s *Server) nextCertificate(ctx context.Context, parsed command.Command, se
 		return err.Error() + "\n"
 	}
 	label := s.Settings.IDAssignedLabel()
-	next, highest, found := check.NextCertificate(time.Now().UTC().Year(), claims)
+	next, highest, found := check.NextCertificate(services.Today().Year(), claims)
 	return command.NextCertificateReply(next, claimed(highest, found), label, unlabelled(issues, label))
 }
 
@@ -124,21 +124,29 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	if id == "" {
 		id = held
 	}
+	year := services.Today().Year()
 	if id == "" {
-		id, _, _ = check.NextCertificate(time.Now().UTC().Year(), others)
+		id, _, _ = check.NextCertificate(year, others)
 	}
 	if claim, taken := check.CertificateTaken(id, others); taken {
 		return command.CertificateTakenReply(*claimed(claim, true), ruleNote("CC-REG-001"))
 	}
 	set := command.CertificateSet{ID: id, Label: label}
-	// The jump is asked about once, when the number is chosen; the one the
+	// The sequence is asked about once, when the number is chosen; the one the
 	// check already holds is not a new decision.
-	if previous, gap, found := check.CertificateJump(id, others); id != held && gap > check.MaxCertificateJump {
-		jump := command.JumpSentence(gap, claimed(previous, found))
-		if !anyway {
-			return command.CertificateJumpReply(id, jump, ruleNote("CC-REG-002"))
+	if id != held {
+		// A year that has not started is never a gap somebody meant, so there
+		// is no `anyway` for it.
+		if check.CertificateInFuture(id, year) {
+			return command.CertificateFutureReply(id, year, ruleNote("CC-REG-002"))
 		}
-		set.Forced = jump
+		if previous, gap, found := check.CertificateJump(id, others); gap > check.MaxCertificateJump {
+			jump := command.JumpSentence(gap, claimed(previous, found))
+			if !anyway {
+				return command.CertificateJumpReply(id, jump, ruleNote("CC-REG-002"))
+			}
+			set.Forced = jump
+		}
 	}
 
 	_, err = s.Checks.Update(ctx, event.Repository, event.Issue,

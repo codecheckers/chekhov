@@ -140,6 +140,12 @@ func CertificateJumpReply(id, jump, rule string) string {
 		id, jump, rule, Bot, id)
 }
 
+// CertificateFutureReply refuses an identifier numbered in a year that has
+// not started, which no gap explains and `anyway` cannot confirm.
+func CertificateFutureReply(id string, year int, rule string) string {
+	return fmt.Sprintf("`%s` is numbered in a year that has not started; it is %d.\n%s", id, year, rule)
+}
+
 // JumpSentence says how far an identifier runs past the year's previous one.
 func JumpSentence(gap int, previous *Held) string {
 	if previous == nil {

@@ -201,6 +201,25 @@ func TestSetCertificateAsksBeforeAJump(t *testing.T) {
 	}
 }
 
+// A year that has not started is what CC-REG-002 fails, so the command does
+// not hand one out, and `anyway` does not change that: no gap explains it.
+func TestSetCertificateRefusesAFutureYear(t *testing.T) {
+	server, register, _ := registered(t)
+	server.Services.Now = func() time.Time { return time.Date(2026, time.June, 15, 12, 0, 0, 0, time.UTC) }
+
+	for _, args := range [][]string{{"2027-001"}, {"2027-001", "anyway"}} {
+		reply := answer(t, server, command.Set, args, "")
+		for _, want := range []string{"`2027-001` is numbered in a year that has not started; it is 2026.", "CC-REG-002"} {
+			if !strings.Contains(reply, want) {
+				t.Errorf("%v: the refusal does not say %q:\n%s", args, want, reply)
+			}
+		}
+	}
+	if len(register.titled)+len(register.labelled) != 0 {
+		t.Errorf("a refusal wrote to the issue: %v %v", register.titled, register.labelled)
+	}
+}
+
 func TestSetCertificateIsForEditors(t *testing.T) {
 	server, register, _ := registered(t)
 

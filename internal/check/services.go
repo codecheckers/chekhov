@@ -84,9 +84,9 @@ type Access struct {
 	Now func() time.Time
 }
 
-// today is the date in UTC, the year a certificate identifier is numbered in.
-// A run without services has a clock too.
-func (s *Services) today() time.Time {
+// Today is the date in UTC, the year a certificate identifier is numbered in,
+// for the rule and the commands alike. A run without services has a clock too.
+func (s *Services) Today() time.Time {
 	if s == nil || s.Now == nil {
 		return time.Now().UTC()
 	}
