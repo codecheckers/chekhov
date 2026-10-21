@@ -67,7 +67,11 @@ type Client struct {
 	// sooner waits its turn in writes. httpretry.WriteInterval unless a test
 	// says otherwise.
 	WriteInterval time.Duration
-	writes        httpretry.Pacer
+	// SecondaryLimitPause is how long the queue holds after a secondary rate
+	// limit that names no time: secondaryLimitPause unless a test says
+	// otherwise, which is the only reason it is a field.
+	SecondaryLimitPause time.Duration
+	writes              httpretry.Pacer
 
 	// tokenExpiry is what GitHub last said about the token's lifetime. A
 	// fine-grained token expires, and a bot that goes quiet on a Monday is
@@ -87,6 +91,8 @@ func New(token, repository, signature string) *Client {
 		Logger:        slog.Default(),
 		RetryWait:     time.Second,
 		WriteInterval: httpretry.WriteInterval,
+
+		SecondaryLimitPause: secondaryLimitPause,
 	}
 }
 
@@ -205,7 +211,7 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) (_ 
 		if err != nil {
 			return nil, err
 		}
-		defer func() { done(hold(failure)) }()
+		defer func() { done(hold(failure, c.SecondaryLimitPause)) }()
 	}
 	request.Header.Set("Accept", "application/vnd.github+json")
 	request.Header.Set("X-GitHub-Api-Version", "2022-11-28")
@@ -374,13 +380,13 @@ const secondaryLimitPause = time.Minute
 // that says so only in its body - the minute GitHub asks for. Without it the
 // queue would keep writing three seconds apart into the limit, which is the
 // burst the queue is there to prevent.
-func hold(failure error) time.Duration {
+func hold(failure error, secondary time.Duration) time.Duration {
 	if pause := httpretry.Hold(failure); pause > 0 {
 		return pause
 	}
 	var status *httpretry.StatusError
 	if errors.As(failure, &status) && status.Status == http.StatusForbidden && bodySaysRateLimited(status.Body) {
-		return secondaryLimitPause
+		return secondary
 	}
 	return 0
 }

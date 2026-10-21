@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-10-21
+
+### Fixed
+
+- A 404 is no longer logged as a failed request: it is how `register` learns
+  that its branch does not exist yet, and the caller says what it means (#21).
+- The offline suite runs in seconds again: the test of a secondary rate limit
+  waited out the minute the queue holds for one.
+
 ## [0.15.0] - 2026-10-21
 
 ### Added

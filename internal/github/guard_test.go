@@ -295,7 +295,7 @@ func TestTheSecondaryLimitHoldsTheQueue(t *testing.T) {
 		"no failure": {nil, 0},
 	}
 	for name, testCase := range cases {
-		if got := hold(testCase.err); got != testCase.want {
+		if got := hold(testCase.err, secondaryLimitPause); got != testCase.want {
 			t.Errorf("%s: hold = %v, want %v", name, got, testCase.want)
 		}
 	}

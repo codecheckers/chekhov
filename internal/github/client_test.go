@@ -28,6 +28,9 @@ func stub(t *testing.T, handler http.HandlerFunc) *Client {
 	// Unpaced, so a test that writes twice does not wait for it; pacing has
 	// tests of its own, in guard_test.go.
 	client.WriteInterval = 0
+	// Nor for the minute a secondary rate limit holds the queue, which
+	// TestTheSecondaryLimitHoldsTheQueue measures without waiting it out.
+	client.SecondaryLimitPause = 0
 	return client
 }
 

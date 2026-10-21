@@ -231,3 +231,27 @@ func TestIsStatus(t *testing.T) {
 		t.Error("IsStatus does not read a wrapped status")
 	}
 }
+
+// A 404 is an answer, which the caller reads: it is neither retried nor
+// logged as a failure. A failure that is one still is.
+func TestANotFoundIsNotLoggedAsAFailure(t *testing.T) {
+	var logged strings.Builder
+	policy := Policy{Logger: slog.New(slog.NewTextHandler(&logged, nil))}
+
+	attempts := 0
+	err := policy.Do(context.Background(), "reading a branch", func() error {
+		attempts++
+		return &StatusError{Status: http.StatusNotFound}
+	})
+	if !IsStatus(err, http.StatusNotFound) || attempts != 1 {
+		t.Errorf("err %v after %d attempts, want the 404 after one", err, attempts)
+	}
+	if logged.Len() != 0 {
+		t.Errorf("a 404 was logged: %s", logged.String())
+	}
+
+	_ = policy.Do(context.Background(), "writing", func() error { return &StatusError{Status: http.StatusForbidden} })
+	if !strings.Contains(logged.String(), "writing failed") {
+		t.Errorf("a refusal was not logged: %q", logged.String())
+	}
+}

@@ -100,7 +100,12 @@ func (p Policy) Do(ctx context.Context, what string, request func() error) error
 		if lastErr == nil {
 			return nil
 		}
-		p.Logger.Warn(what+" failed", "attempt", try+1, "error", lastErr)
+		// A 404 is an answer rather than a failure - "there is no such
+		// branch yet" is how `register` learns to create one - and the caller
+		// says what it means; a warning for it was noise in the log.
+		if !IsStatus(lastErr, http.StatusNotFound) {
+			p.Logger.Warn(what+" failed", "attempt", try+1, "error", lastErr)
+		}
 		if !p.retryable(ctx, lastErr) {
 			break
 		}
