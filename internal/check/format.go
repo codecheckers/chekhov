@@ -57,6 +57,9 @@ func (r Report) Text() string {
 		fmt.Fprintf(&out, "%s %s\n", Symbol(result.Outcome), line)
 	}
 	out.WriteString("\n" + r.Summary() + "\n")
+	if r.size != "" {
+		out.WriteString(r.size + "\n")
+	}
 	if r.Strict {
 		out.WriteString("strict: warnings are reported as errors\n")
 	}
@@ -102,6 +105,9 @@ func (r Report) Markdown() string {
 			Symbol(OutcomeError), r.SpecVersion, r.partSuffix())
 	}
 	fmt.Fprintf(&out, "\n%s\n", r.Summary())
+	if r.size != "" {
+		fmt.Fprintf(&out, "\n%s\n", r.size)
+	}
 
 	var reportable []RuleResult
 	for _, result := range r.Results {

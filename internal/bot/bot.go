@@ -1007,7 +1007,9 @@ func (s *Server) reportOn(target, part string, services *check.Services) (check.
 	if err != nil {
 		return check.Report{}, fmt.Errorf("I could not read `%s`: %w", target, err)
 	}
-	return check.RunPart(context, "", false, part)
+	report, err := check.RunPart(context, "", false, part)
+	report.Measure(context)
+	return report, err
 }
 
 // rules says which catalogue this build judges by, and whether the register

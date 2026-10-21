@@ -380,6 +380,44 @@ func TestInMemoryConfigurationSkipsFileRules(t *testing.T) {
 	}
 }
 
+// `check bundle` says how big the bundle is, beside the rules and outside
+// their counts; another part does not measure, and nor does a report nobody
+// asked to.
+func TestTheBundlePartReportsTheSize(t *testing.T) {
+	context, err := FromFile(filepath.Join("..", "..", "testdata", "valid-2.0", "codecheck.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const size = "The bundle holds 5 files, 698 bytes."
+
+	bundle, err := RunPart(context, "", false, "bundle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(bundle.Markdown(), size) {
+		t.Error("measured without being asked to")
+	}
+	before := bundle.Summary()
+	bundle.Measure(context)
+	for name, out := range map[string]string{"text": bundle.Text(), "markdown": bundle.Markdown()} {
+		if !strings.Contains(out, size) {
+			t.Errorf("%s: no %q in\n%s", name, size, out)
+		}
+	}
+	if bundle.Summary() != before {
+		t.Errorf("the size changed the counts: %s, was %s", bundle.Summary(), before)
+	}
+
+	config, err := RunPart(context, "", false, "config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.Measure(context)
+	if strings.Contains(config.Text(), "The bundle holds") {
+		t.Error("check config measured the bundle")
+	}
+}
+
 // The bundle rules read the directory the configuration sits in.
 func TestBundleRules(t *testing.T) {
 	complete := runFixture(t, "valid-2.0", "2.0", false)

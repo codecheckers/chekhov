@@ -397,12 +397,16 @@ func (d Description) Markdown() string {
 	return out.String()
 }
 
+// largeBundle is what an awkward bundle is worth a word for, here and beside
+// `check bundle`.
+const largeBundle = "This is a large bundle; a codechecker should be told what to expect before being asked."
+
 // note is the one thing worth saying beyond the facts: whether this is a lot
 // to ask of a codechecker, and whether there is anything to check.
 func (d Description) note() string {
 	var notes []string
 	if d.Awkward() {
-		notes = append(notes, "This is a large bundle; a codechecker should be told what to expect before being asked.")
+		notes = append(notes, largeBundle)
 	}
 	if d.established(FactConfig) && !d.HasConfig {
 		notes = append(notes, "There is no `codecheck.yml` yet, so there is nothing for `check` to validate.")

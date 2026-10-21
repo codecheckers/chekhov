@@ -176,6 +176,7 @@ func runCheck(args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	report.Measure(context)
 
 	if markdown {
 		fmt.Fprint(out, report.Markdown())

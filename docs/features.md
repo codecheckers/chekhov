@@ -60,7 +60,7 @@ for completeness of the conversational set.
 | `@chekhovbot check codecheck.yml` | Validate the config against the spec, report problems in-thread | MVP | #7 |
 | `@chekhovbot check repository` | Report languages, licence, size of the repo under check | high | #8 |
 | `@chekhovbot check metadata` | Verify ORCIDs, DOIs, author and venue metadata resolve, and the references | high | #9 |
-| `@chekhovbot check bundle` | Verify the CODECHECK bundle contents (report, manifest, outputs) | high | #10 |
+| `@chekhovbot check bundle` | Verify the CODECHECK bundle contents (report, manifest, outputs), and say how big it is | high | #10 |
 | `@chekhovbot check metadata references` | Check the form of the paper's references and whether they resolve | medium | #11 |
 | `@chekhovbot check links` | Report dead links in the issue, `codecheck.yml`, the certificate source and the deposit | low | #12 |
 | `@chekhovbot rules` | Say which rules the build judges by, and whether the register has moved on | medium | #43 |

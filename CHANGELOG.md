@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-21
+
+### Added
+
+- `check bundle` says how big the bundle is, and whether that is a lot to ask
+  of a codechecker (#10).
+
 ## [0.15.2] - 2026-10-21
 
 ### Fixed

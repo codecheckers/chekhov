@@ -107,6 +107,33 @@ type Report struct {
 	// Refused is why no rule was run at all, nil when they were. A refused
 	// report is not OK: nothing about the file was established.
 	Refused *Refusal
+	// size is the line Measure wrote about the bundle, empty when nothing
+	// asked.
+	size string
+}
+
+// Measure adds the bundle's size to a report of the bundle part (#10). It is
+// not a rule - nothing requires a bundle to be small - so it is a fact beside
+// the results, outside the counts, in the words `check repository` uses.
+//
+// The caller asks for it, rather than RunPart measuring every time, because
+// `status` and `check start` run the same part and never show a size, and on
+// OSF or Zenodo a size is a walk of the whole bundle.
+func (r *Report) Measure(c Context) {
+	if r.Part != "bundle" || r.Refused != nil || c.Bundle == nil {
+		return
+	}
+	measured := Description{Unknown: map[string]string{}}
+	measured.measure(c.Bundle)
+	if why, unknown := measured.Unknown[FactSize]; unknown {
+		r.size = fmt.Sprintf("%s The bundle's size could not be measured: %s.",
+			Symbol(OutcomeSkipped), why)
+		return
+	}
+	r.size = fmt.Sprintf("%s The bundle holds %s.", Symbol(OutcomeInfo), measured.size())
+	if measured.Awkward() {
+		r.size += " " + largeBundle
+	}
 }
 
 // A Refusal is a configuration the rules cannot be applied to, and what to do

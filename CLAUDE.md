@@ -648,7 +648,7 @@ exists; read the issues for what does not.
 | Issue | State |
 |---|---|
 | #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused. Closes once the deployment has answered a real check |
-| #9 metadata, #10 bundle | Done: the ORCID check digit and `CC-MET-002`'s "could not check" came last (0.15.2); a bundle's size is `check repository`'s (#8) |
+| #9 metadata, #10 bundle | Done: the ORCID check digit and `CC-MET-002`'s "could not check" came last (0.15.2); `check bundle` reports the bundle's size (0.16) |
 | #11 references | Done: `check metadata references` |
 | #8 repository | Done: `check repository`, a description rather than a verdict |
 | #12 links | Done: `check links`, the issue, `codecheck.yml`, the certificate source and the deposit, answered on the testing register |
