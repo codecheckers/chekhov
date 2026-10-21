@@ -144,6 +144,7 @@ func TestTheDocumentMarker(t *testing.T) {
 		{"followed by a comment", "--- # the configuration\nversion: x\n", StatusPass},
 		{"followed by a tag", "--- !codecheck\nversion: x\n", StatusPass},
 		{"with Windows line endings", "%YAML 1.2\r\n---\r\nversion: x\r\n", StatusPass},
+		{"after a byte-order mark", "\xef\xbb\xbf%YAML 1.2\n---\nversion: x\n", StatusPass},
 		{"no marker", "version: x\n", StatusFail},
 		{"a longer rule", "----\nversion: x\n", StatusFail},
 		{"glued to a word", "---version: x\n", StatusFail},
@@ -151,10 +152,26 @@ func TestTheDocumentMarker(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			if got := explicitDocument(FromBytes([]byte(testCase.file))); got.Status != testCase.want {
+			context := FromBytes([]byte(testCase.file))
+			if got := explicitDocument(context); got.Status != testCase.want {
 				t.Errorf("%s, want %s (%s)", got.Status, testCase.want, got.Detail)
 			}
+			// What may precede the marker must not stop the file being read:
+			// yaml.v3 refuses a %YAML 1.2 directive on its own.
+			if testCase.want == StatusPass && (context.ParseError != nil || context.Config.Version != "x") {
+				t.Errorf("not read: %v, version %q", context.ParseError, context.Config.Version)
+			}
 		})
+	}
+}
+
+// Only 1.2 is read as 1.1, the version the parser knows: a version nobody
+// published is still refused, by CC-CFG-001.
+func TestOnlyYAML12IsReadAs11(t *testing.T) {
+	for _, directive := range []string{"%YAML 2.0", "%YAML 1.3", "%YAML 1.2.1"} {
+		if context := FromBytes([]byte(directive + "\n---\nversion: x\n")); context.ParseError == nil {
+			t.Errorf("%s was read", directive)
+		}
 	}
 }
 

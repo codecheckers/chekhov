@@ -1,6 +1,7 @@
 package check
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -188,7 +189,7 @@ func FromBytes(raw []byte) Context {
 	context := Context{Raw: raw, Label: "the given configuration"}
 
 	var document yaml.Node
-	if err := yaml.Unmarshal(raw, &document); err != nil {
+	if err := parseYAML(raw, &document); err != nil {
 		context.ParseError = err
 		return context
 	}
@@ -295,6 +296,57 @@ func specVersionNamed(version, prefix string) string {
 // specVersions is set from the rules package by the runner, so that the list
 // of known versions lives in one place.
 var specVersions []string
+
+// parseYAML reads a codecheck.yml into its nodes.
+//
+// The specification recommends a `%YAML 1.2` directive, and yaml.v3 refuses
+// any version but 1.1 with "found incompatible YAML document" - so a file
+// that did as it was told did not parse. The parser already reads by 1.2's
+// rules, which is what the directive asks for, so the directive is read as
+// 1.1 rather than the file refused: in the header only, and on a copy, so the
+// bytes are still the file.
+func parseYAML(raw []byte, document *yaml.Node) error {
+	_, offset := documentStart(raw)
+	bom := byteOrderMark(raw)
+	if at := yaml12Directive.FindSubmatchIndex(raw[bom:offset]); at != nil {
+		raw = bytes.Clone(raw)
+		raw[bom+at[2]] = '1'
+	}
+	return yaml.Unmarshal(raw, document)
+}
+
+// yaml12Directive is a `%YAML 1.2` directive; the group is the minor version.
+// 1.2.1 is not 1.2, and is left for the parser to refuse.
+var yaml12Directive = regexp.MustCompile(`(?m)^%YAML[ \t]+1\.(2)(?:[ \t\r#]|$)`)
+
+// documentStart is where the document proper begins, after a byte-order mark
+// and the directives, comments and blank lines that may come before the
+// marker: its line, counted from 0, and its offset. The rule about the marker
+// and the parser agree on where that is because they both ask here.
+func documentStart(raw []byte) (line, offset int) {
+	offset = byteOrderMark(raw)
+	for offset < len(raw) {
+		next := len(raw)
+		if end := bytes.IndexByte(raw[offset:], '\n'); end >= 0 {
+			next = offset + end + 1
+		}
+		trimmed := bytes.TrimSpace(raw[offset:next])
+		if len(trimmed) > 0 && trimmed[0] != '#' && trimmed[0] != '%' {
+			return line, offset
+		}
+		line, offset = line+1, next
+	}
+	return line, offset
+}
+
+// byteOrderMark is the length of the UTF-8 byte-order mark the file starts
+// with, which some editors write and the parser skips: 0 when there is none.
+func byteOrderMark(raw []byte) int {
+	if bytes.HasPrefix(raw, []byte("\xef\xbb\xbf")) {
+		return 3
+	}
+	return 0
+}
 
 func documentRoot(document *yaml.Node) *yaml.Node {
 	if document.Kind == yaml.DocumentNode && len(document.Content) > 0 {

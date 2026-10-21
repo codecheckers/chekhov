@@ -280,7 +280,7 @@ func (l *Links) addConfiguration(c Context) {
 	l.Read = append(l.Read, name)
 
 	var document yaml.Node
-	if err := yaml.Unmarshal(c.Raw, &document); err != nil {
+	if err := parseYAML(c.Raw, &document); err != nil {
 		// A file that does not parse still has links in it; the checks say
 		// what is wrong with the YAML.
 		l.addText(string(c.Raw), name)

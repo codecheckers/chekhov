@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-10-21
+
+### Fixed
+
+- A `codecheck.yml` that starts with a `%YAML 1.2` directive, as the
+  specification recommends, is read rather than failing `CC-CFG-001` as
+  "incompatible YAML" (#62).
+
 ## [0.17.0] - 2026-10-21
 
 ### Added

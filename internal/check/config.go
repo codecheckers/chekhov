@@ -174,17 +174,15 @@ func explicitDocument(c Context) Result {
 	// package reads it.
 	const missing = "the file does not start with the document marker '---' " +
 		"(only directives, comments and blank lines may precede it)"
-	for number, line := range strings.Split(string(c.Raw), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "%") {
-			continue
-		}
-		if documentMarker.MatchString(line) {
-			return pass("")
-		}
-		return fail(missing).at(number + 1)
+	number, offset := documentStart(c.Raw)
+	if offset == len(c.Raw) {
+		return fail(missing)
 	}
-	return fail(missing)
+	first, _, _ := bytes.Cut(c.Raw[offset:], []byte("\n"))
+	if documentMarker.Match(bytes.TrimSpace(first)) {
+		return pass("")
+	}
+	return fail(missing).at(number + 1)
 }
 
 // rule: CC-CFG-003 file-name-and-location
