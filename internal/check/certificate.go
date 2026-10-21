@@ -129,6 +129,14 @@ func NextCertificate(year int, claims []Claim) (next string, highest Claim, foun
 	return fmt.Sprintf("%s-%03d", prefix, top+1), highest, found
 }
 
+// CertificateInFuture reports whether id is numbered in a year after this
+// one, which no gap can explain. A malformed id is in no year.
+func CertificateInFuture(id string, year int) bool {
+	prefix, _, ok := certificateNumber(id)
+	numbered, err := strconv.Atoi(prefix)
+	return ok && err == nil && numbered > year
+}
+
 // CertificateJump is how far id runs past the year's previous identifier, the
 // highest claimed number below it, as the R package measures it; previous is
 // that claim, and found is false when id is the first of its year. A

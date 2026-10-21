@@ -29,8 +29,25 @@ type ManifestItem struct {
 	File    string `yaml:"file"`
 	Comment string `yaml:"comment"`
 
+	// HasFile is whether the item has a file node at all: `file: ""` is an
+	// entry not filled in yet, and no node is what declares a check without
+	// output files, see CC-CFG-005.
+	HasFile bool `yaml:"-"`
+
 	// path is where the item is in the file, "manifest.2", see Config.Line.
 	path string
+}
+
+// UnmarshalYAML decodes an item and notes whether it has a file node, from
+// the node the decoder hands over - an alias already followed.
+func (m *ManifestItem) UnmarshalYAML(node *yaml.Node) error {
+	type plain ManifestItem
+	if err := node.Decode((*plain)(m)); err != nil {
+		return err
+	}
+	// A file merged in with `<<:` is not a key of this node, but it is there.
+	m.HasFile = hasKey(node, "file") || m.File != ""
+	return nil
 }
 
 // Paper is the metadata about the checked article.

@@ -78,6 +78,19 @@ type Access struct {
 	// source worth reading. Zero MaxCertificateBytes means the default.
 	LinkSkipHosts       []string
 	MaxCertificateBytes int64
+
+	// Now is the clock, time.Now unless a test says otherwise, so that a rule
+	// about the current year does not make the suite depend on the date.
+	Now func() time.Time
+}
+
+// today is the date in UTC, the year a certificate identifier is numbered in.
+// A run without services has a clock too.
+func (s *Services) today() time.Time {
+	if s == nil || s.Now == nil {
+		return time.Now().UTC()
+	}
+	return s.Now().UTC()
 }
 
 // ServicesFromEnv builds the services from the environment, or returns nil

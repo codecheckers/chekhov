@@ -1,7 +1,9 @@
 package check
 
 import (
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -125,6 +127,120 @@ func TestTheORCIDCheckDigit(t *testing.T) {
 				t.Errorf("detail %q, want it to say %q", got.Detail, testCase.want)
 			}
 		})
+	}
+}
+
+// Directives, comments and blank lines may precede the marker, and the marker
+// may carry a comment or a tag, as the rule's description and the R package
+// have it. Anything else first is a file without one.
+func TestTheDocumentMarker(t *testing.T) {
+	cases := []struct {
+		name, file string
+		want       Status
+	}{
+		{"the marker first", "---\nversion: x\n", StatusPass},
+		{"after a directive", "%YAML 1.2\n---\nversion: x\n", StatusPass},
+		{"after comments and blank lines", "# a certificate\n\n  # indented\n---\nversion: x\n", StatusPass},
+		{"followed by a comment", "--- # the configuration\nversion: x\n", StatusPass},
+		{"followed by a tag", "--- !codecheck\nversion: x\n", StatusPass},
+		{"with Windows line endings", "%YAML 1.2\r\n---\r\nversion: x\r\n", StatusPass},
+		{"no marker", "version: x\n", StatusFail},
+		{"a longer rule", "----\nversion: x\n", StatusFail},
+		{"glued to a word", "---version: x\n", StatusFail},
+		{"only comments", "# nothing\n", StatusFail},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := explicitDocument(FromBytes([]byte(testCase.file))); got.Status != testCase.want {
+				t.Errorf("%s, want %s (%s)", got.Status, testCase.want, got.Detail)
+			}
+		})
+	}
+}
+
+// A single item with a comment and no file node declares a check of a
+// workflow that writes no files; an empty file node is an entry nobody has
+// filled in yet, as .manifest_no_files_comment reads it in the R package.
+func TestAManifestWithoutOutputFiles(t *testing.T) {
+	cases := []struct {
+		name, manifest string
+		want           Status
+	}{
+		{"one item, a comment and no file", "  - comment: The analysis prints its results.\n", StatusPass},
+		{"an empty file", "  - file: \"\"\n    comment: The analysis prints its results.\n", StatusFail},
+		{"a file with no value", "  - file:\n    comment: The analysis prints its results.\n", StatusFail},
+		{"no comment either", "  - comment: \"\"\n", StatusFail},
+		{"one of two items", "  - file: figure.png\n    comment: Figure 1\n  - comment: and the output\n", StatusFail},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := manifestItemFile(FromBytes([]byte("---\nmanifest:\n" + testCase.manifest)))
+			if got.Status != testCase.want {
+				t.Errorf("%s, want %s (%s)", got.Status, testCase.want, got.Detail)
+			}
+		})
+	}
+
+	// Nothing to look for in the bundle, rather than one file found.
+	context := FromBytes([]byte("---\nmanifest:\n  - comment: The analysis prints its results.\n"))
+	context.Bundle = newLocalBundle(t.TempDir())
+	if got := manifestFilesExist(context); got.Status != StatusSkip {
+		t.Errorf("CC-BUN-001 without output files: %s (%s), want a skip", got.Status, got.Detail)
+	}
+}
+
+// The report has placeholder forms of its own, and CC-CFG-013 and CC-CFG-023
+// read them with the one function, is_doi_placeholder in the R package, case
+// and all. XXXX is the general placeholder and five of them the report's, so a
+// report with four is CC-CFG-023's alone, as it is in the R package.
+func TestTheReportPlaceholder(t *testing.T) {
+	cases := []struct {
+		report                 string
+		reportRule, valuesRule Status
+	}{
+		{"https://doi.org/10.5281/zenodo.example", StatusFail, StatusFail},
+		{"https://doi.org/10.5281/zenodo.EXAMPLE", StatusFail, StatusFail},
+		{"https://doi.org/10.5281/zenodo.Placeholder", StatusFail, StatusFail},
+		{"https://doi.org/10.5281/zenodo.fixme", StatusFail, StatusFail},
+		{"https://doi.org/10.5281/zenodo.XXXXX", StatusFail, StatusFail},
+		{"https://doi.org/10.5281/zenodo.XXXX", StatusPass, StatusFail},
+		{"https://doi.org/10.5281/zenodo.1234567", StatusPass, StatusPass},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.report, func(t *testing.T) {
+			context := FromBytes([]byte("---\nsummary: All outputs reproduced.\nreport: \"" + testCase.report + "\"\n"))
+			if got := reportDOINotPlaceholder(context); got.Status != testCase.reportRule {
+				t.Errorf("CC-CFG-013: %s, want %s (%s)", got.Status, testCase.reportRule, got.Detail)
+			}
+			got := noPlaceholderValues(context)
+			if got.Status != testCase.valuesRule {
+				t.Errorf("CC-CFG-023: %s, want %s (%s)", got.Status, testCase.valuesRule, got.Detail)
+			}
+			// Named once, and at its line, whichever of the two found it.
+			if got.Status == StatusFail && (strings.Count(got.Detail, testCase.report) != 1 || !slices.Equal(got.Lines, []int{3})) {
+				t.Errorf("CC-CFG-023: %q at %v, want the report once at line 3", got.Detail, got.Lines)
+			}
+		})
+	}
+}
+
+// What CC-BUN-003 and CC-BUN-005 say follows what their descriptions say: a
+// PDF in the directory the bundle actually has, and the files a licence is
+// looked for in. An archive's metadata is in TestABundleStatesItsLicenceItsOwnWay.
+func TestTheBundleFindingsSayWhatWasLookedFor(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".codecheck"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".codecheck", "codecheck.Rmd"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	context := Context{Bundle: newLocalBundle(dir)}
+	if got := reportFilePresent(context); got.Detail != "no PDF, the certificate, in the .codecheck/ directory" {
+		t.Errorf("CC-BUN-003: %q", got.Detail)
+	}
+	if got := licencePresent(context); got.Detail != "no LICENSE, LICENCE or COPYING file at the root of the bundle" {
+		t.Errorf("CC-BUN-005: %q", got.Detail)
 	}
 }
 

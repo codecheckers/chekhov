@@ -168,16 +168,23 @@ func explicitDocument(c Context) Result {
 	if c.Raw == nil {
 		return skip("no file on disk to inspect")
 	}
+	// Directives such as %YAML 1.2, which the specification recommends,
+	// comments and blank lines may come before the marker, and the marker may
+	// carry a comment or a tag after it - as check_explicit_document in the R
+	// package reads it.
+	const missing = "the file does not start with the document marker '---' " +
+		"(only directives, comments and blank lines may precede it)"
 	for number, line := range strings.Split(string(c.Raw), "\n") {
-		if strings.TrimSpace(line) == "" {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "%") {
 			continue
 		}
-		if strings.TrimSpace(line) == "---" {
+		if documentMarker.MatchString(line) {
 			return pass("")
 		}
-		return fail("the file does not start with the document marker '---'").at(number + 1)
+		return fail(missing).at(number + 1)
 	}
-	return fail("the file does not start with the document marker '---'")
+	return fail(missing)
 }
 
 // rule: CC-CFG-003 file-name-and-location
@@ -207,6 +214,13 @@ func manifestPresent(c Context) Result {
 func manifestItemFile(c Context) Result {
 	if len(c.Config.Manifest) == 0 {
 		return skip("no manifest to inspect")
+	}
+	// A single item with a comment and no file node declares a check of a
+	// workflow that writes no files, as .manifest_no_files_comment does in the
+	// R package. `file: ""` is not that: it is an entry not filled in yet.
+	if only := c.Config.Manifest[0]; len(c.Config.Manifest) == 1 && !only.HasFile &&
+		strings.TrimSpace(only.Comment) != "" {
+		return pass("the manifest declares a check without output files")
 	}
 	var without []string
 	var lines []int
@@ -297,7 +311,7 @@ func reportDOINotPlaceholder(c Context) Result {
 	if report == "" {
 		return skip("no report identifier to inspect")
 	}
-	if isPlaceholder(report) {
+	if isDOIPlaceholder(report) {
 		return fail(fmt.Sprintf("'%s' is a placeholder", report)).at(c.Config.Line("report"))
 	}
 	return pass("")
@@ -512,6 +526,12 @@ func noPlaceholderValues(c Context) Result {
 			lines = append(lines, value.Line)
 		}
 	}
+	// The report has placeholder forms of its own, CC-CFG-013's: those the
+	// loop above has not already named.
+	if report := strings.TrimSpace(c.Config.Report); isDOIPlaceholder(report) && !isPlaceholder(report) {
+		found = append(found, report)
+		lines = append(lines, c.Config.Line("report"))
+	}
 	if len(found) == 0 {
 		return pass("")
 	}
@@ -612,7 +632,7 @@ func reportFilePresent(c Context) Result {
 		}
 	}
 	if len(reports) == 0 {
-		return fail("no certificate report in the codecheck/ directory")
+		return fail(fmt.Sprintf("no PDF, the certificate, in the %s/ directory", name))
 	}
 	return pass(strings.Join(reports, ", "))
 }
@@ -635,7 +655,11 @@ func licencePresent(c Context) Result {
 		return skip(fmt.Sprintf("could not read %s: %s", c.Bundle.Describe(), err))
 	}
 	if licence == "" {
-		return fail("the repository under check states no licence")
+		missing := "no " + licenceFiles + " file at the root of the bundle"
+		if _, archive := c.Bundle.(metadataLicence); archive {
+			missing += ", and its metadata states no licence"
+		}
+		return fail(missing)
 	}
 	return pass(licence)
 }
@@ -679,6 +703,9 @@ func codecheckDir(entries []BundleEntry) string {
 
 // --- helpers shared by several checks --------------------------------------
 
+// licenceFiles is what licenceFile matches, said to a reader.
+const licenceFiles = "LICENSE, LICENCE or COPYING"
+
 // orcidPlaceholder is the template's ORCID: well formed, nobody's, and with
 // no check digit that holds.
 const orcidPlaceholder = "0000-0000-0000-0000"
@@ -691,7 +718,13 @@ var (
 	pdfLink       = regexp.MustCompile(`(?i)\.pdf($|[?#])`)
 	webArchive    = regexp.MustCompile(`(?i)web\.archive\.org/|archive\.ph/|webcitation\.org/`)
 	placeholder   = regexp.MustCompile(`(?i)FIXME|TODO|XXXX|` + regexp.QuoteMeta(orcidPlaceholder))
-	licenceFile   = regexp.MustCompile(`(?i)^(LICEN[CS]E|COPYING)(\..*)?$`)
+	// doiPlaceholder is is_doi_placeholder in the R package: the report has
+	// placeholder forms of its own, such as zenodo.example, that would be a
+	// fair word anywhere else in the file. Matched anywhere in the report, as
+	// there, so a report at example-lab.org is a placeholder to both.
+	doiPlaceholder = regexp.MustCompile(`(?i)FIXME|TODO|placeholder|example|XXXXX`)
+	documentMarker = regexp.MustCompile(`^---(\s|$)`)
+	licenceFile    = regexp.MustCompile(`(?i)^(LICEN[CS]E|COPYING)(\..*)?$`)
 )
 
 // firstInvalidLine is the line of the first byte that is not UTF-8.
@@ -713,6 +746,7 @@ func (p Person) orcidPath() string { return p.path + ".ORCID" }
 func isPDFLink(reference string) bool        { return pdfLink.MatchString(reference) }
 func isWebArchiveLink(reference string) bool { return webArchive.MatchString(reference) }
 func isPlaceholder(value string) bool        { return placeholder.MatchString(value) }
+func isDOIPlaceholder(report string) bool    { return doiPlaceholder.MatchString(report) }
 
 // everyPersonHas reports the people in a sequence that lack a field, by
 // position and by line, which is how a reader finds them in the file.

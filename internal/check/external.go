@@ -109,10 +109,12 @@ func manifestFilesExist(c Context) Result {
 
 	var missing []string
 	var lines []int
+	looked := 0
 	for _, item := range c.Config.Manifest {
 		if item.File == "" {
 			continue
 		}
+		looked++
 		found, err := c.Bundle.Exists(item.File)
 		if err != nil {
 			if errors.Is(err, errNoServices) {
@@ -129,7 +131,12 @@ func manifestFilesExist(c Context) Result {
 		return fail("manifest file(s) not where the configuration says: " + strings.Join(missing, ", ")).
 			at(lines...)
 	}
-	return pass(fmt.Sprintf("%d manifest file(s) present", len(c.Config.Manifest)))
+	// A manifest that declares a check without output files, see CC-CFG-005,
+	// has nothing to look for, and an item with no file is CC-CFG-005's.
+	if looked == 0 {
+		return skip("no manifest files to look for")
+	}
+	return pass(fmt.Sprintf("%d manifest file(s) present", looked))
 }
 
 // --- ORCID -----------------------------------------------------------------

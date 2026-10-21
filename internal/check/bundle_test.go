@@ -183,6 +183,13 @@ func TestABundleStatesItsLicenceItsOwnWay(t *testing.T) {
 		if licence != test.licence {
 			t.Errorf("%s states %q, want %q", test.spec, licence, test.licence)
 		}
+		// An archive that states none is told so in its own terms too.
+		if test.licence == "" {
+			want := "no LICENSE, LICENCE or COPYING file at the root of the bundle, and its metadata states no licence"
+			if got := licencePresent(Context{Bundle: bundleFor(spec, stub.services)}); got.Detail != want {
+				t.Errorf("CC-BUN-005 for %s: %q, want %q", test.spec, got.Detail, want)
+			}
+		}
 	}
 }
 

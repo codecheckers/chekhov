@@ -636,6 +636,8 @@ func (b *osfBundle) Licence() (string, error) {
 	return licenceFileIn(b)
 }
 
+func (b *osfBundle) licenceInMetadata() {}
+
 // noOSFLicence is what OSF calls a node that has chosen no licence.
 const noOSFLicence = "No license"
 
@@ -747,6 +749,8 @@ func (b *zenodoBundle) Licence() (string, error) {
 	return licenceFileIn(b)
 }
 
+func (b *zenodoBundle) licenceInMetadata() {}
+
 // Count folds the record's files into a tally in one pass.
 //
 // A Zenodo record is flat and is fetched whole, so the walk costs no requests
@@ -850,6 +854,11 @@ func sizeOf(info os.FileInfo, err error) int64 {
 	}
 	return info.Size()
 }
+
+// A metadataLicence bundle states its licence in its record's metadata, and
+// looks for a file only when the metadata says nothing; a finding about no
+// licence says where it was looked for.
+type metadataLicence interface{ licenceInMetadata() }
 
 // licenceFileIn is how a git repository states its licence: a file at the root
 // of the bundle, named the way everyone names it.

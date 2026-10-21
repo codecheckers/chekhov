@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-10-21
+
+### Fixed
+
+- `CC-CFG-002` accepts directives such as `%YAML 1.2` and comments before the
+  document marker, and a comment or a tag after it (#62).
+- `CC-CFG-005` accepts a manifest of a single item with only a comment, which
+  declares a check without output files; `CC-BUN-001` then has nothing to look
+  for rather than counting one file (#62).
+- `CC-CFG-013` and `CC-CFG-023` report a placeholder report DOI such as
+  `zenodo.example`, as the R package does (#62).
+- `CC-REG-002` reports a certificate identifier in a future year (#62).
+- `CC-BUN-003` and `CC-BUN-005` say what was looked for: a PDF in the bundle's
+  `codecheck/` or `.codecheck/` directory, and a `LICENSE`, `LICENCE` or
+  `COPYING` file, or an archive's metadata (#62).
+
 ## [0.16.0] - 2026-10-21
 
 ### Added

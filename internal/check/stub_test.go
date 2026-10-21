@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
@@ -48,6 +49,8 @@ func newStub(t *testing.T) *stub {
 		GitLab:        url + "/gitlab",
 		OSF:           url + "/osf",
 		ZenodoSandbox: url + "/zenodo-sandbox",
+		// The year stubConfig's certificate is numbered in, whatever the date.
+		Now: func() time.Time { return time.Date(2026, time.June, 15, 12, 0, 0, 0, time.UTC) },
 	}}
 	return server
 }
@@ -648,6 +651,15 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeOK,
 		detail: "follows 2026-002",
+	},
+	{
+		name:          "the certificate is numbered in a year that has not started",
+		rule:          "CC-REG-002",
+		configuration: with("certificate", "certificate: 2027-001"),
+		routes:        func(s *stub) { s.serveEverythingWell() },
+		want:          OutcomeError,
+		detail:        "2027-001 is in a future year; it is 2026",
+		lines:         []int{18},
 	},
 	{
 		name: "the Repository column has no known prefix",
