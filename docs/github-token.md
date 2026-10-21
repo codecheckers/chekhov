@@ -133,16 +133,14 @@ nothing.
 
 ## What the token in use actually has
 
-The token currently in `.env` was created with **Issues, Contents and Pull
-requests all at read and write**, and *Members: read* has to be added to it
-before the standing roles work: a token without it makes every editor a
-stranger. Adding a permission to an existing fine-grained token is an edit on
-the token's page, and an organisation-owned token may need approving again
-afterwards. That is wider than today's commands need:
-`commands`, `hello` and the unknown-command reply post an issue comment and
-nothing else, and the `check` command only reads. The extra rights are for the
-commands that come later — labels and assignees (Issues: write, in use already
-by comments), the register pull request (Contents and Pull requests: write).
+The token in use has **Issues, Contents and Pull requests at read and write**
+and organisation *Members: read and write*. Contents was read only until
+2026-10-21, although this file said otherwise: the first live `register`
+(testing-dev-register#225) was answered `403 Resource not accessible by
+personal access token` when it created the commit's tree, and wrote nothing.
+Raising a permission is an edit on the token's page that keeps its value, so
+the deployment needs no change; an organisation-owned token may need
+approving again afterwards.
 
 It is not worth regenerating a narrower token now and a wider one in a month.
 What matters is that it is still one repository: the production register is out
