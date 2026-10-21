@@ -1068,6 +1068,17 @@ var stubCases = []stubCase{
 		want:   OutcomeSkipped,
 		detail: "1 of 1 could not be checked",
 	},
+	{
+		name:          "the template's repository is not asked for",
+		rule:          "CC-BUN-004",
+		configuration: with("repository", `repository: "{{server}}/FIXME/FIXME"`),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/FIXME/FIXME", http.StatusNotFound)
+		},
+		want:   OutcomeSkipped,
+		detail: "is a placeholder",
+	},
 
 	// --- URLs taken from the file ---
 	{
@@ -1092,6 +1103,17 @@ var stubCases = []stubCase{
 		},
 		want:   OutcomeSkipped,
 		detail: "blocks the check rather than failing it",
+	},
+	{
+		name:          "the template's paper reference is not looked up",
+		rule:          "CC-MET-004",
+		configuration: with("  reference", `  reference: "{{server}}/doi/FIXME"`),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/doi/FIXME", http.StatusNotFound)
+		},
+		want:   OutcomeSkipped,
+		detail: "is a placeholder",
 	},
 	{
 		name:          "a rate limit is a block, not a failure",
@@ -1149,6 +1171,17 @@ var stubCases = []stubCase{
 		routes:        func(s *stub) { s.serveEverythingWell() },
 		want:          OutcomeSkipped,
 		detail:        "nothing to resolve",
+	},
+	{
+		name:          "a placeholder report is not looked up",
+		rule:          "CC-CFG-012",
+		configuration: with("report", `report: "{{server}}/zenodo.example"`),
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/zenodo.example", http.StatusNotFound)
+		},
+		want:   OutcomeSkipped,
+		detail: "placeholder",
 	},
 	{
 		name:          "a server having a bad moment is not a broken reference",

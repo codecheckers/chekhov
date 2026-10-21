@@ -213,7 +213,10 @@ func FromBytes(raw []byte) Context {
 		} `yaml:"paper"`
 	}
 	if err := root.Decode(&parsed); err != nil {
+		// Valid YAML of the wrong shape still holds its values, and the links
+		// and CC-CFG-023 read them whatever the shape.
 		context.ParseError = err
+		context.Config.Strings = stringValues(root)
 		return context
 	}
 

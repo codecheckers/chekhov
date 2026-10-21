@@ -19,6 +19,12 @@ func reportResolvable(c Context) Result {
 	if report == "" {
 		return skip("no report identifier to resolve")
 	}
+	// The report has placeholder forms of its own, CC-CFG-013's, such as
+	// zenodo.example; resolves leaves out the ones every field shares. The R
+	// package still looks both up.
+	if isDOIPlaceholder(report) {
+		return placeholderLink(report)
+	}
 	if !strings.HasPrefix(report, "http") {
 		return fail(fmt.Sprintf("'%s' is not a resolvable URL", report)).at(c.Config.Line("report"))
 	}

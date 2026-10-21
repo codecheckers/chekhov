@@ -715,7 +715,10 @@ var (
 	orcidPattern  = regexp.MustCompile(`^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$`)
 	pdfLink       = regexp.MustCompile(`(?i)\.pdf($|[?#])`)
 	webArchive    = regexp.MustCompile(`(?i)web\.archive\.org/|archive\.ph/|webcitation\.org/`)
-	placeholder   = regexp.MustCompile(`(?i)FIXME|TODO|XXXX|` + regexp.QuoteMeta(orcidPlaceholder))
+	// placeholder is the template's markers, which are written in capitals:
+	// matched in any case, TODO would find Todorov in an author's name and
+	// mastodon in a link. The R package matches the same way.
+	placeholder = regexp.MustCompile(`FIXME|TODO|XXXX|` + regexp.QuoteMeta(orcidPlaceholder))
 	// doiPlaceholder is is_doi_placeholder in the R package: the report has
 	// placeholder forms of its own, such as zenodo.example, that would be a
 	// fair word anywhere else in the file. Matched anywhere in the report, as
@@ -745,6 +748,12 @@ func isPDFLink(reference string) bool        { return pdfLink.MatchString(refere
 func isWebArchiveLink(reference string) bool { return webArchive.MatchString(reference) }
 func isPlaceholder(value string) bool        { return placeholder.MatchString(value) }
 func isDOIPlaceholder(report string) bool    { return doiPlaceholder.MatchString(report) }
+
+// placeholderLink is a rule that resolves links passing over one the template
+// left unfilled: not checked, because there is nothing there yet to check.
+func placeholderLink(url string) Result {
+	return skip(fmt.Sprintf("'%s' is a placeholder, so there is nothing to resolve yet", url))
+}
 
 // everyPersonHas reports the people in a sequence that lack a field, by
 // position and by line, which is how a reader finds them in the file.

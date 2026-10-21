@@ -410,6 +410,11 @@ func (s *Services) github(url string, into any) error {
 // failure is a skip rather than a failure: an unreachable server says nothing
 // about the codecheck.yml.
 func (s *Services) resolves(url string) Result {
+	// A link the template left unfilled is CC-CFG-023's to report; asking for
+	// it would only add that https://doi.org/FIXME answers 404.
+	if isPlaceholder(url) {
+		return placeholderLink(url)
+	}
 	status, _, err := s.get(url, nil)
 	if err != nil {
 		return skip(fmt.Sprintf("could not reach '%s': %s", url, err))

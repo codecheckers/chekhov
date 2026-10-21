@@ -57,7 +57,7 @@ func TestLinksInTextEndWhereTheLinkDoes(t *testing.T) {
 // anybody can follow, and reporting it as dead would be noise.
 func TestLinksInTextLeaveOutWhatIsNotALink(t *testing.T) {
 	text := "https://api.b.org/{id} https://$HOST/path https://example.org/x " +
-		"https://www.example.com/y http://localhost:8080/ https://c.org/kept"
+		"https://www.example.com/y http://localhost:8080/ https://doi.org/FIXME https://c.org/kept"
 	if got := linksIn(text); !slices.Equal(got, []string{"https://c.org/kept"}) {
 		t.Errorf("got %q, want only the real link", got)
 	}
@@ -76,8 +76,8 @@ func TestLinksInTextAreUnescaped(t *testing.T) {
 // Every value of the codecheck.yml is read, a DOI written as a DOI becomes the
 // link it is, and the report can say which line to fix.
 func TestLinksInTheConfigurationCarryTheirLine(t *testing.T) {
-	c := Context{Path: "codecheck.yml", Raw: []byte("report: 10.5281/zenodo.123\n" +
-		"paper:\n  reference: https://d.org/paper\n")}
+	c := FromBytes([]byte("report: 10.5281/zenodo.123\n" +
+		"paper:\n  reference: https://d.org/paper\n"))
 	links := CollectLinks(context.Background(), c, LinkSource{})
 
 	if link := linkFor(t, links, "https://doi.org/10.5281/zenodo.123"); link.Found[0] != "`codecheck.yml` line 1" {
@@ -88,9 +88,40 @@ func TestLinksInTheConfigurationCarryTheirLine(t *testing.T) {
 	}
 }
 
+// A file that does not parse still has its links read, from the text.
+func TestLinksInAFileThatDoesNotParse(t *testing.T) {
+	c := FromBytes([]byte("report: [https://doi.org/10.5281/zenodo.123\n"))
+	if c.ParseError == nil {
+		t.Fatal("the file parsed")
+	}
+	linkFor(t, CollectLinks(context.Background(), c, LinkSource{}), "https://doi.org/10.5281/zenodo.123")
+}
+
+// The template's unfilled links are CC-CFG-023's to report, not dead links,
+// however they are written.
+func TestTheTemplatesLinksAreNotAsked(t *testing.T) {
+	c := FromBytes([]byte("report: 10.5281/zenodo.FIXME\nrepository: https://github.com/FIXME/FIXME\n"))
+	if links := CollectLinks(context.Background(), c, LinkSource{}); links.Len() != 0 {
+		t.Errorf("got %q, want no links", urlsOf(links))
+	}
+}
+
+// A file that is YAML of the wrong shape has its values read all the same,
+// each with its line.
+func TestLinksInAFileOfTheWrongShape(t *testing.T) {
+	c := FromBytes([]byte("codechecker: Jane Doe\nreport: 10.5281/zenodo.123\n"))
+	if c.ParseError == nil {
+		t.Fatal("the file decoded")
+	}
+	link := linkFor(t, CollectLinks(context.Background(), c, LinkSource{}), "https://doi.org/10.5281/zenodo.123")
+	if link.Found[0] != "`codecheck.yml` line 2" {
+		t.Errorf("found in %q", link.Found)
+	}
+}
+
 // One link seen in two places is one link, found twice.
 func TestALinkSeenTwiceIsOneLink(t *testing.T) {
-	c := Context{Path: "codecheck.yml", Raw: []byte("repository: https://e.org/repo\n")}
+	c := FromBytes([]byte("repository: https://e.org/repo\n"))
 	links := CollectLinks(context.Background(), c, LinkSource{Name: "issue #1", Text: "the code is at https://e.org/repo."})
 
 	if links.Len() != 1 {
@@ -415,8 +446,7 @@ func depositStub(t *testing.T) *stub {
 // description, notes, related identifiers and references.
 func TestTheReportsZenodoDepositIsRead(t *testing.T) {
 	s := depositStub(t)
-	c := Context{Path: "codecheck.yml", Raw: []byte("report: https://doi.org/10.5281/zenodo.123\n"),
-		Services: s.services}
+	c := s.context(t, "report: https://doi.org/10.5281/zenodo.123\n", "")
 	links := CollectLinks(context.Background(), c, LinkSource{})
 
 	if !slices.Contains(links.Read, "Zenodo record 123") {
@@ -469,8 +499,7 @@ func TestAResearchEqualsDepositIsRead(t *testing.T) {
 func TestADepositThatCannotBeReadIsNoted(t *testing.T) {
 	s := depositStub(t)
 	s.Status("/zenodo/records/404", http.StatusNotFound)
-	c := Context{Path: "codecheck.yml", Services: s.services,
-		Raw: []byte("report: 10.5281/zenodo.404\nrepository: https://g.org/repo\n")}
+	c := s.context(t, "report: 10.5281/zenodo.404\nrepository: https://g.org/repo\n", "")
 	links := CollectLinks(context.Background(), c, LinkSource{})
 
 	if len(links.Unread) == 0 || !strings.HasPrefix(links.Unread[len(links.Unread)-1], "Zenodo record 404") {
@@ -482,7 +511,7 @@ func TestADepositThatCannotBeReadIsNoted(t *testing.T) {
 // Offline, a deposit is not read and not a link asked, and the report says so
 // rather than reporting nothing wrong.
 func TestOfflineNothingIsAsked(t *testing.T) {
-	c := Context{Path: "codecheck.yml", Raw: []byte("report: 10.5281/zenodo.123\n")}
+	c := FromBytes([]byte("report: 10.5281/zenodo.123\n"))
 	links := CollectLinks(context.Background(), c, LinkSource{})
 	links.Probe(context.Background(), nil)
 

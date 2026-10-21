@@ -17,8 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/codecheckers/chekhov/config"
 )
 
@@ -186,7 +184,9 @@ func (l *Links) addText(text, where string) {
 func (l *Links) addDOI(text, where string) {
 	trimmed := strings.TrimSpace(text)
 	if doi := DOIIn(trimmed); doi != "" && doi == strings.TrimPrefix(trimmed, "doi:") {
-		l.add("https://doi.org/"+doi, where)
+		if url := "https://doi.org/" + doi; worthAsking(url) {
+			l.add(url, where)
+		}
 	}
 	l.addText(text, where)
 }
@@ -250,10 +250,11 @@ func trimURL(url string) string {
 }
 
 // worthAsking leaves out what is a link in form only: a host that is not a
-// place on the internet, or the reserved example domains a template writes.
+// place on the internet, the reserved example domains a template writes, or a
+// link the template left unfilled.
 func worthAsking(url string) bool {
 	host := hostOf(url)
-	if !strings.Contains(host, ".") && net.ParseIP(host) == nil {
+	if isPlaceholder(url) || !strings.Contains(host, ".") && net.ParseIP(host) == nil {
 		return false
 	}
 	return !slices.ContainsFunc(reservedHosts, func(reserved string) bool { return onHost(host, reserved) })
@@ -279,23 +280,15 @@ func (l *Links) addConfiguration(c Context) {
 	name := "`" + path.Base(filepathOrDefault(c.Path)) + "`"
 	l.Read = append(l.Read, name)
 
-	var document yaml.Node
-	if err := parseYAML(c.Raw, &document); err != nil {
+	if c.ParseError != nil && c.Config.Strings == nil {
 		// A file that does not parse still has links in it; the checks say
 		// what is wrong with the YAML.
 		l.addText(string(c.Raw), name)
 		return
 	}
-	var walk func(node *yaml.Node)
-	walk = func(node *yaml.Node) {
-		if node.Kind == yaml.ScalarNode {
-			l.addDOI(node.Value, fmt.Sprintf("%s line %d", name, node.Line))
-		}
-		for _, child := range node.Content {
-			walk(child)
-		}
+	for _, value := range c.Config.Strings {
+		l.addDOI(value.Value, fmt.Sprintf("%s line %d", name, value.Line))
 	}
-	walk(&document)
 }
 
 func filepathOrDefault(name string) string {

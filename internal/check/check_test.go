@@ -241,6 +241,37 @@ func TestTheReportPlaceholder(t *testing.T) {
 	}
 }
 
+// CC-CFG-023's markers are the template's, in capitals: a name or a link that
+// happens to spell one in lower case is not a placeholder.
+func TestPlaceholdersAreTheTemplatesCapitals(t *testing.T) {
+	cases := map[string]Status{
+		"name: FIXME":                          StatusFail,
+		"name: TODO the author":                StatusFail,
+		"name: Ivan Todorov":                   StatusPass,
+		"name: fixme":                          StatusPass,
+		"url: https://mastodon.social/@author": StatusPass,
+	}
+	for line, want := range cases {
+		t.Run(line, func(t *testing.T) {
+			context := FromBytes([]byte("---\npaper:\n  authors:\n    - " + line + "\n"))
+			if got := noPlaceholderValues(context); got.Status != want {
+				t.Errorf("CC-CFG-023: %s, want %s (%s)", got.Status, want, got.Detail)
+			}
+		})
+	}
+}
+
+// A file of the wrong shape still has its placeholders found.
+func TestPlaceholdersInAFileOfTheWrongShape(t *testing.T) {
+	context := FromBytes([]byte("codechecker: Jane Doe\nsummary: FIXME\n"))
+	if context.ParseError == nil {
+		t.Fatal("the file decoded")
+	}
+	if got := noPlaceholderValues(context); got.Status != StatusFail || !slices.Equal(got.Lines, []int{2}) {
+		t.Errorf("CC-CFG-023: %s at %v, want a failure at line 2 (%s)", got.Status, got.Lines, got.Detail)
+	}
+}
+
 // What CC-BUN-003 and CC-BUN-005 say follows what their descriptions say: a
 // PDF in the directory the bundle actually has, and the files a licence is
 // looked for in. An archive's metadata is in TestABundleStatesItsLicenceItsOwnWay.

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-10-21
+
+### Fixed
+
+- `CC-CFG-023` looks for FIXME, TODO and XXXX in capitals, as the template
+  writes them, so a name such as Todorov or a Mastodon link is no longer a
+  placeholder (#62).
+- A link the template left unfilled, such as `https://doi.org/FIXME`, is not
+  looked up by `CC-CFG-012`, `CC-MET-004`, `CC-MET-009`, `CC-BUN-004` or
+  `check links`, because `CC-CFG-023` already reports it; nor does `CC-CFG-012`
+  look up a placeholder report such as `zenodo.example`, which `CC-CFG-013`
+  reports (#62).
+- `check links` and `CC-CFG-023` read the values of a file that is valid YAML
+  of the wrong shape, rather than only its text (#62).
+
 ## [0.17.1] - 2026-10-21
 
 ### Fixed
