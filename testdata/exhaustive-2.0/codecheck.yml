@@ -22,7 +22,9 @@ paper:
     - name: Josiah Carberry
       ORCID: 0000-0002-1825-0097
     - name: Ada Lovelace
-      ORCID: 0000-0002-1825-0098
+      # Below the blocks ORCID issues, so nobody's, and with a check digit
+      # that holds, which CC-MET-001 asks for.
+      ORCID: 0000-0000-0000-0001
   # Deliberately shaped so that every rule about the reference reaches a
   # verdict at once: it is a bare URL (CC-CFG-027), it carries a DOI
   # (CC-CFG-028 and the Crossref rules), it is a PDF link (CC-CFG-031 only

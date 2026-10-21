@@ -146,34 +146,62 @@ type orcidPerson struct {
 }
 
 // rule: CC-MET-002 orcid-resolves
+//
+// Only a 404 is an ORCID that does not resolve. ORCID answering 5xx or 429,
+// or not at all, says nothing about the identifier, so an ORCID it could not
+// be asked about is "could not check" and named as such - never folded into a
+// pass, which the reply does not show. The R package passes when some could
+// not be asked, and counts rather than names them.
 func orcidResolves(c Context) Result {
-	people := everyone(c)
+	people := toLookUp(c)
 	if len(people) == 0 {
-		return skip("no ORCID to resolve")
+		return skip("no well-formed ORCID to look up")
 	}
 	if !c.Services.Enabled() {
 		return needsServices(RequiresService["CC-MET-002"])
 	}
 
-	var unresolved []string
+	var unresolved, unasked []string
 	var lines []int
+	var unreachable error
+	asked := map[string]bool{}
 	for _, person := range people {
-		if _, err := orcidRecord(c, person.ORCID); err != nil {
+		if asked[person.ORCID] {
+			continue
+		}
+		asked[person.ORCID] = true
+		_, err := orcidRecord(c, person.ORCID)
+		switch {
+		case IsNotFound(err):
 			unresolved = append(unresolved, person.ORCID)
 			lines = append(lines, c.Config.Line(person.orcidPath()))
+		case err != nil:
+			unasked = append(unasked, person.ORCID)
+			unreachable = err
 		}
 	}
-	if len(unresolved) > 0 {
-		return fail("ORCID(s) that do not resolve: " + strings.Join(unresolved, ", ")).at(lines...)
+	notAsked := ""
+	if len(unasked) > 0 {
+		notAsked = fmt.Sprintf("could not ask ORCID about %s (%s)", strings.Join(unasked, ", "), unreachable)
 	}
-	return pass(fmt.Sprintf("%d ORCID(s) resolve", len(people)))
+	switch {
+	case len(unresolved) > 0:
+		detail := "ORCID(s) with no record: " + strings.Join(unresolved, ", ")
+		if notAsked != "" {
+			detail += "; " + notAsked
+		}
+		return fail(detail).at(lines...)
+	case notAsked != "":
+		return skip(notAsked)
+	}
+	return pass(fmt.Sprintf("%d ORCID(s) resolve", len(asked)))
 }
 
 // rule: CC-MET-003 orcid-name-match
 func orcidNameMatch(c Context) Result {
-	people := everyone(c)
+	people := toLookUp(c)
 	if len(people) == 0 {
-		return skip("no ORCID to compare a name against")
+		return skip("no well-formed ORCID to compare a name against")
 	}
 	if !c.Services.Enabled() {
 		return needsServices(RequiresService["CC-MET-003"])
@@ -523,6 +551,22 @@ func everyone(c Context) []Person {
 	for _, person := range append(append([]Person{}, c.Config.Paper.Authors...),
 		c.Config.Codechecker...) {
 		if strings.TrimSpace(person.ORCID) != "" {
+			people = append(people, person)
+		}
+	}
+	return people
+}
+
+// toLookUp is the people whose ORCID is worth asking ORCID about. One that is
+// malformed, mistyped or the template's placeholder is CC-MET-001's and
+// CC-CFG-023's to report, and looking it up would only report it a second
+// time as an ORCID nobody has - or, written as a URL, ask for a path that is
+// not one. The R package looks up a mistyped one; it gets the 404.
+func toLookUp(c Context) []Person {
+	var people []Person
+	for _, person := range everyone(c) {
+		if orcidPattern.MatchString(person.ORCID) && person.ORCID != orcidPlaceholder &&
+			orcidCheckDigitHolds(person.ORCID) {
 			people = append(people, person)
 		}
 	}

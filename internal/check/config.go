@@ -524,27 +524,56 @@ func noPlaceholderValues(c Context) Result {
 func orcidFormat(c Context) Result {
 	// Both the paper's authors and the codecheckers, because the rule is about
 	// the form of an ORCID wherever it appears in the file.
-	people := append(append([]Person{}, c.Config.Paper.Authors...), c.Config.Codechecker...)
-	var orcids, malformed []string
-	var lines []int
-	for _, person := range people {
-		if strings.TrimSpace(person.ORCID) == "" {
-			continue
-		}
-		orcids = append(orcids, person.ORCID)
-		if !orcidPattern.MatchString(person.ORCID) {
-			malformed = append(malformed, person.ORCID)
-			lines = append(lines, c.Config.Line(person.orcidPath()))
-		}
-	}
-	if len(orcids) == 0 {
+	people := everyone(c)
+	if len(people) == 0 {
 		return skip("no ORCID to inspect")
 	}
-	if len(malformed) == 0 {
-		return pass(fmt.Sprintf("%d ORCID(s)", len(orcids)))
+	var malformed, mistyped []string
+	var malformedLines, mistypedLines []int
+	for _, person := range people {
+		orcid := person.ORCID
+		switch {
+		case !orcidPattern.MatchString(orcid):
+			malformed = append(malformed, orcid)
+			malformedLines = append(malformedLines, c.Config.Line(person.orcidPath()))
+		// The template's placeholder has no valid check digit, and is
+		// reported by CC-CFG-023 no-placeholder-values instead.
+		case orcid != orcidPlaceholder && !orcidCheckDigitHolds(orcid):
+			mistyped = append(mistyped, orcid)
+			mistypedLines = append(mistypedLines, c.Config.Line(person.orcidPath()))
+		}
 	}
-	return fail("ORCIDs must be plain and without URL prefix, but found: " +
-		strings.Join(malformed, ", ")).at(lines...)
+	// Both findings in one detail: CC-MET-002 looks up neither, so one left out
+	// here would be reported by nothing until the other was fixed.
+	var findings []string
+	if len(malformed) > 0 {
+		findings = append(findings, "ORCIDs must be plain and without URL prefix, but found: "+
+			strings.Join(malformed, ", "))
+	}
+	if len(mistyped) > 0 {
+		findings = append(findings, "ORCID(s) with a wrong check digit, likely a typo: "+
+			strings.Join(mistyped, ", "))
+	}
+	if len(findings) > 0 {
+		return fail(strings.Join(findings, "; ")).at(append(malformedLines, mistypedLines...)...)
+	}
+	return pass(fmt.Sprintf("%d ORCID(s)", len(people)))
+}
+
+// orcidCheckDigitHolds reports whether a well-formed ORCID's last character is
+// its check digit: ISO 7064 11,2 over the first fifteen digits, as
+// https://support.orcid.org/hc/en-us/articles/360006897674 describes, and as
+// orcid_checksum_valid does in the R package.
+func orcidCheckDigitHolds(orcid string) bool {
+	digits := strings.ReplaceAll(orcid, "-", "")
+	if len(digits) != 16 {
+		return false
+	}
+	total := 0
+	for _, digit := range digits[:15] {
+		total = (total + int(digit-'0')) * 2
+	}
+	return digits[15] == "0123456789X"[(12-total%11)%11]
 }
 
 // --- the bundle on disk ----------------------------------------------------
@@ -650,6 +679,10 @@ func codecheckDir(entries []BundleEntry) string {
 
 // --- helpers shared by several checks --------------------------------------
 
+// orcidPlaceholder is the template's ORCID: well formed, nobody's, and with
+// no check digit that holds.
+const orcidPlaceholder = "0000-0000-0000-0000"
+
 var (
 	bareURL       = regexp.MustCompile(`^https?://\S+$`)
 	doiPattern    = regexp.MustCompile(`doi\.org/|^doi:|^10\.[0-9]{4,}/`)
@@ -657,7 +690,7 @@ var (
 	orcidPattern  = regexp.MustCompile(`^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$`)
 	pdfLink       = regexp.MustCompile(`(?i)\.pdf($|[?#])`)
 	webArchive    = regexp.MustCompile(`(?i)web\.archive\.org/|archive\.ph/|webcitation\.org/`)
-	placeholder   = regexp.MustCompile(`(?i)FIXME|TODO|XXXX|0000-0000-0000-0000`)
+	placeholder   = regexp.MustCompile(`(?i)FIXME|TODO|XXXX|` + regexp.QuoteMeta(orcidPlaceholder))
 	licenceFile   = regexp.MustCompile(`(?i)^(LICEN[CS]E|COPYING)(\..*)?$`)
 )
 

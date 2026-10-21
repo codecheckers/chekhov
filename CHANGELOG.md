@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-10-21
+
+### Fixed
+
+- `CC-MET-001` reports an ORCID whose check digit is wrong (#9).
+- `CC-MET-002` reports ORCID being down or rate-limited as "could not check",
+  naming the ORCIDs it could not ask about, rather than as ORCIDs that do not
+  resolve (#9).
+- `CC-MET-002` and `CC-MET-003` no longer look up an ORCID that `CC-MET-001`
+  or `CC-CFG-023` already reports, and `CC-MET-002` asks about each ORCID once
+  (#9).
+
 ## [0.15.1] - 2026-10-21
 
 ### Fixed

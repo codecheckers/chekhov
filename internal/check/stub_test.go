@@ -548,7 +548,41 @@ var stubCases = []stubCase{
 			s.Status("/orcid/0000-0001-8607-8025/person", http.StatusNotFound)
 		},
 		want:   OutcomeWarning,
-		detail: "0000-0001-8607-8025",
+		detail: "ORCID(s) with no record: 0000-0001-8607-8025",
+		lines:  []int{14},
+	},
+	{
+		name: "ORCID is down, which says nothing about the identifiers",
+		rule: "CC-MET-002",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/orcid/0000-0001-8607-8025/person", http.StatusServiceUnavailable)
+			s.Status("/orcid/0000-0002-1825-0097/person", http.StatusServiceUnavailable)
+		},
+		want:   OutcomeSkipped,
+		detail: "could not ask ORCID",
+	},
+	{
+		// A pass would not be shown, and one of the two was never checked.
+		name: "one ORCID could not be asked, the other resolves",
+		rule: "CC-MET-002",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/orcid/0000-0001-8607-8025/person", http.StatusTooManyRequests)
+		},
+		want:   OutcomeSkipped,
+		detail: "could not ask ORCID about 0000-0001-8607-8025",
+	},
+	{
+		name: "one ORCID has no record, and the other could not be asked",
+		rule: "CC-MET-002",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.Status("/orcid/0000-0001-8607-8025/person", http.StatusNotFound)
+			s.Status("/orcid/0000-0002-1825-0097/person", http.StatusServiceUnavailable)
+		},
+		want:   OutcomeWarning,
+		detail: "no record: 0000-0001-8607-8025; could not ask ORCID about 0000-0002-1825-0097",
 		lines:  []int{14},
 	},
 	{

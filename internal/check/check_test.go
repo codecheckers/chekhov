@@ -103,6 +103,77 @@ func TestFailingConfigurations(t *testing.T) {
 	}
 }
 
+// A mistyped ORCID has the right shape and the wrong check digit, and is
+// caught before anybody asks ORCID about it. The template's placeholder is
+// left to CC-CFG-023, which names it as what it is.
+func TestTheORCIDCheckDigit(t *testing.T) {
+	cases := []struct {
+		orcid, want string
+	}{
+		{"0000-0002-1825-0097", "1 ORCID(s)"},
+		{"0000-0002-1694-233X", "1 ORCID(s)"},
+		{"0000-0002-1825-0098", "wrong check digit, likely a typo: 0000-0002-1825-0098"},
+		{"0000-0002-1694-2330", "wrong check digit"},
+		{"0000-0000-0000-0000", "1 ORCID(s)"},
+		{"0000-0002-1825-009", "without URL prefix"},
+		{"   ", "no ORCID to inspect"},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.orcid, func(t *testing.T) {
+			context := FromBytes([]byte("---\ncodechecker:\n  - name: A. Checker\n    ORCID: \"" + testCase.orcid + "\"\n"))
+			if got := orcidFormat(context); !strings.Contains(got.Detail, testCase.want) {
+				t.Errorf("detail %q, want it to say %q", got.Detail, testCase.want)
+			}
+		})
+	}
+}
+
+// A URL and a typo in the same file are both named at once: neither is looked
+// up, so one left out would wait for the other to be fixed.
+func TestAMalformedORCIDDoesNotHideAMistypedOne(t *testing.T) {
+	context := FromBytes([]byte(`---
+paper:
+  authors:
+    - name: Linked
+      ORCID: https://orcid.org/0000-0002-1825-0097
+codechecker:
+  - name: Mistyped
+    ORCID: 0000-0002-1825-0098
+`))
+	got := orcidFormat(context)
+	for _, want := range []string{"without URL prefix", "likely a typo: 0000-0002-1825-0098"} {
+		if !strings.Contains(got.Detail, want) {
+			t.Errorf("detail %q, want it to say %q", got.Detail, want)
+		}
+	}
+	if len(got.Lines) != 2 {
+		t.Errorf("lines %v, want both", got.Lines)
+	}
+}
+
+// What CC-MET-001 reports is not looked up as well, so a typo is one finding
+// rather than two.
+func TestOnlyAWellFormedORCIDIsLookedUp(t *testing.T) {
+	context := FromBytes([]byte(`---
+codechecker:
+  - name: Right
+    ORCID: 0000-0002-1825-0097
+  - name: Mistyped
+    ORCID: 0000-0002-1825-0098
+  - name: Linked
+    ORCID: https://orcid.org/0000-0002-1825-0097
+  - name: Template
+    ORCID: 0000-0000-0000-0000
+`))
+	var names []string
+	for _, person := range toLookUp(context) {
+		names = append(names, person.Name)
+	}
+	if got := strings.Join(names, ", "); got != "Right" {
+		t.Errorf("looked up %q, want only Right", got)
+	}
+}
+
 // A file that does not parse is a failed rule, not a crash, and the checks
 // that need the parsed content say they could not judge.
 func TestUnparseableFileStillReports(t *testing.T) {
