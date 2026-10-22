@@ -57,6 +57,7 @@ for completeness of the conversational set.
 
 | Command | Effect | Prio | Issue |
 |---|---|---|---|
+| `@chekhovbot check ready` | Say whether a check can start: a README, a `codecheck.yml` with a manifest, a licence, and a paper that answers | high | #28 |
 | `@chekhovbot check codecheck.yml` | Validate the config against the spec, report problems in-thread | MVP | #7 |
 | `@chekhovbot check repository` | Report languages, licence, size of the repo under check | high | #8 |
 | `@chekhovbot check metadata` | Verify ORCIDs, DOIs, author and venue metadata resolve, and the references | high | #9 |

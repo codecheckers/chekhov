@@ -16,6 +16,7 @@ goes on the first line of the comment, one command per comment.**
 @chekhovbot assign @user as codechecker
 @chekhovbot suggest codecheckers
 @chekhovbot check codecheck.yml
+@chekhovbot check ready
 @chekhovbot check start
 @chekhovbot status
 ```
@@ -40,8 +41,10 @@ codecheckers` says where the codechecker lists are, and an editor can ask
 `@chekhovbot suggest codecheckers` for candidates, named without notifying
 them. `@chekhovbot next certificate` says which certificate identifier comes
 next, and `@chekhovbot set certificate` reserves it for the check.
-`@chekhovbot check start`, `@chekhovbot status` and `@chekhovbot check finish`
-say where a check stands and move the register's labels with it, running the
+`@chekhovbot check ready` says whether a check can start - a README, a
+`codecheck.yml` with a manifest, a licence and a paper - for the author as much
+as the editor. `@chekhovbot check start`, `@chekhovbot status` and
+`@chekhovbot check finish` say where a check stands and move the register's labels with it, running the
 checks that already exist rather than repeating them: because those take time,
 the reply is posted at once and rewritten in place as each answers.
 `@chekhovbot check register` builds the row the check would get in

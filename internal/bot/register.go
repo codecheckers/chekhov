@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
@@ -208,6 +207,10 @@ func fromLabels(about whatTheBotKnows, services *check.Services) (typed, named c
 	return typed, named
 }
 
+// repositoryLabel is the label of the line both register issue templates ask
+// for the repository on.
+const repositoryLabel = "**Repository**:"
+
 // repositoryLine is the repository the issue's Repository line names, which
 // both register issue templates have. A line naming no repository the bot can
 // read is as good as none; an issue the bot could not read is not.
@@ -216,16 +219,12 @@ func repositoryLine(about whatTheBotKnows, services *check.Services) command.Row
 		return command.RowField{Missing: fmt.Sprintf(
 			"I could not read this issue: `%s set repository github::owner/repo`", command.Bot)}
 	}
-	for _, line := range strings.Split(about.issue.Body, "\n") {
-		rest, found := strings.CutPrefix(strings.TrimSpace(line), "**Repository**:")
+	for _, line := range templateLines(about.issue.Body) {
+		rest, found := templateField(line, repositoryLabel)
 		if !found {
 			continue
 		}
-		// A link is written bare, in angle brackets, or as Markdown, whose
-		// text and target are both worth a try.
-		for _, word := range strings.FieldsFunc(rest, func(r rune) bool {
-			return unicode.IsSpace(r) || strings.ContainsRune("[]()<>", r)
-		}) {
+		for _, word := range linkWords(rest) {
 			if spec := repositorySpecOf(word, services); spec != "" {
 				return command.RowField{Value: spec, From: "the issue's Repository line"}
 			}

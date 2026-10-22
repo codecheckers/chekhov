@@ -48,7 +48,7 @@ func TestLinksInTextEndWhereTheLinkDoes(t *testing.T) {
 		"https://a.org/one", "https://a.org/two", "https://a.org/three", "https://a.org/four",
 		"https://en.wikipedia.org/wiki/R_(programming_language)", "https://a.org/five", "https://a.org/six",
 	}
-	if got := linksIn(text); !slices.Equal(got, want) {
+	if got := LinksIn(text); !slices.Equal(got, want) {
 		t.Errorf("got\n%q\nwant\n%q", got, want)
 	}
 }
@@ -58,7 +58,7 @@ func TestLinksInTextEndWhereTheLinkDoes(t *testing.T) {
 func TestLinksInTextLeaveOutWhatIsNotALink(t *testing.T) {
 	text := "https://api.b.org/{id} https://$HOST/path https://example.org/x " +
 		"https://www.example.com/y http://localhost:8080/ https://doi.org/FIXME https://c.org/kept"
-	if got := linksIn(text); !slices.Equal(got, []string{"https://c.org/kept"}) {
+	if got := LinksIn(text); !slices.Equal(got, []string{"https://c.org/kept"}) {
 		t.Errorf("got %q, want only the real link", got)
 	}
 }
@@ -68,7 +68,7 @@ func TestLinksInTextLeaveOutWhatIsNotALink(t *testing.T) {
 func TestLinksInTextAreUnescaped(t *testing.T) {
 	text := `\href{https://g.org/repo\_name}{code} \url{https://g.org/page\#section} https://g.org/cut\textbf{x}`
 	want := []string{"https://g.org/repo_name", "https://g.org/page#section"}
-	if got := linksIn(text); !slices.Equal(got, want) {
+	if got := LinksIn(text); !slices.Equal(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

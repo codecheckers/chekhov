@@ -168,7 +168,7 @@ func (l *Links) add(url, where string) {
 // ResearchEquals DOI it mentions, linked or not: "the report is
 // 10.5281/zenodo.123" names the deposit as surely as a link to it does.
 func (l *Links) addText(text, where string) {
-	for _, url := range linksIn(text) {
+	for _, url := range LinksIn(text) {
 		l.add(url, where)
 	}
 	for _, doi := range depositDOI.FindAllString(text, -1) {
@@ -205,7 +205,11 @@ var (
 	depositDOI = regexp.MustCompile(`(?i)10\.5281/zenodo\.[0-9]+|10\.53962/[a-z0-9-]+`)
 )
 
-// linksIn finds the links in a piece of text.
+// IsDepositDOI reports whether a DOI is a Zenodo or ResearchEquals deposit:
+// in an issue, a certificate, code or data far more often than a paper.
+func IsDepositDOI(doi string) bool { return depositDOI.MatchString(doi) }
+
+// LinksIn finds the links in a piece of text.
 //
 // A link that is built rather than written - `https://api.example/{id}` in a
 // notebook, `https://$HOST/` in a shell line - is not a link anybody can
@@ -216,7 +220,7 @@ var (
 // are read as the characters they stand for; a backslash that is not one of
 // those ends the URL in a way nobody meant, and the link is dropped rather
 // than asked in a form that would answer 404.
-func linksIn(text string) []string {
+func LinksIn(text string) []string {
 	text = unescapeURLs.Replace(text)
 	var links []string
 	for _, span := range urlInText.FindAllStringIndex(text, -1) {

@@ -165,6 +165,13 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    CheckReady,
+		Summary: "Say whether a check can start: a README, a `codecheck.yml` with a manifest, a licence, and a paper",
+		Usage:   "check ready [<repository>|<certificate>]",
+		Group:   GroupValidation,
+		Role:    RoleAnyone,
+	},
+	{
 		Name:          CheckStart,
 		Summary:       "Begin this check: the labels, what the repository holds, and the checklist",
 		Usage:         "check start [<repository>|<certificate>]",

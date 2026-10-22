@@ -532,6 +532,8 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.version())
 	case command.Check:
 		return s.check(ctx, event, parsed, services)
+	case command.CheckReady:
+		return s.checkReady(ctx, event, parsed, services)
 	case command.CheckStart:
 		return s.checkStart(ctx, event, parsed, services)
 	case command.Status:

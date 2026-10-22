@@ -36,17 +36,24 @@ func reportResolvable(c Context) Result {
 
 // rule: CC-MET-004 paper-reference-resolves
 func paperReferenceResolves(c Context) Result {
-	reference := strings.TrimSpace(c.Config.Paper.Reference)
+	return paperResolves(c.Services, c.Config.Paper.Reference, c.Config.Line("paper.reference"))
+}
+
+// paperResolves is CC-MET-004 for a reference wherever it was written: the
+// file's paper.reference, or the link an issue gives (`check ready`). line is
+// where the answer points, 0 for nowhere in the file.
+func paperResolves(services *Services, reference string, line int) Result {
+	reference = strings.TrimSpace(reference)
 	if reference == "" {
 		return skip("no reference to resolve")
 	}
 	if !bareURL.MatchString(reference) {
 		return skip("the reference is not a URL, so there is nothing to resolve")
 	}
-	if !c.Services.Enabled() {
+	if !services.Enabled() {
 		return needsServices(RequiresService["CC-MET-004"])
 	}
-	return c.Services.resolves(reference).at(c.Config.Line("paper.reference"))
+	return services.resolves(reference).at(line)
 }
 
 // rule: CC-MET-009 reference-other-resolves

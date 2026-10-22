@@ -57,6 +57,10 @@ const (
 	// and the codechecker gets their checklist. A phrase, because it is a
 	// subcommand of Check with a role of its own; see the registry.
 	CheckStart Name = "check start"
+	// CheckReady says whether what an author provides before a check starts
+	// is there: a README, a codecheck.yml with a manifest, a licence and a
+	// paper. A phrase, because it is a subcommand of Check.
+	CheckReady Name = "check ready"
 	// CheckFinish ends one: the rules are run, the labels move, and the
 	// register pull request is the next step.
 	CheckFinish Name = "check finish"

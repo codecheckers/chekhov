@@ -647,24 +647,26 @@ exists; read the issues for what does not.
 
 | Issue | State |
 |---|---|
-| #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused. Closes once the deployment has answered a real check |
+| #1 commands, #2 hello, #3 unknown-command hint | Done, answered by the deployment |
+| #4 version and target register | Done: `version` and `/healthz` report the version constant and the register; the commit is `build.Revision`, the toolchain's VCS stamp, development-only - see The version |
+| #5 thanks | Done: a Chekhov quote from `data/quotes.yml` |
+| #6 goodbye | One registry entry, not written |
+| #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused |
+| #8 repository | Done: `check repository`, a description rather than a verdict |
 | #9 metadata, #10 bundle | Done: the ORCID check digit and `CC-MET-002`'s "could not check" came last (0.15.2); `check bundle` reports the bundle's size (0.16) |
 | #11 references | Done: `check metadata references` |
-| #8 repository | Done: `check repository`, a description rather than a verdict |
-| #12 links | Done: `check links`, the issue, `codecheck.yml`, the certificate source and the deposit, answered on the testing register |
-| #1 commands, #2 hello, #3 unknown-command hint | Implemented; they close once the deployment has answered a real comment |
-| #4 version SHA and target register | `version` and `/healthz` report the version constant and the register. The commit is deliberately not reported: open for the VCS-stamp route, which needs `.git` in the deployment's builder |
-| #5 thanks, #6 goodbye | One registry entry each, not written |
+| #12 links | Done: `check links`, the issue, `codecheck.yml`, the certificate source and the deposit |
 | #13 check by certificate identifier, #19 target shortcuts | Done: `check.ResolveTarget` |
-| #14 webhook, #15 reply path | Implemented and covered offline by recorded deliveries and a stubbed GitHub |
-| #16 deployment | Documented and ready; the app itself is created by hand on runway.horse |
-| #18 roles | `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
+| #14 webhook, #15 reply path, #16 deployment | Done; the app itself is created by hand on runway.horse |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
-| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply, answered on the testing register |
-| #21 register | `check register`, `set repository`, `set venue` and `check certificate` done (0.14), live-tested on testing-dev-register#225; `register`, the pull request, implemented (0.15), live test pending |
-| #23 announce, register#217 fediverse columns | Implemented; done once a development deployment has posted a `direct` toot for `1970-001` and refused a second confirm |
+| #18 roles | Done: `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
+| #20 certificate identifier | Done: `next certificate` and `set certificate`, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); a year that has not started is refused (0.17) |
+| #21 register | Done: `check register`, `set repository`, `set venue`, `check certificate`, and `register`, the pull request |
+| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
+| #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
-| #20 certificate identifier | `next certificate` and `set certificate` implemented, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); CC-REG-002 now allows the R package's slack of 9. Closes once the testing register has answered both |
+| #28 `check ready` | Implemented (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; done once the testing register has answered it |
+| #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
 The `codecheck` R package is the sibling implementation; its own remaining work

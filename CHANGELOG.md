@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-22
+
+### Added
+
+- `check ready` says whether a check can start: a README, a `codecheck.yml`
+  with a manifest, a licence, and a paper that answers, from `paper.reference`
+  or the issue. The repository is the one named, recorded, or on the issue's
+  Repository line, and anyone may ask (#28).
+
 ## [0.17.2] - 2026-10-21
 
 ### Fixed

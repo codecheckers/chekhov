@@ -3,9 +3,7 @@ package check
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"strings"
 )
 
@@ -111,18 +109,13 @@ func DescribeRepository(target string, localPaths bool, services *Services) (Des
 // directory on disk has no languages to report and nowhere to link to; a
 // repository has both.
 func (d *Description) locate(target string, localPaths bool, services *Services) (Bundle, error) {
-	if localPaths && IsLocalPath(target) {
-		directory := target
-		if info, err := os.Stat(directory); err == nil && !info.IsDir() {
-			directory = filepath.Dir(directory)
-		}
-		d.Unknown[FactLanguages] = "a directory on disk carries no language statistics"
-		return newLocalBundle(directory), nil
-	}
-
-	spec, bundle, err := bundleOf(target, services)
+	spec, bundle, err := bundleAt(target, localPaths, services)
 	if err != nil {
 		return nil, err
+	}
+	if spec.Type == "" {
+		d.Unknown[FactLanguages] = "a directory on disk carries no language statistics"
+		return bundle, nil
 	}
 	d.URL = spec.URL()
 	d.languagesOf(spec, services)

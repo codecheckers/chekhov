@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -867,12 +868,32 @@ func licenceFileIn(bundle Bundle) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return fileNamed(entries, licenceFile), nil
+}
+
+// fileNamed is the first file of a listing whose name matches, empty when
+// none does: a licence, a README, named the way everyone names them.
+func fileNamed(entries []BundleEntry, name *regexp.Regexp) string {
 	for _, entry := range entries {
-		if !entry.IsDir && licenceFile.MatchString(entry.Name) {
-			return entry.Name, nil
+		if !entry.IsDir && name.MatchString(entry.Name) {
+			return entry.Name
 		}
 	}
-	return "", nil
+	return ""
+}
+
+// bundleAt is where a target's files are: the directory on disk it names,
+// when local paths are allowed - a path to a file stands for its directory -
+// or else the repository it names. The spec is the zero one for a directory.
+func bundleAt(target string, localPaths bool, services *Services) (RepositorySpec, Bundle, error) {
+	if localPaths && IsLocalPath(target) {
+		directory := target
+		if info, err := os.Stat(directory); err == nil && !info.IsDir() {
+			directory = filepath.Dir(directory)
+		}
+		return RepositorySpec{}, newLocalBundle(directory), nil
+	}
+	return bundleOf(target, services)
 }
 
 // rawExists reports whether a file is served at a URL, a HEAD where it can.
