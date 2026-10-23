@@ -742,3 +742,13 @@ version above - there is never a change waiting for a release to be named, and
 One line per user-visible change, under `Added`, `Changed`, `Fixed` or
 `Removed`, with the issue reference. Not the implementation, not the reasoning:
 those belong in the code comments and the commit message.
+
+## Global rules
+
+<!-- Source: own rule, added 2026-10-23; see ~/.claude/CLAUDE.md, rule G0.2. -->
+
+This applies only if a user-level `~/.claude/CLAUDE.md` exists; otherwise
+ignore this section. That file holds rules for all projects, with IDs such as
+G1.1. Whenever one of them changes what you do, say so in your reply and name
+the rule, e.g. "I found X. I did not do Y but suggest Z, following global rule
+G1.1."
