@@ -647,10 +647,7 @@ func licencePresent(c Context) Result {
 	}
 	licence, err := c.Bundle.Licence()
 	if err != nil {
-		if errors.Is(err, errNoServices) {
-			return needsServices("the bundle under check")
-		}
-		return skip(fmt.Sprintf("could not read %s: %s", c.Bundle.Describe(), err))
+		return unanswered(err, "could not read "+c.Bundle.Describe())
 	}
 	if licence == "" {
 		missing := "no " + licenceFiles + " file at the root of the bundle"
@@ -674,16 +671,26 @@ func bundleListing(c Context, dir string) ([]BundleEntry, Result) {
 	}
 	entries, err := c.Bundle.List(dir)
 	if err != nil {
-		if errors.Is(err, errNoServices) {
-			return nil, needsServices("the bundle under check")
-		}
 		where := c.Bundle.Describe()
 		if dir != "" {
 			where += "/" + dir
 		}
-		return nil, skip(fmt.Sprintf("could not read %s: %s", where, err))
+		return nil, unanswered(err, "could not read "+where)
 	}
 	return entries, Result{}
+}
+
+// unanswered is a bundle that could not answer, as a skip: the services are
+// switched off, or the error, after what saying puts in front of it - nothing
+// where the reply names the bundle already.
+func unanswered(err error, saying string) Result {
+	if errors.Is(err, errNoServices) {
+		return needsServices("the bundle under check")
+	}
+	if saying == "" {
+		return skip(err.Error())
+	}
+	return skip(saying + ": " + err.Error())
 }
 
 // codecheckDir is the name of the bundle's codecheck directory, empty when it

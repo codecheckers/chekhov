@@ -142,4 +142,8 @@ func TestCheckReadyOnARepositoryThatIsNotThere(t *testing.T) {
 	if !strings.Contains(ready.Problem, "404") || len(ready.Items) != 0 {
 		t.Errorf("got %+v, want a problem and no items", ready)
 	}
+	// The reply names the target; the problem need not name it again.
+	if strings.Contains(ready.Problem, "could not read") {
+		t.Errorf("the problem names the target again: %s", ready.Problem)
+	}
 }

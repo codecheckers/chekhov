@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.1] - 2026-10-23
+
+### Fixed
+
+- `check ready` on a repository it cannot read names the repository once,
+  not twice (#28)
+
 ## [0.18.0] - 2026-10-22
 
 ### Added

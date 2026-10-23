@@ -47,6 +47,11 @@ type Readiness struct {
 func Ready(target string, localPaths bool, services *Services, issuePaper string) Readiness {
 	context, configured, problem := readyContext(target, localPaths, services)
 	if problem != "" {
+		// The repository a shortcut or a certificate stands for, where it
+		// was found: the problem no longer names it.
+		if context.Bundle != nil {
+			target = context.Bundle.Describe()
+		}
 		return Readiness{Target: target, Problem: problem}
 	}
 	return Readiness{Target: context.Bundle.Describe(), Items: []ReadyItem{
@@ -72,8 +77,11 @@ func readyContext(target string, localPaths bool, services *Services) (Context, 
 		return Context{}, false, err.Error()
 	}
 	context := Context{Bundle: bundle, Services: services}
-	if _, listed := bundleListing(context, ""); listed.Status != "" {
-		return Context{}, false, listed.Detail
+	// The error alone, not bundleListing's skip: the reply names the target
+	// already, and "could not read" it after "could not look at" it says the
+	// same thing twice.
+	if _, err := bundle.List(""); err != nil {
+		return context, false, unanswered(err, "").Detail
 	}
 	// The listing is in hand, so asking it costs nothing; Bundle.Exists
 	// would ask again.
@@ -82,7 +90,7 @@ func readyContext(target string, localPaths bool, services *Services) (Context, 
 	}
 	raw, err := bundle.Read("codecheck.yml")
 	if err != nil {
-		return Context{}, false, err.Error()
+		return context, false, err.Error()
 	}
 	read := FromBytes(raw)
 	read.Bundle, read.Services = bundle, services

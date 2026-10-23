@@ -665,7 +665,7 @@ exists; read the issues for what does not.
 | #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
 | #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
-| #28 `check ready` | Implemented (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; done once the testing register has answered it |
+| #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 

@@ -1,7 +1,6 @@
 package check
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -130,10 +129,7 @@ func manifestFilesExist(c Context) Result {
 		looked++
 		found, err := c.Bundle.Exists(item.File)
 		if err != nil {
-			if errors.Is(err, errNoServices) {
-				return needsServices("the bundle under check")
-			}
-			return skip(fmt.Sprintf("could not look in %s: %s", c.Bundle.Describe(), err))
+			return unanswered(err, "could not look in "+c.Bundle.Describe())
 		}
 		if !found {
 			missing = append(missing, item.File)
