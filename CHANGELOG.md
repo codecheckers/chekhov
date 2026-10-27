@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `check zenodo` deletes the comment that held a share link, and quotes the
-  command without its token (#26).
+- `check zenodo` deletes the comment that held a share link, and says so in
+  its reply (#26).
 
 ### Fixed
 
