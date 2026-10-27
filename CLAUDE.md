@@ -674,7 +674,7 @@ exists; read the issues for what does not.
 | #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
-| #26 `check zenodo` | Implemented (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 up to the draft |
+| #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |
 | #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
