@@ -79,7 +79,7 @@ for the whole group, before writing #7.
 
 | Command | Effect | Prio |
 |---|---|---|
-| `@chekhovbot check zenodo <id>` | Validate the Zenodo record's metadata and files | high |
+| `@chekhovbot check zenodo [<DOI>\|<link>\|<share link>]` | Audit the certificate's Zenodo record, or a draft by its share link, against the community's curation policy and the `codecheck.yml` (#26) | implemented |
 | `@chekhovbot create deposit` | Create a Zenodo draft deposit for the certificate | medium |
 | `@chekhovbot upload bundle` | Upload the bundle to the Zenodo draft | medium |
 | `@chekhovbot reserve doi` | Reserve the DOI so it can be printed in the report | medium |

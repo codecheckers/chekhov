@@ -40,16 +40,10 @@ func (s *Server) checkReady(ctx context.Context, event mention, parsed command.C
 		}
 		break
 	}
-	recorded := ""
-	if named == "" && s.Checks != nil && event.Issue > 0 {
-		if reading, err := s.Checks.Read(ctx, event.Repository, event.Issue); err == nil {
-			recorded = s.targetFor(nil, reading.Record, services)
-		}
+	target := command.RowField{Value: named, From: "the command"}
+	if named == "" {
+		target = s.checkRepository(ctx, event, about, services)
 	}
-	target := firstOf(
-		command.RowField{Value: named, From: "the command"},
-		command.RowField{Value: recorded, From: "the record"},
-		repositoryLine(about, services))
 	if target.Value == "" {
 		return said(command.NoReadyTarget(about.labelsRead))
 	}
@@ -61,6 +55,20 @@ func (s *Server) checkReady(ctx context.Context, event mention, parsed command.C
 			What: item.What, Passed: item.Status == check.StatusPass, Detail: item.Detail, Fix: item.Fix})
 	}
 	return said(command.ReadyReply(shown))
+}
+
+// checkRepository is the repository of this check, where a command that
+// names none finds it: the record of the check, then the issue's Repository
+// line.
+func (s *Server) checkRepository(ctx context.Context, event mention, about whatTheBotKnows,
+	services *check.Services) command.RowField {
+	recorded := ""
+	if s.Checks != nil && event.Issue > 0 {
+		if reading, err := s.Checks.Read(ctx, event.Repository, event.Issue); err == nil {
+			recorded = s.targetFor(nil, reading.Record, services)
+		}
+	}
+	return firstOf(command.RowField{Value: recorded, From: "the record"}, repositoryLine(about, services))
 }
 
 // htmlComment is a comment in an issue body: the templates' instructions,

@@ -172,6 +172,13 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    CheckZenodo,
+		Summary: "Audit the certificate's Zenodo record, or a draft by its share link, against the community's curation policy",
+		Usage:   "check zenodo [<DOI>|<record link>|<share link>]",
+		Group:   GroupValidation,
+		Role:    RoleAnyone,
+	},
+	{
 		Name:          CheckStart,
 		Summary:       "Begin this check: the labels, what the repository holds, and the checklist",
 		Usage:         "check start [<repository>|<certificate>]",

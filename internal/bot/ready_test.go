@@ -16,6 +16,13 @@ import (
 // reference is what paper.reference says: {{server}} stands for the stub.
 func readying(t *testing.T, body, reference string) *Server {
 	t.Helper()
+	server, _ := readyingWith(t, body, reference)
+	return server
+}
+
+// readyingWith is readying, and the stub, for a test that serves more.
+func readyingWith(t *testing.T, body, reference string) (*Server, *testserver.Server) {
+	t.Helper()
 	server, path := checking(t, "")
 	path.issues[0].Body = body
 
@@ -39,7 +46,7 @@ func readying(t *testing.T, body, reference string) *Server {
 		RawContent: stub.URL + "/raw",
 		GitHub:     stub.URL + "/github",
 	}}
-	return server
+	return server, stub
 }
 
 // Nothing named and nothing recorded: the repository is the issue's, read

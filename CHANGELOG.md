@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-27
+
+### Added
+
+- `check zenodo` audits the certificate's Zenodo record against the curation
+  policy of the CODECHECK community and the `codecheck.yml`: every policy item,
+  and the register rules on the record that need attention. It takes the
+  `report` of the check's `codecheck.yml`, a DOI, a record link, or a share
+  link to a draft, whose token is never repeated; records on OSF or
+  ResearchEquals are out of scope (#26).
+
 ## [0.18.1] - 2026-10-23
 
 ### Fixed

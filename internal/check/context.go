@@ -158,6 +158,12 @@ type Context struct {
 	// place of looking the certificate up, so a row can be judged before the
 	// pull request that adds it (#21). Nil for a row that is already there.
 	Row *RegisterRow
+
+	// zenodo is the certificate's record when `check zenodo` read it
+	// already, which the CC-REP rules then judge instead of fetching the one
+	// the report DOI names: a draft has no DOI to fetch it by. See
+	// curation.go.
+	zenodo *zenodoRecord
 }
 
 // WithServices returns the context with the outside world attached.

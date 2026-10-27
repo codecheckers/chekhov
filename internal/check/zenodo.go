@@ -24,18 +24,16 @@ type zenodoRecord struct {
 	Created     time.Time    `json:"created"`
 	Published   string       `json:"publication_date"`
 	Files       []zenodoFile `json:"files"`
-	Metadata    struct {
+	// draft says the record is an unpublished draft, read by `check zenodo`,
+	// whose DOI is only reserved. Never in a response, see asRecord.
+	draft    bool
+	Metadata struct {
 		Title string `json:"title"`
 		// License is an object with an id on the current API and a plain
 		// string on the older one, so it is read as it comes, see licence.
-		License json.RawMessage `json:"license"`
-		Rights  []struct {
-			ID string `json:"id"`
-		} `json:"rights"`
-		Creators []struct {
-			Name  string `json:"name"`
-			ORCID string `json:"orcid"`
-		} `json:"creators"`
+		License  json.RawMessage `json:"license"`
+		Rights   []zenodoRight   `json:"rights"`
+		Creators []zenodoCreator `json:"creators"`
 		// What the record says in prose and in its links, read by
 		// `check links`: the description is HTML, the notes plain text.
 		Description          string             `json:"description"`
@@ -47,13 +45,24 @@ type zenodoRecord struct {
 		// failing the whole record.
 		References json.RawMessage `json:"references"`
 		Relations  struct {
-			Version []struct {
-				Index  int  `json:"index"`
-				IsLast bool `json:"is_last"`
-				Count  int  `json:"count"`
-			} `json:"version"`
+			Version []zenodoVersion `json:"version"`
 		} `json:"relations"`
 	} `json:"metadata"`
+}
+
+type zenodoRight struct {
+	ID string `json:"id"`
+}
+
+type zenodoCreator struct {
+	Name  string `json:"name"`
+	ORCID string `json:"orcid"`
+}
+
+type zenodoVersion struct {
+	Index  int  `json:"index"`
+	IsLast bool `json:"is_last"`
+	Count  int  `json:"count"`
 }
 
 // zenodoIdentifier is one identifier a record relates itself to, with the
@@ -128,6 +137,9 @@ func reportDOIVersionSpecific(c Context) Result {
 	if result != nil {
 		return *result
 	}
+	if record.draft {
+		return skip(draftDOI)
+	}
 	// A concept DOI always resolves to whichever version is current, so a
 	// certificate that names one does not point at a fixed document.
 	if record.ConceptDOI != "" && sameDOI(record.ConceptDOI, c.Config.Report) {
@@ -143,6 +155,9 @@ func reportDOINewestVersion(c Context) Result {
 	if result != nil {
 		return *result
 	}
+	if record.draft {
+		return skip(draftDOI)
+	}
 	versions := record.Metadata.Relations.Version
 	if len(versions) == 0 {
 		return skip("Zenodo records no version relation for this record")
@@ -153,9 +168,15 @@ func reportDOINewestVersion(c Context) Result {
 		}
 		return pass("the latest version of the record")
 	}
+	if versions[0].Count == 0 {
+		return fail("a newer version of this record has been published").at(c.Config.Line("report"))
+	}
 	return fail(fmt.Sprintf("a newer version of this record has been published "+
 		"(version %d of %d)", versions[0].Index+1, versions[0].Count)).at(c.Config.Line("report"))
 }
+
+// draftDOI is why the rules about the report DOI say nothing about a draft.
+const draftDOI = "a draft's DOI is only reserved until it is published"
 
 // The files of the record, CC-REP-007 to CC-REP-010, which replace CC-REP-003.
 // They follow zenodo_policy_check() in the R package, which had them first.
@@ -345,8 +366,12 @@ func zenodoCodecheckerORCIDsMatch(c Context) Result {
 	return pass(fmt.Sprintf("%d ORCID(s) match", len(withORCID)))
 }
 
-// zenodoRecordFor fetches the record the report DOI points at, once.
+// zenodoRecordFor fetches the record the report DOI points at, once, or is
+// the one `check zenodo` read already, which may be a draft.
 func zenodoRecordFor(c Context, rule string) (zenodoRecord, *Result) {
+	if c.zenodo != nil {
+		return *c.zenodo, nil
+	}
 	report := strings.TrimSpace(c.Config.Report)
 	recordID := zenodoRecordID.FindStringSubmatch(report)
 	if recordID == nil {

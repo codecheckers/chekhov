@@ -61,6 +61,10 @@ const (
 	// is there: a README, a codecheck.yml with a manifest, a licence and a
 	// paper. A phrase, because it is a subcommand of Check.
 	CheckReady Name = "check ready"
+	// CheckZenodo audits the certificate's Zenodo record, or its draft, against
+	// the curation policy of the CODECHECK community. A phrase, because it is
+	// a subcommand of Check.
+	CheckZenodo Name = "check zenodo"
 	// CheckFinish ends one: the rules are run, the labels move, and the
 	// register pull request is the next step.
 	CheckFinish Name = "check finish"

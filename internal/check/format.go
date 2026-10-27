@@ -47,7 +47,7 @@ func (r Report) Text() string {
 	}
 	for _, result := range r.Results {
 		line := result.Line()
-		if reported(result.Outcome) {
+		if Reported(result.Outcome) {
 			line = result.Text()
 		} else if result.Detail != "" {
 			line = result.Rule.ID + " " + result.Rule.Name + ": " + result.Detail
@@ -111,7 +111,7 @@ func (r Report) Markdown() string {
 
 	var reportable []RuleResult
 	for _, result := range r.Results {
-		if reported(result.Outcome) {
+		if Reported(result.Outcome) {
 			reportable = append(reportable, result)
 		}
 	}
@@ -168,8 +168,8 @@ func (r Report) provenance() string {
 	return out.String()
 }
 
-// reported says whether an outcome is one the reader has to act on.
-func reported(outcome Outcome) bool {
+// Reported says whether an outcome is one the reader has to act on.
+func Reported(outcome Outcome) bool {
 	return outcome == OutcomeError || outcome == OutcomeWarning || outcome == OutcomeInfo
 }
 
