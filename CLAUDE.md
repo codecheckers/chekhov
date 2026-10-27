@@ -10,10 +10,13 @@ the full feature list with priorities.
 
 ## Committing and publishing
 
-**Never commit. Stage changes with `git add` and propose a commit message; the
-user commits.** This holds even in auto-accept mode and even when the change is
-trivial or the message was agreed beforehand. The same applies to pushing and
-to deploying.
+**Commit and push only on explicit, individual confirmation. Stage changes
+with `git add` and propose a commit message; the user commits, or says to
+commit.** An explicit "commit it" for the change at hand is the only go-ahead:
+auto-accept mode is not one, a message agreed beforehand is not one, and a
+confirmation covers the commit it was given for, not the next one. Pushing is
+the same, and separate: "commit it" is not "push it", and each push waits for
+its own go-ahead.
 
 **A commit message is one line.** What changed, and the issue it closes:
 `count a bundle in one request instead of one per directory, closes #46`. No
