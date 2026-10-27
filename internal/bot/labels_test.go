@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -149,6 +150,56 @@ func TestACommandThatIsNotAboutTheCheckSaysNothingAboutLabels(t *testing.T) {
 		if reply := answer(t, server, name, nil, ""); strings.Contains(reply, "needs codechecker") {
 			t.Errorf("`%s` talked about the labels:\n%s", name, reply)
 		}
+	}
+}
+
+// The note is said once while the bot's replies follow one another, and again
+// as soon as something else it said comes between (codecheckers/chekhov#61).
+func TestTheLabelNoteIsNotRepeatedStraightAway(t *testing.T) {
+	server, replies := watching(t)
+	replies.labelled("needs codechecker")
+	first := assigned(t, server, "a-codechecker")
+	if !strings.Contains(first, "The labels may not describe this check") {
+		t.Fatalf("the labels of this check do not disagree, so the test proves nothing:\n%s", first)
+	}
+
+	// The test's reply path does not keep what it posts in the thread the
+	// bot reads, so each reply is put there as the deployment would have.
+	posted := func(body string) {
+		replies.thread = append(replies.thread, github.Comment{
+			Author: server.Settings.BotUser(), Body: command.Defuse(body)})
+	}
+	posted(first)
+
+	if reply := answer(t, server, command.ListRoles, nil, ""); strings.Contains(reply, "The labels may not describe") {
+		t.Errorf("the note was repeated straight after the reply that carried it:\n%s", reply)
+	}
+
+	posted(command.GoodbyeReply())
+	if reply := answer(t, server, command.ListRoles, nil, ""); !strings.Contains(reply, "The labels may not describe") {
+		t.Errorf("the note was held back although the bot said something else in between:\n%s", reply)
+	}
+}
+
+// A staged reply is on the issue before its note is decided, and its own
+// earlier stages are not the last word before it.
+func TestAStagedReplyIsNotItsOwnPredecessor(t *testing.T) {
+	server, replies := watching(t)
+	note := command.LabelNote([]string{"the check carries `needs codechecker`"})
+	replies.thread = []github.Comment{
+		{ID: 5, Author: server.Settings.BotUser(), Body: "**Where this check stands**\n\n" + note},
+		{ID: 6, Author: server.Settings.BotUser(), Body: "**Starting this check**\n\n…"},
+	}
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1}
+
+	if !server.justSaid(context.Background(), event, note, &reply{comment: 6}) {
+		t.Error("the staged reply was taken for the comment before it")
+	}
+	if server.justSaid(context.Background(), event, note, nil) {
+		t.Error("a comment without the note was read as having said it")
+	}
+	if server.justSaid(context.Background(), event, command.LabelNote([]string{"something else"}), &reply{comment: 6}) {
+		t.Error("a different note was held back")
 	}
 }
 

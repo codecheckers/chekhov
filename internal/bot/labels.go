@@ -81,6 +81,39 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 	return state.Note()
 }
 
+// justSaid reports whether the bot's last comment on the check, before the
+// reply being written, already carries this note, so saying it again would
+// only repeat what the reader has just scrolled past (codecheckers/chekhov#61).
+//
+// Read from the thread rather than remembered, so the bot stays stateless: the
+// note comes back as soon as anything else the bot said comes between, or the
+// disagreement changes. Anything that fails says the note.
+//
+// writing is the staged reply already on the issue, if any: its earlier stages
+// are this reply, not the last word before it.
+func (s *Server) justSaid(ctx context.Context, event mention, note string, writing *reply) bool {
+	reader, ok := s.Replies.(Reader)
+	bot := s.Settings.BotUser()
+	if note == "" || !ok || strings.TrimSpace(bot) == "" {
+		return false
+	}
+	comments, err := reader.Comments(ctx, event.Repository, event.Issue)
+	if err != nil {
+		return false
+	}
+	for i := len(comments) - 1; i >= 0; i-- {
+		comment := comments[i]
+		if !strings.EqualFold(comment.Author, bot) ||
+			(writing != nil && comment.ID == writing.comment) {
+			continue
+		}
+		// Defused, as everything the bot posts is: what is on the issue is
+		// the note as bodyOf wrote it.
+		return strings.Contains(comment.Body, command.Defuse(note))
+	}
+	return false
+}
+
 // errNoIssueReader is a reply path that cannot read the register's issues -
 // the command line preview, a test recorder. Not a failure: the parts that
 // wanted the issue each do without it, and say so.
