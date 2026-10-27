@@ -359,7 +359,8 @@ type ZenodoAudit struct {
 	Problem string
 	Policy  []PolicyItem
 	// Rules are the CC-REP rules on the record that the policy list does not
-	// show already, and RulesSummary counts all of them.
+	// show already, and RulesSummary counts them, so that a rule is counted
+	// once, where it is shown.
 	Rules        []RuleResult
 	RulesSummary string
 }
@@ -443,7 +444,7 @@ func AuditZenodo(ctx context.Context, target ZenodoTarget, configuration Context
 		policyRepository(record),
 		policyAlternate(record, "url", "http://"+certificatesURL, certificate),
 		policyAlternate(record, "other", certificatesURL, certificate),
-		policyCommunity(record, target.Sandbox),
+		policyCommunity(record, target.Sandbox, target.Token != ""),
 	}
 	if reported != nil {
 		audit.Policy = append(audit.Policy, *reported)
@@ -453,7 +454,7 @@ func AuditZenodo(ctx context.Context, target ZenodoTarget, configuration Context
 			audit.Rules = append(audit.Rules, result)
 		}
 	}
-	audit.RulesSummary = report.Summary()
+	audit.RulesSummary = Report{Results: audit.Rules}.Summary()
 	return audit
 }
 
@@ -620,7 +621,7 @@ func policyAlternate(r invenioRecord, scheme, prefix, certificate string) Policy
 
 // policyCommunity asks whether the record is in the community, and of a
 // draft, which cannot be yet, whether it was submitted to it.
-func policyCommunity(r invenioRecord, sandbox bool) PolicyItem {
+func policyCommunity(r invenioRecord, sandbox, shared bool) PolicyItem {
 	community := zenodoCommunityID
 	if sandbox {
 		community = zenodoSandboxCommunityID
@@ -642,6 +643,16 @@ func policyCommunity(r invenioRecord, sandbox bool) PolicyItem {
 		default:
 			item.Status, item.Detail = StatusFail, "the request to the community was "+review.Status+"; submit it again"
 		}
+		return item
+	}
+	if r.IsDraft && shared && r.Parent.Review == nil {
+		// A share link shows a draft without its request to a community,
+		// which only the owner sees (Zenodo, 2026-10): no request in sight is
+		// not no request. TestIntegrationSandboxDraftByShareLink notices when
+		// a share link starts to show it.
+		item.Status = StatusSkip
+		item.Detail = "a share link does not show which community the draft was submitted to; " +
+			"check that the CODECHECK community is chosen before publishing"
 		return item
 	}
 	item.Status = StatusFail

@@ -46,7 +46,8 @@ next, and `@chekhovbot set certificate` reserves it for the check.
 as the editor. `@chekhovbot check zenodo` audits the certificate's Zenodo
 record against the CODECHECK community's curation policy and the
 `codecheck.yml`, and reads a draft through a share link, so that the record can
-be fixed before it is published. `@chekhovbot check start`, `@chekhovbot status` and
+be fixed before it is published; it deletes the comment that held the link,
+which anyone who can read the issue could otherwise use. `@chekhovbot check start`, `@chekhovbot status` and
 `@chekhovbot check finish` say where a check stands and move the register's labels with it, running the
 checks that already exist rather than repeating them: because those take time,
 the reply is posted at once and rewritten in place as each answers.

@@ -60,7 +60,8 @@ func (c sandboxClient) call(t *testing.T, method, path string, body any, content
 	}
 	request.Header.Set("Authorization", "Bearer "+c.token)
 	request.Header.Set("Content-Type", contentType)
-	request.Header.Set("Accept", "application/json")
+	// Plain JSON is the legacy representation, which numbers the id.
+	request.Header.Set("Accept", invenioMediaType)
 	response, err := c.http.Do(request)
 	if err != nil {
 		// Go's error quotes the URL, which carries no token: the token is in
@@ -169,6 +170,13 @@ func TestIntegrationSandboxDraftByShareLink(t *testing.T) {
 		t.Errorf("Draft, Shared = %v, %v; want a draft read with its share link", audit.Draft, audit.Shared)
 	}
 	for _, item := range audit.Policy {
+		// The draft chose the community, which a share link does not show.
+		if item.What == "in the CODECHECK community" {
+			if item.Status != StatusSkip {
+				t.Errorf("%s: %s %s, want skip", item.What, item.Status, item.Detail)
+			}
+			continue
+		}
 		if item.Status != StatusPass {
 			t.Errorf("%s: %s %s, want pass", item.What, item.Status, item.Detail)
 		}

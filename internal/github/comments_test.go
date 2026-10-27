@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -186,5 +187,24 @@ func TestOnlyTheManagedLabelsChange(t *testing.T) {
 		"DELETE /repos/" + repo + "/issues/7/labels/absent"
 	if got := strings.Join(requests, "\n"); got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+// Deleting a comment is one DELETE of that comment, on the configured
+// repository and nowhere else.
+func TestDeletingAComment(t *testing.T) {
+	var asked []string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.Method+" "+r.URL.Path)
+		w.WriteHeader(http.StatusNoContent)
+	})
+	if err := client.DeleteComment(context.Background(), "codecheckers/testing-dev-register", 7); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if err := client.DeleteComment(context.Background(), "codecheckers/register", 7); err == nil {
+		t.Error("deleted a comment on another repository")
+	}
+	if want := []string{"DELETE /repos/codecheckers/testing-dev-register/issues/comments/7"}; !slices.Equal(asked, want) {
+		t.Errorf("asked %v, want %v", asked, want)
 	}
 }

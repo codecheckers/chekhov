@@ -49,7 +49,7 @@ func (c *Client) guard(method string, target *url.URL, payload []byte) error {
 	if slices.ContainsFunc(segments, func(s string) bool { return s == "" || s == "." || s == ".." }) {
 		return refused("refusing to %s %s: not a path this bot writes to", method, path)
 	}
-	if c.issueWrite(segments) || method == http.MethodPut && c.membershipWrite(segments) ||
+	if c.issueWrite(method, segments) || method == http.MethodPut && c.membershipWrite(segments) ||
 		c.registerWrite(method, segments, payload) {
 		return nil
 	}
@@ -131,12 +131,29 @@ func (c *Client) registerWrite(method string, segments []string, payload []byte)
 var pullNumber = regexp.MustCompile(`^pulls/[0-9]+$`)
 
 // issueWrite is /repos/<the configured repository>/issues/..., which covers
-// every comment, label, assignee and title the bot writes. Which repository
-// is the configured one is mine's to say, so the two fences cannot disagree.
-func (c *Client) issueWrite(segments []string) bool {
-	return len(segments) > 3 && segments[0] == "repos" && segments[3] == "issues" &&
-		c.mine(segments[1]+"/"+segments[2], "write") == nil
+// every comment, label, assignee and title the bot writes. A DELETE reaches
+// less: a label, an assignee, and one comment, which DeleteComment deletes
+// because it holds a share link - never an issue, nor anything else under it.
+// Which repository is the configured one is mine's to say, so the two fences
+// cannot disagree.
+func (c *Client) issueWrite(method string, segments []string) bool {
+	if len(segments) <= 3 || segments[0] != "repos" || segments[3] != "issues" ||
+		c.mine(segments[1]+"/"+segments[2], "write") != nil {
+		return false
+	}
+	if method != http.MethodDelete {
+		return true
+	}
+	rest := strings.Join(segments[4:], "/")
+	return issueComment.MatchString(rest) || issueDeletable.MatchString(rest)
 }
+
+// issueComment is the path of one comment; issueDeletable a label on an
+// issue, or its assignees.
+var (
+	issueComment   = regexp.MustCompile(`^comments/[0-9]+$`)
+	issueDeletable = regexp.MustCompile(`^[0-9]+/(?:labels/[^/]+|assignees)$`)
+)
 
 // membershipWrite is /orgs/<organisation>/teams/<team>/memberships/<somebody>,
 // the one organisation write there is, for a team mayAddTo allows - the fence

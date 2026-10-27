@@ -36,6 +36,10 @@ func TestTheGuardLetsThroughOnlyTheBotsOwnWrites(t *testing.T) {
 		{"a label", http.MethodPost, repo + "/issues/7/labels", true},
 		{"a label removed", http.MethodDelete, repo + "/issues/7/labels/needs%20codechecker", true},
 		{"a title", http.MethodPatch, repo + "/issues/7", true},
+		{"deleting a comment", http.MethodDelete, repo + "/issues/comments/99", true},
+		{"deleting an issue", http.MethodDelete, repo + "/issues/7", false},
+		{"deleting every label", http.MethodDelete, repo + "/issues/7/labels", false},
+		{"deleting a comment's reaction", http.MethodDelete, repo + "/issues/comments/99/reactions/1", false},
 		// No method builds it, so the last fence is no looser than mine.
 		{"the repository's name written differently", http.MethodPost,
 			"https://api.github.com/repos/Codecheckers/Testing-Dev-Register/issues/7/comments", false},

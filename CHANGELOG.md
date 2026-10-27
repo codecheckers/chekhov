@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-27
+
+### Added
+
+- `check zenodo` deletes the comment that held a share link, and quotes the
+  command without its token (#26).
+
+### Fixed
+
+- `check zenodo` says it could not check the community of a draft read by its
+  share link, which hides the draft's request to a community, rather than
+  failing it (#26).
+- `check zenodo` counts the register rules once: those shown with the policy
+  are no longer counted again beneath it (#26).
+
 ## [0.19.1] - 2026-10-27
 
 ### Fixed

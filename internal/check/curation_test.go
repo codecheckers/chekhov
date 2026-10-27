@@ -3,6 +3,7 @@ package check
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -155,6 +156,10 @@ func TestAuditOfARecordInGoodOrder(t *testing.T) {
 	if len(audit.Policy) != 14 {
 		t.Errorf("%d policy items, want the 13 of the policy and the report", len(audit.Policy))
 	}
+	// A rule shown with the policy is counted there, not again beneath it.
+	if want := fmt.Sprintf("%d passed, 0 failed", len(audit.Rules)); !strings.HasPrefix(audit.RulesSummary, want) {
+		t.Errorf("RulesSummary = %q, want it to count the %d rules listed beneath the policy", audit.RulesSummary, len(audit.Rules))
+	}
 	for _, rule := range audit.Rules {
 		if rule.Outcome != OutcomeOK {
 			t.Errorf("%s: %s %s, want ok", rule.Rule.ID, rule.Outcome, rule.Detail)
@@ -271,6 +276,27 @@ func TestADraftNotSubmittedToTheCommunity(t *testing.T) {
 		if got := statuses(audit)["in the CODECHECK community"]; got != StatusFail {
 			t.Errorf("%s: community %s, want fail", review, got)
 		}
+	}
+}
+
+// A share link shows a draft without its request to a community, so a draft
+// with none in sight could not be checked, rather than failed.
+func TestADraftWhoseRequestIsNotShown(t *testing.T) {
+	s := newStub(t)
+	draft := strings.Replace(asDraft(invenioJSON), `, "review": {"status": "submitted", "receiver": {"community": "505e49f2-de4f-4905-9666-36c7303e497d"}}`, ``, 1)
+	s.Handle("/zenodo/records/1234567/draft", withToken(draft))
+	s.Handle("/zenodo/records/1234567/draft/files", withToken(`{"entries": []}`))
+	audit := s.audit(t, ZenodoTarget{ID: "1234567", Token: secret})
+	if got := statuses(audit)["in the CODECHECK community"]; got != StatusSkip {
+		t.Errorf("community: %s, want skip", got)
+	}
+
+	// Read any other way, a draft with no request in sight has none.
+	s.Handle("/zenodo/records/1234567/draft", invenioOnly(draft))
+	s.Handle("/zenodo/records/1234567/draft/files", invenioOnly(`{"entries": []}`))
+	audit = s.audit(t, ZenodoTarget{ID: "1234567", Preview: true})
+	if got := statuses(audit)["in the CODECHECK community"]; got != StatusFail {
+		t.Errorf("community of a draft read without a share link: %s, want fail", got)
 	}
 }
 

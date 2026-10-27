@@ -124,13 +124,37 @@ func (c *Client) edit(ctx context.Context, repository string, comment int64, bod
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("%s/repos/%s/issues/comments/%d",
-		strings.TrimSuffix(c.BaseURL, "/"), repository, comment)
-
 	return c.attempt(ctx, fmt.Sprintf("editing comment %d on %s", comment, repository), func() error {
-		_, err := c.do(ctx, http.MethodPatch, url, payload)
+		_, err := c.do(ctx, http.MethodPatch, c.commentURL(repository, comment), payload)
 		return err
 	})
+}
+
+// commentURL is the API address of one comment on an issue.
+func (c *Client) commentURL(repository string, comment int64) string {
+	return fmt.Sprintf("%s/repos/%s/issues/comments/%d", strings.TrimSuffix(c.BaseURL, "/"), repository, comment)
+}
+
+// DeleteComment deletes a comment on an issue of the configured repository,
+// for the one case where leaving it does harm: somebody pasted a share link to
+// an unpublished record, and anyone who can read the issue could use it.
+// Editing the link out would not do, because GitHub keeps a comment's earlier
+// versions readable by everybody who can read the comment.
+//
+// GitHub refuses it without write access to the repository, as it refuses an
+// edit; a caller tells the person to delete the comment themselves then. A
+// comment that is not there is deleted: a retry after a first try that landed
+// but was not answered finds it gone.
+func (c *Client) DeleteComment(ctx context.Context, repository string, comment int64) error {
+	if err := c.mine(repository, "delete a comment"); err != nil {
+		return err
+	}
+	_, err := c.send(ctx, http.MethodDelete, c.commentURL(repository, comment),
+		fmt.Sprintf("deleting comment %d on %s", comment, repository), nil)
+	if httpretry.IsStatus(err, http.StatusNotFound) {
+		return nil
+	}
+	return err
 }
 
 // Assign puts a handle in the issue's assignees, so that a role is visible

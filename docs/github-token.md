@@ -48,7 +48,7 @@ Permissions, under Repository permissions:
 | Permission | Level | Needed for |
 |---|---|---|
 | Metadata | Read | Mandatory, selected automatically |
-| Issues | **Read and write** | Posting the reply; reading a check's issue and the register's open issues for `suggest codecheckers`; later labels and assignees |
+| Issues | **Read and write** | Posting the reply; reading a check's issue and the register's open issues for `suggest codecheckers`; later labels and assignees; deleting a comment that holds a Zenodo share link (`check zenodo`) |
 | Contents | **Read and write** | Reading `register.csv` and `venues.csv`; writing is `@chekhovbot register` only: a commit changing the configured register file, on a `register-YYYY-NNN` branch it creates or moves (#21) |
 | Pull requests | Read and write | `@chekhovbot register`, which opens or updates the pull request adding the row; it never merges |
 
@@ -182,7 +182,10 @@ when the bot outgrows commenting.
 
 - `chekhovbot` is an active member of the `codecheckers` organisation.
 - Its permission on `codecheckers/testing-dev-register` is `write` (checked
-  2026-10-21): labels, assignees and the `register-*` branches need it.
+  2026-10-21): labels, assignees and the `register-*` branches need it, and
+  so does deleting somebody else's comment, which `check zenodo` does to a
+  comment holding a share link. On `codecheckers/register` it is `read`
+  (checked 2026-10-27), so there the reply asks the person to delete it.
 - **Protect the default branch** of a register the bot writes to, so that a
   change reaches it only through a reviewed pull request. The token's Contents
   write would otherwise reach `main` too; the guard refuses it, and branch

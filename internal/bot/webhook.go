@@ -45,6 +45,8 @@ type mention struct {
 	Issue      int
 	Author     string
 	Body       string
+	// Comment is the comment the command is in, 0 for an issue's description.
+	Comment int64
 
 	// read is the issue this mention is on, read once for the whole command,
 	// with whatever the command has since done to its labels applied.
@@ -86,6 +88,7 @@ func parseEvent(eventType string, payload []byte) (mention, bool, error) {
 			Issue:      parsed.Issue.Number,
 			Author:     parsed.Comment.User.Login,
 			Body:       parsed.Comment.Body,
+			Comment:    parsed.Comment.ID,
 		}, true, nil
 	default:
 		return mention{}, false, nil

@@ -17,13 +17,16 @@ type Audit struct {
 	Draft, Shared bool
 	// Problem is why the record could not be read.
 	Problem string
+	// Link is what became of the comment with a share link, if there was one.
+	Link ShareLink
 	// Configuration is the codecheck.yml the record was compared with, From
 	// where it was named, and NoConfiguration why there was none.
 	Configuration, From, NoConfiguration string
 	// Policy is every item of the curation policy.
 	Policy []AuditItem
-	// Rules are the register rules that need attention, and RulesSummary
-	// counts all of them, as Report.Summary does.
+	// Rules are the register rules that need attention, of those the policy
+	// list does not show, and RulesSummary counts those rules, as
+	// Report.Summary does.
 	Rules        []RuleLine
 	RulesSummary string
 }
@@ -47,7 +50,7 @@ func AuditReply(a Audit) string {
 	var out strings.Builder
 	if a.Problem != "" {
 		fmt.Fprintf(&out, "… **I could not audit %s**: %s.\n", Code(a.Record), a.Problem)
-		out.WriteString(shareLinkNote(a.Shared))
+		out.WriteString(ShareLinkNote(a.Link))
 		return out.String()
 	}
 	what := "record"
@@ -104,7 +107,7 @@ func AuditReply(a Audit) string {
 	}
 	out.WriteString("\n" + items.String())
 
-	fmt.Fprintf(&out, "\n**The register rules on the record**: %s.\n", a.RulesSummary)
+	fmt.Fprintf(&out, "\n**The other register rules on the record**: %s.\n", a.RulesSummary)
 	if len(a.Rules) > 0 {
 		out.WriteString("\n| | Rule | Finding |\n|---|---|---|\n")
 		for _, rule := range a.Rules {
@@ -115,19 +118,39 @@ func AuditReply(a Audit) string {
 	if a.Draft {
 		out.WriteString("\nWhatever is to be fixed can still be fixed in the draft, before it is published.\n")
 	}
-	out.WriteString(shareLinkNote(a.Shared))
+	out.WriteString(ShareLinkNote(a.Link))
 	return out.String()
 }
 
-// shareLinkNote asks for the comment with a share link to be deleted: anyone
-// who can read the issue can use the link for as long as it is there.
-func shareLinkNote(shared bool) string {
-	if !shared {
+// A ShareLink is what became of a comment that held a Zenodo share link,
+// which anyone who can read the issue can use for as long as it is there.
+type ShareLink struct {
+	// Held says the command held one; the rest says nothing otherwise.
+	Held bool
+	// Deleted says the bot deleted the comment, and InDescription that the
+	// link is in the issue's description, which it cannot delete.
+	Deleted, InDescription bool
+}
+
+// ShareLinkNote says what became of the share link, and that neither deleting
+// nor editing calls back what GitHub has already sent to whoever watches the
+// issue: only deleting the link on Zenodo does.
+func ShareLinkNote(l ShareLink) string {
+	const revoke = "GitHub had already sent it to everybody watching this issue, so delete the link under " +
+		"Share on the record once you are done with it.\n"
+	switch {
+	case !l.Held:
 		return ""
+	case l.Deleted:
+		return "\nI deleted the comment that asked, because anyone who can read this issue could have used " +
+			"the share link in it. " + revoke
+	case l.InDescription:
+		return "\nThe share link is in the issue's description, where anyone who can read this issue can use it. " +
+			"Edit it out. The description keeps its earlier version, and " + revoke
 	}
-	return "\nThe share link is in the comment that asked, where anyone who can read this issue can use it. " +
-		"Delete that comment once you are done with the audit, and the link under Share on the record " +
-		"if it is not needed any more.\n"
+	return "\nThe share link is in the comment that asked, where anyone who can read this issue can use it, " +
+		"and I could not delete it. Delete the comment rather than edit it, because an edited comment keeps its " +
+		"earlier version. " + revoke
 }
 
 // UnreadableRecord is `check zenodo` naming something that is not a Zenodo
