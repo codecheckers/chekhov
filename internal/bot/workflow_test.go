@@ -110,6 +110,20 @@ func checking(t *testing.T, fixture string, labels ...string) (*Server, *workflo
 	return server, path
 }
 
+// goodbye is manners, and only that: on a check in progress it answers and
+// moves no label, which `check finish` is for (codecheckers/chekhov#6).
+func TestGoodbyeChangesNothing(t *testing.T) {
+	server, path := checking(t, "", "work in progress")
+
+	reply := answer(t, server, command.Goodbye, nil, "")
+	if !strings.Contains(reply, "Goodbye") {
+		t.Errorf("the reply does not sign off:\n%s", reply)
+	}
+	if len(path.moved) != 0 {
+		t.Errorf("goodbye moved labels: %v", path.moved)
+	}
+}
+
 // assignCodechecker records one, the way `assign` does.
 func assignCodechecker(t *testing.T, server *Server, handle string) {
 	t.Helper()

@@ -528,6 +528,8 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.Deployment.HelloReply())
 	case command.Thanks:
 		return said(command.ThanksReply(rand.IntN))
+	case command.Goodbye:
+		return said(command.GoodbyeReply())
 	case command.Version:
 		return said(s.version())
 	case command.Check:

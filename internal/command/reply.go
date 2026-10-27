@@ -136,6 +136,17 @@ func ThanksReply(pick func(n int) int) string {
 		quote.Text, quote.Cite(), collection.Source)
 }
 
+// GoodbyeReply signs off. It says that it did nothing else, because somebody
+// saying goodbye at the end of a check may well think the check is now closed:
+// `check finish` is the command that does that, and who may run it is read from
+// the registry, as the refusal reads it.
+func GoodbyeReply() string {
+	finish, _ := Lookup(string(CheckFinish))
+	return fmt.Sprintf("Goodbye, and thank you for checking with me!\n\n"+
+		"<sub>This changes nothing on the issue: `%s %s` closes the check, and is for %s.</sub>\n",
+		Bot, CheckFinish, finish.Who())
+}
+
 // VersionReply is the answer to "@chekhovbot version": which build is
 // answering, and - deliberately - which register it is configured against, so
 // that a development deployment cannot be mistaken for the real one.

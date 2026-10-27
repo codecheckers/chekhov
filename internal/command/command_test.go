@@ -19,6 +19,24 @@ func TestParse(t *testing.T) {
 			want:      Version,
 		},
 		{
+			name:      "a sign-off is a command",
+			comment:   "@chekhovbot Goodbye!",
+			addressed: true,
+			want:      Goodbye,
+		},
+		{
+			name:      "and so are its aliases",
+			comment:   "@chekhovbot bye",
+			addressed: true,
+			want:      Goodbye,
+		},
+		{
+			name:      "farewell, in the punctuation of the sentence",
+			comment:   "@chekhovbot farewell.",
+			addressed: true,
+			want:      Goodbye,
+		},
+		{
 			name:      "the command on the first line",
 			comment:   "@chekhovbot check codecheck.yml",
 			addressed: true,

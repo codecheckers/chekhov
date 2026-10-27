@@ -22,6 +22,9 @@ const (
 	Hello Name = "hello"
 	// Thanks acknowledges being thanked.
 	Thanks Name = "thanks"
+	// Goodbye signs off when a check ends. It is manners only: `check finish`
+	// is what moves the check on.
+	Goodbye Name = "goodbye"
 	// Version reports which build is answering, and which register it works
 	// on.
 	Version Name = "version"

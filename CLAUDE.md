@@ -658,7 +658,7 @@ exists; read the issues for what does not.
 | #1 commands, #2 hello, #3 unknown-command hint | Done, answered by the deployment |
 | #4 version and target register | Done: `version` and `/healthz` report the version constant and the register; the commit is `build.Revision`, the toolchain's VCS stamp, development-only - see The version |
 | #5 thanks | Done: a Chekhov quote from `data/quotes.yml` |
-| #6 goodbye | One registry entry, not written |
+| #6 goodbye | Implemented (0.21): a hidden sign-off that changes nothing and points at `check finish` |
 | #7 `check codecheck.yml` | Done: findings carry their line, an unknown specification version is refused |
 | #8 repository | Done: `check repository`, a description rather than a verdict |
 | #9 metadata, #10 bundle | Done: the ORCID check digit and `CC-MET-002`'s "could not check" came last (0.15.2); `check bundle` reports the bundle's size (0.16) |

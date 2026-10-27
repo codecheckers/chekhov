@@ -51,7 +51,8 @@ type Definition struct {
 	Or []Role
 	// Hidden keeps a working command out of the listing. hello is hidden
 	// because it is a smoke test rather than something a codechecker needs,
-	// and thanks because a listing is for what to do next, not for manners.
+	// and thanks and goodbye because a listing is for what to do next, not for
+	// manners.
 	Hidden bool
 	// AboutTheCheck says this command's subject is the state of the check
 	// rather than something the check happens to be on - so a label that no
@@ -86,6 +87,15 @@ var registry = []Definition{
 		Aliases: []string{"thank", "thx", "cheers"},
 		Summary: "Acknowledge thanks, in the words of the bot's namesake",
 		Usage:   "thanks",
+		Group:   GroupBasics,
+		Role:    RoleAnyone,
+		Hidden:  true,
+	},
+	{
+		Name:    Goodbye,
+		Aliases: []string{"bye", "farewell"},
+		Summary: "Sign off when a check ends",
+		Usage:   "goodbye",
 		Group:   GroupBasics,
 		Role:    RoleAnyone,
 		Hidden:  true,

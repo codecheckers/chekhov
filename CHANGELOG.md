@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-27
+
+### Added
+
+- `goodbye` (also `bye`, `farewell`) signs off when a check ends, changes
+  nothing, and says that `check finish` is what closes a check (#6).
+
 ## [0.20.0] - 2026-10-27
 
 ### Added

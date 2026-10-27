@@ -6,6 +6,17 @@ import (
 	"time"
 )
 
+// Somebody saying goodbye may think the check is now closed; the reply says
+// what does that.
+func TestGoodbyeReplyPointsAtCheckFinish(t *testing.T) {
+	reply := GoodbyeReply()
+	for _, want := range []string{"Goodbye", "changes nothing", "`" + Bot + " " + string(CheckFinish) + "`", "for editors"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not say %q: %s", want, reply)
+		}
+	}
+}
+
 // A register-wide failure is one problem per open issue. The reply says how
 // many it left out rather than growing past what GitHub will accept.
 func TestASweepReplyBoundsTheProblemsItLists(t *testing.T) {
