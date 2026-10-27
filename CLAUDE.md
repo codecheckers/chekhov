@@ -244,6 +244,11 @@ them reports "not checked" rather than "fine". Record the rule in
 | Cassettes, `cassette_test.go` | do we read what the services really send? | `go test ./...` |
 | Integration, `integration_test.go` | do the services still answer the way we assume? | `CHEKHOV_INTEGRATION=1 go test -run Integration ./internal/check/` |
 
+One integration test writes: `sandbox_test.go` makes, audits and deletes a
+draft on the Zenodo sandbox, and runs only with `CHEKHOV_ZENODO_SANDBOX_TOKEN`
+set (`docs/zenodo-sandbox-token.md`). The token is for development; the bot
+reads a draft by its share link and never holds one.
+
 The first two are offline and run on every push; the third runs weekly and on
 request, because a third-party API having a bad day must never turn a pull
 request red.

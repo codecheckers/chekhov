@@ -46,6 +46,10 @@ output is impossible to confuse with a real CODECHECK.
      `settings-live-test.yml`, identical except `follow: true`, for a
      deliberate, brief live test against the testing register; switch back to
      `development` once it is done.
+6. Optionally, `CHEKHOV_ZENODO_SANDBOX_TOKEN` for the one integration test
+   that writes: it makes, audits and deletes a draft on the Zenodo sandbox, to
+   prove `check zenodo` reads a draft by its share link. Never on a
+   deployment. See [`zenodo-sandbox-token.md`](zenodo-sandbox-token.md).
 
 ## Webhook on the testing register
 

@@ -32,10 +32,12 @@ import (
 
 // zenodoCommunity is the CODECHECK community on Zenodo, by the identifier
 // InvenioRDM lists it under and by its slug. The R package keeps the same
-// pair as zenodo_codecheck_community_id.
+// pair as zenodo_codecheck_community_id. The sandbox has a community of the
+// same slug, made for the integration test, under an identifier of its own.
 const (
-	zenodoCommunityID   = "505e49f2-de4f-4905-9666-36c7303e497d"
-	zenodoCommunitySlug = "codecheck"
+	zenodoCommunityID        = "505e49f2-de4f-4905-9666-36c7303e497d"
+	zenodoSandboxCommunityID = "1a911ac4-cf94-4b20-b488-6b8b23ce38d5"
+	zenodoCommunitySlug      = "codecheck"
 )
 
 // What the policy asks for in so many words.
@@ -441,7 +443,7 @@ func AuditZenodo(ctx context.Context, target ZenodoTarget, configuration Context
 		policyRepository(record),
 		policyAlternate(record, "url", "http://"+certificatesURL, certificate),
 		policyAlternate(record, "other", certificatesURL, certificate),
-		policyCommunity(record),
+		policyCommunity(record, target.Sandbox),
 	}
 	if reported != nil {
 		audit.Policy = append(audit.Policy, *reported)
@@ -618,16 +620,20 @@ func policyAlternate(r invenioRecord, scheme, prefix, certificate string) Policy
 
 // policyCommunity asks whether the record is in the community, and of a
 // draft, which cannot be yet, whether it was submitted to it.
-func policyCommunity(r invenioRecord) PolicyItem {
+func policyCommunity(r invenioRecord, sandbox bool) PolicyItem {
+	community := zenodoCommunityID
+	if sandbox {
+		community = zenodoSandboxCommunityID
+	}
 	item := PolicyItem{What: "in the CODECHECK community"}
-	if slices.Contains(r.Parent.Communities.IDs, zenodoCommunityID) ||
+	if slices.Contains(r.Parent.Communities.IDs, community) ||
 		slices.ContainsFunc(r.Parent.Communities.Entries, func(entry communityEntry) bool {
 			return entry.Slug == zenodoCommunitySlug
 		}) {
 		item.Status, item.Detail = StatusPass, "a member"
 		return item
 	}
-	if review := r.Parent.Review; r.IsDraft && review != nil && review.Receiver.Community == zenodoCommunityID {
+	if review := r.Parent.Review; r.IsDraft && review != nil && review.Receiver.Community == community {
 		// A request that was declined, cancelled or expired will not bring
 		// the record into the community.
 		switch review.Status {

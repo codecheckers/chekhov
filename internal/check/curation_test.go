@@ -353,3 +353,18 @@ func TestAuditWithoutAConfiguration(t *testing.T) {
 		t.Error("compared the report of a codecheck.yml there is none of")
 	}
 }
+
+// A record on the sandbox is in the sandbox's community, which has an
+// identifier of its own.
+func TestAuditOfASandboxRecord(t *testing.T) {
+	s := newStub(t)
+	inSandbox := strings.Replace(invenioJSON, zenodoCommunityID, zenodoSandboxCommunityID, 1)
+	s.Handle("/zenodo-sandbox/records/1234567", invenioOnly(inSandbox))
+	s.Handle("/zenodo/records/1234567", invenioOnly(inSandbox))
+	if got := statuses(s.audit(t, ZenodoTarget{ID: "1234567", Sandbox: true}))["in the CODECHECK community"]; got != StatusPass {
+		t.Errorf("on the sandbox: community %s, want pass", got)
+	}
+	if got := statuses(s.audit(t, ZenodoTarget{ID: "1234567"}))["in the CODECHECK community"]; got != StatusFail {
+		t.Errorf("on zenodo.org: community %s, want fail for the sandbox's community", got)
+	}
+}
