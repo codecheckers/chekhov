@@ -510,13 +510,15 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	// A command whose subject is the state of the check says so when the
 	// labels no longer describe it - after it has answered, so that what it
 	// just did is part of what is looked at, and in one place, so that a
-	// reply carries the note at most once, and not at all when the bot's last
-	// comment already said it. The registry says which commands those are;
-	// see internal/command/labels.go.
+	// reply carries the note at most once, and only a line pointing at it
+	// when the bot's last word already said it. The registry says which
+	// commands those are; see internal/command/labels.go.
 	if found && definition.AboutTheCheck {
-		if note := s.labelNote(ctx, event, services); !s.justSaid(ctx, event, note, answer.to) {
-			answer.body = withNote(answer.body, note)
+		note := s.labelNote(ctx, event, services)
+		if s.justSaid(ctx, event, note, answer.to) {
+			note = command.LabelNoteSaid
 		}
+		answer.body = withNote(answer.body, note)
 	}
 	return answer
 }

@@ -153,8 +153,10 @@ func TestACommandThatIsNotAboutTheCheckSaysNothingAboutLabels(t *testing.T) {
 	}
 }
 
-// The note is said once while the bot's replies follow one another, and again
-// as soon as something else it said comes between (codecheckers/chekhov#61).
+// The note is said once while the bot's replies follow one another - the later
+// ones point at it - and again in full as soon as something else the bot said
+// comes between (codecheckers/chekhov#61). Three in a row, so that the third
+// has to see past the second's pointer.
 func TestTheLabelNoteIsNotRepeatedStraightAway(t *testing.T) {
 	server, replies := watching(t)
 	replies.labelled("needs codechecker")
@@ -171,8 +173,15 @@ func TestTheLabelNoteIsNotRepeatedStraightAway(t *testing.T) {
 	}
 	posted(first)
 
-	if reply := answer(t, server, command.ListRoles, nil, ""); strings.Contains(reply, "The labels may not describe") {
-		t.Errorf("the note was repeated straight after the reply that carried it:\n%s", reply)
+	for i := range 2 {
+		reply := answer(t, server, command.ListRoles, nil, "")
+		if strings.Contains(reply, "The labels may not describe") {
+			t.Errorf("reply %d after the note repeated it:\n%s", i+1, reply)
+		}
+		if !strings.Contains(reply, command.LabelNoteSaid) {
+			t.Errorf("reply %d after the note does not point at it:\n%s", i+1, reply)
+		}
+		posted(reply)
 	}
 
 	posted(command.GoodbyeReply())

@@ -81,13 +81,16 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 	return state.Note()
 }
 
-// justSaid reports whether the bot's last comment on the check, before the
-// reply being written, already carries this note, so saying it again would
-// only repeat what the reader has just scrolled past (codecheckers/chekhov#61).
+// justSaid reports whether the bot's last word on the check, before the reply
+// being written, already carries this note, so the reply can point at it
+// rather than repeat it (codecheckers/chekhov#61).
 //
-// Read from the thread rather than remembered, so the bot stays stateless: the
-// note comes back as soon as anything else the bot said comes between, or the
-// disagreement changes. Anything that fails says the note.
+// Read from the thread rather than remembered, so the bot stays stateless. A
+// reply that pointed at the note is passed over on the way back to the reply
+// that said it: without that, the reply after a pointer finds no note before
+// it and says the whole note again, and a busy thread alternates. The note
+// comes back in full as soon as anything else the bot said comes between, or
+// the disagreement changes. Anything that fails says the note.
 //
 // writing is the staged reply already on the issue, if any: its earlier stages
 // are this reply, not the last word before it.
@@ -104,7 +107,8 @@ func (s *Server) justSaid(ctx context.Context, event mention, note string, writi
 	for i := len(comments) - 1; i >= 0; i-- {
 		comment := comments[i]
 		if !strings.EqualFold(comment.Author, bot) ||
-			(writing != nil && comment.ID == writing.comment) {
+			(writing != nil && comment.ID == writing.comment) ||
+			strings.Contains(comment.Body, command.LabelNoteSaid) {
 			continue
 		}
 		// Defused, as everything the bot posts is: what is on the issue is

@@ -215,6 +215,13 @@ func unqueuedWithout(s CheckState) (string, bool) {
 // nothing to say. One door, so that a caller cannot half-perform it.
 func (s CheckState) Note() string { return LabelNote(s.Disagreements()) }
 
+// LabelNoteSaid is what a reply says instead of the note when the bot's last
+// word on the check already said it (codecheckers/chekhov#61). The bot finds it
+// again in the thread to pass over it, so the wording is the marker: change it
+// and a thread written before the change says the note once more, which is
+// harmless.
+const LabelNoteSaid = "⚠ The labels still disagree with this check, as said above.\n"
+
 // LabelNote is what a reply says about labels that no longer describe the
 // check, empty when there is nothing to say.
 //

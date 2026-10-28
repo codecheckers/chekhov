@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.2] - 2026-10-28
+
+### Fixed
+
+- A reply that follows the label note points at it in one line instead of
+  leaving it off, so the note is no longer repeated on every other reply (#61).
+
 ## [0.21.1] - 2026-10-27
 
 ### Changed
