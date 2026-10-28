@@ -64,7 +64,7 @@ func (s *Server) checkRepository(ctx context.Context, event mention, about whatT
 	services *check.Services) command.RowField {
 	recorded := ""
 	if s.Checks != nil && event.Issue > 0 {
-		if reading, err := s.Checks.Read(ctx, event.Repository, event.Issue); err == nil {
+		if reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue); err == nil {
 			recorded = s.targetFor(nil, reading.Record, services)
 		}
 	}

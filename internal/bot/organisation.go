@@ -105,7 +105,7 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	// assigned somebody else in the three days this took, and a record from
 	// before that must not take the role back off them.
 	taken := ""
-	_, err := s.Checks.Update(ctx, event.Repository, event.Issue, func(held people.Record) (people.Record, error) {
+	_, err := s.checks(event).Update(ctx, event.Repository, event.Issue, func(held people.Record) (people.Record, error) {
 		if holder := held.Holder(role); holder != "" && !strings.EqualFold(holder, record.Subject) {
 			taken = holder
 			return held, people.ErrUnchanged

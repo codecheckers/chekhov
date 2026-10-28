@@ -57,6 +57,12 @@ type mention struct {
 	// after that; nil means "read it yourself", which is what a caller
 	// outside the dispatch gets. See Server.issue.
 	read *issueMemo
+	// comments is the issue's comments, listed once for the whole command in
+	// the same way: the record of the check, the label note, the note already
+	// said and the follow-ups `status` reports all come out of them. Set up by
+	// answer; nil means "list them yourself". See people.Listing and
+	// codecheckers/chekhov#54.
+	comments *people.Listing
 }
 
 // check names the issue, the one way it is written everywhere: in a signed

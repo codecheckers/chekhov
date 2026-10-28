@@ -305,7 +305,7 @@ func parseContent(body string) (content, error) {
 // Comments is what the store reads and writes the record through,
 // internal/github in production.
 type Comments interface {
-	Comments(ctx context.Context, repository string, issue int) ([]Comment, error)
+	Lister
 	// Post writes a comment exactly: the record is read back byte for byte,
 	// so nothing may be appended to it.
 	Post(ctx context.Context, repository string, issue int, body string) (int64, error)
@@ -318,9 +318,10 @@ type Comment = github.Comment
 
 // Checks reads and writes the per-check roles.
 //
-// Nothing is cached: the issue is the record, a role granted while the bot was
-// restarting has to be seen, and a check has a handful of comments rather than
-// a stream of them.
+// Nothing is cached here: the issue is the record, and a role granted while
+// the bot was restarting has to be seen. One command may read through its own
+// Listing, with On, so that the parts of it that want the record share one
+// look at the issue; the store itself keeps nothing between commands.
 type Checks struct {
 	Comments Comments
 	// Signer signs what is written and checks what is read. Nil writes
@@ -379,6 +380,33 @@ func (r Reading) Signed() bool { return r.Tampered == nil && !r.Unsigned }
 // assigned to. A record that cannot be parsed is an error, and the caller
 // refuses rather than acting on half-understood state.
 func (c *Checks) Read(ctx context.Context, repository string, issue int) (Reading, error) {
+	return c.On(nil).Read(ctx, repository, issue)
+}
+
+// A View is the store reading through one command's Listing. Its methods are
+// the store's, with the comments taken from the listing for the issue it
+// lists and from the store's own source for any other.
+type View struct {
+	checks  *Checks
+	listing *Listing
+}
+
+// On is the store as one command sees it. The listing has to be over the
+// store's own Comments; a nil one reads as the store always has, which is what
+// the sweep and the command line preview do.
+func (c *Checks) On(listing *Listing) View { return View{checks: c, listing: listing} }
+
+// lister is where the view lists comments from.
+func (v View) lister() Lister {
+	if v.listing != nil {
+		return v.listing
+	}
+	return v.checks.Comments
+}
+
+// Read is Checks.Read, through the listing.
+func (v View) Read(ctx context.Context, repository string, issue int) (Reading, error) {
+	c := v.checks
 	if c == nil || c.Comments == nil {
 		return Reading{}, errNoComments
 	}
@@ -388,7 +416,7 @@ func (c *Checks) Read(ctx context.Context, repository string, issue int) (Readin
 		// assignment posted a fresh record.
 		return Reading{}, fmt.Errorf("I do not know my own account name, so I cannot find my record")
 	}
-	comments, err := c.Comments.Comments(ctx, repository, issue)
+	comments, err := v.lister().Comments(ctx, repository, issue)
 	if err != nil {
 		return Reading{}, err
 	}
@@ -463,6 +491,13 @@ func CheckOf(repository string, issue int) string {
 // Accept, and then it can be changed like any other.
 func (c *Checks) Update(ctx context.Context, repository string, issue int,
 	change func(Record) (Record, error)) (Record, error) {
+	return c.On(nil).Update(ctx, repository, issue, change)
+}
+
+// Update is Checks.Update, through the listing.
+func (v View) Update(ctx context.Context, repository string, issue int,
+	change func(Record) (Record, error)) (Record, error) {
+	c := v.checks
 	if c == nil || c.Comments == nil {
 		return Record{}, errNoComments
 	}
@@ -470,7 +505,7 @@ func (c *Checks) Update(ctx context.Context, repository string, issue int,
 	unlock := c.lock(repository, issue)
 	defer unlock()
 
-	reading, err := c.Read(ctx, repository, issue)
+	reading, err := v.fresh(ctx, repository, issue)
 	if err != nil {
 		return Record{}, err
 	}
@@ -488,7 +523,7 @@ func (c *Checks) Update(ctx context.Context, repository string, issue int,
 	case err != nil:
 		return reading.Record, err
 	}
-	return updated, c.write(ctx, repository, issue, record{
+	return updated, v.write(ctx, repository, issue, record{
 		Roles: updated, AcceptedBy: reading.AcceptedBy, AcceptedAt: reading.AcceptedAt,
 	}, reading.Comment)
 }
@@ -501,6 +536,13 @@ func (c *Checks) Update(ctx context.Context, repository string, issue int,
 // the record rather than a reset nobody can see afterwards.
 func (c *Checks) Accept(ctx context.Context, repository string, issue int,
 	editor string, when time.Time) (Reading, error) {
+	return c.On(nil).Accept(ctx, repository, issue, editor, when)
+}
+
+// Accept is Checks.Accept, through the listing.
+func (v View) Accept(ctx context.Context, repository string, issue int,
+	editor string, when time.Time) (Reading, error) {
+	c := v.checks
 	if c == nil || c.Comments == nil {
 		return Reading{}, errNoComments
 	}
@@ -508,7 +550,7 @@ func (c *Checks) Accept(ctx context.Context, repository string, issue int,
 	unlock := c.lock(repository, issue)
 	defer unlock()
 
-	reading, err := c.Read(ctx, repository, issue)
+	reading, err := v.fresh(ctx, repository, issue)
 	if err != nil {
 		return reading, err
 	}
@@ -523,7 +565,7 @@ func (c *Checks) Accept(ctx context.Context, repository string, issue int,
 		Roles:      reading.Record,
 		AcceptedBy: normalize(editor), AcceptedAt: when.UTC().Format(time.RFC3339),
 	}
-	if err := c.write(ctx, repository, issue, adopted, reading.Comment); err != nil {
+	if err := v.write(ctx, repository, issue, adopted, reading.Comment); err != nil {
 		return reading, err
 	}
 	reading.Unsigned, reading.Tampered = !c.Signer.Signs(), nil
@@ -531,9 +573,21 @@ func (c *Checks) Accept(ctx context.Context, repository string, issue int,
 	return reading, nil
 }
 
+// fresh reads the record as the issue has it now, for a change made under the
+// lock: the listing may have been taken before another command's write, and a
+// change built on it would write over that one. The listing takes the fresh
+// look as well, so that the command's later readers see it.
+func (v View) fresh(ctx context.Context, repository string, issue int) (Reading, error) {
+	if err := v.listing.refresh(ctx, repository, issue); err != nil {
+		return Reading{}, err
+	}
+	return v.Read(ctx, repository, issue)
+}
+
 // write signs the block and puts it in the issue, editing the record comment
-// or posting one when there is none yet.
-func (c *Checks) write(ctx context.Context, repository string, issue int, what record, comment int64) error {
+// or posting one when there is none yet, and tells the listing what it wrote.
+func (v View) write(ctx context.Context, repository string, issue int, what record, comment int64) error {
+	c := v.checks
 	// The identity of the record is the store's to fill in, not the caller's:
 	// it is what the signature binds the roles to.
 	what.Version, what.Check = recordVersion, CheckOf(repository, issue)
@@ -541,10 +595,15 @@ func (c *Checks) write(ctx context.Context, repository string, issue int, what r
 	if err != nil {
 		return err
 	}
+	body := written.Comment()
 	if comment > 0 {
-		return c.Comments.Edit(ctx, repository, comment, written.Comment())
+		err = c.Comments.Edit(ctx, repository, comment, body)
+	} else {
+		comment, err = c.Comments.Post(ctx, repository, issue, body)
 	}
-	_, err = c.Comments.Post(ctx, repository, issue, written.Comment())
+	if err == nil {
+		v.listing.wrote(repository, issue, Comment{ID: comment, Author: c.Bot, Body: body})
+	}
 	return err
 }
 

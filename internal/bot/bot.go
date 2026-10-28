@@ -484,6 +484,12 @@ type answered struct {
 func said(body string) answered { return answered{body: body} }
 
 func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) answered {
+	// Afresh, and once: within one command the issue cannot change under the
+	// bot, and three parts of a command want it - and as many want its
+	// comments, the first of them before the command is even allowed to run.
+	event.read = s.issueOnce(ctx, event)
+	event.comments = s.commentsOnce(event)
+
 	roles := s.standingRoles(ctx, event)
 	definition, found := command.Lookup(string(parsed.Name))
 	// The per-check roles cost a read of the issue's comments, so they are
@@ -502,9 +508,6 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	// its whole life, and a response cached for it would answer a check, or
 	// compose an announcement, from what was published hours ago.
 	services := s.Services.Fresh()
-	// Afresh, and once: within one command the issue cannot change under the
-	// bot, and three parts of a command want it.
-	event.read = s.issueOnce(ctx, event)
 
 	answer := s.run(ctx, event, parsed, roles, services)
 	// A command whose subject is the state of the check says so when the
@@ -662,7 +665,7 @@ func (s *Server) checkRoles(ctx context.Context, event mention, roles command.Ro
 	if event.Issue <= 0 || s.Checks == nil {
 		return roles
 	}
-	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
 	if err != nil || reading.Tampered != nil {
 		// A record somebody edited grants nothing: the roles it names may be
 		// theirs rather than an editor's. The command that needs it says so.
@@ -721,7 +724,7 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	}
 
 	replaced := ""
-	_, err = s.Checks.Update(ctx, event.Repository, event.Issue, func(record people.Record) (people.Record, error) {
+	_, err = s.checks(event).Update(ctx, event.Repository, event.Issue, func(record people.Record) (people.Record, error) {
 		var err error
 		record, replaced, err = record.Grant(role, handle)
 		return record, err
@@ -757,7 +760,7 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 		return reply
 	}
 
-	_, err = s.Checks.Update(ctx, event.Repository, event.Issue, func(record people.Record) (people.Record, error) {
+	_, err = s.checks(event).Update(ctx, event.Repository, event.Issue, func(record people.Record) (people.Record, error) {
 		updated, held := record.Revoke(role, handle)
 		if !held {
 			return record, people.ErrUnchanged
@@ -796,7 +799,7 @@ func (s *Server) listRoles(ctx context.Context, event mention, roles command.Rol
 	if reply, ok := s.noCheck(event, "the roles of a check"); !ok {
 		return reply
 	}
-	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
 	if err != nil {
 		return fmt.Sprintf("I could not read the roles of this check: %s\n", err)
 	}
@@ -822,7 +825,7 @@ func (s *Server) accept(ctx context.Context, event mention, parsed command.Comma
 		return fmt.Sprintf("I can accept the `record` of this check, not %s.\n", command.Code(what))
 	}
 
-	reading, err := s.Checks.Accept(ctx, event.Repository, event.Issue, event.Author, time.Now())
+	reading, err := s.checks(event).Accept(ctx, event.Repository, event.Issue, event.Author, time.Now())
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
 		return "This record is the one I wrote, so there is nothing to adopt.\n"

@@ -342,7 +342,7 @@ func (s *Server) setVenue(ctx context.Context, event mention, parsed command.Com
 // says whether it changed anything, so that setting what is already set
 // writes nothing.
 func (s *Server) setRow(ctx context.Context, event mention, change func(*people.Record) bool) string {
-	record, err := s.Checks.Update(ctx, event.Repository, event.Issue,
+	record, err := s.checks(event).Update(ctx, event.Repository, event.Issue,
 		func(record people.Record) (people.Record, error) {
 			if !change(&record) {
 				return record, people.ErrUnchanged

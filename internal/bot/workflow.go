@@ -215,7 +215,7 @@ func (s *Server) about(ctx context.Context, event mention, parsed command.Comman
 	if reply, ok := s.noCheck(event, "the state of a check"); !ok {
 		return whatTheBotKnows{}, reply
 	}
-	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
 	if err != nil {
 		return whatTheBotKnows{}, fmt.Sprintf("I could not read the record of this check: %s\n", err)
 	}

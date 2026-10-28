@@ -190,7 +190,7 @@ func (s *Server) exclusions(ctx context.Context, event mention) (suggest.Exclude
 		notChecked = append(notChecked,
 			"No check here, so authors and current assignees are not excluded.")
 	default:
-		reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
 		// A record somebody edited names nobody, exactly as it grants nobody a
 		// role in checkRoles: whoever edited it could have deleted the author
 		// line of the paper they wrote, and being suggested to check it is the

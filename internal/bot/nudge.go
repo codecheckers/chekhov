@@ -10,6 +10,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/people"
 )
 
 // Picking up what a reply left outstanding.
@@ -33,7 +34,7 @@ import (
 // so, rather than reporting an empty register as nothing to do.
 type Reader interface {
 	Issues
-	Comments(ctx context.Context, repository string, issue int) ([]github.Comment, error)
+	people.Lister
 }
 
 // The reply path a deployment uses can do both.
@@ -139,7 +140,7 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 // it, and neither caller may grow a second copy of that rule.
 func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 	event mention) (records []followup.Record, unread []string) {
-	comments, err := reader.Comments(ctx, event.Repository, event.Issue)
+	comments, err := comments(event, reader).Comments(ctx, event.Repository, event.Issue)
 	if err != nil {
 		return nil, []string{fmt.Sprintf("could not read the comments: %s", err)}
 	}

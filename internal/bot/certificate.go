@@ -112,7 +112,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	// a labelled title. Without an identifier the command keeps it - it is
 	// how an editor has the bot record a number given by hand, or put back a
 	// label somebody removed - rather than moving the check to a new one.
-	reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
 	if err != nil {
 		return fmt.Sprintf("I could not read the record of this check: %s\n", err)
 	}
@@ -149,7 +149,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 		}
 	}
 
-	_, err = s.Checks.Update(ctx, event.Repository, event.Issue,
+	_, err = s.checks(event).Update(ctx, event.Repository, event.Issue,
 		func(record people.Record) (people.Record, error) {
 			if record.Certificate == id {
 				return record, people.ErrUnchanged

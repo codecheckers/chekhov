@@ -9,6 +9,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/suggest"
 )
 
@@ -24,12 +25,12 @@ import (
 // the labels are compared against. Appended centrally, so it appears at most
 // once however many commands could have produced it.
 //
-// The record of the check is therefore read again here rather than carried out of
-// the command. For `assign` and `remove` there is no choice - a note built on
-// what the record said before the write would be a note about the wrong
-// check - and for `roles` and `suggest codecheckers` it costs a second
-// listing of the issue's comments, which is the price of not keeping a memo
-// that every future writing command would have to remember to invalidate.
+// The record of the check is therefore read again here rather than carried
+// out of the command - from the command's listing of the comments, which costs
+// no request. For `assign` and `remove` the listing has to say what the record
+// is after the write, or the note is about the wrong check; the store puts
+// every record it writes into the listing, so no command has to remember to.
+// See commentsOnce.
 //
 // The issue is memoised, and the memo is kept honest: the bot does now change
 // labels - `check start` takes `needs codechecker` off - so moveLabels tells
@@ -60,7 +61,7 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 	state.Labels, state.LabelsRead, state.Closed = issue.Labels, true, issue.Closed
 
 	if s.Checks != nil {
-		reading, err := s.Checks.Read(ctx, event.Repository, event.Issue)
+		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
 		switch {
 		case err != nil || reading.Tampered != nil:
 			// A record somebody edited grants nothing here either: the roles
@@ -100,7 +101,7 @@ func (s *Server) justSaid(ctx context.Context, event mention, note string, writi
 	if note == "" || !ok || strings.TrimSpace(bot) == "" {
 		return false
 	}
-	comments, err := reader.Comments(ctx, event.Repository, event.Issue)
+	comments, err := comments(event, reader).Comments(ctx, event.Repository, event.Issue)
 	if err != nil {
 		return false
 	}
@@ -199,4 +200,44 @@ func (s *Server) issue(ctx context.Context, event mention) (github.Issue, error)
 		event.read = s.issueOnce(ctx, event)
 	}
 	return event.read.get()
+}
+
+// commentsOnce is the listing answer puts in the mention: the issue's comments,
+// listed by whichever part of the command asks first, for every part that
+// asks after it. Over the record store's source, which in a deployment is the
+// reply path too (serve.go), so the record, the label note and `status` all
+// read one listing. Nil when there is nothing to list: no issue, or nothing to
+// list it with.
+func (s *Server) commentsOnce(event mention) *people.Listing {
+	if event.Issue <= 0 {
+		return nil
+	}
+	listing := &people.Listing{Repository: event.Repository, Issue: event.Issue}
+	switch reader, ok := s.Replies.(Reader); {
+	case s.Checks != nil && s.Checks.Comments != nil:
+		listing.Source = s.Checks.Comments
+	case ok:
+		listing.Source = reader
+	default:
+		return nil
+	}
+	return listing
+}
+
+// comments is where a command lists its issue's comments from: its listing,
+// when that lists the reply path's comments - which in a deployment it does -
+// and the reply path itself otherwise: for a mention made outside the
+// dispatch, the sweep's, and for a test whose record lives somewhere other
+// than its replies. Compared as interface values, which every reply path,
+// being a pointer, allows.
+func comments(event mention, reader Reader) people.Lister {
+	if event.comments != nil && event.comments.Source == people.Lister(reader) {
+		return event.comments
+	}
+	return reader
+}
+
+// checks is the record store as this command sees it: through its listing.
+func (s *Server) checks(event mention) people.View {
+	return s.Checks.On(event.comments)
 }

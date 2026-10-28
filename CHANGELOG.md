@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.3] - 2026-10-28
+
+### Fixed
+
+- A command lists the comments of its check once instead of up to three
+  times, and once more only when it writes the record (#54).
+
 ## [0.21.2] - 2026-10-28
 
 ### Fixed
