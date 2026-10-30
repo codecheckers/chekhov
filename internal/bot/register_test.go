@@ -13,7 +13,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
 
-// `check register`, `set repository` and `set venue` (#21).
+// `check register`, `repository set` and `venue set` (#21).
 
 // registering wires a server to check #1, with the body and labels given, a
 // register that does not have the check's row yet - or does, when listed says
@@ -53,7 +53,7 @@ func registering(t *testing.T, body string, listed bool, labels ...string) (*Ser
 
 const demoIssueBody = "**Repository**: https://github.com/codecheckers/demo\n\n**Certificate**: 1970-001\n"
 
-// reserve records a certificate identifier, the way `set certificate` does.
+// reserve records a certificate identifier, the way `certificate set` does.
 func reserve(t *testing.T, server *Server, id string) {
 	t.Helper()
 	_, err := server.Checks.Update(context.Background(), server.Settings.TargetRepository(), 1,
@@ -110,7 +110,7 @@ func TestCheckRegisterJudgesTheRowBeforeItExists(t *testing.T) {
 func TestCheckRegisterTakesWhatItIsToldFirst(t *testing.T) {
 	server, _ := registering(t, demoIssueBody, false, "journal", "FAKE Journal")
 	reserve(t, server, "1970-001")
-	answer(t, server, command.SetVenue, []string{"journal", "fake", "other", "journal"}, "")
+	answer(t, server, command.VenueSet, []string{"journal", "fake", "other", "journal"}, "")
 
 	reply := answer(t, server, command.CheckRegister, []string{"codecheckers/demo", "community", "fake-codecheck"}, "")
 	for _, want := range []string{
@@ -139,9 +139,9 @@ func TestCheckRegisterRefusesHalfARow(t *testing.T) {
 	for _, want := range []string{
 		"I have run no rules",
 		"this check has reserved none",
-		"set repository github::owner/repo",
+		"repository set github::owner/repo",
 		"no label names a venue",
-		"set venue <type> <venue>",
+		"venue set <type> <venue>",
 	} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the refusal does not say %q:\n%s", want, reply)
@@ -162,22 +162,22 @@ func TestCheckRegisterRefusesAnotherCertificate(t *testing.T) {
 	}
 }
 
-// `set venue` stores the venue as venues.csv spells it, and says when that
+// `venue set` stores the venue as venues.csv spells it, and says when that
 // file does not have it rather than refusing - CC-REG-005 warns, it does not
 // stop a row. The type goes with the venue: set alone, the venue leaves the
 // type to the labels.
 func TestSetVenueRecordsTheVenue(t *testing.T) {
 	server, _ := registering(t, "", false)
 
-	reply := answer(t, server, command.SetVenue, []string{"journal", "fake", "JOURNAL"}, "")
+	reply := answer(t, server, command.VenueSet, []string{"journal", "fake", "JOURNAL"}, "")
 	if !strings.Contains(reply, "**Register row**: type `journal`, venue `FAKE Journal`") {
 		t.Errorf("the reply does not show what was recorded:\n%s", reply)
 	}
-	if reply := answer(t, server, command.SetVenue, []string{"journal", "FAKE", "Journal"}, ""); !strings.Contains(reply, "already says so") {
+	if reply := answer(t, server, command.VenueSet, []string{"journal", "FAKE", "Journal"}, ""); !strings.Contains(reply, "already says so") {
 		t.Errorf("setting the same venue again is not a no-op:\n%s", reply)
 	}
 
-	reply = answer(t, server, command.SetVenue, []string{"Somewhere", "Else"}, "")
+	reply = answer(t, server, command.VenueSet, []string{"Somewhere", "Else"}, "")
 	if !strings.Contains(reply, "`Somewhere Else` is not in `venues.csv`") {
 		t.Errorf("an unlisted venue is not pointed out:\n%s", reply)
 	}
@@ -229,16 +229,16 @@ func TestTheRepositoryLineIsReadHoweverTheLinkIsWritten(t *testing.T) {
 	}
 }
 
-// `set repository` stores the repository the way register.csv writes one,
+// `repository set` stores the repository the way register.csv writes one,
 // whichever way it was given.
 func TestSetRepositoryRecordsASpec(t *testing.T) {
 	server, _ := registering(t, "", false)
 
-	reply := answer(t, server, command.SetRepository, []string{"https://github.com/codecheckers/demo"}, "")
+	reply := answer(t, server, command.RepositorySet, []string{"https://github.com/codecheckers/demo"}, "")
 	if !strings.Contains(reply, "repository `github::codecheckers/demo`") {
 		t.Errorf("the repository is not recorded as a spec:\n%s", reply)
 	}
-	if reply := answer(t, server, command.SetRepository, []string{"2020-001"}, ""); !strings.Contains(reply, "Usage") {
+	if reply := answer(t, server, command.RepositorySet, []string{"2020-001"}, ""); !strings.Contains(reply, "Usage") {
 		t.Errorf("a certificate identifier was taken for a repository:\n%s", reply)
 	}
 }

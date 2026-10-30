@@ -12,6 +12,11 @@ every candidate host, including runway.horse free (128 MB, no sleeps).
 Priorities: `MVP` = needed for the bot to be useful at all; then `high`,
 `medium`, `low`.
 
+A command names its **subject first, then what to do with it** -
+`certificate set`, `codecheckers suggest`, `teams refresh` - so that the
+commands about one thing sit together (#56). A planned command follows the
+same rule; a form written verb first is at most an alias.
+
 ## A. Bot basics and command plumbing
 
 Issues opened in `codecheckers/chekhov`; `version` and `thanks` promoted to MVP
@@ -34,9 +39,9 @@ for completeness of the conversational set.
 | `@chekhovbot remove @user as codechecker` | Unassign and clear the recorded codechecker | MVP |
 | `@chekhovbot assign @user as editor` | Set the editor handling this check | high |
 | `@chekhovbot codecheckers` | Link the lists of registered codecheckers, rather than copy them | high |
-| `@chekhovbot suggest codecheckers` | Propose candidates by declared expertise vs. the repository, the DOI, or a pasted abstract | high |
+| `@chekhovbot codecheckers suggest` | Propose candidates by declared expertise vs. the repository, the DOI, or a pasted abstract | high |
 | `@chekhovbot assign @user as codechecker` | Ask the owners to invite a non-member, and put a member in the right team | done |
-| `@chekhovbot list team <name>` | List members of a codecheckers team | medium |
+| `@chekhovbot teams list <name>` | List members of a codecheckers team | medium |
 | `@chekhovbot add/remove assignee @user` | Manage GitHub assignees without role semantics | medium |
 | `@chekhovbot availability @user` | Show whether a codechecker is currently accepting work | low |
 
@@ -45,12 +50,13 @@ for completeness of the conversational set.
 | Command | Effect | Prio |
 |---|---|---|
 | `@chekhovbot register [<repository>] [<type>] [<venue>]` | Open a PR adding the row to `register.csv`, or update the one it opened (#21) | done |
-| `@chekhovbot set certificate [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the record of the check, the title, the `id assigned` label (#20) | done |
-| `@chekhovbot set venue [<type>] <venue>` | Record the row's Type and Venue in the record of the check, where the labels do not say (#21) | done |
-| `@chekhovbot set repository <repository>` | Record the repository the row names, where the issue's Repository line does not (#21) | done |
+| `@chekhovbot certificate` | Say which certificate identifier this check holds (#56) | done |
+| `@chekhovbot certificate set [<id>] [anyway]` | Reserve/record the certificate identifier for this check: the record of the check, the title, the `id assigned` label (#20) | done |
+| `@chekhovbot venue set [<type>] <venue>` | Record the row's Type and Venue in the record of the check, where the labels do not say (#21) | done |
+| `@chekhovbot repository set <repository>` | Record the repository the row names, where the issue's Repository line does not (#21) | done |
 | `@chekhovbot check register [<repository>] [<type>] [<venue>]` | Build the row from the issue and the record, and run the rules on it before the PR (#21) | done |
 | `@chekhovbot check certificate <certificate>` | The register rules against a row already in `register.csv` (was `check register <certificate>`) | done |
-| `@chekhovbot next certificate` | Suggest the next free certificate id for the year, from `register.csv` and every issue labelled `id assigned` (#20) | done |
+| `@chekhovbot certificate next` | Suggest the next free certificate id for the year, from `register.csv` and every issue labelled `id assigned` (#20) | done |
 | `@chekhovbot show entry <id>` | Print an existing register entry | low |
 
 ## D. Validation and early checks
@@ -130,6 +136,6 @@ for the whole group, before writing #7.
 ## Proposed MVP
 
 `commands`, `hello`, unknown-command reply, automatic `welcome`,
-`assign/remove codechecker`, `check codecheck.yml`, `set certificate`,
+`assign/remove codechecker`, `check codecheck.yml`, `certificate set`,
 `register`. Everything else follows once those work end to end against
 `codecheckers/testing-dev-register`.

@@ -356,3 +356,22 @@ func TestTheLabelNoteSeesTheLabelsTheCommandJustChanged(t *testing.T) {
 		t.Errorf("the label is still on the issue: %q", path.issues[0].Labels)
 	}
 }
+
+// The assigned codechecker is offered `check start`, which is theirs to run,
+// although `check` itself asks nothing about who they are on the check: the
+// roles are read for what is offered, not only for what was typed (#56).
+func TestTheAssignedCodecheckerIsOfferedTheirSubcommands(t *testing.T) {
+	server, _ := checking(t, "", "needs codechecker")
+	assignCodechecker(t, server, "a-codechecker")
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"}
+
+	for written, want := range map[string]string{
+		"check strt": "Did you mean `@chekhovbot check start`?",
+		"check":      "`@chekhovbot check start`",
+	} {
+		parsed, _ := command.Parse("@chekhovbot " + written)
+		if reply := server.answer(context.Background(), event, parsed).body; !strings.Contains(reply, want) {
+			t.Errorf("%q: the reply does not say %q:\n%s", written, want, reply)
+		}
+	}
+}

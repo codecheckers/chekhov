@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-30
+
+### Added
+
+- `certificate` says which certificate identifier the check holds (#56).
+- A command that begins others, given nothing else - `check`, `certificate`,
+  `codecheckers` - says what can follow it, and a subject alone such as
+  `repository` is answered with its commands rather than as an unknown one
+  (#56).
+- A mistyped second word is answered with the command it was meant to be for
+  every such command, not only `check` (#56).
+
+### Changed
+
+- Commands name their subject first: `certificate set`, `certificate next`,
+  `repository set`, `venue set`, `codecheckers suggest`, `teams refresh` and
+  `record accept`. The forms written before still work and are no longer
+  listed (#56).
+
 ## [0.21.4] - 2026-10-29
 
 ### Added

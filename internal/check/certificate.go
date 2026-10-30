@@ -9,7 +9,7 @@ import (
 
 // The certificate identifier as a sequence: which identifiers are taken, which
 // one comes next, and how far a new one jumps. CC-REG-002 and the bot's
-// `next certificate` and `set certificate` share it, so that the rule and the
+// `certificate next` and `certificate set` share it, so that the rule and the
 // command cannot disagree about what a gap is.
 
 // MaxCertificateJump is how far a new identifier may run past the year's

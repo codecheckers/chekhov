@@ -48,7 +48,7 @@ Permissions, under Repository permissions:
 | Permission | Level | Needed for |
 |---|---|---|
 | Metadata | Read | Mandatory, selected automatically |
-| Issues | **Read and write** | Posting the reply; reading a check's issue and the register's open issues for `suggest codecheckers`; later labels and assignees; deleting a comment that holds a Zenodo share link (`check zenodo`) |
+| Issues | **Read and write** | Posting the reply; reading a check's issue and the register's open issues for `codecheckers suggest`; later labels and assignees; deleting a comment that holds a Zenodo share link (`check zenodo`) |
 | Contents | **Read and write** | Reading `register.csv` and `venues.csv`; writing is `@chekhovbot register` only: a commit changing the configured register file, on a `register-YYYY-NNN` branch it creates or moves (#21) |
 | Pull requests | Read and write | `@chekhovbot register`, which opens or updates the pull request adding the row; it never merges |
 

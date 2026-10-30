@@ -16,7 +16,7 @@ import (
 // passes or fails. See codecheckers/chekhov#8.
 //
 // The facts come from what is already here: Services.Languages, which
-// `suggest codecheckers` needed first, and the Bundle, which knows how to
+// `codecheckers suggest` needed first, and the Bundle, which knows how to
 // reach the files of a GitHub, GitLab, OSF or Zenodo repository. Nothing is
 // asked of a source in terms it does not have - an archive deposit has no
 // language statistics, and saying so is the answer.

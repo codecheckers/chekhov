@@ -62,7 +62,7 @@ func Hints(args []string, text string) []Hint {
 		}
 	}
 	// Whatever was not a target is prose too, and joins the pasted text: an
-	// editor who writes `suggest codecheckers spatial statistics in R` means
+	// editor who writes `codecheckers suggest spatial statistics in R` means
 	// those words.
 	if prose := strings.TrimSpace(strings.Join(words, " ") + "\n" + text); prose != "" {
 		hints = append(hints, Hint{Kind: "text", Value: prose})

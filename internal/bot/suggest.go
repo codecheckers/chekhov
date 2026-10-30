@@ -67,10 +67,6 @@ func (s *Server) codecheckers(services *check.Services) string {
 // suggestCodecheckers proposes who could check this paper.
 func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed command.Command,
 	services *check.Services) string {
-	hintWords, err := command.ParseSuggestion(parsed.Args)
-	if err != nil {
-		return fmt.Sprintf("%s\n", err)
-	}
 	if !services.Enabled() {
 		return "Not online, so I cannot read the codechecker lists.\n"
 	}
@@ -81,7 +77,7 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 	}
 
 	text := command.BodyText(event.Body)
-	hints := suggest.Hints(hintWords, text)
+	hints := suggest.Hints(parsed.Args, text)
 	// With nothing named and nothing pasted, the issue itself is the check.
 	if onlyEmptyText(hints) {
 		hints = append(hints, s.issueAsHints(ctx, event)...)
@@ -104,7 +100,7 @@ func (s *Server) suggestCodecheckers(ctx context.Context, event mention, parsed 
 		}
 		return fmt.Sprintf("Nothing to match on. Please provide a repository, work DOI or "+
 			"certificate, or paste the abstract under the command:\n\n"+
-			"```\n%s suggest codecheckers github::owner/repo\n```\n", command.Bot)
+			"```\n%s codecheckers suggest github::owner/repo\n```\n", command.Bot)
 	}
 
 	excluded, notChecked := s.exclusions(ctx, event)

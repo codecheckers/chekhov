@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// The replies of `next certificate` and `set certificate`.
+// The replies of `certificate next` and `certificate set`.
 
 // A Held identifier is where one was found: an issue, or register.csv when
 // Issue is 0. check.Claim has the same shape; this package does not import
@@ -66,8 +66,8 @@ func unlabelledNote(label string, unlabelled []Unlabelled) string {
 	return note.String()
 }
 
-// CertificateSet is what `set certificate` did.
-type CertificateSet struct {
+// CertificateReserved is what `certificate set` did.
+type CertificateReserved struct {
 	ID string
 	// Label is the register's label for a check that holds an identifier.
 	Label string
@@ -90,10 +90,10 @@ type CertificateSet struct {
 	LabelWhy    string
 }
 
-// CertificateSetReply says what `set certificate` did, and is the record of
+// CertificateReservedReply says what `certificate set` did, and is the record of
 // it, as AssignedReply is for a role: the record above shows the identifier
 // now, and the thread says how it got there.
-func CertificateSetReply(set CertificateSet, by string, when time.Time) string {
+func CertificateReservedReply(set CertificateReserved, by string, when time.Time) string {
 	var reply strings.Builder
 	if set.Unchanged {
 		fmt.Fprintf(&reply, "`%s` is already the certificate identifier of this check.\n", set.ID)
@@ -136,7 +136,7 @@ func CertificateTakenReply(held Held, rule string) string {
 // one, and says how to go ahead: a gap can be deliberate, a typo cannot tell
 // itself apart from one.
 func CertificateJumpReply(id, jump, rule string) string {
-	return fmt.Sprintf("`%s` %s\n%s\nIf that is intended: `%s set certificate %s anyway`\n",
+	return fmt.Sprintf("`%s` %s\n%s\nIf that is intended: `%s certificate set %s anyway`\n",
 		id, jump, rule, Bot, id)
 }
 
@@ -167,6 +167,22 @@ func CertificateLine(id string) string {
 		return ""
 	}
 	return fmt.Sprintf("\n**Certificate**: `%s`\n", id)
+}
+
+// CertificateReply answers `certificate`: the identifier this check holds, or
+// that it holds none. Like `roles`, it shows what
+// the record says even when the record cannot be trusted, and says so.
+func CertificateReply(id string, told Provenance) string {
+	var out strings.Builder
+	// What to do about it is the line `certificate` gets under its answer,
+	// for whoever may: reserving one is an editor's.
+	if id == "" {
+		out.WriteString("This check holds no certificate identifier yet.\n")
+	} else {
+		fmt.Fprintf(&out, "This check holds certificate `%s`.\n", id)
+	}
+	out.WriteString(told.Sentence())
+	return out.String()
 }
 
 // RowLine shows, under the certificate, what an editor set for the register

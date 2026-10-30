@@ -14,7 +14,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/rules"
 )
 
-// `next certificate` and `set certificate` (#20).
+// `certificate next` and `certificate set` (#20).
 //
 // An identifier is claimed in two places: a row of register.csv once the
 // certificate is published, and before that the title of an issue labelled
@@ -23,14 +23,14 @@ import (
 // so both are read, the way the launch-pad reads the issues and an editor
 // reads both.
 
-// Claims is what `next certificate` needs of GitHub: every issue, to see
+// Claims is what `certificate next` needs of GitHub: every issue, to see
 // which identifiers are claimed. Reading only, so the command line preview
 // can answer it too.
 type Claims interface {
 	AllIssues(ctx context.Context, repository string) ([]github.Issue, error)
 }
 
-// Reserving is what `set certificate` needs on top: the two writes that put
+// Reserving is what `certificate set` needs on top: the two writes that put
 // an identifier on this check where people and the launch-pad look. A reply
 // path without them - the preview - reads the claims and reserves nothing.
 type Reserving interface {
@@ -41,10 +41,37 @@ type Reserving interface {
 
 var _ Reserving = (*github.Client)(nil)
 
+// certificate says which identifier this check holds, from its record: the
+// line `roles` shows among the roles, as a command of its own (#56).
+func (s *Server) certificate(ctx context.Context, event mention, parsed command.Command) string {
+	if len(parsed.Args) > 0 {
+		return usage(command.Certificate)
+	}
+	if reply, ok := s.noCheck(event, "the certificate of a check"); !ok {
+		return reply
+	}
+	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
+	if err != nil {
+		return fmt.Sprintf("I could not read the record of this check: %s\n", err)
+	}
+	return command.CertificateReply(reading.Record.Holders().Certificate, provenanceOf(reading))
+}
+
+// usage is the answer to a command given words it does not take, from the
+// registry, so that it cannot drift from the listing.
+func usage(name command.Name) string { return usageOf(name) + "\n" }
+
+// usageOf is the same without the line's end, for a reply that says more
+// about the words it wants.
+func usageOf(name command.Name) string {
+	definition, _ := command.Lookup(string(name))
+	return fmt.Sprintf("Usage: `%s %s`", command.Bot, definition.Usage)
+}
+
 // nextCertificate says which identifier comes next.
 func (s *Server) nextCertificate(ctx context.Context, parsed command.Command, services *check.Services) string {
-	if len(parsed.Args) != 1 || !strings.EqualFold(parsed.Args[0], "certificate") {
-		return fmt.Sprintf("Usage: `%s next certificate`\n", command.Bot)
+	if len(parsed.Args) > 0 {
+		return usage(command.CertificateNext)
 	}
 	claims, issues, err := s.claims(ctx, services)
 	if err != nil {
@@ -64,7 +91,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	}
 	id, anyway, err := setArguments(parsed.Args)
 	if err != nil {
-		return fmt.Sprintf("%s\n\nUsage: `%s set certificate [YYYY-NNN] [anyway]`\n", err, command.Bot)
+		return fmt.Sprintf("%s\n\n%s", err, usage(command.CertificateSet))
 	}
 
 	// From reading the claims to writing this check's, nobody else may
@@ -131,7 +158,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	if claim, taken := check.CertificateTaken(id, others); taken {
 		return command.CertificateTakenReply(*claimed(claim, true), ruleNote("CC-REG-001"))
 	}
-	set := command.CertificateSet{ID: id, Label: label}
+	set := command.CertificateReserved{ID: id, Label: label}
 	// The sequence is asked about once, when the number is chosen; the one the
 	// check already holds is not a new decision.
 	if id != held {
@@ -175,7 +202,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	}
 
 	s.putOnIssue(ctx, writer, event, this, &set)
-	return command.CertificateSetReply(set, event.Author, time.Now())
+	return command.CertificateReservedReply(set, event.Author, time.Now())
 }
 
 // putOnIssue writes the identifier into the title and adds the label, where
@@ -184,7 +211,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 // people and the launch-pad, and anybody can put them right - and it is said
 // in the same words the workflow commands use, through labelFailure.
 func (s *Server) putOnIssue(ctx context.Context, writer Reserving, event mention,
-	this github.Issue, set *command.CertificateSet) {
+	this github.Issue, set *command.CertificateReserved) {
 	if title := check.TitleWithCertificate(this.Title, set.ID); title != this.Title {
 		if err := writer.SetTitle(ctx, event.Repository, event.Issue, title); err != nil {
 			s.Logger.Warn("the identifier could not be put in the title", "issue", event.Issue, "error", err)

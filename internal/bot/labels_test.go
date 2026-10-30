@@ -117,7 +117,7 @@ func TestACheckStillInTheQueueIsNoticed(t *testing.T) {
 func TestACheckOutsideTheQueueWithNobodyOnItIsNoticed(t *testing.T) {
 	server, _ := watching(t)
 
-	reply := answer(t, server, command.SuggestCodecheckers, []string{"R"}, "")
+	reply := answer(t, server, command.CodecheckersSuggest, []string{"R"}, "")
 	if !strings.Contains(reply, "Nobody is the assigned codechecker") {
 		t.Errorf("`suggest codecheckers` does not notice the missing queue label:\n%s", reply)
 	}

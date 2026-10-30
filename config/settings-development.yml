@@ -94,7 +94,7 @@ chekhov:
     # The queue: a check nobody is doing yet.
     needs_codechecker: needs codechecker
     # A check holding a certificate identifier, in its title: what
-    # `next certificate` counts and `set certificate` puts on.
+    # `certificate next` counts and `certificate set` puts on.
     id_assigned: id assigned
     # A codechecker is assigned and working on the check: what `check start`
     # puts on and `check finish` takes off again, so the bot needs both an

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -453,23 +454,143 @@ func TestASubcommandTypoIsSuggested(t *testing.T) {
 	}
 }
 
-// A word that only begins phrases is answered with the phrases: `set` alone is
-// none of the three things it could set, and `set venu` is one of them
-// mistyped (#21).
+// A word that only begins phrases is answered with the phrases: `repository`
+// alone is half a command, and `set` - how three of them began before #56 -
+// is none of the three things it could set. `set venu` is one of them
+// mistyped, answered with the form it is written in now.
 func TestTheFirstWordOfAPhraseIsAnsweredWithThePhrases(t *testing.T) {
 	for raw, want := range map[string]string{
-		"set":             "`@chekhovbot set certificate`, `@chekhovbot set repository` or `@chekhovbot set venue`",
-		"set venu Nature": "Did you mean `@chekhovbot set venue`?",
+		"set":             "`@chekhovbot certificate set`, `@chekhovbot repository set` or `@chekhovbot venue set`",
+		"set venu Nature": "Did you mean `@chekhovbot venue set`?",
+		"repository":      "`@chekhovbot repository` needs a second word.\n\nDid you mean `@chekhovbot repository set`?",
+		"teams":           "Did you mean `@chekhovbot teams refresh`?",
+		"next":            "Did you mean `@chekhovbot certificate next`?",
+		"suggest":         "Did you mean `@chekhovbot codecheckers suggest`?",
 	} {
 		parsed, _ := Parse(Bot + " " + raw)
-		if reply := UnknownReply(parsed, Roles{RoleEditor}); !strings.Contains(reply, want) {
+		reply := UnknownReply(parsed, Roles{RoleEditor})
+		if !strings.Contains(reply, want) {
 			t.Errorf("%q: the reply does not say %q:\n%s", raw, want, reply)
+		}
+		if len(strings.Fields(raw)) == 1 && strings.Contains(reply, "I do not know") {
+			t.Errorf("%q: a subject alone is answered as an unknown command:\n%s", raw, reply)
 		}
 	}
 
 	// Somebody who may set nothing is offered nothing to set.
 	parsed, _ := Parse(Bot + " set")
-	if reply := UnknownReply(parsed, Roles{RoleAnyone}); strings.Contains(reply, "set certificate") {
+	if reply := UnknownReply(parsed, Roles{RoleAnyone}); strings.Contains(reply, "certificate set") {
 		t.Errorf("an editor's command was offered to anybody:\n%s", reply)
+	}
+}
+
+// Every command renamed by #56 is still understood the way it was written
+// before, phrase aliases included, and arrives with the same arguments.
+func TestTheVerbFirstFormsStillWork(t *testing.T) {
+	for written, want := range map[string]Name{
+		"set certificate 2026-001 anyway": CertificateSet,
+		"next certificate":                CertificateNext,
+		"set repository github::a/b":      RepositorySet,
+		"set venue journal Nature":        VenueSet,
+		"suggest codecheckers 10.1/x":     CodecheckersSuggest,
+		"refresh teams":                   TeamsRefresh,
+		"refresh":                         TeamsRefresh,
+		"accept record":                   RecordAccept,
+		"accept roles":                    RecordAccept,
+		"Set Certificate":                 CertificateSet,
+	} {
+		old, _ := Parse(Bot + " " + written)
+		if old.Name != want {
+			t.Errorf("%q parsed as %q, want %q", written, old.Name, want)
+		}
+		// The new form of the same command, with the same arguments.
+		words := strings.Fields(written)
+		if len(words) < 2 {
+			continue
+		}
+		current, _ := Parse(Bot + " " + string(want) + " " + strings.Join(words[2:], " "))
+		if current.Name != want || strings.Join(current.Args, " ") != strings.Join(old.Args, " ") {
+			t.Errorf("%q: %q with %v, against %q with %v", written, current.Name, current.Args, old.Name, old.Args)
+		}
+	}
+}
+
+// The old forms are aliases and say so nowhere: the listing shows each
+// command once, as it is written now, and the commands about one subject sit
+// together.
+func TestTheListingShowsTheSubjectFirstForms(t *testing.T) {
+	listing := Listing(Roles{RoleEditor})
+	for _, old := range []string{"set certificate", "next certificate", "set repository", "set venue",
+		"suggest codecheckers", "refresh teams", "accept record"} {
+		if strings.Contains(listing, old) {
+			t.Errorf("the listing still shows %q:\n%s", old, listing)
+		}
+	}
+	for _, together := range [][]string{
+		{"`@chekhovbot certificate`", "`@chekhovbot certificate next`", "`@chekhovbot certificate set"},
+		{"`@chekhovbot codecheckers`", "`@chekhovbot codecheckers suggest"},
+	} {
+		// One row after another, in this order, with nothing between them.
+		first := strings.Index(listing, together[0])
+		if first < 0 {
+			t.Fatalf("%q is not listed:\n%s", together[0], listing)
+		}
+		rows := strings.Split(listing[first:], "\n")
+		for i, usage := range together {
+			if !strings.Contains(rows[i], usage) {
+				t.Errorf("row %d after %q is %q, want %q", i, together[0], rows[i], usage)
+			}
+		}
+	}
+}
+
+// A command that begins others knows its children, the ones the asker may
+// run, and the old forms find theirs through the aliases.
+func TestChildrenAreTheCommandsAWordBegins(t *testing.T) {
+	for word, want := range map[string][]Name{
+		"certificate":  {CertificateNext, CertificateSet},
+		"codecheckers": {CodecheckersSuggest},
+		"set":          {CertificateSet, RepositorySet, VenueSet},
+		"check":        {CheckReady, CheckZenodo, CheckStart, CheckFinish, CheckRegister},
+		"announce":     nil,
+	} {
+		if got := Children(word, Roles{RoleEditor}); !slices.Equal(got, want) {
+			t.Errorf("Children(%q) = %q, want %q", word, got, want)
+		}
+	}
+	if got := Children("certificate", Roles{RoleAnyone}); len(got) != 0 {
+		t.Errorf("an editor's commands are children for anybody: %q", got)
+	}
+	for _, parent := range []Name{Check, Certificate, ListCodecheckers} {
+		if !IsParent(parent) {
+			t.Errorf("%q begins no command", parent)
+		}
+	}
+	if IsParent(Announce) || IsParent(CertificateSet) {
+		t.Error("a command that begins nothing is a parent")
+	}
+	if got := MoreUnder(Certificate, Children("certificate", Roles{RoleEditor})); !strings.Contains(got,
+		"Also under `certificate`: `@chekhovbot certificate next` and `@chekhovbot certificate set`.") {
+		t.Errorf("MoreUnder = %q", got)
+	}
+}
+
+// A mistyped second word is answered for every parent, against its own
+// subcommands and their old forms alike.
+func TestASubcommandTypoIsSuggestedForEveryParent(t *testing.T) {
+	for _, want := range []struct {
+		parent Name
+		word   string
+		meant  Name
+	}{
+		{Certificate, "nxt", CertificateNext},
+		{Certificate, "sett", CertificateSet},
+		{ListCodecheckers, "sugest", CodecheckersSuggest},
+		{"set", "certifcate", CertificateSet},
+		{"teams", "refesh", TeamsRefresh},
+	} {
+		if meant, found := SuggestSub(want.parent, want.word); !found || meant != want.meant {
+			t.Errorf("SuggestSub(%q, %q) = %q, %v; want %q", want.parent, want.word, meant, found, want.meant)
+		}
 	}
 }

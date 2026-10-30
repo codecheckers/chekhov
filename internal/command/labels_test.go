@@ -168,12 +168,12 @@ func TestOnlyCheckStateCommandsWatchTheLabels(t *testing.T) {
 			watching[definition.Name] = true
 		}
 	}
-	for _, name := range []Name{Assign, Remove, ListRoles, SuggestCodecheckers} {
+	for _, name := range []Name{Assign, Remove, ListRoles, CodecheckersSuggest} {
 		if !watching[name] {
 			t.Errorf("`%s` does not watch the labels", name)
 		}
 	}
-	for _, name := range []Name{Check, Rules, Version, Hello, Commands, Announce, Accept} {
+	for _, name := range []Name{Check, Rules, Version, Hello, Commands, Announce, RecordAccept} {
 		if watching[name] {
 			t.Errorf("`%s` watches the labels, and its subject is not the check's state", name)
 		}

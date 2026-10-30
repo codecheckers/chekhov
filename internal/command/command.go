@@ -28,12 +28,15 @@ const (
 	// Version reports which build is answering, and which register it works
 	// on.
 	Version Name = "version"
-	// Refresh reads the organisation's teams again, for an editor who has
-	// just changed one. The command takes what to refresh as an argument
-	// rather than being the phrase `refresh teams`, which the registry would
-	// now allow: there is nothing else to refresh, so the second word gates
-	// nothing. See Definition.
-	Refresh Name = "refresh"
+	// TeamsRefresh reads the organisation's teams again, for an editor who
+	// has just changed one.
+	//
+	// The phrases are subject first, then what to do with it - `teams
+	// refresh`, `certificate next`, `codecheckers suggest` - so that the
+	// commands about one thing sit together, in the listing and in somebody's
+	// head (#56). The verb-first forms they replaced are aliases, kept so that
+	// nobody who learned them is turned away.
+	TeamsRefresh Name = "teams refresh"
 	// Assign gives somebody a role on this check.
 	Assign Name = "assign"
 	// Remove takes a role away again.
@@ -42,15 +45,13 @@ const (
 	// does rather than for the word people type, because Roles is the set of
 	// roles one person holds.
 	ListRoles Name = "roles"
-	// Accept adopts a record of a check the bot did not write.
-	Accept Name = "accept"
+	// RecordAccept adopts a record of a check the bot did not write.
+	RecordAccept Name = "record accept"
 	// ListCodecheckers points at the lists of codecheckers. Named for what it
 	// does rather than for the word people type, as ListRoles is.
 	ListCodecheckers Name = "codecheckers"
-	// SuggestCodecheckers proposes who could check this paper. The word people
-	// type is `suggest`, with what to suggest as an argument, as
-	// `refresh teams` is.
-	SuggestCodecheckers Name = "suggest"
+	// CodecheckersSuggest proposes who could check this paper.
+	CodecheckersSuggest Name = "codecheckers suggest"
 	// Nudge walks the register for what earlier replies left outstanding, and
 	// acts on it.
 	Nudge Name = "nudge"
@@ -82,18 +83,16 @@ const (
 	// Follow follows the fediverse accounts a certificate names, and curates
 	// the Codecheckers/Authors/Venues Mastodon collections.
 	Follow Name = "follow"
-	// Next says which certificate identifier comes next. The word people type
-	// is `next`, with what as an argument - `next certificate` - as
-	// `refresh teams` is.
-	Next Name = "next"
-	// Set reserves a certificate identifier for this check. A phrase, as
-	// `set repository` and `set venue` are: the second word decides what is
-	// set and how the rest is read.
-	Set Name = "set certificate"
-	// SetRepository and SetVenue record what the register row says where the
+	// Certificate says which identifier this check holds.
+	Certificate Name = "certificate"
+	// CertificateNext says which certificate identifier comes next.
+	CertificateNext Name = "certificate next"
+	// CertificateSet reserves a certificate identifier for this check.
+	CertificateSet Name = "certificate set"
+	// RepositorySet and VenueSet record what the register row says where the
 	// issue does not (#21).
-	SetRepository Name = "set repository"
-	SetVenue      Name = "set venue"
+	RepositorySet Name = "repository set"
+	VenueSet      Name = "venue set"
 	// CheckRegister builds the register row this check would get and runs the
 	// rules on it, writing nothing; the rules on a row already in register.csv
 	// are `check certificate` (#21).

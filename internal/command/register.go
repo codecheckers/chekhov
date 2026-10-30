@@ -75,11 +75,11 @@ func RowIncomplete(row Row) string {
 func CertificateMismatch(configured, reserved string) string {
 	return fmt.Sprintf("\n… The `codecheck.yml` says certificate %s, and this check reserved %s, "+
 		"so I have not run the register rules: put the reserved identifier in the configuration, "+
-		"or `%s set certificate` the one it carries.\n",
+		"or `%s certificate set` the one it carries.\n",
 		certificateOrNone(configured), Code(reserved), Bot)
 }
 
-// RowSet is the reply to `set repository` and `set venue`: what the record now
+// RowSet is the reply to `repository set` and `venue set`: what the record now
 // says of the row, and that the rest is still read from the issue.
 func RowSet(holders Holders, by string) string {
 	return fmt.Sprintf("Recorded for the register row, as %s asked.\n%s\n"+

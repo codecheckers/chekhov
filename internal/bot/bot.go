@@ -129,7 +129,7 @@ type Server struct {
 	// and an editor's `nudge` cannot both act on the same record.
 	sweeping sync.Mutex
 
-	// reserving is held by `set certificate` from reading which identifiers
+	// reserving is held by `certificate set` from reading which identifiers
 	// are claimed to writing this check's, so two at once cannot pick one.
 	reserving sync.Mutex
 
@@ -495,7 +495,15 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	// The per-check roles cost a read of the issue's comments, so they are
 	// resolved only for a command that is gated on one. Nothing else - hello,
 	// version, a check - is about who somebody is on this check.
-	if found && definition.NeedsCheckRoles() {
+	//
+	// The same goes for a command that begins others, when the reply offers
+	// one gated on them - under the bare name, or as the hint for a typo -
+	// so that `check strt` is answered with `check start` for the assigned
+	// codechecker, whose command it is. A `check` of a repository offers
+	// nothing and still reads no record.
+	meant, mistyped := misspelt(parsed)
+	offers := len(parsed.Args) == 0 || mistyped
+	if found && (definition.NeedsCheckRoles() || offers && command.ChildrenNeedCheckRoles(parsed.Name)) {
 		roles = s.checkRoles(ctx, event, roles)
 	}
 
@@ -504,12 +512,21 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 			command.Bot, parsed.Name, definition.Who()))
 	}
 
+	// A second word after a command that begins others may be one of them,
+	// mistyped: `certificate nxt`. Asked here, once, for every such command.
+	if mistyped {
+		return said(mistypedReply(parsed, meant, roles))
+	}
+
 	// Every command reads the world afresh. A deployment keeps one Services for
 	// its whole life, and a response cached for it would answer a check, or
 	// compose an announcement, from what was published hours ago.
 	services := s.Services.Fresh()
 
 	answer := s.run(ctx, event, parsed, roles, services)
+	if len(parsed.Args) == 0 {
+		answer.body += command.MoreUnder(parsed.Name, command.Children(string(parsed.Name), roles))
+	}
 	// A command whose subject is the state of the check says so when the
 	// labels no longer describe it - after it has answered, so that what it
 	// just did is part of what is looked at, and in one place, so that a
@@ -560,7 +577,7 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.announce(ctx, parsed, services))
 	case command.Follow:
 		return said(s.follow(ctx, parsed, services))
-	case command.Refresh:
+	case command.TeamsRefresh:
 		return said(s.refresh(ctx, parsed))
 	case command.Assign:
 		return s.assign(ctx, event, parsed)
@@ -570,23 +587,53 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.listRoles(ctx, event, roles))
 	case command.ListCodecheckers:
 		return said(s.codecheckers(services))
-	case command.SuggestCodecheckers:
+	case command.CodecheckersSuggest:
 		return said(s.suggestCodecheckers(ctx, event, parsed, services))
-	case command.Accept:
+	case command.RecordAccept:
 		return said(s.accept(ctx, event, parsed))
-	case command.Next:
+	case command.Certificate:
+		return said(s.certificate(ctx, event, parsed))
+	case command.CertificateNext:
 		return said(s.nextCertificate(ctx, parsed, services))
-	case command.Set:
+	case command.CertificateSet:
 		return said(s.setCertificate(ctx, event, parsed, services))
-	case command.SetRepository:
+	case command.RepositorySet:
 		return said(s.setRepository(ctx, event, parsed))
-	case command.SetVenue:
+	case command.VenueSet:
 		return said(s.setVenue(ctx, event, parsed, services))
 	case command.CheckRegister, command.Register:
 		return s.registerRow(ctx, event, parsed, services, parsed.Name == command.Register)
 	default:
 		return said(command.UnknownReply(parsed, roles))
 	}
+}
+
+// misspelt finds the command a parent's first argument was meant to be, when
+// it is a near miss for one: the registry knows the vocabulary, and saying so
+// is the whole point of having the registry answer for it.
+//
+// A word `check` reads as a part of the catalogue - `check certificate`,
+// `check repository` - is an argument, not a typo, however close it is to a
+// command of its own.
+func misspelt(parsed command.Command) (command.Name, bool) {
+	if len(parsed.Args) == 0 || !command.IsParent(parsed.Name) {
+		return "", false
+	}
+	if parsed.Name == command.Check && check.IsWord(parsed.Args[0]) {
+		return "", false
+	}
+	return command.SuggestSub(parsed.Name, parsed.Args[0])
+}
+
+// mistypedReply answers a mistyped subcommand. A command the asker may not run
+// is not suggested, as it is not listed - it is absent, not offered - but the
+// typo is still not run as though it were an argument.
+func mistypedReply(parsed command.Command, meant command.Name, roles command.Roles) string {
+	reply := fmt.Sprintf("I do not know `%s %s %s`.", command.Bot, parsed.Name, parsed.Args[0])
+	if definition, _ := command.Lookup(string(meant)); definition.Permits(roles) {
+		return fmt.Sprintf("%s Did you mean `%s %s`?\n", reply, command.Bot, meant)
+	}
+	return fmt.Sprintf("%s\n\nType `%s commands` for the list.\n", reply, command.Bot)
 }
 
 // TeamsFor is the membership cache, wired the one way. The deployment and the
@@ -819,10 +866,10 @@ func (s *Server) accept(ctx context.Context, event mention, parsed command.Comma
 	if reply, ok := s.noCheck(event, "the record of a check"); !ok {
 		return reply
 	}
-	// `record` is the word now; `roles` is what it was called while it held
-	// nothing else, and is still understood.
-	if what := strings.ToLower(strings.Join(parsed.Args, " ")); !slices.Contains([]string{"", "record", "roles"}, what) {
-		return fmt.Sprintf("I can accept the `record` of this check, not %s.\n", command.Code(what))
+	// `accept roles`, from before the record held anything else, is an alias
+	// in the registry, so anything still after the command is a mistake.
+	if len(parsed.Args) > 0 {
+		return usage(command.RecordAccept)
 	}
 
 	reading, err := s.checks(event).Accept(ctx, event.Repository, event.Issue, event.Author, time.Now())
@@ -924,8 +971,8 @@ func (s *Server) unassign(ctx context.Context, event mention, handle string) {
 // The runtime cache is the transient copy of something the organisation owns;
 // this and the reload at startup are the two ways it is rebuilt from it.
 func (s *Server) refresh(ctx context.Context, parsed command.Command) string {
-	if what := strings.ToLower(strings.Join(parsed.Args, " ")); what != "" && what != "teams" {
-		return fmt.Sprintf("I can refresh `teams`, not %q.\n", what)
+	if len(parsed.Args) > 0 {
+		return usage(command.TeamsRefresh)
 	}
 	return command.TeamsReply(teamStates(s.Teams.Refresh(ctx, s.Settings.Teams()...)))
 }
@@ -947,15 +994,6 @@ func (s *Server) version() string {
 // configuration it is about is still to come.
 func (s *Server) check(ctx context.Context, event mention, parsed command.Command, services *check.Services) answered {
 	part, target := checkArguments(parsed)
-	// A mistyped subcommand lands here, as `check` with a word it cannot read:
-	// the registry knows what it was meant to be, and saying so is the whole
-	// point of having the registry answer for the vocabulary.
-	if len(parsed.Args) > 0 && !check.IsWord(parsed.Args[0]) {
-		if meant, ok := command.SuggestSub(command.Check, parsed.Args[0]); ok {
-			return said(fmt.Sprintf("I do not know `%s %s %s`. Did you mean `%s %s`?\n",
-				command.Bot, command.Check, parsed.Args[0], command.Bot, meant))
-		}
-	}
 	if target == "" {
 		return said(fmt.Sprintf("I need to be told what to check:\n\n"+
 			"    %s check codecheckers/repository\n"+
@@ -1527,7 +1565,7 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 	if token := os.Getenv("CHEKHOV_GH_ACCESS_TOKEN"); token != "" {
 		client := github.New(token, settings.TargetRepository(), "")
 		server.Teams = TeamsFor(settings, client, server.Logger)
-		// The register's issues too, so that `next certificate` answers as it
+		// The register's issues too, so that `certificate next` answers as it
 		// would on an issue - and through a path that can do nothing else, so
 		// that no command writes to GitHub from a preview.
 		server.Replies = readOnly{client}

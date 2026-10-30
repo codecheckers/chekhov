@@ -176,21 +176,42 @@ func (d Deployment) VersionReply(rulesCommit, rulesRetrieved string) string {
 	return out.String()
 }
 
+// MoreUnder is what can follow a command that begins others, said under its
+// own answer when it was given nothing else: `check` alone is a question about
+// what to check, and the commands that begin with it are part of the answer.
+func MoreUnder(parent Name, children []Name) string {
+	if len(children) == 0 {
+		return ""
+	}
+	named := make([]string, len(children))
+	for i, child := range children {
+		named[i] = fmt.Sprintf("`%s %s`", Bot, child)
+	}
+	return fmt.Sprintf("\nAlso under `%s`: %s.\n", parent, list(named, "and"))
+}
+
 // UnknownReply answers a comment addressed to the bot that it cannot read,
 // quoting back what it saw so the writer can tell a typo from a
 // misunderstanding.
 func UnknownReply(parsed Command, roles Roles) string {
 	var out strings.Builder
-	if parsed.Raw == "" {
+	words := strings.Fields(parsed.Raw)
+	subs := Subcommands(firstWord(parsed.Raw), roles)
+	switch {
+	case parsed.Raw == "":
 		out.WriteString("You called, but did not say what for.\n")
-	} else {
+	case len(subs) > 0 && len(words) == 1:
+		// A subject alone - `repository` - is not a command it does not
+		// know, but half of one: what can follow it is the answer.
+		fmt.Fprintf(&out, "`%s %s` needs a second word.\n", Bot, Defuse(words[0]))
+	default:
 		fmt.Fprintf(&out, "I do not know the command `%s`.\n", Defuse(parsed.Raw))
 	}
 
-	words := strings.Fields(parsed.Raw)
-	if subs := Subcommands(firstWord(parsed.Raw), roles); len(subs) > 0 {
-		// The first word of a phrase that is no command alone - `set` - and
-		// either a mistyped second word or none.
+	if len(subs) > 0 {
+		// The first word of a phrase that is no command alone - `repository`,
+		// or `set` as the commands were written before #56 - and either a
+		// mistyped second word or none.
 		if len(words) > 1 {
 			if meant, found := SuggestSub(Name(normalize(words[0])), words[1]); found {
 				fmt.Fprintf(&out, "\nDid you mean `%s %s`?\n", Bot, meant)
@@ -523,7 +544,7 @@ type TeamState struct {
 	Problem string
 }
 
-// TeamsReply says what reading the teams found, for `refresh teams`.
+// TeamsReply says what reading the teams found, for `teams refresh`.
 //
 // It names the size of each team and whether the copy it holds is current, so
 // that an editor who has just added somebody can see their change arrive
@@ -664,7 +685,7 @@ func adoptionNote(by, at string) string {
 func TamperedNote(why string) string {
 	return fmt.Sprintf("\n⚠ **The record of this check was edited after I wrote it**: %s. "+
 		"I will not change it - the roles or the certificate identifier - "+
-		"until an editor runs `%s accept record`.\n",
+		"until an editor runs `%s record accept`.\n",
 		why, Bot)
 }
 
@@ -802,7 +823,7 @@ func CodecheckerListsReply(lists []CodecheckerList) string {
 		}
 	}
 	fmt.Fprintf(&reply, "\nTo be listed, register at [codecheckers/codecheckers]"+
-		"(https://github.com/codecheckers/codecheckers). Editors: `%s suggest codecheckers`.\n", Bot)
+		"(https://github.com/codecheckers/codecheckers).\n")
 	return reply.String()
 }
 
@@ -831,7 +852,7 @@ type LeftOut struct {
 	Why    string
 }
 
-// Suggestions is the answer to "@chekhovbot suggest codecheckers".
+// Suggestions is the answer to "@chekhovbot codecheckers suggest".
 type Suggestions struct {
 	Candidates []Candidate
 	LeftOut    []LeftOut

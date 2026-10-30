@@ -547,14 +547,14 @@ func TestRefreshTeamsIsForEditors(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1}
 
 	event.Author = "nuest"
-	reply := server.answer(context.Background(), event, command.Command{Name: command.Refresh, Args: []string{"teams"}}).body
+	reply := server.answer(context.Background(), event, command.Command{Name: command.TeamsRefresh}).body
 	if !strings.Contains(reply, server.Settings.EditorsTeam()) || !strings.Contains(reply, "| 1 |") {
 		t.Errorf("the reply does not say what was read: %s", reply)
 	}
 
 	event.Author = "a-stranger"
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Refresh, Args: []string{"teams"}}).body; !strings.Contains(reply, "for editors") {
+		command.Command{Name: command.TeamsRefresh}).body; !strings.Contains(reply, "for editors") {
 		t.Errorf("a stranger was allowed to refresh the teams: %s", reply)
 	}
 }
@@ -567,7 +567,7 @@ func TestWithoutTheTeamsNobodyIsAnEditor(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Refresh, Args: []string{"teams"}}).body; !strings.Contains(reply, "for editors") {
+		command.Command{Name: command.TeamsRefresh}).body; !strings.Contains(reply, "for editors") {
 		t.Errorf("an editor command ran without the teams: %s", reply)
 	}
 	// And the listing does not advertise what it would refuse.
@@ -577,14 +577,14 @@ func TestWithoutTheTeamsNobodyIsAnEditor(t *testing.T) {
 	}
 }
 
-// Only teams can be refreshed, and asking for anything else says so rather
-// than quietly refreshing the teams.
+// Only teams can be refreshed, and asking for anything else says how the
+// command is written rather than quietly refreshing the teams.
 func TestRefreshSaysWhatItCanRefresh(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"},
-		command.Command{Name: command.Refresh, Args: []string{"everything"}}).body
-	if !strings.Contains(reply, "`teams`") {
+		command.Command{Name: command.TeamsRefresh, Args: []string{"everything"}}).body
+	if !strings.Contains(reply, "`@chekhovbot teams refresh`") {
 		t.Errorf("the reply does not say what can be refreshed: %s", reply)
 	}
 }
@@ -620,7 +620,7 @@ func TestARefusalNamesTheRoleItNeeds(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
-		command.Command{Name: command.Refresh, Args: []string{"teams"}}).body
+		command.Command{Name: command.TeamsRefresh}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("the refusal does not name the role: %s", reply)
 	}
@@ -794,7 +794,7 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 
 	reply := server.answer(ctx, event,
 		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body
-	if !strings.Contains(reply, "accept record") || !strings.Contains(reply, "edited after I wrote it") {
+	if !strings.Contains(reply, "record accept") || !strings.Contains(reply, "edited after I wrote it") {
 		t.Errorf("the refusal does not say what to do: %s", reply)
 	}
 
@@ -805,7 +805,7 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 	}
 
 	// And an editor can adopt it, after which work goes on.
-	adopted := server.answer(ctx, event, command.Command{Name: command.Accept, Args: []string{"record"}}).body
+	adopted := server.answer(ctx, event, command.Command{Name: command.RecordAccept}).body
 	if !strings.Contains(adopted, "Adopted") || !strings.Contains(adopted, "nuest") {
 		t.Errorf("the adoption does not say who did it: %s", adopted)
 	}
@@ -815,21 +815,22 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 	}
 }
 
-// `record` is the word since the record holds a certificate identifier too;
-// `roles`, what it was called before, and no word at all still adopt it, and
-// anything else is refused rather than guessed at.
+// `record accept` is the command; `accept record`, `accept roles` from
+// before the record held a certificate identifier too, and `accept` alone
+// still adopt it, and anything else is refused rather than guessed at.
 func TestAcceptTakesRecordAndStillRoles(t *testing.T) {
 	server, _ := testServer(t)
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
-	for _, args := range [][]string{{"record"}, {"roles"}, nil, {"Record"}} {
-		reply := server.answer(context.Background(), event, command.Command{Name: command.Accept, Args: args}).body
-		if strings.Contains(reply, "I can accept") {
-			t.Errorf("accept %v was refused: %s", args, reply)
+	for _, written := range []string{"record accept", "accept record", "accept roles", "accept", "Accept Record"} {
+		parsed, _ := command.Parse("@chekhovbot " + written)
+		reply := server.answer(context.Background(), event, parsed).body
+		if parsed.Name != command.RecordAccept || strings.Contains(reply, "Usage") {
+			t.Errorf("%q was refused: %s", written, reply)
 		}
 	}
-	reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Accept, Args: []string{"certificate"}}).body
-	if !strings.Contains(reply, "I can accept the `record`") {
+	parsed, _ := command.Parse("@chekhovbot accept certificate")
+	reply := server.answer(context.Background(), event, parsed).body
+	if !strings.Contains(reply, "Usage: `@chekhovbot record accept`") {
 		t.Errorf("accept certificate was not refused: %s", reply)
 	}
 }
@@ -839,7 +840,7 @@ func TestAcceptingIsForEditors(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
 		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-codechecker"},
-		command.Command{Name: command.Accept, Args: []string{"record"}}).body
+		command.Command{Name: command.RecordAccept}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a codechecker adopted a record: %s", reply)
 	}

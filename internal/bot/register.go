@@ -16,7 +16,7 @@ import (
 )
 
 // The register row a check would get (#21): `check register` builds it and
-// runs the rules on it, `set repository` and `set venue` record what the issue
+// runs the rules on it, `repository set` and `venue set` record what the issue
 // does not say.
 //
 // Each column comes from the first of three places that has it: what the
@@ -56,11 +56,11 @@ func (s *Server) registerRow(ctx context.Context, event mention, parsed command.
 	if given.venue != "" {
 		// A comment is prose, and `check register please` must not register
 		// the venue "please": a venue given here is one venues.csv lists, in
-		// its spelling. An unlisted one is what `set venue` is for.
+		// its spelling. An unlisted one is what `venue set` is for.
 		venue, listed, err := services.Venue(given.venue)
 		if err == nil && !listed {
 			return said(fmt.Sprintf("%s is no venue `venues.csv` lists, so I have not read it as one. "+
-				"`%s set venue` records a venue it does not list, which `CC-REG-005` then warns about.\n",
+				"`%s venue set` records a venue it does not list, which `CC-REG-005` then warns about.\n",
 				command.Code(given.venue), command.Bot))
 		}
 		given.venue = venue
@@ -159,7 +159,7 @@ func (s *Server) rowFor(about whatTheBotKnows, given rowGiven, issue int, servic
 	return command.Row{
 		Certificate: firstOf(
 			command.RowField{Value: record.Certificate, From: "the record"},
-			command.RowField{Missing: fmt.Sprintf("this check has reserved none: `%s set certificate`", command.Bot)}),
+			command.RowField{Missing: fmt.Sprintf("this check has reserved none: `%s certificate set`", command.Bot)}),
 		Repository: firstOf(
 			command.RowField{Value: given.repository, From: "given"},
 			command.RowField{Value: record.Repository, From: "the record"},
@@ -179,7 +179,7 @@ func (s *Server) rowFor(about whatTheBotKnows, given rowGiven, issue int, servic
 // fromLabels is what the issue's labels say of Type and Venue, or why they
 // say nothing and how to say it instead.
 func fromLabels(about whatTheBotKnows, services *check.Services) (typed, named command.RowField) {
-	fix := fmt.Sprintf("; `%s set venue <type> <venue>`, or label the issue", command.Bot)
+	fix := fmt.Sprintf("; `%s venue set <type> <venue>`, or label the issue", command.Bot)
 	if !about.labelsRead {
 		why := "I could not read this issue's labels" + fix
 		return command.RowField{Missing: why}, command.RowField{Missing: why}
@@ -217,7 +217,7 @@ const repositoryLabel = "**Repository**:"
 func repositoryLine(about whatTheBotKnows, services *check.Services) command.RowField {
 	if !about.labelsRead {
 		return command.RowField{Missing: fmt.Sprintf(
-			"I could not read this issue: `%s set repository github::owner/repo`", command.Bot)}
+			"I could not read this issue: `%s repository set github::owner/repo`", command.Bot)}
 	}
 	for _, line := range templateLines(about.issue.Body) {
 		rest, found := templateField(line, repositoryLabel)
@@ -231,7 +231,7 @@ func repositoryLine(about whatTheBotKnows, services *check.Services) command.Row
 		}
 	}
 	return command.RowField{Missing: fmt.Sprintf(
-		"the issue has no Repository line I can read: `%s set repository github::owner/repo`", command.Bot)}
+		"the issue has no Repository line I can read: `%s repository set github::owner/repo`", command.Bot)}
 }
 
 // repositorySpecOf is a word as register.csv writes a repository, empty when
@@ -298,8 +298,8 @@ func (s *Server) setRepository(ctx context.Context, event mention, parsed comman
 		spec = repositorySpecOf(parsed.Args[0], nil)
 	}
 	if spec == "" {
-		return fmt.Sprintf("Usage: `%s set repository <repository>`, a repository the way `register.csv` "+
-			"names one (`github::owner/repo`), a link to it, or `owner/repo`.\n", command.Bot)
+		return usageOf(command.RepositorySet) + ", a repository the way `register.csv` " +
+			"names one (`github::owner/repo`), a link to it, or `owner/repo`.\n"
 	}
 	return s.setRow(ctx, event, func(record *people.Record) bool {
 		changed := record.Repository != spec
@@ -316,12 +316,11 @@ func (s *Server) setVenue(ctx context.Context, event mention, parsed command.Com
 	}
 	given := rowArguments(parsed.Args)
 	if given.venue == "" || given.repository != "" {
-		return fmt.Sprintf("Usage: `%s set venue [<type>] <venue>`, the venue as `venues.csv` names it.\n",
-			command.Bot)
+		return usageOf(command.VenueSet) + ", the venue as `venues.csv` names it.\n"
 	}
 	venue, listed, err := services.Venue(given.venue)
 	// The type goes with the venue: a venue set alone leaves the type to the
-	// labels, rather than to whatever an earlier `set venue` said of another.
+	// labels, rather than to whatever an earlier `venue set` said of another.
 	reply := s.setRow(ctx, event, func(record *people.Record) bool {
 		changed := record.Venue != venue || record.Type != given.venueType
 		record.Venue, record.Type = venue, given.venueType

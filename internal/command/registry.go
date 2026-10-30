@@ -1,6 +1,7 @@
 package command
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -29,12 +30,11 @@ const (
 // for editors, and a command someone may not run is absent from the listing
 // rather than shown and refused.
 //
-// `refresh teams`, `next certificate`, `accept record` and
-// `suggest codecheckers` are still one word with an argument. That reads the
-// same to somebody typing, and their second word gates nothing - there is only
-// one thing to refresh. Make one a phrase when its second word starts deciding
-// who may run it, or what it does, as it did for `set certificate` once
-// `set repository` and `set venue` existed.
+// A phrase is the subject first and then what to do with it - `certificate
+// set`, `codecheckers suggest` - so that the commands about one thing sit
+// together in the listing (#56). The forms written verb first before that,
+// `set certificate` and the rest, are Aliases: an alias may be a phrase too,
+// and is looked up whole, so nobody who learned the old form is turned away.
 type Definition struct {
 	Name    Name
 	Aliases []string
@@ -108,9 +108,10 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
-		Name:    Refresh,
+		Name:    TeamsRefresh,
+		Aliases: []string{"refresh teams", "refresh"},
 		Summary: "Read the organisation's teams again, after a membership change",
-		Usage:   "refresh teams",
+		Usage:   "teams refresh",
 		Group:   GroupBasics,
 		Role:    RoleEditor,
 	},
@@ -131,19 +132,20 @@ var registry = []Definition{
 		AboutTheCheck: true,
 	},
 	{
-		Name:    Accept,
-		Summary: "Adopt the record of this check - roles, certificate - after somebody edited it",
-		Usage:   "accept record",
-		Group:   GroupPeople,
-		Role:    RoleEditor,
-	},
-	{
 		Name:          ListRoles,
 		Summary:       "Say who holds which role on this check",
 		Usage:         "roles",
 		Group:         GroupPeople,
 		Role:          RoleAnyone,
 		AboutTheCheck: true,
+	},
+	{
+		Name:    RecordAccept,
+		Aliases: []string{"accept record", "accept roles", "accept"},
+		Summary: "Adopt the record of this check - roles, certificate - after somebody edited it",
+		Usage:   "record accept",
+		Group:   GroupPeople,
+		Role:    RoleEditor,
 	},
 	{
 		Name:    ListCodecheckers,
@@ -153,19 +155,20 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:          CodecheckersSuggest,
+		Aliases:       []string{"suggest codecheckers", "suggest codechecker"},
+		Summary:       "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
+		Usage:         "codecheckers suggest [<repository>|<DOI>|<certificate>]",
+		Group:         GroupPeople,
+		Role:          RoleEditor,
+		AboutTheCheck: true,
+	},
+	{
 		Name:    Nudge,
 		Summary: "Pick up what earlier replies left outstanding, across the register",
 		Usage:   "nudge",
 		Group:   GroupPeople,
 		Role:    RoleEditor,
-	},
-	{
-		Name:          SuggestCodecheckers,
-		Summary:       "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
-		Usage:         "suggest codecheckers [<repository>|<DOI>|<certificate>]",
-		Group:         GroupPeople,
-		Role:          RoleEditor,
-		AboutTheCheck: true,
 	},
 	{
 		Name:    Check,
@@ -221,30 +224,41 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
-		Name:    Next,
+		Name:    Certificate,
+		Summary: "Say which certificate identifier this check holds",
+		Usage:   "certificate",
+		Group:   GroupRegister,
+		Role:    RoleAnyone,
+	},
+	{
+		Name:    CertificateNext,
+		Aliases: []string{"next certificate"},
 		Summary: "Say which certificate identifier comes next, from `register.csv` and the issues",
-		Usage:   "next certificate",
+		Usage:   "certificate next",
 		Group:   GroupRegister,
 		Role:    RoleEditor,
 	},
 	{
-		Name:    Set,
+		Name:    CertificateSet,
+		Aliases: []string{"set certificate"},
 		Summary: "Reserve a certificate identifier for this check: the next one, or the one given",
-		Usage:   "set certificate [YYYY-NNN] [anyway]",
+		Usage:   "certificate set [YYYY-NNN] [anyway]",
 		Group:   GroupRegister,
 		Role:    RoleEditor,
 	},
 	{
-		Name:    SetRepository,
+		Name:    RepositorySet,
+		Aliases: []string{"set repository"},
 		Summary: "Record the repository this check's register row names, where the issue's Repository line does not",
-		Usage:   "set repository <repository>",
+		Usage:   "repository set <repository>",
 		Group:   GroupRegister,
 		Role:    RoleEditor,
 	},
 	{
-		Name:    SetVenue,
+		Name:    VenueSet,
+		Aliases: []string{"set venue"},
 		Summary: "Record the Type and Venue of this check's register row, where its labels do not say",
-		Usage:   "set venue [<type>] <venue>",
+		Usage:   "venue set [<type>] <venue>",
 		Group:   GroupRegister,
 		Role:    RoleEditor,
 	},
@@ -419,21 +433,29 @@ func SuggestSub(parent Name, word string) (Name, bool) {
 		return "", false
 	}
 	prefix := string(parent) + " "
-	best, distance := Name(""), 0
+	best, distance, bestIsSub := Name(""), 0, false
 	for _, definition := range registry {
 		// The parent's own subcommands, and the commands whose whole name is
 		// one word: `check status` is the mistake somebody makes once
 		// `check start` and `check finish` exist, and the answer to it is the
-		// plain `status` command rather than a near miss among the two.
-		candidate, isSub := strings.CutPrefix(string(definition.Name), prefix)
-		if !isSub && strings.Contains(string(definition.Name), " ") {
-			continue
-		}
-		if !isSub {
-			candidate = string(definition.Name)
-		}
-		if d := editDistance(word, candidate); best == "" || d < distance {
-			best, distance = definition.Name, d
+		// plain `status` command rather than a near miss among the two. A
+		// subcommand is found by its aliases too, so that `set certifcate`
+		// is answered with `certificate set`, the form it was meant to be.
+		for _, spelling := range definition.spellings() {
+			candidate, isSub := strings.CutPrefix(spelling, prefix)
+			if !isSub {
+				if spelling != string(definition.Name) || strings.Contains(spelling, " ") {
+					continue
+				}
+				candidate = spelling
+			}
+			// A subcommand wins a tie with a one-word command: the word was
+			// written after its parent, and `set certifcate` is as close to
+			// the `certificate` command as to `certificate set`.
+			d := editDistance(word, candidate)
+			if best == "" || d < distance || (d == distance && isSub && !bestIsSub) {
+				best, distance, bestIsSub = definition.Name, d, isSub
+			}
 		}
 	}
 	// The same budget Suggest allows: a third of the word, at most two
@@ -453,22 +475,63 @@ func SuggestSub(parent Name, word string) (Name, bool) {
 }
 
 // Subcommands are the phrases a word begins that somebody may run, when the
-// word is no command on its own: `set` is `set certificate`, `set repository`
-// or `set venue`, for an editor. Empty for a word that is a command, whose own
-// reply answers for its arguments - and for somebody who may run none of
-// them, because a command someone may not run is absent, not offered.
+// word is no command on its own: `repository` is `repository set`, for an
+// editor. Empty for a word that is a command, whose own reply says what can
+// follow it - see Children - and for somebody who may run none of them,
+// because a command someone may not run is absent, not offered.
 func Subcommands(word string, roles Roles) []Name {
-	word = normalize(word)
-	if _, isCommand := index[word]; isCommand || word == "" {
+	if _, isCommand := index[normalize(word)]; isCommand {
 		return nil
 	}
-	var subs []Name
-	for _, definition := range Visible(roles) {
-		if strings.HasPrefix(string(definition.Name), word+" ") {
-			subs = append(subs, definition.Name)
+	return Children(word, roles)
+}
+
+// families maps a word to the commands it begins - by their name or by an
+// alias - in registry order. Built once, as index is: what a word begins
+// never changes after startup, and three questions are asked of it for
+// every command.
+var families = func() map[string][]Definition {
+	byParent := make(map[string][]Definition)
+	for _, definition := range registry {
+		begun := make(map[string]bool)
+		for _, spelling := range definition.spellings() {
+			if first, _, phrase := strings.Cut(spelling, " "); phrase && !begun[first] {
+				begun[first] = true
+				byParent[first] = append(byParent[first], definition)
+			}
 		}
 	}
-	return subs
+	return byParent
+}()
+
+// Children are the commands a word begins that somebody may run, each once and
+// by its name: `certificate` is `certificate next` and `certificate set`. The
+// aliases count, so `set`, which began them before #56, still finds
+// `certificate set`, `repository set` and `venue set`.
+func Children(word string, roles Roles) []Name {
+	var children []Name
+	for _, definition := range families[normalize(word)] {
+		if !definition.Hidden && definition.Permits(roles) {
+			children = append(children, definition.Name)
+		}
+	}
+	return children
+}
+
+// IsParent reports whether a command begins any other, whoever may run them:
+// what decides that a second word after it may be a mistyped subcommand.
+func IsParent(name Name) bool { return len(families[string(name)]) > 0 }
+
+// ChildrenNeedCheckRoles reports whether any command a name begins is gated on
+// a per-check role, so that offering it - in a hint, or under the bare name -
+// asks about the roles it is actually gated on.
+func ChildrenNeedCheckRoles(name Name) bool {
+	return slices.ContainsFunc(families[string(name)], Definition.NeedsCheckRoles)
+}
+
+// spellings are every way a command is written: its name, then its aliases.
+func (d Definition) spellings() []string {
+	return append([]string{string(d.Name)}, d.Aliases...)
 }
 
 // candidates are the words Suggest compares against, in a fixed order.
@@ -482,7 +545,11 @@ func candidates() []string {
 		}
 	}
 	for _, definition := range registry {
-		words = append(words, definition.Aliases...)
+		for _, alias := range definition.Aliases {
+			if !strings.Contains(alias, " ") {
+				words = append(words, alias)
+			}
+		}
 	}
 	return words
 }

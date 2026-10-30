@@ -86,8 +86,8 @@ type Settings struct {
 			// NeedsCodechecker is the queue: a check nobody is doing yet.
 			NeedsCodechecker string `yaml:"needs_codechecker"`
 			// IDAssigned says a check holds a certificate identifier, in its
-			// title: what `next certificate` counts, and what
-			// `set certificate` puts on the check it reserves one for.
+			// title: what `certificate next` counts, and what
+			// `certificate set` puts on the check it reserves one for.
 			IDAssigned string `yaml:"id_assigned"`
 			// WorkInProgress says a codechecker is assigned and working on
 			// the check: what `check start` puts on and `check finish` takes
@@ -322,14 +322,14 @@ func validate(name string, s *Settings) error {
 			"nothing would ever be recognised as an institutional check",
 			name, s.InstitutionalTeam())
 	}
-	// `set certificate` puts labels.id_assigned on the check it reserves an
-	// identifier for, and `next certificate` counts only the checks carrying
+	// `certificate set` puts labels.id_assigned on the check it reserves an
+	// identifier for, and `certificate next` counts only the checks carrying
 	// it. A label the bot may not add would leave every reservation invisible
 	// to the next one - the duplicate the label exists to prevent - so a file
 	// that names the label has to let the bot add it.
 	if label := s.IDAssignedLabel(); label != "" && !s.Addable(label) {
 		return fmt.Errorf("%s: labels.id_assigned is %q, which is not in labels.managed.add; "+
-			"set certificate could not put it on the check it reserves an identifier for",
+			"certificate set could not put it on the check it reserves an identifier for",
 			name, label)
 	}
 	// The workflow labels - needs_codechecker, work_in_progress,

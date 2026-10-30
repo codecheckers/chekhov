@@ -83,8 +83,8 @@ func TestSuggestRanksFromARepository(t *testing.T) {
 	server, _ := testServer(t)
 	listing(t, server)
 
-	reply := answer(t, server, command.SuggestCodecheckers,
-		[]string{"codecheckers", "codecheckers/demo"}, "")
+	reply := answer(t, server, command.CodecheckersSuggest,
+		[]string{"codecheckers/demo"}, "")
 	if !strings.Contains(reply, "`@a-codechecker`") {
 		t.Errorf("the codechecker who declares R is not suggested:\n%s", reply)
 	}
@@ -98,7 +98,7 @@ func TestSuggestReadsAPastedAbstract(t *testing.T) {
 	server, _ := testServer(t)
 	listing(t, server)
 
-	reply := answer(t, server, command.SuggestCodecheckers, []string{"codecheckers"},
+	reply := answer(t, server, command.CodecheckersSuggest, nil,
 		"@chekhovbot suggest codecheckers\n\nWe analysed the data in R; the work is "+
 			"geospatial data analysis.\n")
 	if !strings.Contains(reply, "`@a-codechecker`") {
@@ -117,8 +117,8 @@ func TestSuggestLeavesOutAnAuthorOfTheCheck(t *testing.T) {
 		t.Fatalf("the author could not be recorded: %s", reply)
 	}
 
-	reply := answer(t, server, command.SuggestCodecheckers,
-		[]string{"codecheckers", "codecheckers/demo"}, "")
+	reply := answer(t, server, command.CodecheckersSuggest,
+		[]string{"codecheckers/demo"}, "")
 	if !strings.Contains(reply, "Left out: `@a-codechecker` (author of the paper)") {
 		t.Errorf("an author of the paper is still suggested:\n%s", reply)
 	}
@@ -129,7 +129,7 @@ func TestSuggestSaysWhenItHasNothingToGoOn(t *testing.T) {
 	server, _ := testServer(t)
 	listing(t, server)
 
-	reply := answer(t, server, command.SuggestCodecheckers, []string{"codecheckers"}, "")
+	reply := answer(t, server, command.CodecheckersSuggest, nil, "")
 	if !strings.Contains(reply, "Nothing to match on") {
 		t.Errorf("a suggestion out of nothing is an arbitrary list of people:\n%s", reply)
 	}
@@ -142,7 +142,7 @@ func TestSuggestSaysWhatItCouldNotCheck(t *testing.T) {
 	// No issue: the command line preview, where this check's roles and the
 	// register's open issues are both out of reach.
 	reply := server.answer(context.Background(), mention{Author: "nuest"},
-		command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers", "codecheckers/demo"}}).body
+		command.Command{Name: command.CodecheckersSuggest, Args: []string{"codecheckers/demo"}}).body
 	if !strings.Contains(reply, "No check here") {
 		t.Errorf("the reply does not say which exclusions it could not apply:\n%s", reply)
 	}
@@ -159,8 +159,8 @@ func TestSuggestLeavesOutSomebodyWithAnOpenCheck(t *testing.T) {
 		{Number: 2, Title: "Another check", Assignees: []string{"a-busy-codechecker"}},
 	}}
 
-	reply := answer(t, server, command.SuggestCodecheckers,
-		[]string{"codecheckers", "codecheckers/demo"}, "")
+	reply := answer(t, server, command.CodecheckersSuggest,
+		[]string{"codecheckers/demo"}, "")
 	if !strings.Contains(reply, "Left out: `@a-busy-codechecker` (has an open check)") {
 		t.Errorf("somebody with an open check is still suggested:\n%s", reply)
 	}
@@ -175,7 +175,7 @@ func TestSuggestIsForEditors(t *testing.T) {
 
 	reply := server.answer(context.Background(), mention{
 		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger",
-	}, command.Command{Name: command.SuggestCodecheckers, Args: []string{"codecheckers"}}).body
+	}, command.Command{Name: command.CodecheckersSuggest}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a stranger was answered:\n%s", reply)
 	}
@@ -185,8 +185,11 @@ func TestSuggestRefusesWhatItCannotSuggest(t *testing.T) {
 	server, _ := testServer(t)
 	listing(t, server)
 
-	reply := answer(t, server, command.SuggestCodecheckers, []string{"venues"}, "")
-	if !strings.Contains(reply, "I can suggest `codecheckers`") {
+	parsed, _ := command.Parse("@chekhovbot suggest venues")
+	reply := server.answer(context.Background(), mention{
+		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest",
+	}, parsed).body
+	if !strings.Contains(reply, "`@chekhovbot codecheckers suggest`") {
 		t.Errorf("reply %q", reply)
 	}
 }
@@ -248,8 +251,8 @@ func TestSuggestDoesNotTrustAnEditedRecord(t *testing.T) {
 	store := server.Checks.Comments.(*issueComments)
 	store.comments[0].Body = strings.Replace(store.comments[0].Body, "a-codechecker", "a-stranger", 1)
 
-	reply := answer(t, server, command.SuggestCodecheckers,
-		[]string{"codecheckers", "codecheckers/demo"}, "")
+	reply := answer(t, server, command.CodecheckersSuggest,
+		[]string{"codecheckers/demo"}, "")
 	if strings.Contains(reply, "Left out: `@a-codechecker` (author of the paper)") {
 		t.Errorf("an edited record was trusted:\n%s", reply)
 	}
@@ -270,7 +273,7 @@ func TestSuggestReportsWhatDecidedTheAnswer(t *testing.T) {
 	    {"display_name": "Radiance", "score": 0.8}],
 	  "abstract_inverted_index": {"Written": [0], "in": [1], "R": [2]}}]}`)
 
-	reply := answer(t, server, command.SuggestCodecheckers,
+	reply := answer(t, server, command.CodecheckersSuggest,
 		[]string{"codecheckers", "10.1000/fake"}, "")
 	if !strings.Contains(reply, "Matched on languages `R`") {
 		t.Errorf("the reply does not name what was shared:\n%s", reply)
@@ -290,7 +293,7 @@ func TestSuggestSaysWhenTheOnlySourceFailed(t *testing.T) {
 	stub := listing(t, server)
 	stub.Status("/openalex/works", http.StatusTooManyRequests)
 
-	reply := answer(t, server, command.SuggestCodecheckers,
+	reply := answer(t, server, command.CodecheckersSuggest,
 		[]string{"codecheckers", "10.1000/fake"}, "")
 	if !strings.Contains(reply, "Could not read") || !strings.Contains(reply, "OpenAlex") {
 		t.Errorf("the reply hides why it has nothing:\n%s", reply)
@@ -311,7 +314,7 @@ func TestSuggestSaysWhatItReadEvenWhenItFoundNothing(t *testing.T) {
 	stub.JSON("/github/repos/codecheckers/demo/languages", `{"Fortran": 900}`)
 	stub.Status("/openalex/works", http.StatusTooManyRequests)
 
-	reply := answer(t, server, command.SuggestCodecheckers,
+	reply := answer(t, server, command.CodecheckersSuggest,
 		[]string{"codecheckers", "codecheckers/demo", "10.1000/fake"}, "")
 	if !strings.Contains(reply, "github::codecheckers/demo") {
 		t.Errorf("the reply does not say the repository was read:\n%s", reply)

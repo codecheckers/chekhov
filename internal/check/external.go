@@ -269,7 +269,7 @@ type crossrefWork struct {
 			ORCID  string `json:"ORCID"`
 		} `json:"author"`
 		// Subject, Abstract and ContainerTitle say what the paper is about.
-		// No rule reads them - they are what `suggest codecheckers` matches a
+		// No rule reads them - they are what `codecheckers suggest` matches a
 		// codechecker's declared fields against, see internal/suggest.
 		Subject        []string `json:"subject"`
 		Abstract       string   `json:"abstract"`

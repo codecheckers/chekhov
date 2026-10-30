@@ -54,7 +54,7 @@ func TestACommandListsTheCommentsOnce(t *testing.T) {
 		{command.Status, nil},
 		{command.CheckStart, nil},
 		{command.CheckFinish, []string{"github::codecheckers/demo"}},
-		{command.SuggestCodecheckers, []string{"R"}},
+		{command.CodecheckersSuggest, []string{"R"}},
 	} {
 		t.Run(string(run.name), func(t *testing.T) {
 			// The queue label with a codechecker assigned, so that the label

@@ -14,7 +14,7 @@ goes on the first line of the comment, one command per comment.**
 ```bash
 @chekhovbot commands
 @chekhovbot assign @user as codechecker
-@chekhovbot suggest codecheckers
+@chekhovbot codecheckers suggest
 @chekhovbot check codecheck.yml
 @chekhovbot check ready
 @chekhovbot check start
@@ -38,9 +38,13 @@ to read it from. Editors can announce a published certificate on Mastodon with
 `@chekhovbot announce <certificate> confirm`, which posts it; in development
 the toot is a direct message with every mention defused. `@chekhovbot
 codecheckers` says where the codechecker lists are, and an editor can ask
-`@chekhovbot suggest codecheckers` for candidates, named without notifying
-them. `@chekhovbot next certificate` says which certificate identifier comes
-next, and `@chekhovbot set certificate` reserves it for the check.
+`@chekhovbot codecheckers suggest` for candidates, named without notifying
+them. `@chekhovbot certificate` says which certificate identifier the check
+holds, `@chekhovbot certificate next` which one comes next, and
+`@chekhovbot certificate set` reserves it for the check. A command names its
+subject first and then what to do with it, so the commands about one thing sit
+together; the forms written the other way round before 0.22 -
+`set certificate`, `suggest codecheckers` and the rest - still work.
 `@chekhovbot check ready` says whether a check can start - a README, a
 `codecheck.yml` with a manifest, a licence and a paper - for the author as much
 as the editor. `@chekhovbot check zenodo` audits the certificate's Zenodo
@@ -53,7 +57,7 @@ checks that already exist rather than repeating them: because those take time,
 the reply is posted at once and rewritten in place as each answers.
 `@chekhovbot check register` builds the row the check would get in
 `register.csv` - from the issue's Repository line and labels, or what an editor
-set with `set repository` and `set venue` - and runs the rules on it before
+set with `repository set` and `venue set` - and runs the rules on it before
 anything is written; `@chekhovbot register` then opens the pull request adding
 it, for an editor to merge, and `@chekhovbot check certificate <certificate>`
 runs the rules on a row already there. It runs

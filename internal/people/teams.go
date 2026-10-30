@@ -118,7 +118,7 @@ func (t *Teams) Has(ctx context.Context, name, handle string) bool {
 // Refresh reads the named teams now, whatever the age of what is held, and
 // reports what it found.
 //
-// Two callers: `@chekhovbot refresh teams`, so that a membership change takes
+// Two callers: `@chekhovbot teams refresh`, so that a membership change takes
 // effect at once, and the run at startup that fills the cache before the first
 // command needs it. The cache is the transient copy of something the
 // organisation owns; this is how it is rebuilt from the persistent one.
@@ -156,7 +156,7 @@ func stateOf(name string, cached *team) State {
 // fetch reads one team when what is held has expired, and returns the cached
 // team either way.
 //
-// force is what `refresh teams` asks for: read it again whatever the age,
+// force is what `teams refresh` asks for: read it again whatever the age,
 // because an editor who has just changed a team is watching. Without it a
 // team another comment refreshed while this one waited is not read twice - one
 // request per team per expiry, whatever the traffic.

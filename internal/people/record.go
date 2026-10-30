@@ -70,14 +70,14 @@ type Record struct {
 	HandlingEditor      string   `json:"handling_editor,omitempty"`
 	AssignedCodechecker string   `json:"assigned_codechecker,omitempty"`
 	Authors             []string `json:"authors,omitempty"`
-	// Certificate is the identifier `set certificate` reserved, YYYY-NNN. It
+	// Certificate is the identifier `certificate set` reserved, YYYY-NNN. It
 	// lives here rather than in a record of its own so that it shares the
 	// lock, the signature and the tamper check the roles have; the title
 	// and the `id assigned` label repeat it where people and the launch-pad
 	// look, and anybody can edit those.
 	Certificate string `json:"certificate,omitempty"`
 	// Repository, Type and Venue are the rest of the register row, as an
-	// editor set them with `set repository` and `set venue`. Empty means
+	// editor set them with `repository set` and `venue set`. Empty means
 	// whatever the issue says when the row is built: its Repository line and
 	// its labels (#21).
 	Repository string `json:"repository,omitempty"`

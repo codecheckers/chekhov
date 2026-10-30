@@ -73,7 +73,7 @@ func certificateIDSequence(c Context) Result {
 	// jump the same way, from the next-lower identifier rather than the
 	// highest, so a certificate published late is not a gap.
 	//
-	// The rule sees register.csv only. `set certificate` measures the same
+	// The rule sees register.csv only. `certificate set` measures the same
 	// jump against the issues labelled `id assigned` as well, which only the
 	// bot reads; a check between reservation and publication is not in the
 	// register yet, so the rule's set of claims is the smaller one.
@@ -172,7 +172,7 @@ func issueReferencesCertificate(c Context) Result {
 	if result != nil {
 		return *result
 	}
-	// Read as `next certificate` reads a title: every identifier in it, a
+	// Read as `certificate next` reads a title: every identifier in it, a
 	// range spelled out, so a workshop's issue titled 2026-004/2026-017
 	// carries 2026-009. A substring match found no range member, and would
 	// find 2026-001 inside 12026-0012. The R package matches the identifier

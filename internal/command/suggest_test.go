@@ -5,41 +5,31 @@ import (
 	"testing"
 )
 
-func TestParseSuggestion(t *testing.T) {
-	cases := []struct {
-		name  string
-		args  []string
-		hints []string
-		error string
-	}{
-		{name: "the plural, as the command is written", args: []string{"codecheckers"}},
-		{name: "the singular, as somebody will write it", args: []string{"codechecker"}},
-		{name: "whatever follows is a hint",
-			args:  []string{"codecheckers", "owner/repo", "10.1000/fake"},
-			hints: []string{"owner/repo", "10.1000/fake"}},
-		{name: "suggest alone does not say what", error: "suggest what"},
-		{name: "and nothing else can be suggested yet",
-			args: []string{"venues"}, error: "I can suggest `codecheckers`"},
+// What to suggest is the subject of the command, and the parser reads it: the
+// form the command used to have, `suggest codecheckers`, and the singular
+// somebody will write, both name the same entry, and whatever follows them is
+// a hint.
+func TestCodecheckersSuggestIsReadHoweverItIsWritten(t *testing.T) {
+	for _, written := range []string{"codecheckers suggest", "Codecheckers Suggest", "suggest codecheckers",
+		"suggest Codecheckers", "SUGGEST CODECHECKERS", "suggest codechecker"} {
+		parsed, _ := Parse("@chekhovbot " + written + " owner/repo 10.1000/fake")
+		if parsed.Name != CodecheckersSuggest {
+			t.Errorf("%q parsed as %q", written, parsed.Name)
+		}
+		if strings.Join(parsed.Args, " ") != "owner/repo 10.1000/fake" {
+			t.Errorf("%q: hints %v, want the words after it", written, parsed.Args)
+		}
 	}
-
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			hints, err := ParseSuggestion(testCase.args)
-			switch {
-			case testCase.error != "" && err == nil:
-				t.Fatalf("read %v, want an error about %q", hints, testCase.error)
-			case testCase.error != "":
-				if !strings.Contains(err.Error(), testCase.error) {
-					t.Fatalf("error %q, want it to say %q", err, testCase.error)
-				}
-				return
-			case err != nil:
-				t.Fatal(err)
-			}
-			if strings.Join(hints, " ") != strings.Join(testCase.hints, " ") {
-				t.Errorf("hints %v, want %v", hints, testCase.hints)
-			}
-		})
+	// `suggest` alone, or with anything that is not codecheckers, is no
+	// command, and is answered with the one that is.
+	for _, written := range []string{"suggest", "suggest venues"} {
+		parsed, _ := Parse("@chekhovbot " + written)
+		if parsed.Name != Unknown {
+			t.Fatalf("%q parsed as %q, want it unknown", written, parsed.Name)
+		}
+		if reply := UnknownReply(parsed, Roles{}.With(RoleEditor)); !strings.Contains(reply, "`@chekhovbot codecheckers suggest`") {
+			t.Errorf("%q is not pointed at codecheckers suggest:\n%s", written, reply)
+		}
 	}
 }
 
@@ -99,13 +89,5 @@ func TestSuggestionsReplyProtectsTheTable(t *testing.T) {
 	}
 	if strings.Contains(reply, "@somebody") {
 		t.Errorf("a name out of the lists mentions an account:\n%s", reply)
-	}
-}
-
-func TestParseSuggestionReadsHoweverItIsWritten(t *testing.T) {
-	for _, written := range []string{"codecheckers", "Codecheckers", "CODECHECKERS", "codechecker"} {
-		if _, err := ParseSuggestion([]string{written}); err != nil {
-			t.Errorf("%q was refused: %v", written, err)
-		}
 	}
 }

@@ -332,7 +332,7 @@ Crossref answered for seven and OpenAlex for nine - the `10.48550/arXiv.*` DOIs
 are DataCite, which Crossref does not hold - with an abstract for nine against
 four, author ORCIDs for twenty of thirty-two against seven of twenty-seven, and
 a subject for every record against **none**: Crossref returns `subject` present
-and empty now, which is why `suggest codecheckers` matched on languages alone
+and empty now, which is why `codecheckers suggest` matched on languages alone
 in ten real checks.
 
 The four rules used to be named `crossref-*`; codecheckers/register#220 renamed
@@ -557,7 +557,7 @@ than a `switch`.
   The settings file names *teams*, never people, so membership is maintained in
   one place. The cache is
   the transient copy; `Teams.Refresh` rebuilds it from the persistent one, at
-  startup and whenever an editor runs `refresh teams`.
+  startup and whenever an editor runs `teams refresh`.
 - Per-check roles, and the certificate identifier, live in a **comment the bot
   posted** - the record of the check, marked `chekhov:record` (`chekhov:roles`
   before #20, still read) - found by its marker on
@@ -567,7 +567,7 @@ than a `switch`.
   signs the record** (Ed25519, `internal/people/sign.go`) and refuses to change
   one it did not write. The signature covers the repository and issue too, so a
   valid record cannot be lifted between checks. An editor adopts an edited
-  record with `accept record` (`accept roles` still works), and who adopted it
+  record with `record accept` (`accept record` and `accept roles` still work), and who adopted it
   is written into the signed block. The private key exists only in the deployment's configuration; the
   public key is published in `docs/record-keys.pub`, deliberately **not** in
   the register - the people who could edit a record must not also be able to
@@ -673,11 +673,11 @@ exists; read the issues for what does not.
 | #14 webhook, #15 reply path, #16 deployment | Done; the app itself is created by hand on runway.horse |
 | #17 one bundle source | Done: `Context.Bundle`, one interface per source |
 | #18 roles | Done: `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
-| #20 certificate identifier | Done: `next certificate` and `set certificate`, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); a year that has not started is refused (0.17) |
-| #21 register | Done: `check register`, `set repository`, `set venue`, `check certificate`, and `register`, the pull request |
+| #20 certificate identifier | Done: `certificate next` and `certificate set`, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); a year that has not started is refused (0.17) |
+| #21 register | Done: `check register`, `repository set`, `venue set`, `check certificate`, and `register`, the pull request |
 | #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
 | #23 announce, register#217 fediverse columns | Done |
-| #24 find a codechecker | `codecheckers` and `suggest codecheckers` done; `invite` split out into its own issue |
+| #24 find a codechecker | `codecheckers` and `codecheckers suggest` done; `invite` split out into its own issue |
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |
 | #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |

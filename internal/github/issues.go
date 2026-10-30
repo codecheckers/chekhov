@@ -10,7 +10,7 @@ import (
 
 // Reading the issues of the register.
 //
-// Two questions, both asked by `suggest codecheckers`: what is this check
+// Two questions, both asked by `codecheckers suggest`: what is this check
 // about, when nobody said, and who is busy. Reading only - the issues belong to
 // the codecheckers who opened them, and the bot's business with them is its own
 // comments, which are in comments.go.

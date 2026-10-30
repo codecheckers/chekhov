@@ -17,7 +17,7 @@ import (
 // files and know nothing about what is in them.
 //
 // This is the seed of codecheckers/chekhov#8, which reports the languages, the
-// licence and the size of the repository under check. `suggest codecheckers`
+// licence and the size of the repository under check. `codecheckers suggest`
 // needs the languages before #8 lands, so they are written here, once, for
 // both to use.
 

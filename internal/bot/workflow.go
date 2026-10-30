@@ -480,8 +480,8 @@ func (s *Server) moveLabel(ctx context.Context, writer Labelling, event mention,
 // labelFailure is why a label write did not happen, empty when it did.
 //
 // Shared by every command that moves a label - the workflow commands and
-// `set certificate` - so that a refusal reads the same wherever it came from.
-// It is the wording that is shared and not the writer: `set certificate` only
+// `certificate set` - so that a refusal reads the same wherever it came from.
+// It is the wording that is shared and not the writer: `certificate set` only
 // ever adds, and demanding a reply path that can also remove would refuse it
 // on a deployment that has no business removing anything.
 //

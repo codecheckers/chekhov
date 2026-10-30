@@ -3,7 +3,7 @@
 The per-check roles — handling editor, assigned codechecker, authors — live in
 a comment the bot posted on the checks issue, because the bot has no storage
 but the issues themselves. See [`../CLAUDE.md`](../CLAUDE.md) and
-codecheckers/chekhov#18. The certificate identifier `set certificate` reserves
+codecheckers/chekhov#18. The certificate identifier `certificate set` reserves
 lives there too, as `"certificate":"YYYY-NNN"` inside `roles`, and a
 `**Certificate**` line under the table (codecheckers/chekhov#20) - which is why
 it is the *record of the check*, marked `chekhov:record`.
@@ -147,7 +147,7 @@ editor finds out that it was edited at all.
 An editor who is content with what it says adopts it:
 
 ```
-@chekhovbot accept record
+@chekhovbot record accept
 ```
 
 That re-signs the record as it stands and writes `accepted_by` and
@@ -181,7 +181,7 @@ roles, drop the `sig` line, and the bot would not only believe it but re-sign
 it on the next change, laundering the forgery into its own signature.
 
 So there is no legacy path. A record written before a key existed is read as
-"edited after I wrote it", and an editor adopts it with `accept record` — or deletes
+"edited after I wrote it", and an editor adopts it with `record accept` — or deletes
 the comment and lets the bot start again.
 
 A deployment **without** a key writes unsigned records and reads them: the

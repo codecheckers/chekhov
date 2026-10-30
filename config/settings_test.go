@@ -345,7 +345,7 @@ func eachShipped(t *testing.T, test func(*testing.T, *Settings)) {
 }
 
 // The labels the bot may change are few and named, and the list is the whole
-// of what it can do to a register's labels: `set certificate` adds
+// of what it can do to a register's labels: `certificate set` adds
 // `id assigned`, and the workflow commands move the other three. Anything not
 // here is only ever read. Both shipped files say so, because live-test is
 // development with one switch flipped.
