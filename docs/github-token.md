@@ -38,10 +38,10 @@ tokens → Fine-grained tokens → Generate new token.
 
 | Field | Value |
 |---|---|
-| Token name | `chekhov-dev` (say what it is for; the name is all future-you sees) |
+| Token name | `chekhov-dev` (say what it is for; the name is all future-you sees), `chekhov-production` for the production one |
 | Resource owner | **`codecheckers`** — *not* `chekhovbot`. A user-owned token reaches only that user's own repositories, and the registers belong to the organisation |
 | Expiration | 90 days for development. The maximum is 366 days |
-| Repository access | Only select repositories → **`codecheckers/testing-dev-register`** |
+| Repository access | Only select repositories → **`codecheckers/testing-dev-register`**; for production a separate token with **`codecheckers/register`** alone, never one token for both |
 
 Permissions, under Repository permissions:
 

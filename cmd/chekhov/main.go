@@ -160,6 +160,15 @@ func runCheck(args []string, out io.Writer) error {
 	// Whether the target is a path or a repository, and whether that needs the
 	// services, is check's to decide.
 	services := check.ServicesFor(target, online)
+	// The services fall back to the testing register when the settings do not
+	// load, which is the safe guess for a bot and the wrong answer here: a
+	// settings file refused for naming the production register would quietly
+	// check against another one. Say why instead.
+	if services != nil {
+		if _, err := config.Current(); err != nil {
+			return err
+		}
+	}
 	if part == check.AboutRepository {
 		return describeRepository(target, services, markdown, out)
 	}

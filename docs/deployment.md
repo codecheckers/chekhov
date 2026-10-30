@@ -1,9 +1,22 @@
 # Deployment
 
-The bot runs on [runway.horse](https://runway.horse), against the **testing
-register**. Everything below assumes that; pointing a deployment at
-`codecheckers/register` is a separate, deliberate act, and begins with writing
-`config/settings-production.yml`, which does not exist.
+The bot runs on [runway.horse](https://runway.horse) as two apps:
+
+| App | `CHEKHOV_ENV` | Register | Settings |
+|---|---|---|---|
+| `chekhov` | `production` | `codecheckers/register` | `config/settings-production.yml` |
+| `chekhov-dev` | `development` | `codecheckers/testing-dev-register` | `config/settings-development.yml` |
+
+Two apps rather than one switched by a variable, so that a mistake in
+development cannot reach the real register: each has its own token, scoped to
+its own register, its own webhook secret and its own record key. The production
+file writes its target out, and every other settings file is refused at startup
+if it names `codecheckers/register` - a `CHEKHOV_TARGET_REPO` on the
+development app cannot point it there. See
+[chekhov#37](https://github.com/codecheckers/chekhov/issues/37).
+
+Development and testing, and every command below unless it says otherwise, go
+to `chekhov-dev`.
 
 ## Why runway.horse
 
@@ -28,23 +41,29 @@ runway local key setup                                # the deploy key for this 
 
 ## Creating the app
 
-From a checkout of this repository:
+From a checkout of this repository, for the development app:
 
 ```sh
-runway app create chekhov -y
-runway app config set -a chekhov BP_GO_TARGETS=./cmd/chekhov
-runway app config set -a chekhov CHEKHOV_ENV=development
-runway app config set -a chekhov CHEKHOV_TARGET_REPO=codecheckers/testing-dev-register
-runway app config set -a chekhov CHEKHOV_BOT_GH_USER=chekhovbot
-runway app config set -a chekhov CHEKHOV_GH_ACCESS_TOKEN=...   # see github-token.md
-runway app config set -a chekhov CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -hex 32
-runway app config set -a chekhov CHEKHOV_MASTODON_TOKEN=...    # optional, see "Announcing" below
-runway app config set -a chekhov GOMEMLIMIT=96MiB             # the free plan has 128 MB, see "Memory" below
-runway app config set -a chekhov CHEKHOV_RECORD_KEY=...       # `chekhov record-key`, see record-key.md
-runway app config set -a chekhov CHEKHOV_ADMIN_ISSUE=...      # optional, see "Watching it" below
-# CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org
+runway app create chekhov-dev -y
+runway app config set -a chekhov-dev BP_GO_TARGETS=./cmd/chekhov
+runway app config set -a chekhov-dev CHEKHOV_ENV=development
+runway app config set -a chekhov-dev CHEKHOV_TARGET_REPO=codecheckers/testing-dev-register
+runway app config set -a chekhov-dev CHEKHOV_BOT_GH_USER=chekhovbot
+runway app config set -a chekhov-dev CHEKHOV_GH_ACCESS_TOKEN=...   # see github-token.md
+runway app config set -a chekhov-dev CHEKHOV_GH_SECRET_TOKEN=...   # openssl rand -hex 32
+runway app config set -a chekhov-dev CHEKHOV_MASTODON_TOKEN=...    # optional, see "Announcing" below
+runway app config set -a chekhov-dev GOMEMLIMIT=96MiB             # the free plan has 128 MB, see "Memory" below
+runway app config set -a chekhov-dev CHEKHOV_RECORD_KEY=...       # `chekhov record-key`, see record-key.md
+runway app config set -a chekhov-dev CHEKHOV_ADMIN_ISSUE=...      # optional, see "Watching it" below
+# CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org;
+# the production file writes them out and does not read either
 runway app deploy source -y
 ```
+
+Production is the same list on `chekhov` with `CHEKHOV_ENV=production` and
+**without** `CHEKHOV_TARGET_REPO`, which the production file does not read;
+the Mastodon account, the certificates and the codechecker lists are written
+in that file too. See "Moving to production" below for the order.
 
 There is no Dockerfile: the Go buildpack detects the module and builds what
 `BP_GO_TARGETS` names.
@@ -243,7 +262,9 @@ from a git repo".
 
 ## The webhook
 
-On `codecheckers/testing-dev-register`: Settings → Webhooks → Add webhook.
+On each register, at the app that works on it - `codecheckers/testing-dev-register`
+at `chekhov-dev`, `codecheckers/register` at `chekhov`: Settings → Webhooks →
+Add webhook.
 
 | Field | Value |
 |---|---|
@@ -269,8 +290,8 @@ scopes, where the token is kept, and its rotation.
 
 The settings file decides the visibility. `settings-development.yml` says
 `direct`, a test asserts it, and with `direct` every mention in the toot is
-written without its `@`, so a development toot notifies nobody. A production
-settings file has to choose `public` or `unlisted` on purpose.
+written without its `@`, so a development toot notifies nobody.
+`settings-production.yml` says `public`, and a test asserts that too.
 
 Where the toot comes from is in the `env:` block: `certificates`, the URL of a
 published certificate, and `codechecker_lists`. `persons.csv` and `venues.csv`
@@ -283,8 +304,8 @@ asserts it - because following an account and requesting it for a public
 collection are not softened by `direct` visibility the way a toot's mentions
 are. `/healthz`
 in development reports `announce.follow`, true only when both a token is
-configured and the settings file turns it on. A production settings file
-turns it on deliberately, once the token has the extra scopes
+configured and the settings file turns it on. `settings-production.yml` turns
+it on, so the production token needs the extra scopes
 [`mastodon-token.md`](mastodon-token.md) lists for it.
 
 ## Memory
@@ -307,7 +328,49 @@ before trusting a change here should read the deployment's own
 `runway app stats`, not just its own process. See
 [chekhov#32](https://github.com/codecheckers/chekhov/issues/32).
 
+## Moving to production
+
+The app that has run against the testing register so far is `chekhov`, and it
+becomes the production one. In this order, so that the testing register is
+never without a bot and the real one never has a development one:
+
+1. **Development first.** Create `chekhov-dev` as above, with the existing
+   testing-register token, webhook secret and record key moved over to it, and
+   deploy. Point the `codecheckers/testing-dev-register` webhook at its
+   `/dispatch`, and check `/healthz` and a `hello` on a test issue. The
+   development `/healthz` URL in `CLAUDE.md` and the `nudges.yml` default move
+   with it.
+   Then `runway app lockdown on -a chekhov-dev`, which makes the container's
+   filesystem read-only and redeploys, and run `hello`,
+   `check github::codecheckers/Piccolo-2020` and `announce 1970-001` (the
+   preview) on a new test issue. The bot writes nothing to disk, so all three
+   should answer; if one does not, `lockdown off` and write down on
+   [chekhov#36](https://github.com/codecheckers/chekhov/issues/36) what broke,
+   before production goes anywhere near it.
+2. **A production token**, new, fine-grained, scoped to `codecheckers/register`
+   alone - not the testing one widened; see `github-token.md`.
+3. **A production record key**: `chekhov record-key`, the private half into
+   `chekhov`'s configuration, the public half on the `codecheckers/register`
+   line of `record-keys.pub`, committed; see `record-key.md`.
+4. **A new webhook secret**, `openssl rand -hex 32`.
+5. **Switch `chekhov`**: `CHEKHOV_ENV=production`, the new token, secret and
+   record key, `runway app config unset -a chekhov CHEKHOV_TARGET_REPO`, the
+   Mastodon token with the follow scopes `mastodon-token.md` lists, and
+   `CHEKHOV_ADMIN_ISSUE` on an issue of the real register if one is wanted.
+   `runway app lockdown on -a chekhov`, as proven on `chekhov-dev` in step 1.
+   Deploy, and wait for `/healthz` to say `"environment": "production"` and
+   `"register": "codecheckers/register"`.
+6. **The webhook on `codecheckers/register`**, at `chekhov`'s `/dispatch`,
+   `issues` and `issue_comment` only - after the switch, so that no delivery
+   from the real register reaches a development deployment.
+
+Back to testing only, if the first week goes wrong: delete or deactivate the
+webhook on `codecheckers/register`. The bot then hears nothing from the real
+register, and `chekhov-dev` is untouched.
+
 ## The deployment as it stands
+
+Before the move above: one app, still on the testing register.
 
 | | |
 |---|---|

@@ -142,7 +142,9 @@ and never a working tree: in `~/git/codecheck/chekhov-deploy`,
 `git pull --ff-only` (from the working checkout, commits only) and
 `runway app deploy source -y`. Then wait for
 `https://chekhov.pqapp.dev/healthz` to report the new version before the
-first command; see `docs/deployment.md`.
+first command; see `docs/deployment.md`. Once production exists (#37) that
+URL and the `chekhov` app are production, development is the `chekhov-dev`
+app, and a deploy for a live test goes there - `-a chekhov-dev`.
 
 **One live test issue per change set.** Live testing happens on a new issue in
 the testing register, named for what is being tried and listing what each
@@ -214,6 +216,9 @@ production one.**
 
 `config/settings-development.yml` is the single place that names the target
 repository. Nothing else should name a repo. See `docs/development.md`.
+`config/settings-production.yml` names `codecheckers/register`, written out
+rather than read from a variable, and `config.validate` refuses every other
+settings file that names it (#37).
 
 ## Build and test
 

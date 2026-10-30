@@ -209,6 +209,22 @@ func (s *Settings) CertificateURL(id string) string {
 	return page
 }
 
+// productionRegister is the register real checks are filed in.
+const productionRegister = "codecheckers/register"
+
+// productionFile is the one settings file allowed to name productionRegister.
+var productionFile = settingsFile("production")
+
+// isProductionRegister compares the way a person might write the repository:
+// case aside, and with a trailing slash or ".git" left on.
+func isProductionRegister(repository string) bool {
+	repository = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(repository), "/"), ".git")
+	return strings.EqualFold(repository, productionRegister)
+}
+
+// settingsFile is the embedded file an environment reads.
+func settingsFile(environment string) string { return "settings-" + environment + ".yml" }
+
 // Environment names which settings file to read, from CHEKHOV_ENV.
 func Environment() string {
 	if env := strings.TrimSpace(os.Getenv("CHEKHOV_ENV")); env != "" {
@@ -220,11 +236,12 @@ func Environment() string {
 // Load reads the settings for an environment, expanding ${VAR:-default} from
 // the process environment.
 //
-// Only the development settings ship with the binary. Running against the
-// production register is meant to be a deliberate act, which begins with
-// writing config/settings-production.yml, not with setting a variable.
+// Running against the production register is a deliberate act: it is
+// CHEKHOV_ENV=production, which reads settings-production.yml, and nothing
+// else. Every other file is refused if it names that register, so a variable
+// cannot do what choosing the file is meant to.
 func Load(environment string) (*Settings, error) {
-	name := "settings-" + environment + ".yml"
+	name := settingsFile(environment)
 	raw, err := files.ReadFile(name)
 	if err != nil {
 		return nil, fmt.Errorf("no settings for environment %q: %s is not part of this build", environment, name)
@@ -248,6 +265,15 @@ func Load(environment string) (*Settings, error) {
 func validate(name string, s *Settings) error {
 	if s.Chekhov.Env.TargetRepository == "" {
 		return fmt.Errorf("%s names no target repository", name)
+	}
+	// The development files take their target from CHEKHOV_TARGET_REPO, so a
+	// development deployment given the production register by that variable
+	// would comment on real checks, with direct toots and the maintainer as
+	// the owners to ask. Only the production file may name it, and that one
+	// writes it out rather than reading it.
+	if isProductionRegister(s.Chekhov.Env.TargetRepository) && name != productionFile {
+		return fmt.Errorf("%s names the production register %s; only %s may",
+			name, productionRegister, productionFile)
 	}
 	switch s.Chekhov.Metadata.Source {
 	case "openalex", "crossref":

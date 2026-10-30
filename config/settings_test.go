@@ -19,7 +19,7 @@ func TestShippedSettingsNameTheTestingRegister(t *testing.T) {
 	if got := settings.TargetRepository(); got != "codecheckers/testing-dev-register" {
 		t.Errorf("target repository = %q, want the testing register", got)
 	}
-	if strings.Contains(settings.TargetRepository(), "codecheckers/register") {
+	if strings.EqualFold(settings.TargetRepository(), productionRegister) {
 		t.Error("the development settings point at the production register")
 	}
 }
@@ -40,11 +40,58 @@ func TestEnvironmentOverridesTheDefault(t *testing.T) {
 	}
 }
 
-// Running against production begins with writing a settings file, not with
-// setting a variable.
+// An environment is a settings file in this build, and a name with no file is
+// refused rather than read as development.
 func TestUnknownEnvironmentSaysSo(t *testing.T) {
-	if _, err := Load("production"); err == nil {
-		t.Fatal("production settings do not exist, so loading them must fail")
+	if _, err := Load("staging"); err == nil {
+		t.Fatal("there are no staging settings, so loading them must fail")
+	}
+}
+
+// The production file names the real register, its certificates and its
+// lists, and no variable can move any of them: the leftovers of a development
+// deployment are exactly what this sets.
+func TestProductionSettingsNameTheProductionRegister(t *testing.T) {
+	t.Setenv("CHEKHOV_TARGET_REPO", "codecheckers/testing-dev-register")
+
+	settings, err := Load("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings.TargetRepository(); got != productionRegister {
+		t.Errorf("target repository = %q, want %s", got, productionRegister)
+	}
+	if got := settings.CertificateURL("2020-010"); got != "https://codecheck.org.uk/register/certs/2020-010/" {
+		t.Errorf("certificate URL = %q", got)
+	}
+	lists := []string{
+		"https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/codecheckers.csv",
+		"https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/institutional-codecheckers.csv",
+	}
+	if got := settings.CodecheckerLists(); !slices.Equal(got, lists) {
+		t.Errorf("codechecker lists = %q, want %q", got, lists)
+	}
+	// Production asks the organisation's own owners; a name here would send
+	// every invitation to one person instead.
+	if owners := settings.OwnersOverride(); len(owners) != 0 {
+		t.Errorf("owners = %q, want none so that the organisation is asked", owners)
+	}
+	want := Mastodon{Instance: "https://fediscience.org", Account: "codecheck", Visibility: "public", Follow: true}
+	if got := settings.Mastodon(); got != want {
+		t.Errorf("mastodon = %+v, want %+v", got, want)
+	}
+}
+
+// Only the production file may name the production register, so the variable
+// a development file reads its target from cannot point it there.
+func TestDevelopmentRefusesTheProductionRegister(t *testing.T) {
+	for _, target := range []string{"codecheckers/register", " Codecheckers/Register ", "codecheckers/register.git", "codecheckers/register/"} {
+		t.Setenv("CHEKHOV_TARGET_REPO", target)
+		for _, environment := range []string{"development", "live-test"} {
+			if _, err := Load(environment); err == nil || !strings.Contains(err.Error(), "production register") {
+				t.Errorf("%s with %q: error %v, want the production register refused", environment, target, err)
+			}
+		}
 	}
 }
 
@@ -211,19 +258,17 @@ func TestTheEditorsTeamMayNotBeManaged(t *testing.T) {
 // The shipped settings name the two teams a codechecker can belong to, and not
 // the editors team.
 func TestShippedSettingsManageTheCodecheckerTeams(t *testing.T) {
-	settings, err := Load("development")
-	if err != nil {
-		t.Fatal(err)
-	}
-	managed := settings.ManagedTeams()
-	if len(managed) != 2 || managed[0] != "codecheckers" || managed[1] != "institutional-codecheckers" {
-		t.Errorf("managed teams = %v", managed)
-	}
-	for _, team := range managed {
-		if strings.EqualFold(team, settings.EditorsTeam()) {
-			t.Errorf("the editors team is managed: %q", team)
+	eachShipped(t, func(t *testing.T, settings *Settings) {
+		managed := settings.ManagedTeams()
+		if len(managed) != 2 || managed[0] != "codecheckers" || managed[1] != "institutional-codecheckers" {
+			t.Errorf("managed teams = %v", managed)
 		}
-	}
+		for _, team := range managed {
+			if strings.EqualFold(team, settings.EditorsTeam()) {
+				t.Errorf("the editors team is managed: %q", team)
+			}
+		}
+	})
 }
 
 // A team the bot is told to put somebody in has to be one it may add to.
@@ -260,39 +305,42 @@ func TestANamedTeamMustBeManaged(t *testing.T) {
 
 // The shipped settings name the institutional team, and it is managed.
 func TestShippedSettingsNameTheInstitutionalTeam(t *testing.T) {
-	settings, err := Load("development")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := settings.InstitutionalTeam(); got != "institutional-codecheckers" {
-		t.Errorf("institutional team = %q", got)
-	}
-	if !settings.Managed(settings.InstitutionalTeam()) {
-		t.Error("the institutional team is not in teams.managed")
-	}
+	eachShipped(t, func(t *testing.T, settings *Settings) {
+		if got := settings.InstitutionalTeam(); got != "institutional-codecheckers" {
+			t.Errorf("institutional team = %q", got)
+		}
+		if !settings.Managed(settings.InstitutionalTeam()) {
+			t.Error("the institutional team is not in teams.managed")
+		}
+	})
 }
 
 // The label names belong to the register, so the shipped file names them: a
 // register that renames `institution` needs a settings change, not a build.
 func TestShippedSettingsNameTheRegistersLabels(t *testing.T) {
-	settings, err := Load("development")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := settings.InstitutionLabel(); got != "institution" {
-		t.Errorf("institution label = %q", got)
-	}
-	if got := settings.NeedsCodecheckerLabel(); got != "needs codechecker" {
-		t.Errorf("needs codechecker label = %q", got)
-	}
-	if got := settings.IDAssignedLabel(); got != "id assigned" {
-		t.Errorf("id assigned label = %q", got)
-	}
-	if got := settings.WorkInProgressLabel(); got != "work in progress" {
-		t.Errorf("work in progress label = %q", got)
-	}
-	if got := settings.MetadataPendingLabel(); got != "metadata pending" {
-		t.Errorf("metadata pending label = %q", got)
+	eachShipped(t, func(t *testing.T, settings *Settings) {
+		labels := []string{settings.InstitutionLabel(), settings.NeedsCodecheckerLabel(),
+			settings.IDAssignedLabel(), settings.WorkInProgressLabel(), settings.MetadataPendingLabel()}
+		want := []string{"institution", "needs codechecker", "id assigned", "work in progress", "metadata pending"}
+		if !slices.Equal(labels, want) {
+			t.Errorf("labels = %q, want %q", labels, want)
+		}
+	})
+}
+
+// eachShipped runs a test against every settings file this build ships, so
+// that what is copied between them is asserted in all of them.
+func eachShipped(t *testing.T, test func(*testing.T, *Settings)) {
+	t.Helper()
+	t.Setenv("CHEKHOV_TARGET_REPO", "")
+	for _, environment := range []string{"development", "live-test", "production"} {
+		t.Run(environment, func(t *testing.T) {
+			settings, err := Load(environment)
+			if err != nil {
+				t.Fatal(err)
+			}
+			test(t, settings)
+		})
 	}
 }
 
@@ -304,18 +352,14 @@ func TestShippedSettingsNameTheRegistersLabels(t *testing.T) {
 func TestShippedSettingsLetTheBotChangeOnlyTheNamedLabels(t *testing.T) {
 	addable := []string{"id assigned", "work in progress", "metadata pending"}
 	removable := []string{"needs codechecker", "work in progress", "metadata pending"}
-	for _, environment := range []string{"development", "live-test"} {
-		settings, err := Load(environment)
-		if err != nil {
-			t.Fatal(err)
-		}
+	eachShipped(t, func(t *testing.T, settings *Settings) {
 		if got := settings.AddableLabels(); !slices.Equal(got, addable) {
-			t.Errorf("%s: addable labels = %q, want %q", environment, got, addable)
+			t.Errorf("addable labels = %q, want %q", got, addable)
 		}
 		if got := settings.RemovableLabels(); !slices.Equal(got, removable) {
-			t.Errorf("%s: removable labels = %q, want %q", environment, got, removable)
+			t.Errorf("removable labels = %q, want %q", got, removable)
 		}
-	}
+	})
 }
 
 // A label the bot counts reservations by, but may not add, would leave every
@@ -358,18 +402,14 @@ func TestTheInstitutionalTeamNeedsTheLabelThatFindsIt(t *testing.T) {
 // noisy that is and how much it downloads: both carry the list of sites that
 // refuse every robot, and a size limit a deployment can change without a build.
 func TestShippedSettingsBoundTheLinksCommand(t *testing.T) {
-	for _, environment := range []string{"development", "live-test"} {
-		settings, err := Load(environment)
-		if err != nil {
-			t.Fatal(err)
-		}
+	eachShipped(t, func(t *testing.T, settings *Settings) {
 		if !slices.Contains(settings.LinkSkipHosts(), "linkedin.com") {
-			t.Errorf("%s: skip hosts = %q, want the sites that refuse robots", environment, settings.LinkSkipHosts())
+			t.Errorf("skip hosts = %q, want the sites that refuse robots", settings.LinkSkipHosts())
 		}
 		if got := settings.MaxCertificateBytes(); got != DefaultMaxCertificateBytes {
-			t.Errorf("%s: certificate limit = %d, want the default %d", environment, got, DefaultMaxCertificateBytes)
+			t.Errorf("certificate limit = %d, want the default %d", got, DefaultMaxCertificateBytes)
 		}
-	}
+	})
 
 	t.Setenv("CHEKHOV_LINKS_MAX_CERTIFICATE_BYTES", "1000")
 	if got := mustLoad(t).MaxCertificateBytes(); got != 1000 {

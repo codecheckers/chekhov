@@ -1,0 +1,92 @@
+# Chekhov — production configuration
+#
+# This is the PRODUCTION register:
+#   https://github.com/codecheckers/register
+#
+# Selected with `CHEKHOV_ENV=production`, on the `chekhov` app only; the
+# testing register has an app of its own, see docs/deployment.md. The target,
+# the certificates and the codechecker lists are written out rather than read
+# from the environment: pointing a deployment at the real register is decided
+# in this file, by a commit, and a variable left over from a development
+# deployment cannot move it anywhere else. A development file naming this
+# register is refused at load, see settings.go.
+#
+# `${VAR:-default}` is expanded from the environment when the file is read, see
+# settings.go.
+chekhov:
+  env:
+    bot_github_user: ${CHEKHOV_BOT_GH_USER:-chekhovbot}
+    target_repository: codecheckers/register
+    # Columns of register.csv in the target repo:
+    # Certificate,Repository,Type,Venue,Issue
+    register_file: register.csv
+    # The published certificate, {id} is the certificate identifier. The page
+    # has index.json and cert_1.png, cert_2.png, ... next to it.
+    certificates: https://codecheck.org.uk/register/certs/{id}/
+    # The codechecker lists, read for fediverse accounts after persons.csv.
+    # persons.csv and venues.csv are read from the target repository.
+    codechecker_lists:
+      - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/codecheckers.csv
+      - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/institutional-codecheckers.csv
+    # The issue of the target repository a command's panic is reported on, 0
+    # for the log only; see docs/deployment.md. Quoted, so "#42" is refused.
+    admin_issue: "${CHEKHOV_ADMIN_ISSUE:-0}"
+
+  metadata:
+    # See settings-development.yml and config/settings.go.
+    source: ${CHEKHOV_METADATA_SOURCE:-openalex}
+    mailto: ${CHEKHOV_METADATA_MAILTO:-chekhov@cdchck.science}
+
+  links:
+    # The sites `check links` does not ask, as in settings-development.yml.
+    skip_hosts:
+      - linkedin.com
+      - researchgate.net
+      - x.com
+      - twitter.com
+      - facebook.com
+      - instagram.com
+      - sciencedirect.com
+      - academic.oup.com
+      - onlinelibrary.wiley.com
+      - tandfonline.com
+    max_certificate_bytes: ${CHEKHOV_LINKS_MAX_CERTIFICATE_BYTES:-5242880}
+
+  mastodon:
+    # The project's own account, the one every test so far has posted to as
+    # direct messages. The token is CHEKHOV_MASTODON_TOKEN; without it
+    # announcing is switched off.
+    instance: https://fediscience.org
+    account: codecheck
+    # Announcements are public, and their mentions notify the people named.
+    visibility: public
+    # Following accounts and curating the Codecheckers/Authors/Venues
+    # collections is on from the start; the token needs the scopes
+    # docs/mastodon-token.md lists for it.
+    follow: true
+
+  # The register's labels, as in settings-development.yml: every one of them
+  # exists on codecheckers/register.
+  labels:
+    institution: institution
+    needs_codechecker: needs codechecker
+    id_assigned: id assigned
+    work_in_progress: work in progress
+    metadata_pending: metadata pending
+    managed:
+      add: [id assigned, work in progress, metadata pending]
+      remove: [needs codechecker, work in progress, metadata pending]
+
+  teams:
+    organisation: codecheckers
+    editors: editors
+    codecheckers: codecheckers
+    institutional: institutional-codecheckers
+    # No owners named: the organisation's own owners are read and asked when
+    # somebody has to be invited, which is what that reply is for.
+    owners: []
+    # Never the editors team; the settings are refused at load if it is here.
+    managed:
+      - codecheckers
+      - institutional-codecheckers
+

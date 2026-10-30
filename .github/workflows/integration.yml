@@ -37,8 +37,10 @@ jobs:
           # Lifts the GitHub API rate limit; the endpoints used are public.
           CHEKHOV_GH_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # The register-wide rules need a register that holds the fixture's
-          # certificate. Read-only: the suite never writes.
-          CHEKHOV_TARGET_REPO: ${{ inputs.register || 'codecheckers/register' }}
+          # certificate; the suite reads codecheckers/register when this is
+          # empty. Read-only: the suite never writes. Never the production
+          # register by this variable, which the development settings refuse.
+          CHEKHOV_TARGET_REPO: ${{ inputs.register != 'codecheckers/register' && inputs.register || '' }}
         run: go test -v -timeout 10m -run Integration ./internal/check/
 
       # Drift check: re-record the cassettes from the live services and run the

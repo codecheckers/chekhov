@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.4] - 2026-10-29
+
+### Added
+
+- Settings for the production register, `codecheckers/register`, selected
+  with `CHEKHOV_ENV=production`; any other settings file naming that register
+  is refused at startup (#37).
+
 ## [0.21.3] - 2026-10-28
 
 ### Fixed
