@@ -15,21 +15,26 @@ on:
   workflow_dispatch:
     inputs:
       deployment:
-        description: 'Deployment to ask (base URL)'
+        description: 'Deployment to ask (base URL); empty asks both'
         required: false
-        default: 'https://chekhov.pqapp.dev'
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   sweeping:
-    name: The ticker is alive
+    name: The ticker is alive (${{ matrix.deployment }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Production and development each run their own sweep (#37).
+        deployment: ${{ inputs.deployment && fromJSON(format('["{0}"]', inputs.deployment)) || fromJSON('["https://chekhov.pqapp.dev", "https://chekhov-dev.pqapp.dev"]') }}
     steps:
       - name: Ask the deployment what it has swept
         env:
-          DEPLOYMENT: ${{ inputs.deployment || 'https://chekhov.pqapp.dev' }}
+          DEPLOYMENT: ${{ matrix.deployment }}
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 30 "$DEPLOYMENT/nudges" > nudges.json

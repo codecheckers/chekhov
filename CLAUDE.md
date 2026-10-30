@@ -140,11 +140,14 @@ chekhov#63 rather than in a file.
 **Deploying** is from a second checkout, so that the platform builds a commit
 and never a working tree: in `~/git/codecheck/chekhov-deploy`,
 `git pull --ff-only` (from the working checkout, commits only) and
-`runway app deploy source -y`. Then wait for
-`https://chekhov.pqapp.dev/healthz` to report the new version before the
-first command; see `docs/deployment.md`. Once production exists (#37) that
-URL and the `chekhov` app are production, development is the `chekhov-dev`
-app, and a deploy for a live test goes there - `-a chekhov-dev`.
+`runway app deploy source -y`. That clone's `runway` remote is the
+`chekhov-dev` app, which is where every live test goes; wait for
+`https://chekhov-dev.pqapp.dev/healthz` to report the new version before the
+first command; see `docs/deployment.md`. **Production** is the `chekhov` app
+at `https://chekhov.pqapp.dev`, on `codecheckers/register` since 2026-10-30
+(#37), deployed from `~/git/codecheck/chekhov-deploy-prod` - and only on an
+explicit go-ahead for that deploy, as for a push: it is the bot every
+codechecker talks to.
 
 **One live test issue per change set.** Live testing happens on a new issue in
 the testing register, named for what is being tried and listing what each
@@ -681,6 +684,7 @@ exists; read the issues for what does not.
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |
 | #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |
+| #37 production, #36 lockdown | Done (0.22.0): `chekhov` on `codecheckers/register`, `chekhov-dev` on the testing register, both read-only; lockdown answered on testing-dev-register#238 |
 | register#216 | `tags:` in the rule files, which would delete `referenceRules` here |
 
 The `codecheck` R package is the sibling implementation; its own remaining work

@@ -65,6 +65,30 @@ Production is the same list on `chekhov` with `CHEKHOV_ENV=production` and
 the Mastodon account, the certificates and the codechecker lists are written
 in that file too. See "Moving to production" below for the order.
 
+Two things `runway app create` does that are easy to miss, both seen when
+`chekhov-dev` was made on 2026-10-30 with runway CLI 1.48.1:
+
+- **It rewrites the `runway` git remote** of the checkout it runs in to the new
+  app, without asking under `-y`. That remote is how `deploy source` knows the
+  app, so the next deploy from that checkout goes to the new app. Create from a
+  checkout whose remote you mean to change, or set it back with
+  `git remote set-url runway ...`.
+- **`--inherit-from` / `--with-config-from` copied no variables**: the new app
+  had none. To copy them without displaying a value, pipe one app's
+  configuration into the other's in a script that prints only the keys:
+
+  ```sh
+  runway app config ls -a chekhov -o json | python3 -c "
+  import json,sys,subprocess
+  d=json.load(sys.stdin)
+  pairs=[f'{k}={v}' for k,v in sorted(d.items())]
+  subprocess.run(['runway','app','config','set','-a','chekhov-dev','-y','-q',*pairs],check=True)
+  print(sorted(d))"
+  ```
+
+A variable is removed with `runway app config rm -a <app> NAME ...`; there is
+no `unset`.
+
 There is no Dockerfile: the Go buildpack detects the module and builds what
 `BP_GO_TARGETS` names.
 
@@ -81,11 +105,12 @@ web: chekhov serve
 Procfile exists it is the complete list, nothing is added implicitly.
 
 The tool is in the container either way, so a live deployment can be asked
-questions directly:
+questions directly, from an interactive terminal - `exec` needs one, and takes
+the whole command as a single argument:
 
 ```sh
-runway app exec -a chekhov -- chekhov version
-runway app exec -a chekhov -- chekhov check github::codecheckers/Piccolo-2020
+runway app exec -a chekhov-dev "chekhov version"
+runway app exec -a chekhov-dev "chekhov check github::codecheckers/Piccolo-2020"
 ```
 
 The binary listens on `$PORT`, which the platform sets. `chekhov serve --addr`
@@ -115,7 +140,7 @@ nothing and are worth removing so that the next person does not set them and
 wonder why the version did not move:
 
 ```sh
-runway app config unset -a chekhov CHEKHOV_COMMIT CHEKHOV_VERSION
+runway app config rm -a chekhov CHEKHOV_COMMIT CHEKHOV_VERSION
 ```
 
 A development deployment also reports the commit the build was made from -
@@ -237,20 +262,34 @@ or two, not a fix.
 The way out that does not depend on GitKraken is a clone that is used for
 deploying and **never opened in GitKraken**. It needs `--no-local`, or it
 hardlinks the same packs, and the `runway` remote, which is how the CLI knows
-the app. Once:
+the app. `deploy source` has no `-a`: the remote is the only thing that picks
+the app, so there is **one clone per app**, and the directory name says which:
+
+| Clone | Deploys to |
+|---|---|
+| `~/git/codecheck/chekhov-deploy` | `chekhov-dev`, for every live test |
+| `~/git/codecheck/chekhov-deploy-prod` | `chekhov`, production |
+
+Once:
 
 ```sh
 git clone --no-local --branch main ~/git/codecheck/chekhov ~/git/codecheck/chekhov-deploy
-git -C ~/git/codecheck/chekhov-deploy remote add runway ssh://git@deploy.runway.horse:2222/chekhov.git
+git -C ~/git/codecheck/chekhov-deploy remote add runway ssh://git@deploy.runway.horse:2222/chekhov-dev.git
+git clone --no-local --branch main ~/git/codecheck/chekhov ~/git/codecheck/chekhov-deploy-prod
+git -C ~/git/codecheck/chekhov-deploy-prod remote add runway ssh://git@deploy.runway.horse:2222/chekhov.git
 ```
 
 Every deploy, after committing in the working checkout:
 
 ```sh
-cd ~/git/codecheck/chekhov-deploy
+cd ~/git/codecheck/chekhov-deploy   # or chekhov-deploy-prod
+git remote get-url runway           # which app this is about to replace
 git pull --ff-only                  # from the working checkout, commits only
 runway app deploy source -y
 ```
+
+A deploy of a commit the app already runs answers "app is already up-to-date"
+and does not restart; `runway app restart -a <app>` does.
 
 It pulls from the local checkout, so what it deploys is what is committed
 there, pushed or not - the same as deploying from the working checkout, which
@@ -268,7 +307,7 @@ Add webhook.
 
 | Field | Value |
 |---|---|
-| Payload URL | `https://<app>.runway.horse/dispatch` |
+| Payload URL | `https://<app>.pqapp.dev/dispatch` |
 | Content type | `application/json` |
 | Secret | the same value as `CHEKHOV_GH_SECRET_TOKEN` |
 | Events | **Issues** and **Issue comments** only |
@@ -330,9 +369,11 @@ before trusting a change here should read the deployment's own
 
 ## Moving to production
 
-The app that has run against the testing register so far is `chekhov`, and it
-becomes the production one. In this order, so that the testing register is
-never without a bot and the real one never has a development one:
+Done on 2026-10-30 (#37). The app that had run against the testing register
+was `chekhov`, and it became the production one. In this order, so that the
+testing register is never without a bot and the real one never has a
+development one; kept here because a second production deployment, or a move
+to another platform, goes the same way:
 
 1. **Development first.** Create `chekhov-dev` as above, with the existing
    testing-register token, webhook secret and record key moved over to it, and
@@ -348,15 +389,19 @@ never without a bot and the real one never has a development one:
    [chekhov#36](https://github.com/codecheckers/chekhov/issues/36) what broke,
    before production goes anywhere near it.
 2. **A production token**, new, fine-grained, scoped to `codecheckers/register`
-   alone - not the testing one widened; see `github-token.md`.
+   alone - not the testing one widened; see `github-token.md`. An owner
+   approves it under the organisation's Third-party Access → Pending requests
+   before it can read the teams.
 3. **A production record key**: `chekhov record-key`, the private half into
    `chekhov`'s configuration, the public half on the `codecheckers/register`
    line of `record-keys.pub`, committed; see `record-key.md`.
 4. **A new webhook secret**, `openssl rand -hex 32`.
 5. **Switch `chekhov`**: `CHEKHOV_ENV=production`, the new token, secret and
-   record key, `runway app config unset -a chekhov CHEKHOV_TARGET_REPO`, the
+   record key, `runway app config rm -a chekhov CHEKHOV_TARGET_REPO`, the
    Mastodon token with the follow scopes `mastodon-token.md` lists, and
-   `CHEKHOV_ADMIN_ISSUE` on an issue of the real register if one is wanted.
+   `CHEKHOV_ADMIN_ISSUE` on an issue of the real register if one is wanted -
+   removed otherwise, because a number carried over from the testing register
+   names an unrelated issue on the real one.
    `runway app lockdown on -a chekhov`, as proven on `chekhov-dev` in step 1.
    Deploy, and wait for `/healthz` to say `"environment": "production"` and
    `"register": "codecheckers/register"`.
@@ -370,14 +415,22 @@ register, and `chekhov-dev` is untouched.
 
 ## The deployment as it stands
 
-Before the move above: one app, still on the testing register.
+Both apps on runway.horse, owner `chekhovbot`, plan `free-launch`, region
+`ber1`, lockdown on, since 2026-10-30.
 
-| | |
-|---|---|
-| App | `chekhov` on runway.horse, owner `chekhovbot`, plan `free-launch`, region `ber1` |
-| URL | <https://chekhov.pqapp.dev> |
-| Webhook | `codecheckers/testing-dev-register`, hook `680342187`, `issues` and `issue_comment` |
-| Token | fine-grained, `chekhovbot`, one repository, expires 2027-09-17 |
+| | `chekhov` (production) | `chekhov-dev` (development) |
+|---|---|---|
+| URL | <https://chekhov.pqapp.dev> | <https://chekhov-dev.pqapp.dev> |
+| Register | `codecheckers/register` | `codecheckers/testing-dev-register` |
+| Webhook | hook `705217404`, `issues` and `issue_comment` | hook `680342187`, `issues` and `issue_comment` |
+| Token | `chekhov-production`, fine-grained, that register alone, expires 2027-10-31 | fine-grained, that register alone, expires 2027-09-22 |
+| Record key | `gwhsgP7b…`, see `record-keys.pub` | `ynujENA0…`, see `record-keys.pub` |
+| Admin issue | none | testing-dev-register#204 |
+| Deployed from | `~/git/codecheck/chekhov-deploy-prod` | `~/git/codecheck/chekhov-deploy` |
+
+The Mastodon token is the same on both, because it is the same account; the
+settings file decides `public` and following in production, `direct` and no
+following in development.
 
 A config change does **not** rebuild: the image is built from a pushed commit,
 so a new `BP_GO_BUILD_FLAGS` only takes effect with the next deploy of new
@@ -386,7 +439,7 @@ source.
 ## Checking that it works
 
 ```sh
-curl https://<app>.runway.horse/healthz
+curl https://<app>.pqapp.dev/healthz
 ```
 
 In development it answers with the version, the commit, the bot account, the
@@ -400,7 +453,7 @@ reports only status, version, bot, register and environment, and its comments
 carry no footer naming the build.
 
 ```sh
-curl https://<app>.runway.horse/nudges
+curl https://<app>.pqapp.dev/nudges
 ```
 
 `/nudges` is the other read-only endpoint: when the process started, what the
@@ -480,7 +533,7 @@ finish.
 
 ## When it falls over
 
-1. `curl https://<app>.runway.horse/healthz` — is it up, and which version?
+1. `curl https://<app>.pqapp.dev/healthz` — is it up, and which version?
    The version moves only when somebody bumps the constant, so it says which
    release is running rather than which commit. A development deployment also
    reports `commit` when the build carried a stamp, which is the field that

@@ -33,8 +33,8 @@ a method added later that builds its own URL is stopped there, not only here.
 
 ## Creating it
 
-Signed in as `chekhovbot`: Settings → Developer settings → Personal access
-tokens → Fine-grained tokens → Generate new token.
+Signed in as `chekhovbot`: Settings → Access → Credentials → Fine-grained
+access tokens → Generate new token.
 
 | Field | Value |
 |---|---|
@@ -125,11 +125,13 @@ Both halves were established live on codecheckers/testing-dev-register#202: as
 a plain member the write got `403`; as a maintainer it added an existing member;
 as an owner it invited an outsider, which is the capability we then removed.
 
-If the resource owner is the organisation, the request may land in
-Organization settings → Third-party Access → Personal access tokens for an
-owner to approve. Check there when a freshly created token answers 404 to
-everything: a token the organisation has not approved is issued and sees
-nothing.
+If the resource owner is the organisation, the request may land with an owner
+to approve: the organisation's Settings → Third-party Access → Pending
+requests, and **Approve** on the token. Check there when a freshly created
+token cannot read the `editors` team: a token the organisation has not
+approved is issued and sees only what is public, so it still reads the
+register's issues and answers 404 for the team - which looks like a missing
+*Members* permission rather than a pending request.
 
 ## What the token in use actually has
 
