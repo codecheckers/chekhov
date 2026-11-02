@@ -701,7 +701,7 @@ exists; read the issues for what does not.
 | #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
 | #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `codecheckers suggest` done; `invite` split out into its own issue |
-| #27 archive reminder | Implemented (0.23): `check finish` warns about a copy in `codecheckers/` that is not archived, and the sweep reminds the handling editor once the row is in `register.csv`; GitLab is #65 |
+| #27 archive reminder | Done (0.23.1): `check finish` warns about a copy in `codecheckers/` that is not archived, and the sweep reminds the handling editor once the row is in `register.csv`; answered on testing-dev-register#239; GitLab is #65 |
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |
 | #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |
