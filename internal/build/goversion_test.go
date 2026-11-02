@@ -27,6 +27,10 @@ var goDirective = regexp.MustCompile(`(?m)^go (\d+\.\d+)(?:\.\d+)?\s*$`)
 // goPin is a release a workflow pins for actions/setup-go.
 var goPin = regexp.MustCompile(`go-version:\s*['"]?([0-9.]+)['"]?`)
 
+// buildpackPin is the release docs/deployment.md tells the buildpack to build
+// with: "1.26" for BP_GO_VERSION=1.26.*.
+var buildpackPin = regexp.MustCompile(`BP_GO_VERSION=([0-9]+\.[0-9]+)\.\*`)
+
 // moduleRelease is the Go release go.mod names.
 func moduleRelease(t *testing.T) string {
 	t.Helper()
@@ -64,6 +68,26 @@ func TestTheWorkflowsPinTheReleaseGoModNames(t *testing.T) {
 	}
 	if pins == 0 {
 		t.Error("no workflow pins a Go release")
+	}
+}
+
+// The deployment builds with the release go.mod names too, so that what runs
+// is what CI tested: the buildpack otherwise takes its newest Go. The pin
+// lives in each app's configuration, so this holds the page that sets it.
+func TestTheDeploymentDocsPinTheReleaseGoModNames(t *testing.T) {
+	want := moduleRelease(t)
+	raw, err := os.ReadFile("../../docs/deployment.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pins := buildpackPin.FindAllSubmatch(raw, -1)
+	if len(pins) == 0 {
+		t.Fatal("docs/deployment.md sets no BP_GO_VERSION")
+	}
+	for _, pin := range pins {
+		if got := string(pin[1]); got != want {
+			t.Errorf("docs/deployment.md pins Go %s for the buildpack, and go.mod names %s", got, want)
+		}
 	}
 }
 

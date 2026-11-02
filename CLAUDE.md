@@ -746,7 +746,7 @@ These came out of a review and are easy to undo by accident:
   says on stderr what it discarded; re-record when the service is well.
 - **One parser for `type::path`.** `ParseRepositorySpec` is used by the fetch
   path and by CC-REG-003, so the format cannot be defined twice.
-- **Go 1.26**, required by `golang.org/x/image` v0.47 (go-vcr v4 needs 1.24). Both workflows pin it, and the weekly workflow fails once Go no longer supports it.
+- **Go 1.26**, required by `golang.org/x/image` v0.47 (go-vcr v4 needs 1.24). Both workflows pin it, and so does `BP_GO_VERSION` on both apps, or the buildpack builds with its newest Go; the weekly workflow fails once Go no longer supports it.
 
 ## Layout
 

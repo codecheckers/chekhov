@@ -46,6 +46,7 @@ From a checkout of this repository, for the development app:
 ```sh
 runway app create chekhov-dev -y
 runway app config set -a chekhov-dev BP_GO_TARGETS=./cmd/chekhov
+runway app config set -a chekhov-dev 'BP_GO_VERSION=1.26.*'       # the release go.mod names, see below
 runway app config set -a chekhov-dev CHEKHOV_ENV=development
 runway app config set -a chekhov-dev CHEKHOV_TARGET_REPO=codecheckers/testing-dev-register
 runway app config set -a chekhov-dev CHEKHOV_BOT_GH_USER=chekhovbot
@@ -92,6 +93,12 @@ no `unset`.
 
 There is no Dockerfile: the Go buildpack detects the module and builds what
 `BP_GO_TARGETS` names.
+
+**`BP_GO_VERSION` pins the Go release.** The buildpack reads the `go` line of
+`go.mod` as a minimum and otherwise builds with the newest Go it has - 1.27.3
+while CI tested 1.26. The pin is the release `go.mod` names, written as
+`1.26.*` so that patch releases still arrive, and it moves when `go.mod` does;
+`TestTheDeploymentDocsPinTheReleaseGoModNames` holds this page to it.
 
 **The `Procfile` is what starts the bot.** Without one, runway runs the built
 binary as a single `web` process *with no command line arguments*, and
