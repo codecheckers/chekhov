@@ -12,13 +12,13 @@ import (
 // of languages, and one row with nothing declared at all.
 func candidates() []Codechecker {
 	return []Codechecker{
-		{Name: "Ada", Handle: "ada", ORCID: "0000-0000-0000-0001",
+		{Name: "Ada", Handle: "made-up-ada", ORCID: "0000-0000-0000-0001",
 			Fields: terms("geospatial data analysis,containers"), Languages: terms("R, Python")},
-		{Name: "Bo", Handle: "bo", ORCID: "0000-0000-0000-0002",
+		{Name: "Bo", Handle: "made-up-bo", ORCID: "0000-0000-0000-0002",
 			Fields: terms("bioinformatics"), Languages: terms("Python, Perl")},
-		{Name: "Cy", Handle: "cy", ORCID: "0000-0000-0000-0003",
+		{Name: "Cy", Handle: "made-up-cy", ORCID: "0000-0000-0000-0003",
 			Fields: terms("neuroscience"), Languages: terms("R")},
-		{Name: "Di", Handle: "di", ORCID: "0000-0000-0000-0004"},
+		{Name: "Di", Handle: "made-up-di", ORCID: "0000-0000-0000-0004"},
 	}
 }
 
@@ -33,12 +33,12 @@ func TestRank(t *testing.T) {
 		{
 			name:     "a language everybody shares ranks on how much else they share",
 			evidence: Evidence{Languages: []string{"r"}, Fields: []string{"geospatial data analysis"}},
-			want:     []string{"ada", "cy"},
+			want:     []string{"made-up-ada", "made-up-cy"},
 		},
 		{
 			name:     "a field alone is enough to be suggested",
 			evidence: Evidence{Fields: []string{"bioinformatics"}},
-			want:     []string{"bo"},
+			want:     []string{"made-up-bo"},
 		},
 		{
 			name:     "somebody who declared nothing is not suggested, and not an exclusion",
@@ -48,35 +48,35 @@ func TestRank(t *testing.T) {
 		{
 			name:     "an equal score is broken by the handle, so the answer is the same twice",
 			evidence: Evidence{Languages: []string{"r"}},
-			want:     []string{"ada", "cy"},
+			want:     []string{"made-up-ada", "made-up-cy"},
 		},
 		{
 			name:     "an author of the paper is left out by handle",
 			evidence: Evidence{Languages: []string{"r"}},
-			excluded: Excluded{Authors: []string{"@Ada"}},
-			want:     []string{"cy"},
-			left:     []string{"ada"},
+			excluded: Excluded{Authors: []string{"@Made-Up-Ada"}},
+			want:     []string{"made-up-cy"},
+			left:     []string{"made-up-ada"},
 		},
 		{
 			name: "an author is found by ORCID, which is all the two lists share",
 			evidence: Evidence{Languages: []string{"r"},
 				Authors: []check.WorkAuthor{{Name: "A. Da", ORCID: "0000-0000-0000-0001"}}},
-			want: []string{"cy"},
-			left: []string{"ada"},
+			want: []string{"made-up-cy"},
+			left: []string{"made-up-ada"},
 		},
 		{
 			name:     "somebody already on this check is left out",
 			evidence: Evidence{Languages: []string{"r"}},
-			excluded: Excluded{OnThisCheck: []string{"cy"}},
-			want:     []string{"ada"},
-			left:     []string{"cy"},
+			excluded: Excluded{OnThisCheck: []string{"made-up-cy"}},
+			want:     []string{"made-up-ada"},
+			left:     []string{"made-up-cy"},
 		},
 		{
 			name:     "somebody with an open check is left out",
 			evidence: Evidence{Languages: []string{"r"}},
-			excluded: Excluded{OpenChecks: map[string]int{"ada": 1}},
-			want:     []string{"cy"},
-			left:     []string{"ada"},
+			excluded: Excluded{OpenChecks: map[string]int{"made-up-ada": 1}},
+			want:     []string{"made-up-cy"},
+			left:     []string{"made-up-ada"},
 		},
 	}
 
@@ -158,13 +158,13 @@ func TestACommonLanguageDoesNotDecideTheRanking(t *testing.T) {
 		many = append(many, Codechecker{Handle: handle, Languages: terms("R")})
 	}
 	// One person late in the alphabet declares what this paper actually needs.
-	many = append(many, Codechecker{Handle: "zoe", Languages: terms("R, Fortran")})
+	many = append(many, Codechecker{Handle: "made-up-zoe", Languages: terms("R, Fortran")})
 
 	ranking := Rank(many, Evidence{Languages: []string{"r", "fortran"}}, Excluded{}, "")
 	if len(ranking.Suggested) == 0 {
 		t.Fatal("nobody was suggested")
 	}
-	if got := ranking.Suggested[0].Handle; got != "zoe" {
+	if got := ranking.Suggested[0].Handle; got != "made-up-zoe" {
 		t.Errorf("first suggestion is %q, want the one who declares the rare language", got)
 	}
 	if ranking.Matched != len(many) {
@@ -190,7 +190,7 @@ func TestRarity(t *testing.T) {
 // for that check.
 func TestATiedShortlistIsThisChecksOwnAndSaysSo(t *testing.T) {
 	var many []Codechecker
-	for _, handle := range []string{"ada", "bo", "cy", "di", "eve", "fay", "gus", "hal"} {
+	for _, handle := range []string{"made-up-ada", "made-up-bo", "made-up-cy", "made-up-di", "made-up-eve", "made-up-fay", "made-up-gus", "made-up-hal"} {
 		many = append(many, Codechecker{Handle: handle, Languages: terms("R")})
 	}
 	evidence := Evidence{Languages: []string{"r"}}
@@ -247,8 +247,8 @@ func TestRankingReportsWhatWasShared(t *testing.T) {
 // would drop the second silently.
 func TestRankingCountsLanguagesAndFieldsApart(t *testing.T) {
 	people := []Codechecker{
-		{Handle: "ada", Languages: terms("R")},
-		{Handle: "bo", Fields: terms("R")},
+		{Handle: "made-up-ada", Languages: terms("R")},
+		{Handle: "made-up-bo", Fields: terms("R")},
 	}
 	ranking := Rank(people, Evidence{Languages: []string{"R"}, Fields: []string{"R"}}, Excluded{}, "x#1")
 	if !contains(ranking.SharedLanguages, "R") || !contains(ranking.SharedFields, "R") {
@@ -265,13 +265,13 @@ func TestSharedTermsDescribeTheShortlist(t *testing.T) {
 		many = append(many, Codechecker{Handle: handle, Languages: terms("Fortran")})
 	}
 	// Matches on a common language, so ranks below all five of the above.
-	many = append(many, Codechecker{Handle: "zoe", Languages: terms("Fortran, R")})
+	many = append(many, Codechecker{Handle: "made-up-zoe", Languages: terms("Fortran, R")})
 
 	ranking := Rank(many, Evidence{Languages: []string{"Fortran", "R"}}, Excluded{}, "x#1")
 	if len(ranking.Suggested) != Most {
 		t.Fatalf("suggested %d", len(ranking.Suggested))
 	}
-	if contains(ranking.SharedLanguages, "R") && !suggests(ranking, "zoe") {
+	if contains(ranking.SharedLanguages, "R") && !suggests(ranking, "made-up-zoe") {
 		t.Errorf("shared languages %v name R, which nobody shown shares",
 			ranking.SharedLanguages)
 	}

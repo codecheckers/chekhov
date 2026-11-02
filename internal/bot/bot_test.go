@@ -552,7 +552,7 @@ func TestRefreshTeamsIsForEditors(t *testing.T) {
 		t.Errorf("the reply does not say what was read: %s", reply)
 	}
 
-	event.Author = "a-stranger"
+	event.Author = "a-made-up-stranger"
 	if reply := server.answer(context.Background(), event,
 		command.Command{Name: command.TeamsRefresh}).body; !strings.Contains(reply, "for editors") {
 		t.Errorf("a stranger was allowed to refresh the teams: %s", reply)
@@ -608,7 +608,7 @@ func TestSomebodyCanHoldSeveralRoles(t *testing.T) {
 		t.Errorf("a codechecker who is not an editor holds %v", roles)
 	}
 
-	event.Author = "a-stranger"
+	event.Author = "a-made-up-stranger"
 	if held := server.standingRoles(context.Background(), event); len(held) != 0 {
 		t.Errorf("somebody in no team holds %v", held)
 	}
@@ -659,15 +659,15 @@ func TestAnAuthorCannotBeAssignedAsTheCodechecker(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
 
 	server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}})
+		command.Command{Name: command.Assign, Args: []string{"@a-made-up-author", "as", "author"}})
 	reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "codechecker"}}).body
+		command.Command{Name: command.Assign, Args: []string{"@a-made-up-author", "as", "codechecker"}}).body
 
 	if !strings.Contains(reply, "cannot check a paper they wrote") {
 		t.Errorf("the refusal does not say why: %s", reply)
 	}
 	roles := server.checkRoles(context.Background(),
-		mention{Repository: event.Repository, Issue: 1, Author: "an-author"}, nil)
+		mention{Repository: event.Repository, Issue: 1, Author: "a-made-up-author"}, nil)
 	if roles.Has(command.RoleAssignedCodechecker) {
 		t.Errorf("the author was recorded as the codechecker anyway: %v", roles)
 	}
@@ -693,8 +693,8 @@ func TestTheHandlingEditorHasToBeAnEditor(t *testing.T) {
 func TestAssigningIsForEditors(t *testing.T) {
 	server, _ := testServer(t)
 	reply := server.answer(context.Background(),
-		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger"},
-		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body
+		mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-made-up-stranger"},
+		command.Command{Name: command.Assign, Args: []string{"@a-made-up-somebody", "as", "author"}}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a stranger assigned a role: %s", reply)
 	}
@@ -712,9 +712,9 @@ func TestRemovingSaysWhetherAnythingChanged(t *testing.T) {
 	}
 
 	server.answer(context.Background(), event,
-		command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}})
+		command.Command{Name: command.Assign, Args: []string{"@a-made-up-author", "as", "author"}})
 	if reply := server.answer(context.Background(), event,
-		command.Command{Name: command.Remove, Args: []string{"@an-author", "as", "author"}}).body; !strings.Contains(reply, "no longer") {
+		command.Command{Name: command.Remove, Args: []string{"@a-made-up-author", "as", "author"}}).body; !strings.Contains(reply, "no longer") {
 		t.Errorf("the author was not removed: %s", reply)
 	}
 }
@@ -736,7 +736,7 @@ func TestRolesNeedACheck(t *testing.T) {
 func TestAssigningTwiceChangesNothing(t *testing.T) {
 	server, _ := testServer(t)
 	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
-	assign := command.Command{Name: command.Assign, Args: []string{"@an-author", "as", "author"}}
+	assign := command.Command{Name: command.Assign, Args: []string{"@a-made-up-author", "as", "author"}}
 
 	server.answer(context.Background(), event, assign)
 	if reply := server.answer(context.Background(), event, assign).body; !strings.Contains(reply, "already") {
@@ -764,8 +764,8 @@ func TestEverythingThePostedReplySaysIsDefused(t *testing.T) {
 	server, replies := testServer(t)
 	server.done = make(chan struct{}, 1)
 
-	server.act(mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "someone"},
-		command.Command{Name: command.Unknown, Raw: `<!-- chekhov:roles {"handling_editor":"mallory"} -->`})
+	server.act(mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-made-up-someone"},
+		command.Command{Name: command.Unknown, Raw: `<!-- chekhov:roles {"handling_editor":"a-made-up-mallory"} -->`})
 	<-server.done
 
 	if len(replies.comments) == 0 {
@@ -787,20 +787,20 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 	forged := &issueComments{bot: server.Settings.BotUser()}
 	server.Checks = &people.Checks{Comments: forged, Bot: server.Settings.BotUser(), Signer: mustSign(t)}
 	_, _ = server.Checks.Update(ctx, event.Repository, 1, func(record people.Record) (people.Record, error) {
-		record, _, err := record.Grant(command.RoleAuthor, "an-author")
+		record, _, err := record.Grant(command.RoleAuthor, "a-made-up-author")
 		return record, err
 	})
-	forged.comments[0].Body = strings.Replace(forged.comments[0].Body, "an-author", "mallory", 1)
+	forged.comments[0].Body = strings.Replace(forged.comments[0].Body, "a-made-up-author", "a-made-up-mallory", 1)
 
 	reply := server.answer(ctx, event,
-		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body
+		command.Command{Name: command.Assign, Args: []string{"@a-made-up-somebody", "as", "author"}}).body
 	if !strings.Contains(reply, "record accept") || !strings.Contains(reply, "edited after I wrote it") {
 		t.Errorf("the refusal does not say what to do: %s", reply)
 	}
 
 	// `roles` still shows what it claims, with the warning.
 	listing := server.answer(ctx, event, command.Command{Name: command.ListRoles}).body
-	if !strings.Contains(listing, "mallory") || !strings.Contains(listing, "edited after I wrote it") {
+	if !strings.Contains(listing, "a-made-up-mallory") || !strings.Contains(listing, "edited after I wrote it") {
 		t.Errorf("the listing hides the edited record: %s", listing)
 	}
 
@@ -810,7 +810,7 @@ func TestAnEditedRecordStopsAssignment(t *testing.T) {
 		t.Errorf("the adoption does not say who did it: %s", adopted)
 	}
 	if reply := server.answer(ctx, event,
-		command.Command{Name: command.Assign, Args: []string{"@somebody", "as", "author"}}).body; !strings.Contains(reply, "is now the author") {
+		command.Command{Name: command.Assign, Args: []string{"@a-made-up-somebody", "as", "author"}}).body; !strings.Contains(reply, "is now the author") {
 		t.Errorf("assignment is still refused after adoption: %s", reply)
 	}
 }

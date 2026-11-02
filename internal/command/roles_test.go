@@ -214,7 +214,7 @@ func TestParseAssignmentReadsATeamOverride(t *testing.T) {
 	}
 
 	// A team means nothing for somebody who is not put in one.
-	if _, _, _, err = ParseAssignment([]string{"@an-author", "as", "author", "in", "codecheckers"}); err == nil {
+	if _, _, _, err = ParseAssignment([]string{"@a-made-up-author", "as", "author", "in", "codecheckers"}); err == nil {
 		t.Error("a team was accepted for an author")
 	}
 	// And "in" with nothing after it is a question, not a team.

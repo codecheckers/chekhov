@@ -20,7 +20,7 @@ func TestAnEditedRecordIsNotedAsNotTheBotsOwn(t *testing.T) {
 		Record{AssignedCodechecker: "an-honest-codechecker"})
 	// A collaborator edits the block, as they may: the handles change, the
 	// signature does not.
-	edited := strings.Replace(honest, "an-honest-codechecker", "mallory", 1)
+	edited := strings.Replace(honest, "an-honest-codechecker", "a-made-up-mallory", 1)
 	issue := &comments{comments: []Comment{{ID: 1, Author: "chekhovbot", Body: edited}}}
 
 	reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
@@ -31,20 +31,20 @@ func TestAnEditedRecordIsNotedAsNotTheBotsOwn(t *testing.T) {
 		t.Errorf("an edited record was accepted: %+v", reading)
 	}
 	// What it says is still reported: hiding it helps nobody.
-	if reading.Record.AssignedCodechecker != "mallory" {
+	if reading.Record.AssignedCodechecker != "a-made-up-mallory" {
 		t.Errorf("the reading does not say what the record now claims: %+v", reading.Record)
 	}
 }
 
 // A record the bot did not write grants nothing and changes nothing.
 func TestATamperedRecordRefusesEveryChange(t *testing.T) {
-	forged := comment(t, newKey(), "codecheckers/testing", 1, Record{HandlingEditor: "mallory"})
+	forged := comment(t, newKey(), "codecheckers/testing", 1, Record{HandlingEditor: "a-made-up-mallory"})
 	issue := &comments{comments: []Comment{{ID: 1, Author: "chekhovbot", Body: forged}}}
 	store := checks(t, issue)
 
 	_, err := store.Update(context.Background(), "codecheckers/testing", 1,
 		func(record Record) (Record, error) {
-			record, _, err := record.Grant(command.RoleAuthor, "an-author")
+			record, _, err := record.Grant(command.RoleAuthor, "a-made-up-author")
 			return record, err
 		})
 	if !errors.Is(err, ErrTampered) {
@@ -195,7 +195,7 @@ func TestWithoutAKeyRecordsAreWrittenUnsigned(t *testing.T) {
 	store := &Checks{Comments: issue, Bot: "chekhovbot", Signer: unsigned}
 	ctx := context.Background()
 	if _, err := store.Update(ctx, "codecheckers/testing", 1, func(record Record) (Record, error) {
-		record, _, err := record.Grant(command.RoleAuthor, "an-author")
+		record, _, err := record.Grant(command.RoleAuthor, "a-made-up-author")
 		return record, err
 	}); err != nil {
 		t.Fatalf("update: %v", err)
@@ -243,9 +243,9 @@ func TestAnEditedTableIsAnEditedRecord(t *testing.T) {
 	honest := comment(t, signer(t), "codecheckers/testing", 1,
 		Record{AssignedCodechecker: "an-honest-codechecker"})
 	// The record itself untouched; only what a reader sees.
-	edited := strings.Replace(honest, "| an-honest-codechecker |", "| mallory |", 1)
+	edited := strings.Replace(honest, "| an-honest-codechecker |", "| a-made-up-mallory |", 1)
 	if edited == honest {
-		edited = strings.Replace(honest, "an-honest-codechecker", "mallory", 2)
+		edited = strings.Replace(honest, "an-honest-codechecker", "a-made-up-mallory", 2)
 	}
 	issue := &comments{comments: []Comment{{ID: 1, Author: "chekhovbot", Body: edited}}}
 
@@ -267,7 +267,7 @@ func TestOnlyTheBytesAsWrittenVerify(t *testing.T) {
 		strings.Replace(honest, `{"v":1`, `{ "v":1`, 1),
 		strings.Replace(honest, `"roles":`, `"extra":"x","roles":`, 1),
 		strings.Replace(honest, `"handling_editor":"nuest"`,
-			`"handling_editor":"mallory","handling_editor":"nuest"`, 1),
+			`"handling_editor":"a-made-up-mallory","handling_editor":"nuest"`, 1),
 	} {
 		issue := &comments{comments: []Comment{{ID: 1, Author: "chekhovbot", Body: rewritten}}}
 		reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
@@ -300,7 +300,7 @@ func TestTheCheckIdentityIgnoresCase(t *testing.T) {
 // generated rather than signed.
 func TestTheRecordHasTheDocumentedShape(t *testing.T) {
 	body := comment(t, signer(t), "codecheckers/register", 42, Record{
-		HandlingEditor: "nuest", AssignedCodechecker: "a-codechecker", Authors: []string{"an-author"},
+		HandlingEditor: "nuest", AssignedCodechecker: "a-codechecker", Authors: []string{"a-made-up-author"},
 		Certificate: "2026-001",
 	})
 	lines := strings.Split(body, "\n")

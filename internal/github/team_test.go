@@ -129,7 +129,7 @@ func TestThereIsNoWayToRemoveAnybody(t *testing.T) {
 func TestAnotherOrganisationIsRefused(t *testing.T) {
 	client, requests := adding(t, answers("User", membershipActive, TeamRoleMember))
 
-	_, err := client.AddToTeam(context.Background(), "someone-else", "codecheckers", "a-codechecker")
+	_, err := client.AddToTeam(context.Background(), "a-made-up-organisation", "codecheckers", "a-codechecker")
 	if err == nil {
 		t.Fatal("membership of another organisation was changed")
 	}
@@ -160,8 +160,8 @@ func TestAnotherTeamIsRefused(t *testing.T) {
 // and next door is the endpoint that makes owners.
 func TestAHandleCannotRedirectTheRequest(t *testing.T) {
 	escapes := []string{
-		"../../orgs/codecheckers/memberships/an-intruder",
-		"a-codechecker/../../memberships/an-intruder",
+		"../../orgs/codecheckers/memberships/a-made-up-intruder",
+		"a-codechecker/../../memberships/a-made-up-intruder",
 		"a-codechecker?role=admin",
 		"a-codechecker#x",
 		"..",
@@ -389,7 +389,7 @@ func TestOwnersComeFromTheOrganisation(t *testing.T) {
 	if len(owners) != 2 || owners[0] != "an-owner" {
 		t.Errorf("owners = %v", owners)
 	}
-	if _, err := client.Owners(context.Background(), "someone-else"); err == nil {
+	if _, err := client.Owners(context.Background(), "a-made-up-organisation"); err == nil {
 		t.Error("the owners of another organisation were read")
 	}
 }
@@ -401,14 +401,14 @@ func TestOrganisationMembershipTellsNoFromBroken(t *testing.T) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/members/a-member"):
 			w.WriteHeader(http.StatusNoContent)
-		case strings.HasSuffix(r.URL.Path, "/members/a-stranger"):
+		case strings.HasSuffix(r.URL.Path, "/members/a-made-up-stranger"):
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})
 
-	for handle, want := range map[string]bool{"a-member": true, "a-stranger": false} {
+	for handle, want := range map[string]bool{"a-member": true, "a-made-up-stranger": false} {
 		in, err := client.InOrganisation(context.Background(), "codecheckers", handle)
 		if err != nil {
 			t.Errorf("%s: %v", handle, err)
@@ -417,7 +417,7 @@ func TestOrganisationMembershipTellsNoFromBroken(t *testing.T) {
 			t.Errorf("%s in the organisation = %v, want %v", handle, in, want)
 		}
 	}
-	if _, err := client.InOrganisation(context.Background(), "codecheckers", "a-bad-day"); err == nil {
+	if _, err := client.InOrganisation(context.Background(), "codecheckers", "a-made-up-bad-day"); err == nil {
 		t.Error("a 500 should be an error, not an answer of no")
 	}
 	if _, err := client.InOrganisation(context.Background(), "codecheckers", "../x"); err == nil {

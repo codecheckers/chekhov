@@ -225,7 +225,7 @@ func TestAnEditedRecordSaysNothingAboutLabels(t *testing.T) {
 	record := server.Checks.Comments.(*issueComments)
 	for i := range record.comments {
 		record.comments[i].Body = strings.Replace(record.comments[i].Body,
-			"a-codechecker", "an-intruder", 1)
+			"a-codechecker", "a-made-up-intruder", 1)
 	}
 
 	if reply := answer(t, server, command.ListRoles, nil, ""); strings.Contains(reply,

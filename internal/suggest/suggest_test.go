@@ -17,12 +17,12 @@ const (
 	institutionPath = "/lists/institutional-codecheckers.csv"
 
 	volunteers = "name,handle,ORCID,contact,fields,languages,ecr_until,ecr_checked,fediverse\n" +
-		"Ada,@ada,0000-0000-0000-0001,see ORCID page,\"geospatial data analysis,containers\"," +
+		"Ada,@made-up-ada,0000-0000-0000-0001,see ORCID page,\"geospatial data analysis,containers\"," +
 		"\"R, Python\",NA,NA,\n" +
-		"Bo,@bo,0000-0000-0000-0002,bo@example.invalid,bioinformatics,\"Python(expert), Perl\",NA,NA,\n"
+		"Bo,@made-up-bo,0000-0000-0000-0002,bo@example.invalid,bioinformatics,\"Python(expert), Perl\",NA,NA,\n"
 	institutional = "name,handle,ORCID,institution,fediverse\n" +
-		"Cy,@cy,0000-0000-0000-0003,FAKE University,\n" +
-		"Ada,@ada,0000-0000-0000-0001,FAKE University,\n"
+		"Cy,@made-up-cy,0000-0000-0000-0003,FAKE University,\n" +
+		"Ada,@made-up-ada,0000-0000-0000-0001,FAKE University,\n"
 )
 
 type world struct {
@@ -60,7 +60,7 @@ func TestLoadReadsEveryList(t *testing.T) {
 	if len(unread) != 0 {
 		t.Fatalf("could not read %v", unread)
 	}
-	if got := handlesOf(asSuggestions(codecheckers)); !equal(got, []string{"ada", "bo", "cy"}) {
+	if got := handlesOf(asSuggestions(codecheckers)); !equal(got, []string{"made-up-ada", "made-up-bo", "made-up-cy"}) {
 		t.Errorf("read %v, want ada, bo and cy once each", got)
 	}
 	if got := codecheckers[1].Languages; !equal(got, []string{"Python", "Perl"}) {
@@ -299,15 +299,15 @@ func TestInstitutionOfReadsTheListsRatherThanTheirNames(t *testing.T) {
 		institution string
 		volunteers  bool
 	}{
-		{handle: "@cy", institution: "FAKE University"},
+		{handle: "@made-up-cy", institution: "FAKE University"},
 		// Ada is on both lists, and checking for an institution is the fact
 		// that matters: she counts as institutional, and the caller is told
 		// she is on the ordinary list as well so that a reply can say so.
-		{handle: "ada", institution: "FAKE University", volunteers: true},
-		{handle: "bo", volunteers: true},
+		{handle: "made-up-ada", institution: "FAKE University", volunteers: true},
+		{handle: "made-up-bo", volunteers: true},
 		// Somebody nothing names, which is also what a list that could not be
 		// read says about everybody: what was found, never what was missing.
-		{handle: "a-stranger"},
+		{handle: "a-made-up-stranger"},
 		{handle: ""},
 	} {
 		institution, volunteers := InstitutionOf(world.services, world.settings, test.handle)
@@ -324,7 +324,7 @@ func TestInstitutionOfSkipsAListItCouldNotRead(t *testing.T) {
 	world := newWorld(t)
 	world.Remove(institutionPath)
 
-	if institution, volunteers := InstitutionOf(world.services, world.settings, "cy"); institution != "" || volunteers {
+	if institution, volunteers := InstitutionOf(world.services, world.settings, "made-up-cy"); institution != "" || volunteers {
 		t.Errorf("an unreadable list said %q, also a volunteer %v", institution, volunteers)
 	}
 }

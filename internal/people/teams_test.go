@@ -81,7 +81,7 @@ func TestConcurrentQuestionsCostOneRead(t *testing.T) {
 		asking.Add(1)
 		go func() {
 			defer asking.Done()
-			teams.Has(context.Background(), "editors", "someone")
+			teams.Has(context.Background(), "editors", "a-made-up-someone")
 		}()
 	}
 	asking.Wait()
@@ -149,7 +149,7 @@ func TestAFailedRefreshKeepsTheListItHas(t *testing.T) {
 // asks.
 func TestRefreshFillsTheCacheBeforeAnythingAsks(t *testing.T) {
 	now := time.Now()
-	source := &reader{members: map[string][]string{"editors": {"nuest"}, "codecheckers": {"nuest", "someone"}}}
+	source := &reader{members: map[string][]string{"editors": {"nuest"}, "codecheckers": {"nuest", "a-made-up-someone"}}}
 	teams := newTeams(t, source, &now)
 
 	states := teams.Refresh(context.Background(), "editors", "codecheckers")

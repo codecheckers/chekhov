@@ -443,7 +443,7 @@ func TestCertificateSaysWhichIdentifierTheCheckHolds(t *testing.T) {
 
 	// Somebody who may run neither is not offered them.
 	reply = server.answer(context.Background(), mention{
-		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger",
+		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-made-up-stranger",
 	}, command.Command{Name: command.Certificate}).body
 	if strings.Contains(reply, "Also under") {
 		t.Errorf("an editor's commands were offered to anybody:\n%s", reply)
@@ -479,7 +479,7 @@ func TestASubcommandHintIsOnlyForWhoMayRunIt(t *testing.T) {
 	server, _, _ := registered(t)
 	parsed, _ := command.Parse("@chekhovbot certificate nxt")
 	reply := server.answer(context.Background(), mention{
-		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger",
+		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-made-up-stranger",
 	}, parsed).body
 	if strings.Contains(reply, "certificate next") {
 		t.Errorf("an editor's command was suggested to anybody:\n%s", reply)
@@ -487,7 +487,7 @@ func TestASubcommandHintIsOnlyForWhoMayRunIt(t *testing.T) {
 	// Nor is the typo run as an argument: `strt` is not a repository.
 	parsed, _ = command.Parse("@chekhovbot check strt")
 	reply = server.answer(context.Background(), mention{
-		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger",
+		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-made-up-stranger",
 	}, parsed).body
 	if !strings.Contains(reply, "I do not know `@chekhovbot check strt`.") || strings.Contains(reply, "check start") {
 		t.Errorf("a typo of a command they may not run was not answered as a typo:\n%s", reply)

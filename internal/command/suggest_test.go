@@ -79,7 +79,7 @@ func TestSuggestionsReplyWithNobodyToSuggest(t *testing.T) {
 
 func TestSuggestionsReplyProtectsTheTable(t *testing.T) {
 	reply := SuggestionsReply(Suggestions{Considered: 1, Candidates: []Candidate{
-		{Handle: "a-codechecker", Name: "A | Codechecker @somebody", Why: "R | Python"},
+		{Handle: "a-codechecker", Name: "A | Codechecker @a-made-up-somebody", Why: "R | Python"},
 	}})
 	if strings.Contains(reply, "\\\\|") {
 		t.Errorf("a pipe is escaped twice, which renders as a backslash and a broken row:\n%s", reply)
@@ -87,7 +87,7 @@ func TestSuggestionsReplyProtectsTheTable(t *testing.T) {
 	if !strings.Contains(reply, `\|`) {
 		t.Errorf("a pipe in a name is not escaped, so it ends the row:\n%s", reply)
 	}
-	if strings.Contains(reply, "@somebody") {
+	if strings.Contains(reply, "@a-made-up-somebody") {
 		t.Errorf("a name out of the lists mentions an account:\n%s", reply)
 	}
 }

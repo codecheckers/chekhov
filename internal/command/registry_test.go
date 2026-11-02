@@ -310,7 +310,7 @@ func TestTheBuildsCommitIsNamedOnlyWhenProvenAndOnlyInDevelopment(t *testing.T) 
 // would notify every owner again.
 func TestTheRequestToTheOwnersIsBoundedAndDoesNotInviteARetry(t *testing.T) {
 	many := []string{"one", "two", "three", "four", "five"}
-	reply := OutsideReply(OutsideRequest{Handle: "a-newcomer", Role: RoleAssignedCodechecker,
+	reply := OutsideReply(OutsideRequest{Handle: "a-made-up-newcomer", Role: RoleAssignedCodechecker,
 		Organisation: "codecheckers", Team: "codecheckers", Owners: many})
 
 	notified := strings.Count(reply, "@one") + strings.Count(reply, "@two") +
@@ -328,7 +328,7 @@ func TestTheRequestToTheOwnersIsBoundedAndDoesNotInviteARetry(t *testing.T) {
 		t.Errorf("the reply does not say what running it early comes to:\n%s", reply)
 	}
 	// The subject is discussed, not summoned.
-	if !strings.Contains(reply, "`@a-newcomer`") {
+	if !strings.Contains(reply, "`@a-made-up-newcomer`") {
 		t.Errorf("the person being assigned should be in backticks:\n%s", reply)
 	}
 }
@@ -336,7 +336,7 @@ func TestTheRequestToTheOwnersIsBoundedAndDoesNotInviteARetry(t *testing.T) {
 // Asking nobody must not panic: the last branch of the conjunction indexes
 // one before the end.
 func TestTheRequestToTheOwnersSurvivesAnEmptyList(t *testing.T) {
-	reply := OutsideReply(OutsideRequest{Handle: "a-newcomer", Role: RoleAssignedCodechecker,
+	reply := OutsideReply(OutsideRequest{Handle: "a-made-up-newcomer", Role: RoleAssignedCodechecker,
 		Organisation: "codecheckers", Team: "codecheckers"})
 	if !strings.Contains(reply, "could not find one") {
 		t.Errorf("reply:\n%s", reply)
@@ -349,7 +349,7 @@ func TestTheRequestToTheOwnersSurvivesAnEmptyList(t *testing.T) {
 // Only a role that puts somebody in a team may promise one. An author is not a
 // codechecker, and the handling editor is an editor already.
 func TestTheRequestPromisesNoTeamForARoleThatNeedsNone(t *testing.T) {
-	reply := OutsideReply(OutsideRequest{Handle: "an-author", Role: RoleAuthor,
+	reply := OutsideReply(OutsideRequest{Handle: "a-made-up-author", Role: RoleAuthor,
 		Organisation: "codecheckers", Owners: []string{"an-owner"}})
 	if strings.Contains(reply, "I put them in") {
 		t.Errorf("the reply promises a team for an author:\n%s", reply)

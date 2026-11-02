@@ -176,7 +176,7 @@ func organised(t *testing.T) (*Server, *organisation) {
 func TestAssigningSomebodyOutsideTheOrganisationAsksTheOwners(t *testing.T) {
 	server, replies := organised(t)
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
 	for _, want := range []string{"@an-owner", "@another-owner", "not in the `codecheckers` organisation",
 		"I will handle the rest", "codecheckers/codecheckers"} {
@@ -199,12 +199,12 @@ func TestAssigningSomebodyOutsideTheOrganisationAsksTheOwners(t *testing.T) {
 func TestTheOwnersAreMentionedAndTheSubjectIsNot(t *testing.T) {
 	server, _ := organised(t)
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
 	if !strings.Contains(reply, "@an-owner") || strings.Contains(reply, "`@an-owner`") {
 		t.Errorf("an owner is not mentioned in a way that notifies:\n%s", reply)
 	}
-	if !strings.Contains(reply, "`@a-newcomer`") {
+	if !strings.Contains(reply, "`@a-made-up-newcomer`") {
 		t.Errorf("the person being discussed should be in backticks:\n%s", reply)
 	}
 }
@@ -215,7 +215,7 @@ func TestOwnersThatCouldNotBeReadAreReported(t *testing.T) {
 	server, replies := organised(t)
 	replies.ownersErr = errors.New("GitHub answered 403")
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 	if !strings.Contains(reply, "could not read who the owners are") {
 		t.Errorf("reply:\n%s", reply)
 	}
@@ -230,7 +230,7 @@ func TestAMembershipThatCouldNotBeReadRecordsTheRoleAndTouchesNoTeam(t *testing.
 	server, replies := organised(t)
 	replies.membersErr = errors.New("GitHub answered 500")
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 	if strings.Contains(reply, "not in the") {
 		t.Errorf("an outage refused a role:\n%s", reply)
 	}
@@ -247,7 +247,7 @@ func TestAMembershipThatCouldNotBeReadRecordsTheRoleAndTouchesNoTeam(t *testing.
 func TestAPreviewRecordsTheRoleAndTouchesNoTeam(t *testing.T) {
 	server, _ := testServer(t)
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 	if strings.Contains(reply, "not in the") || strings.Contains(reply, "I have put") {
 		t.Errorf("a preview refused a role or claimed a team change:\n%s", reply)
 	}
@@ -257,17 +257,17 @@ func TestAPreviewRecordsTheRoleAndTouchesNoTeam(t *testing.T) {
 // owners' half was the invitation, the team is the bot's.
 func TestAssigningACodecheckerPutsThemInTheTeam(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
-	if len(replies.added) != 1 || replies.added[0] != "a-newcomer" {
+	if len(replies.added) != 1 || replies.added[0] != "a-made-up-newcomer" {
 		t.Fatalf("the bot added %v", replies.added)
 	}
 	if replies.addedTo[0] != "codecheckers" {
 		t.Errorf("added to %q, want the ordinary team", replies.addedTo[0])
 	}
-	if !strings.Contains(reply, "I have put `@a-newcomer` in `codecheckers/codecheckers`") {
+	if !strings.Contains(reply, "I have put `@a-made-up-newcomer` in `codecheckers/codecheckers`") {
 		t.Errorf("the reply does not say what was done:\n%s", reply)
 	}
 }
@@ -275,9 +275,9 @@ func TestAssigningACodecheckerPutsThemInTheTeam(t *testing.T) {
 // An author is not a codechecker and does not belong in a codechecker team.
 func TestAssigningAnAuthorTouchesNoTeam(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["an-author"] = true
+	replies.members["a-made-up-author"] = true
 
-	answer(t, server, command.Assign, []string{"@an-author", "as", "author"}, "")
+	answer(t, server, command.Assign, []string{"@a-made-up-author", "as", "author"}, "")
 	if len(replies.added) != 0 {
 		t.Errorf("an author was put in a codechecker team: %v", replies.added)
 	}
@@ -299,10 +299,10 @@ func TestACodecheckerAlreadyInTheTeamIsNotAddedAgain(t *testing.T) {
 // allow-list exists for.
 func TestAnInstitutionalCheckUsesTheInstitutionalTeam(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 	replies.labelled("needs codechecker", "institution")
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
 	if len(replies.addedTo) != 1 || replies.addedTo[0] != "institutional-codecheckers" {
 		t.Fatalf("added to %v, want the institutional team", replies.addedTo)
@@ -313,8 +313,8 @@ func TestAnInstitutionalCheckUsesTheInstitutionalTeam(t *testing.T) {
 
 	// And the ask to the owners names it too, so they know where the person is
 	// headed before they invite them.
-	delete(replies.members, "a-newcomer")
-	asked := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	delete(replies.members, "a-made-up-newcomer")
+	asked := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 	if !strings.Contains(asked, "codecheckers/institutional-codecheckers") {
 		t.Errorf("the request to the owners does not name the institutional team:\n%s", asked)
 	}
@@ -326,10 +326,10 @@ func TestAnInstitutionalCheckUsesTheInstitutionalTeam(t *testing.T) {
 // asked.
 func TestAnOrdinaryCheckUsesTheOrdinaryTeam(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 	replies.labelled("needs codechecker")
 
-	answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 	if len(replies.addedTo) != 1 || replies.addedTo[0] != "codecheckers" {
 		t.Errorf("added to %v, want the ordinary team", replies.addedTo)
 	}
@@ -341,22 +341,22 @@ func TestAnOrdinaryCheckUsesTheOrdinaryTeam(t *testing.T) {
 // labels do not.
 func TestAnEditorCanNameTheTeamEitherWay(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 
 	// An institutional check, overridden to the ordinary team.
 	replies.labelled("institution")
 	answer(t, server, command.Assign,
-		[]string{"@a-newcomer", "as", "codechecker", "in", "codecheckers"}, "")
+		[]string{"@a-made-up-newcomer", "as", "codechecker", "in", "codecheckers"}, "")
 	if len(replies.addedTo) != 1 || replies.addedTo[0] != "codecheckers" {
 		t.Fatalf("added to %v, want the ordinary team the editor named", replies.addedTo)
 	}
 
 	// An ordinary check, overridden to the institutional team.
 	server, replies = organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 	replies.labelled("needs codechecker")
 	answer(t, server, command.Assign,
-		[]string{"@a-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
+		[]string{"@a-made-up-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
 	if len(replies.addedTo) != 1 || replies.addedTo[0] != "institutional-codecheckers" {
 		t.Errorf("added to %v, want the institutional team the editor named", replies.addedTo)
 	}
@@ -366,10 +366,10 @@ func TestAnEditorCanNameTheTeamEitherWay(t *testing.T) {
 // leaving the request to be refused by the fence.
 func TestATeamOutsideTheAllowListIsRefusedWithTheList(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 
 	reply := answer(t, server, command.Assign,
-		[]string{"@a-newcomer", "as", "codechecker", "in", "editors"}, "")
+		[]string{"@a-made-up-newcomer", "as", "codechecker", "in", "editors"}, "")
 	if len(replies.added) != 0 {
 		t.Errorf("a write went out for an unmanaged team: %v", replies.addedTo)
 	}
@@ -386,7 +386,7 @@ func TestTheNamedTeamIsInTheRequestToTheOwners(t *testing.T) {
 	server, _ := organised(t)
 
 	reply := answer(t, server, command.Assign,
-		[]string{"@a-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
+		[]string{"@a-made-up-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
 	if !strings.Contains(reply, "codecheckers/institutional-codecheckers") {
 		t.Errorf("the request does not name the team the editor chose:\n%s", reply)
 	}
@@ -397,10 +397,10 @@ func TestTheNamedTeamIsInTheRequestToTheOwners(t *testing.T) {
 // which an editor would read as "the team was handled".
 func TestAMembershipReadThatFailedStillAddsTheCodechecker(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 	replies.teamErr = errors.New("GitHub answered 500")
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
 	if len(replies.added) != 1 {
 		t.Fatalf("the add was skipped after a failed read: %v", replies.added)
@@ -416,11 +416,11 @@ func TestAMembershipReadThatFailedStillAddsTheCodechecker(t *testing.T) {
 // did, or the reply would read as though the owners had been notified.
 func TestAConfiguredOwnersListIsAskedInsteadOfTheOrganisation(t *testing.T) {
 	server, replies := organised(t)
-	server.Settings.Chekhov.Teams.Owners = []string{"@a-tester"}
+	server.Settings.Chekhov.Teams.Owners = []string{"@a-made-up-tester"}
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
-	if !strings.Contains(reply, "@a-tester") {
+	if !strings.Contains(reply, "@a-made-up-tester") {
 		t.Errorf("the configured tester was not asked:\n%s", reply)
 	}
 	for _, owner := range replies.owners {
@@ -447,10 +447,10 @@ func TestTheShippedDevelopmentSettingsDoNotNotifyTheOwners(t *testing.T) {
 // would leave the editor believing the team was handled.
 func TestAPendingTeamMembershipIsSaidRatherThanIgnored(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
-	replies.pending["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
+	replies.pending["a-made-up-newcomer"] = true
 
-	reply := answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 
 	if len(replies.added) != 0 {
 		t.Errorf("somebody with a pending membership was added again: %v", replies.added)
@@ -467,20 +467,20 @@ func TestAPendingTeamMembershipIsSaidRatherThanIgnored(t *testing.T) {
 // saying "already" and stopping would silently ignore what was asked for.
 func TestReassigningToAnotherTeamStillChangesTheTeam(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 
 	// First time: the role is new, and the ordinary team follows.
-	answer(t, server, command.Assign, []string{"@a-newcomer", "as", "codechecker"}, "")
+	answer(t, server, command.Assign, []string{"@a-made-up-newcomer", "as", "codechecker"}, "")
 	if len(replies.addedTo) != 1 || replies.addedTo[0] != "codecheckers" {
 		t.Fatalf("added to %v", replies.addedTo)
 	}
-	replies.inTeam["a-newcomer"] = true
+	replies.inTeam["a-made-up-newcomer"] = true
 
 	// Second time, naming the other team: the role is unchanged and the team
 	// is not.
-	replies.inTeam["a-newcomer"] = false
+	replies.inTeam["a-made-up-newcomer"] = false
 	reply := answer(t, server, command.Assign,
-		[]string{"@a-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
+		[]string{"@a-made-up-newcomer", "as", "codechecker", "in", "institutional-codecheckers"}, "")
 
 	if len(replies.addedTo) != 2 || replies.addedTo[1] != "institutional-codecheckers" {
 		t.Fatalf("added to %v, want the team the editor named the second time", replies.addedTo)
@@ -500,12 +500,12 @@ func TestReassigningToAnotherTeamStillChangesTheTeam(t *testing.T) {
 func TestTheAskToTheOwnersLeavesASignedRecord(t *testing.T) {
 	server, _ := organised(t)
 
-	posted := acted(t, server, "@chekhovbot assign @a-newcomer as codechecker")
+	posted := acted(t, server, "@chekhovbot assign @a-made-up-newcomer as codechecker")
 	record, err := followup.Parse(posted, "codecheckers/testing-dev-register#1", server.signer())
 	if err != nil {
 		t.Fatalf("the posted comment carries no usable record: %v\n%s", err, posted)
 	}
-	if record.Kind != followup.KindOrganisation || record.Subject != "a-newcomer" {
+	if record.Kind != followup.KindOrganisation || record.Subject != "a-made-up-newcomer" {
 		t.Errorf("record %+v", record)
 	}
 	if record.Team != "codecheckers" {
@@ -515,7 +515,7 @@ func TestTheAskToTheOwnersLeavesASignedRecord(t *testing.T) {
 		t.Error("the record does not say when it was raised, so nothing can be three days old")
 	}
 	// The reply a person reads is still under it.
-	if !strings.Contains(posted, "please invite `@a-newcomer`") {
+	if !strings.Contains(posted, "please invite `@a-made-up-newcomer`") {
 		t.Errorf("the reply is missing from the comment:\n%s", posted)
 	}
 }
@@ -538,7 +538,7 @@ func TestTheRecordAndTheReplyAgreeOnTheTeam(t *testing.T) {
 	server, replies := organised(t)
 	replies.labelled("institution")
 
-	posted := acted(t, server, "@chekhovbot assign @a-newcomer as codechecker")
+	posted := acted(t, server, "@chekhovbot assign @a-made-up-newcomer as codechecker")
 
 	record, err := followup.Parse(posted, "codecheckers/testing-dev-register#1", server.signer())
 	if err != nil {
@@ -557,7 +557,7 @@ func TestTheRecordAndTheReplyAgreeOnTheTeam(t *testing.T) {
 func TestARecordForARoleWithNoTeamNamesNone(t *testing.T) {
 	server, _ := organised(t)
 
-	posted := acted(t, server, "@chekhovbot assign @an-author as author")
+	posted := acted(t, server, "@chekhovbot assign @a-made-up-author as author")
 
 	record, err := followup.Parse(posted, "codecheckers/testing-dev-register#1", server.signer())
 	if err != nil {
@@ -577,10 +577,10 @@ func TestARecordForARoleWithNoTeamNamesNone(t *testing.T) {
 // is true rather than that something went wrong (codecheckers/chekhov#47).
 func TestAnOwnerAlreadyInTheTeamIsNotReportedAsAFailure(t *testing.T) {
 	server, replies := organised(t)
-	replies.members["an-editor"] = true
-	replies.maintains["an-editor"] = true
+	replies.members["a-made-up-editor"] = true
+	replies.maintains["a-made-up-editor"] = true
 
-	reply := answer(t, server, command.Assign, []string{"@an-editor", "as", "codechecker"}, "")
+	reply := answer(t, server, command.Assign, []string{"@a-made-up-editor", "as", "codechecker"}, "")
 
 	for _, want := range []string{"is now the assigned codechecker", "already in `codecheckers/codecheckers`",
 		"as a maintainer", "did not set and will not change"} {

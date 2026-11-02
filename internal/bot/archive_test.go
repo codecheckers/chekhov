@@ -29,7 +29,7 @@ func copyArchived(stub *testserver.Server, archived bool) {
 
 // inTheRegister serves a register.csv, with a row for issue #1 when asked.
 func inTheRegister(stub *testserver.Server, server *Server, row bool) {
-	csv := "Certificate,Repository,Type,Venue,Issue\n1970-001,github::an-author/other,journal,FAKE,7\n"
+	csv := "Certificate,Repository,Type,Venue,Issue\n1970-001,github::a-made-up-author/other,journal,FAKE,7\n"
 	if row {
 		csv += "1970-021,github::codecheckers/demo,journal,FAKE,1\n"
 	}
@@ -131,7 +131,7 @@ func TestCheckFinishLeavesTheArchiveOfAPendingCheck(t *testing.T) {
 func TestCheckFinishLeavesARepositoryOutsideTheOrganisation(t *testing.T) {
 	server, _ := checking(t, "valid-2.0", "work in progress")
 	body, record := server.archiveFollowUp(mention{Issue: 1, Author: "nuest"},
-		"github::an-author/paper", people.Reading{}, server.Services)
+		"github::a-made-up-author/paper", people.Reading{}, server.Services)
 	if body != "" || record != nil {
 		t.Errorf("an author's repository was reported: %q, %+v", body, record)
 	}
@@ -280,17 +280,17 @@ func TestAnArchivedCopyIsConfirmedOnce(t *testing.T) {
 // not to whoever finished the check.
 func TestTheArchiveReminderGoesToTheHandlingEditor(t *testing.T) {
 	server, replies, _ := archiving(t, false, true)
-	replies.members["an-editor"] = true
+	replies.members["a-made-up-editor"] = true
 	server.Teams.Reader = teamList{
-		server.Settings.EditorsTeam():      {"nuest", "an-editor"},
+		server.Settings.EditorsTeam():      {"nuest", "a-made-up-editor"},
 		server.Settings.CodecheckersTeam(): {"nuest", "a-codechecker"},
 	}
 	server.Teams.Refresh(context.Background())
-	answer(t, server, command.Assign, []string{"@an-editor", "as", "handling", "editor"}, "")
+	answer(t, server, command.Assign, []string{"@a-made-up-editor", "as", "handling", "editor"}, "")
 	archiveAsked(t, server, replies, 0, time.Hour)
 
 	server.nudge(context.Background())
-	if posted := replies.last(); !strings.Contains(posted, "@an-editor, certificate") {
+	if posted := replies.last(); !strings.Contains(posted, "@a-made-up-editor, certificate") {
 		t.Errorf("the reminder did not go to the handling editor:\n%s", posted)
 	}
 }
@@ -302,7 +302,7 @@ func TestAClosedCheckIsSweptForItsArchiveAlone(t *testing.T) {
 	replies.issues = nil
 	replies.closed = []github.Issue{{Number: 1, Closed: true}}
 	archiveAsked(t, server, replies, 0, time.Hour)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
 
 	swept := server.nudge(context.Background())
 	if swept.Issues != 0 || swept.Closed != 1 {

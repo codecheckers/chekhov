@@ -134,6 +134,12 @@ to be one nobody owns. In prose, and in the bot's own replies, a handle in
 backticks renders without notifying, which is why the reply bodies write them
 that way.
 
+The offline tests follow the same rule, although they notify nobody, so that
+a handle copied out of a test into a live run is safe: every made-up handle in
+them was checked, and those somebody owned - `a-stranger`, `an-editor`,
+`a-newcomer`, `ada` and more - are now `a-made-up-…` and `made-up-…`, which
+were free. A new one is checked before it is written.
+
 If a test genuinely needs a real account - checking that an assignee sticks,
 say - **ask first**, every time.
 

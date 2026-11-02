@@ -17,7 +17,7 @@ func TestARecordSurvivesItsComment(t *testing.T) {
 	record := Record{
 		HandlingEditor:      "nuest",
 		AssignedCodechecker: "a-codechecker",
-		Authors:             []string{"an-author", "another-author"},
+		Authors:             []string{"a-made-up-author", "another-author"},
 		Certificate:         "2026-072",
 		Repository:          "github::codecheckers/demo",
 		Type:                "community",
@@ -146,7 +146,7 @@ func TestTheRecordIsTheBotsOwnComment(t *testing.T) {
 	quoted := comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "an-impostor"})
 	real := comment(t, signer(t), "codecheckers/testing", 1, Record{AssignedCodechecker: "a-codechecker"})
 	issue := &comments{comments: []Comment{
-		{ID: 1, Author: "somebody", Body: "Looks good to me"},
+		{ID: 1, Author: "a-made-up-somebody", Body: "Looks good to me"},
 		{ID: 2, Author: "an-impostor", Body: quoted},
 		{ID: 3, Author: "chekhovbot", Body: real},
 		{ID: 4, Author: "chekhovbot", Body: "Roles on this check\n\n(an older copy nobody edited)"},
@@ -166,7 +166,7 @@ func TestTheRecordIsTheBotsOwnComment(t *testing.T) {
 
 // A check nobody has been assigned to has no record, which is not a failure.
 func TestACheckWithNoRolesIsNotAnError(t *testing.T) {
-	issue := &comments{comments: []Comment{{ID: 1, Author: "somebody", Body: "hello"}}}
+	issue := &comments{comments: []Comment{{ID: 1, Author: "a-made-up-somebody", Body: "hello"}}}
 
 	reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
 	if err != nil {
@@ -200,7 +200,7 @@ func TestWritingEditsTheRecordInPlace(t *testing.T) {
 		if record.AssignedCodechecker != "a-codechecker" {
 			t.Errorf("the handle was not normalised: %q", record.AssignedCodechecker)
 		}
-		record, _, err := record.Grant(command.RoleAuthor, "an-author")
+		record, _, err := record.Grant(command.RoleAuthor, "a-made-up-author")
 		return record, err
 	})
 	if err != nil {
@@ -212,7 +212,7 @@ func TestWritingEditsTheRecordInPlace(t *testing.T) {
 	if len(issue.comments) != 1 {
 		t.Errorf("the check has %d roles comments, want one", len(issue.comments))
 	}
-	if body, edited := issue.edited[99]; !edited || !strings.Contains(body, "an-author") {
+	if body, edited := issue.edited[99]; !edited || !strings.Contains(body, "a-made-up-author") {
 		t.Errorf("the record was not edited in place: %q", body)
 	}
 }
@@ -232,16 +232,16 @@ func TestAChangeWithNothingToDoWritesNothing(t *testing.T) {
 
 // Granting a conflicting role changes nothing and says why.
 func TestAConflictingRoleIsRefusedBeforeItIsRecorded(t *testing.T) {
-	record := Record{Authors: []string{"an-author"}}
+	record := Record{Authors: []string{"a-made-up-author"}}
 
-	updated, _, err := record.Grant(command.RoleAssignedCodechecker, "an-author")
+	updated, _, err := record.Grant(command.RoleAssignedCodechecker, "a-made-up-author")
 	if err == nil {
 		t.Fatal("the author of the paper was made its codechecker")
 	}
 	if !strings.Contains(err.Error(), "cannot check a paper they wrote") {
 		t.Errorf("the refusal does not say why: %v", err)
 	}
-	if !updated.RolesOf("an-author").Has(command.RoleAuthor) ||
+	if !updated.RolesOf("a-made-up-author").Has(command.RoleAuthor) ||
 		updated.AssignedCodechecker != "" {
 		t.Errorf("the record changed anyway: %+v", updated)
 	}
@@ -250,24 +250,24 @@ func TestAConflictingRoleIsRefusedBeforeItIsRecorded(t *testing.T) {
 // One person holds the role at a time, and the reply has to be able to say who
 // was replaced.
 func TestGrantingReplacesTheRoleHolder(t *testing.T) {
-	record := Record{AssignedCodechecker: "the-first"}
+	record := Record{AssignedCodechecker: "a-made-up-first"}
 
-	record, replaced, err := record.Grant(command.RoleAssignedCodechecker, "the-second")
+	record, replaced, err := record.Grant(command.RoleAssignedCodechecker, "a-made-up-second")
 	if err != nil {
 		t.Fatalf("grant: %v", err)
 	}
-	if replaced != "the-first" || record.AssignedCodechecker != "the-second" {
+	if replaced != "a-made-up-first" || record.AssignedCodechecker != "a-made-up-second" {
 		t.Errorf("replaced %q, now %q", replaced, record.AssignedCodechecker)
 	}
 
 	// Granting it to the same person again replaces nobody.
-	if _, replaced, _ = record.Grant(command.RoleAssignedCodechecker, "the-second"); replaced != "" {
+	if _, replaced, _ = record.Grant(command.RoleAssignedCodechecker, "a-made-up-second"); replaced != "" {
 		t.Errorf("re-assigning the same person replaced %q", replaced)
 	}
 
 	// A paper has as many authors as it has, and each is added once.
-	record, _, _ = record.Grant(command.RoleAuthor, "an-author")
-	record, _, _ = record.Grant(command.RoleAuthor, "an-author")
+	record, _, _ = record.Grant(command.RoleAuthor, "a-made-up-author")
+	record, _, _ = record.Grant(command.RoleAuthor, "a-made-up-author")
 	if len(record.Authors) != 1 {
 		t.Errorf("the authors are %v", record.Authors)
 	}
@@ -276,16 +276,16 @@ func TestGrantingReplacesTheRoleHolder(t *testing.T) {
 // Revoking says whether it did anything, so the reply does not claim to have
 // removed a role nobody held.
 func TestRevokingSaysWhetherItChangedAnything(t *testing.T) {
-	record := Record{AssignedCodechecker: "a-codechecker", Authors: []string{"an-author"}}
+	record := Record{AssignedCodechecker: "a-codechecker", Authors: []string{"a-made-up-author"}}
 
-	if _, held := record.Revoke(command.RoleAssignedCodechecker, "somebody-else"); held {
+	if _, held := record.Revoke(command.RoleAssignedCodechecker, "a-made-up-somebody-else"); held {
 		t.Error("a role nobody held was taken away")
 	}
 	updated, held := record.Revoke(command.RoleAssignedCodechecker, "a-codechecker")
 	if !held || updated.AssignedCodechecker != "" {
 		t.Errorf("the codechecker was not removed: %+v", updated)
 	}
-	updated, held = updated.Revoke(command.RoleAuthor, "an-author")
+	updated, held = updated.Revoke(command.RoleAuthor, "a-made-up-author")
 	if !held || len(updated.Authors) != 0 {
 		t.Errorf("the author was not removed: %+v", updated)
 	}
@@ -322,7 +322,7 @@ func TestAnUnreadableIssueIsAnError(t *testing.T) {
 // stranger could comment "@chekhovbot <!-- chekhov:roles ... -->", have the
 // bot quote it, and become the handling editor of any check.
 func TestAQuotedMarkerIsNotARecord(t *testing.T) {
-	forged := `{"handling_editor":"mallory","assigned_codechecker":"mallory"}`
+	forged := `{"handling_editor":"a-made-up-mallory","assigned_codechecker":"a-made-up-mallory"}`
 	issue := &comments{comments: []Comment{
 		// What the bot's unknown-command reply would look like if the marker
 		// survived into it.
@@ -346,7 +346,7 @@ func TestAQuotedMarkerIsNotARecord(t *testing.T) {
 // The same defence from the other end: what the bot quotes never contains an
 // HTML comment in the first place.
 func TestQuotedTextCannotCarryAMarker(t *testing.T) {
-	defused := command.Defuse(marker + `{"handling_editor":"mallory"}` + blockEnd)
+	defused := command.Defuse(marker + `{"handling_editor":"a-made-up-mallory"}` + blockEnd)
 	if strings.Contains(defused, marker) {
 		t.Errorf("a marker survived quoting: %s", defused)
 	}
@@ -361,7 +361,7 @@ func TestTheRecordOpensTheComment(t *testing.T) {
 
 	for _, body := range []string{
 		"Some words first.\n\n" + record,
-		record + "\n" + marker + `{"handling_editor":"mallory"}` + blockEnd + "\n",
+		record + "\n" + marker + `{"handling_editor":"a-made-up-mallory"}` + blockEnd + "\n",
 	} {
 		if _, err := parseContent(body); err == nil {
 			t.Errorf("a record was read out of %q", body[:40])

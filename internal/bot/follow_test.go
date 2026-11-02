@@ -304,10 +304,10 @@ func TestFollowConfirmReadsCollectionsOnce(t *testing.T) {
 // mirroring the guard announce gets for free through RecentStatuses.
 func TestFollowConfirmRefusesATokenOfTheWrongAccount(t *testing.T) {
 	server, toots := followServer(t)
-	toots.verifyErr = errors.New("the token belongs to @someone, but this deployment posts as @codecheck")
+	toots.verifyErr = errors.New("the token belongs to @a-made-up-someone, but this deployment posts as @codecheck")
 
 	reply := followAs(server, "nuest", "1970-001", "confirm")
-	if !strings.Contains(reply, "the token belongs to @someone") {
+	if !strings.Contains(reply, "the token belongs to @a-made-up-someone") {
 		t.Errorf("the reply does not surface the wrong-account error: %s", reply)
 	}
 	if len(toots.followed) != 0 || len(toots.collections) != 0 {

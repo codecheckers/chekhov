@@ -31,7 +31,7 @@ func asked(t *testing.T, server *Server, replies *organisation, handle string, a
 // owners were asked three days ago at most, and asking again would be nagging.
 func TestASweepLeavesARecentAskAlone(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
 
 	swept := server.nudge(context.Background())
 
@@ -47,7 +47,7 @@ func TestASweepLeavesARecentAskAlone(t *testing.T) {
 // record, so the next one is three days from now rather than from the first.
 func TestASweepRemindsTheOwnersAfterThreeDays(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
 
 	swept := server.nudge(context.Background())
 	if swept.Acted != 1 {
@@ -73,8 +73,8 @@ func TestASweepRemindsTheOwnersAfterThreeDays(t *testing.T) {
 // Once they have joined, the sweep finishes what the ask promised.
 func TestASweepFinishesTheJobWhenTheyHaveJoined(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 24*time.Hour)
-	replies.members["a-newcomer"] = true
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+	replies.members["a-made-up-newcomer"] = true
 
 	swept := server.nudge(context.Background())
 	if swept.Acted != 1 {
@@ -87,7 +87,7 @@ func TestASweepFinishesTheJobWhenTheyHaveJoined(t *testing.T) {
 			t.Errorf("the reply does not say %q:\n%s", want, posted)
 		}
 	}
-	if len(replies.added) != 1 || replies.added[0] != "a-newcomer" {
+	if len(replies.added) != 1 || replies.added[0] != "a-made-up-newcomer" {
 		t.Errorf("the team was not changed: %v", replies.added)
 	}
 	// And nothing is left outstanding: the reply carries no record.
@@ -100,11 +100,11 @@ func TestASweepFinishesTheJobWhenTheyHaveJoined(t *testing.T) {
 // the world, so once the work is done there is nothing to say.
 func TestASweepSaysNothingTheSecondTime(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 24*time.Hour)
-	replies.members["a-newcomer"] = true
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+	replies.members["a-made-up-newcomer"] = true
 
 	server.nudge(context.Background())
-	replies.inTeam["a-newcomer"] = true
+	replies.inTeam["a-made-up-newcomer"] = true
 	before := replies.count()
 
 	swept := server.nudge(context.Background())
@@ -120,8 +120,8 @@ func TestASweepSaysNothingTheSecondTime(t *testing.T) {
 // passing over it in silence.
 func TestASweepRefusesAnEditedRecord(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
-	replies.thread[0].Body = strings.Replace(replies.thread[0].Body, "a-newcomer", "an-intruder", 1)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
+	replies.thread[0].Body = strings.Replace(replies.thread[0].Body, "a-made-up-newcomer", "a-made-up-intruder", 1)
 
 	swept := server.nudge(context.Background())
 
@@ -153,8 +153,8 @@ func TestASweepThatCouldNotReadSaysSo(t *testing.T) {
 // first ask, and only the last one is measured from.
 func TestOnlyTheNewestRecordForSomebodyCounts(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 9*24*time.Hour)
-	asked(t, server, replies, "a-newcomer", time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 9*24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", time.Hour)
 
 	swept := server.nudge(context.Background())
 	if swept.Acted != 0 || swept.Outstanding != 1 {
@@ -168,7 +168,7 @@ func TestOnlyTheNewestRecordForSomebodyCounts(t *testing.T) {
 // The reply an editor gets says what the walk came to.
 func TestTheNudgeCommandReportsTheWalk(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", time.Hour)
 
 	reply := answer(t, server, command.Nudge, nil, "")
 	if !strings.Contains(reply, "1 open issue.") {
@@ -183,7 +183,7 @@ func TestTheNudgeCommandReportsTheWalk(t *testing.T) {
 // nightly sweeps found, and when the next one is due.
 func TestTheNudgesEndpointReportsTheSweeps(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
 
 	server.sweepOnce(context.Background())
 
@@ -213,16 +213,16 @@ func TestTheNudgesEndpointAnswersBeforeTheFirstSweep(t *testing.T) {
 // about, and that is nobody's business outside development.
 func TestTheNudgesEndpointNamesNobodyInProduction(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", time.Hour)
 	replies.membersErr = errors.New("GitHub answered 403")
 	server.sweepOnce(context.Background())
 
-	if body := nudges(t, server); !strings.Contains(body, "a-newcomer") {
+	if body := nudges(t, server); !strings.Contains(body, "a-made-up-newcomer") {
 		t.Errorf("development does not say what went wrong:\n%s", body)
 	}
 	server.Deployment.Environment = "production"
 	body := nudges(t, server)
-	if strings.Contains(body, "a-newcomer") {
+	if strings.Contains(body, "a-made-up-newcomer") {
 		t.Errorf("/nudges names somebody in production:\n%s", body)
 	}
 	if !strings.Contains(body, `"problems": 1`) {
@@ -277,8 +277,8 @@ func nudges(t *testing.T, server *Server) string {
 // comment by somebody else is not read, whatever it carries.
 func TestASweepReadsOnlyTheBotsOwnComments(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
-	replies.thread[0].Author = "a-passer-by"
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
+	replies.thread[0].Author = "a-made-up-passer-by"
 
 	swept := server.nudge(context.Background())
 
@@ -294,8 +294,8 @@ func TestASweepReadsOnlyTheBotsOwnComments(t *testing.T) {
 // editor decided that after the ask, and the record does not overrule it.
 func TestASweepLeavesARoleThatHasSinceGoneToSomebodyElse(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 24*time.Hour)
-	replies.members["a-newcomer"] = true
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+	replies.members["a-made-up-newcomer"] = true
 	// An editor assigned somebody else in the meantime.
 	acted(t, server, "@chekhovbot assign @a-codechecker as codechecker")
 	before := replies.count()
@@ -313,7 +313,7 @@ func TestASweepLeavesARoleThatHasSinceGoneToSomebodyElse(t *testing.T) {
 	}
 	// And the role is still the other person's.
 	roles := answer(t, server, command.ListRoles, nil, "")
-	if !strings.Contains(roles, "a-codechecker") || strings.Contains(roles, "a-newcomer") {
+	if !strings.Contains(roles, "a-codechecker") || strings.Contains(roles, "a-made-up-newcomer") {
 		t.Errorf("the role was taken back:\n%s", roles)
 	}
 }
@@ -322,12 +322,12 @@ func TestASweepLeavesARoleThatHasSinceGoneToSomebodyElse(t *testing.T) {
 // issue's assignee, which is where people look for who is checking.
 func TestFinishingAnAssignmentSetsTheIssueAssignee(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 24*time.Hour)
-	replies.members["a-newcomer"] = true
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+	replies.members["a-made-up-newcomer"] = true
 
 	server.nudge(context.Background())
 
-	if len(replies.assigned) != 1 || replies.assigned[0] != "a-newcomer" {
+	if len(replies.assigned) != 1 || replies.assigned[0] != "a-made-up-newcomer" {
 		t.Errorf("assigned %v, want the newcomer", replies.assigned)
 	}
 	// Nobody is taken off: the role was granted only because it was nobody's.
@@ -340,10 +340,10 @@ func TestFinishingAnAssignmentSetsTheIssueAssignee(t *testing.T) {
 // - otherwise the number an editor reads would only ever grow.
 func TestAFinishedFollowUpIsNotCountedAsWaiting(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 24*time.Hour)
-	replies.members["a-newcomer"] = true
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+	replies.members["a-made-up-newcomer"] = true
 	server.nudge(context.Background())
-	replies.inTeam["a-newcomer"] = true
+	replies.inTeam["a-made-up-newcomer"] = true
 
 	swept := server.nudge(context.Background())
 
@@ -356,7 +356,7 @@ func TestAFinishedFollowUpIsNotCountedAsWaiting(t *testing.T) {
 // reminders the bot says it will stop, and then it does.
 func TestTheOwnersAreNotRemindedForEver(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
 
 	// Every sweep finds the newest record, reminds, and leaves a fresh one -
 	// which is aged here to let the next sweep find it ready.
@@ -373,7 +373,7 @@ func TestTheOwnersAreNotRemindedForEver(t *testing.T) {
 		t.Errorf("the bot never says it is giving up:\n%s", last)
 	}
 	// And it still finishes the job if they do join, long after it stopped.
-	replies.members["a-newcomer"] = true
+	replies.members["a-made-up-newcomer"] = true
 	if swept := server.nudge(context.Background()); swept.Acted != 1 {
 		t.Errorf("swept %+v, want the join answered anyway", swept)
 	}
@@ -382,7 +382,7 @@ func TestTheOwnersAreNotRemindedForEver(t *testing.T) {
 // Two walks at once would both find the same record ready and remind twice.
 func TestOnlyOneSweepRunsAtATime(t *testing.T) {
 	server, replies := organised(t)
-	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
 	server.sweeping.Lock()
 	defer server.sweeping.Unlock()
 

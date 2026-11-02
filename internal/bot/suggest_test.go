@@ -174,7 +174,7 @@ func TestSuggestIsForEditors(t *testing.T) {
 	listing(t, server)
 
 	reply := server.answer(context.Background(), mention{
-		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-stranger",
+		Repository: server.Settings.TargetRepository(), Issue: 1, Author: "a-made-up-stranger",
 	}, command.Command{Name: command.CodecheckersSuggest}).body
 	if !strings.Contains(reply, "is for editors") {
 		t.Errorf("a stranger was answered:\n%s", reply)
@@ -249,7 +249,7 @@ func TestSuggestDoesNotTrustAnEditedRecord(t *testing.T) {
 
 	// Somebody with write access edits the bot's own comment.
 	store := server.Checks.Comments.(*issueComments)
-	store.comments[0].Body = strings.Replace(store.comments[0].Body, "a-codechecker", "a-stranger", 1)
+	store.comments[0].Body = strings.Replace(store.comments[0].Body, "a-codechecker", "a-made-up-stranger", 1)
 
 	reply := answer(t, server, command.CodecheckersSuggest,
 		[]string{"codecheckers/demo"}, "")

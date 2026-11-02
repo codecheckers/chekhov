@@ -196,18 +196,18 @@ func TestNoReminderOnAClosedCheck(t *testing.T) {
 }
 
 // A reminder notifies whom it names, so it may name only somebody the check
-// has already brought in: here, nobody has heard of `@a-stranger`.
+// has already brought in: here, nobody has heard of `@nobody-on-this-check`.
 func TestNoReminderForSomebodyNotOnTheCheck(t *testing.T) {
 	server, replies := organised(t)
 
-	reply := remindAs(t, server, replies, "nuest", "", "@a-stranger", "in", "2", "days")
+	reply := remindAs(t, server, replies, "nuest", "", "@nobody-on-this-check", "in", "2", "days")
 	if !strings.Contains(reply, "I will not remind them here") {
 		t.Errorf("a stranger was to be reminded:\n%s", reply)
 	}
 
-	replies.issues = []github.Issue{{Number: 1, Author: "a-stranger"}}
-	reply = remindAs(t, server, replies, "nuest", "", "@a-stranger", "in", "2", "days")
-	if !strings.Contains(reply, "I will remind `@a-stranger`") {
+	replies.issues = []github.Issue{{Number: 1, Author: "nobody-on-this-check"}}
+	reply = remindAs(t, server, replies, "nuest", "", "@nobody-on-this-check", "in", "2", "days")
+	if !strings.Contains(reply, "I will remind `@nobody-on-this-check`") {
 		t.Errorf("the person who opened the issue could not be reminded:\n%s", reply)
 	}
 }

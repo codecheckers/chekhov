@@ -21,7 +21,7 @@ func signer(t *testing.T) *people.Signer {
 func raised(t *testing.T, s *people.Signer, when time.Time) (Record, string) {
 	t.Helper()
 	record := Record{Kind: KindOrganisation, Check: "codecheckers/testing-dev-register#202",
-		Subject: "a-newcomer", Role: "assigned codechecker", Team: "codecheckers",
+		Subject: "a-made-up-newcomer", Role: "assigned codechecker", Team: "codecheckers",
 		Asked: when.Format(time.RFC3339)}
 	block, err := Render(record, s)
 	if err != nil {
@@ -40,7 +40,7 @@ func TestARecordSurvivesTheRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if read.Kind != KindOrganisation || read.Subject != "a-newcomer" || read.Team != "codecheckers" {
+	if read.Kind != KindOrganisation || read.Subject != "a-made-up-newcomer" || read.Team != "codecheckers" {
 		t.Errorf("read %+v", read)
 	}
 	if !read.Raised().Equal(when) {
@@ -57,7 +57,7 @@ func TestAnEditedRecordIsRefused(t *testing.T) {
 	s := signer(t)
 	_, block := raised(t, s, time.Now())
 
-	edited := strings.Replace(block, "a-newcomer", "an-intruder", 1)
+	edited := strings.Replace(block, "a-made-up-newcomer", "a-made-up-intruder", 1)
 	if _, err := Parse(edited, "codecheckers/testing-dev-register#202", s); err == nil {
 		t.Fatal("an edited record was accepted")
 	} else if !strings.Contains(err.Error(), "not one I wrote") {
