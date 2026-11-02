@@ -43,12 +43,10 @@ type Definition struct {
 	// Usage is how the command is written, without the mention.
 	Usage string
 	Group string
-	Role  Role
-	// Or are the other roles that may run the command, for the few where one
-	// role is not the whole answer: `check start` is the codechecker's own
-	// command and an editor's alike. Empty for everything else, and Role is
-	// then the whole of it.
-	Or []Role
+	// Roles are who may run the command: any one of them is enough. Usually
+	// one; `check start` is the codechecker's own command and an editor's
+	// alike.
+	Roles Roles
 	// Hidden keeps a working command out of the listing. hello is hidden
 	// because it is a smoke test rather than something a codechecker needs,
 	// and thanks and goodbye because a listing is for what to do next, not for
@@ -72,14 +70,14 @@ var registry = []Definition{
 		Summary: "List the commands you can use",
 		Usage:   "commands",
 		Group:   GroupBasics,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    Hello,
 		Summary: "Check that the bot is awake",
 		Usage:   "hello",
 		Group:   GroupBasics,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 		Hidden:  true,
 	},
 	{
@@ -88,7 +86,7 @@ var registry = []Definition{
 		Summary: "Acknowledge thanks, in the words of the bot's namesake",
 		Usage:   "thanks",
 		Group:   GroupBasics,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 		Hidden:  true,
 	},
 	{
@@ -97,7 +95,7 @@ var registry = []Definition{
 		Summary: "Sign off when a check ends",
 		Usage:   "goodbye",
 		Group:   GroupBasics,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 		Hidden:  true,
 	},
 	{
@@ -105,7 +103,7 @@ var registry = []Definition{
 		Summary: "Report which build is running, and which register it works on",
 		Usage:   "version",
 		Group:   GroupBasics,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    TeamsRefresh,
@@ -113,14 +111,14 @@ var registry = []Definition{
 		Summary: "Read the organisation's teams again, after a membership change",
 		Usage:   "teams refresh",
 		Group:   GroupBasics,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:          Assign,
 		Summary:       "Give somebody a role on this check",
 		Usage:         "assign @user as codechecker|author|handling editor [in <team>]",
 		Group:         GroupPeople,
-		Role:          RoleEditor,
+		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
 	},
 	{
@@ -128,7 +126,7 @@ var registry = []Definition{
 		Summary:       "Take a role away again",
 		Usage:         "remove @user as codechecker|author|handling editor",
 		Group:         GroupPeople,
-		Role:          RoleEditor,
+		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
 	},
 	{
@@ -136,7 +134,7 @@ var registry = []Definition{
 		Summary:       "Say who holds which role on this check",
 		Usage:         "roles",
 		Group:         GroupPeople,
-		Role:          RoleAnyone,
+		Roles:         Roles{RoleAnyone},
 		AboutTheCheck: true,
 	},
 	{
@@ -145,14 +143,14 @@ var registry = []Definition{
 		Summary: "Adopt the record of this check - roles, certificate - after somebody edited it",
 		Usage:   "record accept",
 		Group:   GroupPeople,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:    ListCodecheckers,
 		Summary: "Say where the lists of codecheckers are",
 		Usage:   "codecheckers",
 		Group:   GroupPeople,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:          CodecheckersSuggest,
@@ -160,7 +158,7 @@ var registry = []Definition{
 		Summary:       "Propose codecheckers for this check, from a repository, a DOI, or a pasted abstract",
 		Usage:         "codecheckers suggest [<repository>|<DOI>|<certificate>]",
 		Group:         GroupPeople,
-		Role:          RoleEditor,
+		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
 	},
 	{
@@ -168,28 +166,28 @@ var registry = []Definition{
 		Summary: "Pick up what earlier replies left outstanding, across the register",
 		Usage:   "nudge",
 		Group:   GroupPeople,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:    Check,
 		Summary: "Validate a `codecheck.yml` against the CODECHECK rules, describe the repository under check, or ask whether its links answer",
 		Usage:   "check [config|metadata [references]|bundle|report|certificate|repository|links] <repository, or certificate>",
 		Group:   GroupValidation,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    CheckReady,
 		Summary: "Say whether a check can start: a README, a `codecheck.yml` with a manifest, a licence, and a paper",
 		Usage:   "check ready [<repository>|<certificate>]",
 		Group:   GroupValidation,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    CheckZenodo,
 		Summary: "Audit the certificate's Zenodo record, or a draft by its share link, against the community's curation policy",
 		Usage:   "check zenodo [<DOI>|<record link>|<share link>]",
 		Group:   GroupValidation,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    Remind,
@@ -198,15 +196,14 @@ var registry = []Definition{
 		Group:   GroupWorkflow,
 		// Anybody may remind themselves; who may remind somebody else is
 		// decided in the command, because it depends on whom it names.
-		Role: RoleAnyone,
+		Roles: Roles{RoleAnyone},
 	},
 	{
 		Name:          CheckStart,
 		Summary:       "Begin this check: the labels, what the repository holds, and the checklist",
 		Usage:         "check start [<repository>|<certificate>]",
 		Group:         GroupWorkflow,
-		Role:          RoleEditor,
-		Or:            []Role{RoleAssignedCodechecker},
+		Roles:         Roles{RoleEditor, RoleAssignedCodechecker},
 		AboutTheCheck: true,
 	},
 	{
@@ -214,7 +211,7 @@ var registry = []Definition{
 		Summary:       "Say where this check stands: the record, the labels, and what is still open",
 		Usage:         "status [<repository>|<certificate>]",
 		Group:         GroupWorkflow,
-		Role:          RoleAnyone,
+		Roles:         Roles{RoleAnyone},
 		AboutTheCheck: true,
 	},
 	{
@@ -222,7 +219,7 @@ var registry = []Definition{
 		Summary:       "Finish this check: run the rules, move the labels, and point at `register`",
 		Usage:         "check finish [<repository>|<certificate>]",
 		Group:         GroupWorkflow,
-		Role:          RoleEditor,
+		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
 	},
 	{
@@ -230,14 +227,14 @@ var registry = []Definition{
 		Summary: "Say which rules I judge by, and whether they are the register's current ones",
 		Usage:   "rules",
 		Group:   GroupValidation,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    Certificate,
 		Summary: "Say which certificate identifier this check holds",
 		Usage:   "certificate",
 		Group:   GroupRegister,
-		Role:    RoleAnyone,
+		Roles:   Roles{RoleAnyone},
 	},
 	{
 		Name:    CertificateNext,
@@ -245,7 +242,7 @@ var registry = []Definition{
 		Summary: "Say which certificate identifier comes next, from `register.csv` and the issues",
 		Usage:   "certificate next",
 		Group:   GroupRegister,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:    CertificateSet,
@@ -253,7 +250,7 @@ var registry = []Definition{
 		Summary: "Reserve a certificate identifier for this check: the next one, or the one given",
 		Usage:   "certificate set [YYYY-NNN] [anyway]",
 		Group:   GroupRegister,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:    RepositorySet,
@@ -261,7 +258,7 @@ var registry = []Definition{
 		Summary: "Record the repository this check's register row names, where the issue's Repository line does not",
 		Usage:   "repository set <repository>",
 		Group:   GroupRegister,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:    VenueSet,
@@ -269,14 +266,14 @@ var registry = []Definition{
 		Summary: "Record the Type and Venue of this check's register row, where its labels do not say",
 		Usage:   "venue set [<type>] <venue>",
 		Group:   GroupRegister,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name:          CheckRegister,
 		Summary:       "Build this check's register row and run the rules on it, before anything is written",
 		Usage:         "check register [<repository>] [<type>] [<venue>]",
 		Group:         GroupRegister,
-		Role:          RoleAnyone,
+		Roles:         Roles{RoleAnyone},
 		AboutTheCheck: true,
 	},
 	{
@@ -284,7 +281,7 @@ var registry = []Definition{
 		Summary:       "Open the pull request adding this check's row to `register.csv`, once the rules allow it",
 		Usage:         "register [<repository>] [<type>] [<venue>]",
 		Group:         GroupRegister,
-		Role:          RoleEditor,
+		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
 	},
 	{
@@ -292,7 +289,7 @@ var registry = []Definition{
 		Summary: "Toot about a published certificate: a preview first, then `confirm` to post",
 		Usage:   "announce <certificate> [confirm]",
 		Group:   GroupRegister,
-		Role:    RoleEditor,
+		Roles:   Roles{RoleEditor},
 	},
 	{
 		Name: Follow,
@@ -300,7 +297,7 @@ var registry = []Definition{
 			"a preview first, then `confirm` to act",
 		Usage: "follow <certificate> [confirm]",
 		Group: GroupRegister,
-		Role:  RoleEditor,
+		Roles: Roles{RoleEditor},
 	},
 }
 
@@ -334,31 +331,18 @@ func normalize(word string) string {
 	return strings.TrimRight(strings.ToLower(strings.TrimSpace(word)), "!.,;:?")
 }
 
-// Permits reports whether somebody's roles let them run the command: the
-// command's own role, or any of the others it names.
+// Permits reports whether somebody's roles let them run the command: any one
+// of the roles the command names is enough.
 func (d Definition) Permits(roles Roles) bool {
-	for _, may := range d.roles() {
-		if roles.Has(may) {
-			return true
-		}
-	}
-	return false
-}
-
-// roles is every role that may run the command: its own, and the others it
-// names. One union, because three questions are asked of it - may they, who is
-// it for, and does answering cost a read of the record - and a fourth that
-// forgot `Or` would refuse the person whose command it is.
-func (d Definition) roles() []Role {
-	return append([]Role{d.Role}, d.Or...)
+	return slices.ContainsFunc(d.Roles, roles.Has)
 }
 
 // Who is who the command is for, in words, for the refusal that has to say
 // what the asker would have to be. One function, so the refusal and anything
 // else describing the command cannot word it differently.
 func (d Definition) Who() string {
-	who := make([]string, 0, len(d.Or)+1)
-	for _, may := range d.roles() {
+	who := make([]string, 0, len(d.Roles))
+	for _, may := range d.Roles {
 		who = append(who, may.Description())
 	}
 	return list(who, "or")
@@ -372,7 +356,7 @@ func (d Definition) Who() string {
 // and resolving only the standing ones would refuse the codechecker whose
 // command it is.
 func (d Definition) NeedsCheckRoles() bool {
-	for _, role := range d.roles() {
+	for _, role := range d.Roles {
 		if role != RoleAnyone && !role.Standing() {
 			return true
 		}

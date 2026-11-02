@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-11-02
+
+### Changed
+
+- A command's roles are one list in the registry instead of a role and "or
+  these", with no change to who may run what or how the listing words it (#55).
+
 ## [0.25.1] - 2026-11-02
 
 ### Changed

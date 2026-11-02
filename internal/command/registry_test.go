@@ -40,7 +40,7 @@ func TestEveryCommandIsDescribed(t *testing.T) {
 		// A command whose role was forgotten is refused to everybody, editors
 		// included, and refused with "is for ." Failing closed is right; doing
 		// it silently is not.
-		if definition.Role == "" {
+		if len(definition.Roles) == 0 {
 			t.Errorf("%s names no role, so nobody could run it and the refusal would name nothing",
 				definition.Name)
 		}
@@ -92,7 +92,7 @@ func TestListingTableIsNotBrokenByUsageLines(t *testing.T) {
 func TestEditorCommandsAreHiddenFromEveryoneElse(t *testing.T) {
 	editorOnly := Definition{
 		Name: "promote", Summary: "Promote the check",
-		Usage: "promote", Group: GroupValidation, Role: RoleEditor,
+		Usage: "promote", Group: GroupValidation, Roles: Roles{RoleEditor},
 	}
 	registry = append(registry, editorOnly)
 	t.Cleanup(func() { registry = registry[:len(registry)-1] })

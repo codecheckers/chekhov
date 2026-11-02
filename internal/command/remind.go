@@ -101,9 +101,9 @@ func ReminderNote(comment string, inIssue bool) (string, error) {
 // entry is for anybody, because anybody may remind themselves, and the
 // registry has no way to say "and these roles for somebody else"; this is
 // that second answer, as a Definition, so that the check and the refusal
-// come from one union of roles. A second command with a `me` form would be
+// come from one list of roles. A second command with a `me` form would be
 // the time to give the registry a field for it.
-var RemindOthers = Definition{Name: Remind, Role: RoleEditor, Or: []Role{RoleAssignedCodechecker}}
+var RemindOthers = Definition{Name: Remind, Roles: Roles{RoleEditor, RoleAssignedCodechecker}}
 
 // RemindOthersRefused is the answer to somebody setting a reminder for
 // somebody else who may not.
