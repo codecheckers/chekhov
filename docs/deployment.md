@@ -542,6 +542,12 @@ name the issues it nudges in `CHEKHOV_NUDGE_ONLY_ISSUES`: the live test issue.
 `GET /nudges` reports the thresholds as `nudge_days`, and each sweep's
 `nudged` and `held`.
 
+Setting a threshold takes `runway app restart -a <app>`, as every
+configuration change does, and `nudge_days` is how to tell that it took. The
+restart moves the sweep with it: the first runs five minutes after the process
+starts and each next one a day after that, so a live test reads its nudges
+at the hour of the restart, not at night.
+
 ## Redeploying
 
 ```sh
