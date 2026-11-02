@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-11-02
+
+### Changed
+
+- Built with Go 1.26 and `golang.org/x/image` v0.47.0, which fixes two
+  advisories in its TIFF decoder; the bot never decodes a TIFF, so neither
+  reached it.
+
 ## [0.25.0] - 2026-11-02
 
 ### Added

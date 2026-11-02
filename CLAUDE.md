@@ -285,7 +285,7 @@ them reports "not checked" rather than "fine". Record the rule in
 |---|---|---|
 | Stubs, `stub_test.go` | does the bot decide correctly, given an answer? | `go test ./...` |
 | Cassettes, `cassette_test.go` | do we read what the services really send? | `go test ./...` |
-| Integration, `integration_test.go` | do the services still answer the way we assume? | `CHEKHOV_INTEGRATION=1 go test -run Integration ./internal/check/` |
+| Integration, `integration_test.go` | do the services still answer the way we assume? | `CHEKHOV_INTEGRATION=1 go test -run Integration ./internal/check/ ./internal/build/` |
 
 One integration test writes: `sandbox_test.go` makes, audits and deletes a
 draft on the Zenodo sandbox, and runs only with `CHEKHOV_ZENODO_SANDBOX_TOKEN`
@@ -746,7 +746,7 @@ These came out of a review and are easy to undo by accident:
   says on stderr what it discarded; re-record when the service is well.
 - **One parser for `type::path`.** `ParseRepositorySpec` is used by the fetch
   path and by CC-REG-003, so the format cannot be defined twice.
-- **Go 1.24**, required by go-vcr v4. Both workflows pin it.
+- **Go 1.26**, required by `golang.org/x/image` v0.47 (go-vcr v4 needs 1.24). Both workflows pin it, and the weekly workflow fails once Go no longer supports it.
 
 ## Layout
 

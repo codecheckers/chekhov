@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.26'
           cache: true
 
       - name: Test against the external services
@@ -78,7 +78,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.26'
           cache: true
 
       - name: The bundled rules are the register's current ones
@@ -86,3 +86,24 @@ jobs:
           # Lifts the GitHub API rate limit; the endpoint used is public.
           CHEKHOV_GH_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: go run ./cmd/chekhov rules --check
+
+  # Is the Go release go.mod names still one Go supports? Go fixes the two
+  # newest releases and no others, so a module that stays put falls out of
+  # support by itself, with nothing in the tree changing. The fast suite
+  # holds go.mod and the pins above to the same release; this asks go.dev
+  # whether that release still gets fixes. Its own job, as the rules check is,
+  # so that a failure here is always this news and nothing else.
+  go-release:
+    name: Supported Go release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: The Go release go.mod names is still supported
+        env:
+          CHEKHOV_INTEGRATION: '1'
+        run: go test -v -run GoReleaseIsSupported ./internal/build/
