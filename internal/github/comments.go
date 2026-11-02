@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/httpretry"
 )
@@ -27,6 +28,9 @@ type Comment struct {
 	ID     int64
 	Author string
 	Body   string
+	// Created is when it was posted: how long a check has been quiet is how
+	// long ago its newest comment was (codecheckers/chekhov#25).
+	Created time.Time
 }
 
 // Comments returns the comments of an issue, oldest first.
@@ -45,11 +49,13 @@ func (c *Client) Comments(ctx context.Context, repository string, issue int) ([]
 		User struct {
 			Login string `json:"login"`
 		} `json:"user"`
-		Body string `json:"body"`
+		Body    string    `json:"body"`
+		Created time.Time `json:"created_at"`
 	}
 	err := paged(ctx, c, what, url, commentsPerPage, func(batch []comment) {
 		for _, read := range batch {
-			comments = append(comments, Comment{ID: read.ID, Author: read.User.Login, Body: read.Body})
+			comments = append(comments, Comment{ID: read.ID, Author: read.User.Login, Body: read.Body,
+				Created: read.Created})
 		}
 	})
 	if err != nil {

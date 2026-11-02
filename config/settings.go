@@ -17,6 +17,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -42,6 +43,7 @@ type Settings struct {
 		Metadata Metadata `yaml:"metadata"`
 		Links    Links    `yaml:"links"`
 		Mastodon Mastodon `yaml:"mastodon"`
+		Nudges   Nudges   `yaml:"nudges"`
 		Teams    struct {
 			// Organisation the teams belong to.
 			Organisation string `yaml:"organisation"`
@@ -108,6 +110,92 @@ type Settings struct {
 			} `yaml:"managed"`
 		} `yaml:"labels"`
 	} `yaml:"chekhov"`
+}
+
+// Nudges are the nightly sweep's own comments about a check that has stalled,
+// as opposed to the follow-ups an earlier reply asked for. Each is off at 0,
+// which is the default: a register switches them on when its editors want
+// them, by setting the threshold. See codecheckers/chekhov#25.
+type Nudges struct {
+	// QuietDays is how long a check with an assigned codechecker may go
+	// without a comment before the codechecker is asked where it stands.
+	QuietDays int `yaml:"quiet_days"`
+	// NeedsCodecheckerDays is how long a check may wait in the queue - the
+	// needs_codechecker label - before the editors are told.
+	NeedsCodecheckerDays int `yaml:"needs_codechecker_days"`
+	// MostPerSweep is how many nudges one sweep posts at most. The first
+	// night after a register switches them on, every check that has stalled
+	// is due at once, and a burst of comments is what GitHub's spam
+	// detection hid the bot for; the rest wait for the next night.
+	MostPerSweep int `yaml:"most_per_sweep"`
+	// OnlyIssues are the issues a deployment nudges, comma-separated, and
+	// every issue when empty. Only the production file may leave it empty
+	// with a nudge switched on - validate refuses the others - because the
+	// testing register is two hundred issues of test debris, some naming
+	// real accounts, and a live test of nudges must name the issue it is
+	// trying them on.
+	OnlyIssues string `yaml:"only_issues"`
+}
+
+// DefaultNudgesPerSweep is how many nudges a sweep posts when the settings do
+// not say.
+const DefaultNudgesPerSweep = 5
+
+// QuietAfter is how long a check may be quiet before its codechecker is
+// nudged, 0 when that nudge is off.
+func (s *Settings) QuietAfter() time.Duration { return days(s.Chekhov.Nudges.QuietDays) }
+
+// QueueAfter is how long a check may wait in the queue for a codechecker
+// before the editors are told, 0 when that nudge is off.
+func (s *Settings) QueueAfter() time.Duration { return days(s.Chekhov.Nudges.NeedsCodecheckerDays) }
+
+// NudgesOn reports whether any nudge is switched on.
+func (s *Settings) NudgesOn() bool { return s.QuietAfter() > 0 || s.QueueAfter() > 0 }
+
+func days(n int) time.Duration { return time.Duration(n) * 24 * time.Hour }
+
+// NudgesPerSweep is how many nudges one sweep posts at most.
+func (s *Settings) NudgesPerSweep() int {
+	if s.Chekhov.Nudges.MostPerSweep <= 0 {
+		return DefaultNudgesPerSweep
+	}
+	return s.Chekhov.Nudges.MostPerSweep
+}
+
+// Nudges reports whether the sweep may nudge on an issue; see
+// Nudges.OnlyIssues.
+func (s *Settings) Nudges(issue int) bool {
+	listed, _ := issueList(s.Chekhov.Nudges.OnlyIssues)
+	return len(listed) == 0 || listed[issue]
+}
+
+// issueList reads a comma-separated list of issue numbers, a # in front of
+// one allowed, and refuses anything else in it.
+func issueList(written string) (map[int]bool, error) {
+	listed := map[int]bool{}
+	for _, field := range strings.Split(written, ",") {
+		field = strings.TrimPrefix(strings.TrimSpace(field), "#")
+		if field == "" {
+			continue
+		}
+		n, err := strconv.Atoi(field)
+		if err != nil || n <= 0 {
+			return nil, fmt.Errorf("%q is not an issue number", field)
+		}
+		listed[n] = true
+	}
+	return listed, nil
+}
+
+// EditorsToTell is whom a nudge to the editors mentions: the editors team,
+// or the people teams.owners names instead, which a deployment that may not
+// notify the real editors sets - and then configured is true, so that the
+// reply can say the editors were not told. See OwnersOverride.
+func (s *Settings) EditorsToTell() (handles []string, configured bool) {
+	if substitutes := s.OwnersOverride(); len(substitutes) > 0 {
+		return substitutes, true
+	}
+	return []string{s.TeamOrganisation() + "/" + s.EditorsTeam()}, false
 }
 
 // IssueNumber is an issue of the target repository, 0 for none.
@@ -274,6 +362,26 @@ func validate(name string, s *Settings) error {
 	if isProductionRegister(s.Chekhov.Env.TargetRepository) && name != productionFile {
 		return fmt.Errorf("%s names the production register %s; only %s may",
 			name, productionRegister, productionFile)
+	}
+	nudges := s.Chekhov.Nudges
+	if nudges.QuietDays < 0 || nudges.NeedsCodecheckerDays < 0 || nudges.MostPerSweep < 0 {
+		return fmt.Errorf("%s: a nudge threshold or limit is negative; 0 switches a nudge off", name)
+	}
+	listed, err := issueList(nudges.OnlyIssues)
+	if err != nil {
+		return fmt.Errorf("%s: nudges.only_issues: %w", name, err)
+	}
+	if len(listed) == 0 && (nudges.QuietDays > 0 || nudges.NeedsCodecheckerDays > 0) &&
+		name != productionFile {
+		return fmt.Errorf("%s switches a nudge on for every issue; only %s may - "+
+			"name the issues to nudge in nudges.only_issues", name, productionFile)
+	}
+	// The queue nudge mentions the editors team unless teams.owners names
+	// substitutes, and a deployment that is not production may not notify
+	// the real editors.
+	if nudges.NeedsCodecheckerDays > 0 && len(s.OwnersOverride()) == 0 && name != productionFile {
+		return fmt.Errorf("%s switches the queue nudge on with no teams.owners, so it would "+
+			"notify the real editors; only %s may", name, productionFile)
 	}
 	switch s.Chekhov.Metadata.Source {
 	case "openalex", "crossref":

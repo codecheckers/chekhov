@@ -90,3 +90,14 @@ chekhov:
       - codecheckers
       - institutional-codecheckers
 
+  # The sweep's own comments about a check that has stalled. Each threshold is
+  # in days, 0 switches it off, and both are off until the editors switch
+  # them on, on the deployment. The editors told about the queue are the
+  # editors team, mentioned. See settings-development.yml and
+  # codecheckers/chekhov#25.
+  nudges:
+    quiet_days: ${CHEKHOV_NUDGE_QUIET_DAYS:-0}
+    needs_codechecker_days: ${CHEKHOV_NUDGE_NEEDS_CODECHECKER_DAYS:-0}
+    most_per_sweep: ${CHEKHOV_NUDGE_MOST_PER_SWEEP:-5}
+    # Empty here means every issue of the register.
+    only_issues: "${CHEKHOV_NUDGE_ONLY_ISSUES:-}"

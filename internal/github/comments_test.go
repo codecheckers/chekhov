@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // A record lives at the end of what it is written into, so an edit that would
@@ -206,5 +207,27 @@ func TestDeletingAComment(t *testing.T) {
 	}
 	if want := []string{"DELETE /repos/codecheckers/testing-dev-register/issues/comments/7"}; !slices.Equal(asked, want) {
 		t.Errorf("asked %v, want %v", asked, want)
+	}
+}
+
+// How long a check has been quiet is how long ago its newest comment was
+// posted, so the listing carries when each one was.
+func TestCommentsSayWhenTheyWerePosted(t *testing.T) {
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") != "1" {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[{"id": 1, "user": {"login": "a-codechecker"}, "body": "on it",
+			"created_at": "2026-10-01T10:00:00Z"}]`))
+	})
+
+	comments, err := client.Comments(context.Background(), client.Repository, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(comments) != 1 || !comments[0].Created.Equal(time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)) {
+		t.Errorf("read %+v", comments)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
@@ -44,6 +45,9 @@ type organisation struct {
 	// and from, which is the other half of finishing an assignment.
 	assigned   []string
 	unassigned []string
+	// labeledAt is when a label last went on the check, for how long it has
+	// waited in the queue.
+	labeledAt map[string]time.Time
 }
 
 func (o *organisation) Assign(_ context.Context, _ string, _ int, handle string) ([]string, error) {
@@ -84,7 +88,8 @@ func (o *organisation) labelled(labels ...string) {
 func (o *organisation) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
 	id, err := o.recorder.Comment(ctx, repository, issue, body)
 	if err == nil {
-		o.thread = append(o.thread, github.Comment{ID: id, Author: "chekhovbot", Body: body})
+		o.thread = append(o.thread, github.Comment{ID: id, Author: "chekhovbot", Body: body,
+			Created: time.Now()})
 	}
 	return id, err
 }
@@ -92,7 +97,7 @@ func (o *organisation) Comment(ctx context.Context, repository string, issue int
 // onTheIssue is a comment already in the thread, for the sweep to find.
 func (o *organisation) onTheIssue(body string) {
 	o.thread = append(o.thread, github.Comment{ID: int64(len(o.thread) + 1),
-		Author: "chekhovbot", Body: body})
+		Author: "chekhovbot", Body: body, Created: time.Now()})
 }
 
 func (o *organisation) InOrganisation(_ context.Context, _, handle string) (bool, error) {

@@ -47,16 +47,30 @@ const (
 	// subject is who to remind, Due when, and Note the reason they gave.
 	// See codecheckers/chekhov#25.
 	KindReminder = "reminder"
+	// KindQueueNudge is the sweep telling the editors that a check has waited
+	// in the queue too long. Written settled: nothing resumes it, because
+	// the next nudge is decided by looking at the label again, and the
+	// record is there only to say when this one was posted, so that the next
+	// waits an interval. The subject is the queue's label. See
+	// codecheckers/chekhov#25.
+	KindQueueNudge = "queue-nudge"
+	// KindQuietNudge is the sweep asking the assigned codechecker about a
+	// check nobody has commented on. Written settled, as the queue nudge is:
+	// it says when the codechecker was last asked, and Reminders how many
+	// times in a row without an answer, so that the asking stops. The
+	// subject is the codechecker.
+	KindQuietNudge = "quiet-nudge"
 )
 
 // outlivesTheCheck are the kinds still due after the check's issue is closed:
 // the register pull request closes it, and archiving comes after that.
-// aboutAThing are the kinds whose subject is a repository, not a person.
+// aboutAThing are the kinds whose subject is a thing - a repository, a label
+// - not a person.
 // Properties of a kind, kept beside the kinds so that the sweep and `status`
 // never have to name one.
 var (
 	outlivesTheCheck = map[string]bool{KindArchive: true}
-	aboutAThing      = map[string]bool{KindArchive: true}
+	aboutAThing      = map[string]bool{KindArchive: true, KindQueueNudge: true}
 )
 
 // OutlivesTheCheck reports whether a follow-up of this kind is still due once

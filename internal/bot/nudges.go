@@ -69,7 +69,7 @@ func (h *sweeps) record(sweep Sweep) {
 //
 // Counts, not words: a problem names the person it is about, and this endpoint
 // is unauthenticated. Development says more, as everywhere else in the bot.
-func (h *sweeps) state(development bool) map[string]any {
+func (h *sweeps) state(development bool, switched map[string]int) map[string]any {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -81,6 +81,8 @@ func (h *sweeps) state(development bool) map[string]any {
 			"closed":      sweep.Closed,
 			"acted":       sweep.Acted,
 			"outstanding": sweep.Outstanding,
+			"nudged":      sweep.Nudged,
+			"held":        sweep.Held,
 			"problems":    len(sweep.Problems),
 		}
 		if development {
@@ -96,6 +98,9 @@ func (h *sweeps) state(development bool) map[string]any {
 		"started": h.started.Format(time.RFC3339),
 		"every":   nightly.String(),
 		"sweeps":  walked,
+		// Which nudges this deployment posts, in days, 0 for off: whether
+		// they are switched on is the first question when none come.
+		"nudge_days": switched,
 	}
 	if last := len(h.done); last > 0 {
 		state["last_sweep"] = h.done[last-1].Started.Format(time.RFC3339)
@@ -107,7 +112,10 @@ func (h *sweeps) state(development bool) map[string]any {
 
 // nudgeState answers GET /nudges.
 func (s *Server) nudgeState(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, s.sweeps.state(s.Deployment.Development()))
+	writeJSON(w, s.sweeps.state(s.Deployment.Development(), map[string]int{
+		"quiet":             int(s.Settings.QuietAfter() / day),
+		"needs_codechecker": int(s.Settings.QueueAfter() / day),
+	}))
 }
 
 // sweepNightly runs the sweep until the process is asked to stop.

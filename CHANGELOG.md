@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-02
+
+### Added
+
+- The nightly sweep nudges the assigned codechecker of a check in progress
+  that nobody has commented on for a configured number of days, three times
+  at most without an answer, and tells the editors about a check that has
+  carried `needs codechecker` for a configured number of days, once an
+  interval; both are off until a deployment sets them, and a sweep posts at
+  most five (#25).
+- `nudge` says how many stalled checks it nudged, and how many it left for a
+  later night (#25).
+
 ## [0.24.0] - 2026-11-02
 
 ### Added

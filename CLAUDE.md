@@ -115,7 +115,13 @@ The third is `command.ReminderDue` (#25), which notifies the person a
 `remind` named on the day it is due - somebody the command's author already
 mentioned, so in a test it is the handle the test wrote; every at sign in the
 note it quotes is written as `&#64;`, so that nobody else is notified twice;
-a reminder may only name somebody already on the check.
+a reminder may only name somebody already on the check. The fourth and fifth
+are the nudges, `command.QuietNudge` to the assigned codechecker of a quiet
+check and `command.QueueNudge` to the editors team about one waiting for a
+codechecker - which in development is `teams.owners` again, for the same
+reason; and a development deployment nudges only the issues
+`nudges.only_issues` names, because the testing register is full of old
+test issues whose records name people.
 `command.notifying` is the only function that writes a
 handle so that it notifies, and it is named to be hard to confuse with
 `command.mentions`, which writes one in backticks so that it does not.
@@ -712,7 +718,7 @@ exists; read the issues for what does not.
 | #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
 | #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `codecheckers suggest` done; `invite` split out into its own issue |
-| #25 reminders and nudges | `remind` implemented (0.24.0): a follow-up record per reminder, posted by the sweep on its day; the automatic nudges come next |
+| #25 reminders and nudges | `remind` (0.24.0): a follow-up record per reminder, posted by the sweep on its day; live on testing-dev-register#240. Nudges (0.25.0): quiet checks and the queue, off until `CHEKHOV_NUDGE_*` set, at most five a sweep |
 | #27 archive reminder | Done (0.23.1): `check finish` warns about a copy in `codecheckers/` that is not archived, and the sweep reminds the handling editor once the row is in `register.csv`; answered on testing-dev-register#239; GitLab is #65 |
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |

@@ -141,6 +141,27 @@ chekhov:
       - codecheckers
       - institutional-codecheckers
 
+  # The sweep's own comments about a check that has stalled - not the
+  # follow-ups an earlier reply asked for, which come whatever this says.
+  # Each threshold is in days, and 0 switches it off, which is the default:
+  # editors switch a nudge on by setting it on the deployment. See
+  # codecheckers/chekhov#25.
+  nudges:
+    # A check with an assigned codechecker and no comment for this long: the
+    # codechecker is asked where it stands.
+    quiet_days: ${CHEKHOV_NUDGE_QUIET_DAYS:-0}
+    # A check carrying the needs_codechecker label for this long: the editors
+    # are told. Here that means the people in teams.owners, never the
+    # editors team, for the reason owners are named there.
+    needs_codechecker_days: ${CHEKHOV_NUDGE_NEEDS_CODECHECKER_DAYS:-0}
+    # How many nudges one sweep posts at most; the rest wait a night.
+    most_per_sweep: ${CHEKHOV_NUDGE_MOST_PER_SWEEP:-5}
+    # The only issues nudged, comma-separated. Required here once a nudge is
+    # on - the settings are refused without it - because the testing
+    # register is two hundred issues of test debris, and a live test names
+    # the issue it tries nudges on.
+    only_issues: "${CHEKHOV_NUDGE_ONLY_ISSUES:-}"
+
   # Who may run a command is NOT here: it is the Role of the command's entry in
   # internal/command/registry.go, which also generates the help listing. buffy
   # writes `only: editors` under a responder; this file used to carry that and

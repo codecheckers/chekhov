@@ -157,11 +157,14 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 	followers := s.followers(s.Services.Fresh())
 	for _, issue := range issues {
 		event := mention{Repository: register, Issue: issue.Number}
-		records, unread := s.outstandingIn(ctx, reader, event)
-		for _, problem := range unread {
+		// One listing of the comments per issue, for the follow-ups, the
+		// record of the check and the nudges alike.
+		event.comments = s.commentsOnce(event)
+		thread := s.threadOf(ctx, reader, event)
+		for _, problem := range thread.unread {
 			sweep.problem(event, "%s", problem)
 		}
-		for _, record := range records {
+		for _, record := range thread.outstanding() {
 			if issue.Closed && !followup.OutlivesTheCheck(record.Kind) {
 				// Asking the owners to invite somebody onto a check that is
 				// over would be a reminder about nothing.
@@ -169,12 +172,62 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 			}
 			s.resume(ctx, event, record, followers, &sweep)
 		}
+		if !issue.Closed {
+			s.nudgeStalled(ctx, event, issue, thread, &sweep)
+		}
 	}
 	return sweep
 }
 
-// outstandingIn is the newest record per subject and kind on one issue, and
-// what could not be read while looking.
+// An issueThread is what the sweep reads out of one issue's comments: the comments
+// themselves, the newest record about each thing, settled or not, and what
+// could not be read while looking.
+type issueThread struct {
+	comments []people.Comment
+	newest   map[string]followup.Record
+	unread   []string
+}
+
+// outstanding are the records still waiting on something, in a stable order,
+// so that two sweeps of the same issue read the same.
+func (t issueThread) outstanding() []followup.Record {
+	records := make([]followup.Record, 0, len(t.newest))
+	for _, record := range t.newest {
+		// Done and said to be done: nothing for the sweep to resume, and
+		// nothing for `status` to list as waiting.
+		if !record.Settled {
+			records = append(records, record)
+		}
+	}
+	sort.Slice(records, func(i, j int) bool {
+		if records[i].Kind != records[j].Kind {
+			return records[i].Kind < records[j].Kind
+		}
+		if records[i].Subject != records[j].Subject {
+			return records[i].Subject < records[j].Subject
+		}
+		return records[i].Due < records[j].Due
+	})
+	return records
+}
+
+// newestAbout is the newest record about what one would be about, settled
+// or not, and whether there is one.
+func (t issueThread) newestAbout(like followup.Record) (followup.Record, bool) {
+	record, ok := t.newest[like.About()]
+	return record, ok
+}
+
+// outstandingIn is what is still waiting on one issue, and what could not be
+// read while looking.
+func (s *Server) outstandingIn(ctx context.Context, reader Reader,
+	event mention) (records []followup.Record, unread []string) {
+	thread := s.threadOf(ctx, reader, event)
+	return thread.outstanding(), thread.unread
+}
+
+// threadOf reads one issue: the newest record per subject and kind, and what
+// could not be read while looking.
 //
 // Per subject, because a reminder posts a fresh record beside the old one and
 // only the last one is the state; the older ones are the history of what was
@@ -185,11 +238,10 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 // register, and `status` shows them under the one check it is about. This is
 // the only place that knows a record is only a record because the bot wrote
 // it, and neither caller may grow a second copy of that rule.
-func (s *Server) outstandingIn(ctx context.Context, reader Reader,
-	event mention) (records []followup.Record, unread []string) {
+func (s *Server) threadOf(ctx context.Context, reader Reader, event mention) issueThread {
 	comments, err := comments(event, reader).Comments(ctx, event.Repository, event.Issue)
 	if err != nil {
-		return nil, []string{fmt.Sprintf("could not read the comments: %s", err)}
+		return issueThread{unread: []string{fmt.Sprintf("could not read the comments: %s", err)}}
 	}
 
 	bot := s.Settings.BotUser()
@@ -197,12 +249,12 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 		// Without the bot's own name there is no way to tell its comments
 		// from anybody else's, and a record is only a record because the bot
 		// wrote it.
-		return nil, []string{
-			"I do not know my own account name, so I cannot tell my records from anybody else's"}
+		return issueThread{comments: comments, unread: []string{
+			"I do not know my own account name, so I cannot tell my records from anybody else's"}}
 	}
 
 	check := event.check()
-	newest := map[string]followup.Record{}
+	read := issueThread{comments: comments, newest: map[string]followup.Record{}}
 	for _, comment := range comments {
 		// The signature is the second defence and not the first: a deployment
 		// without a record key signs nothing, and anybody who can comment
@@ -218,34 +270,15 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 		case err != nil:
 			// A record somebody edited is not one to act on, and saying so is
 			// the point: silence would look like there was nothing there.
-			unread = append(unread, err.Error())
+			read.unread = append(read.unread, err.Error())
 			continue
 		}
 		key := record.About()
-		if held, seen := newest[key]; !seen || record.Raised().After(held.Raised()) {
-			newest[key] = record
+		if held, seen := read.newest[key]; !seen || record.Raised().After(held.Raised()) {
+			read.newest[key] = record
 		}
 	}
-
-	records = make([]followup.Record, 0, len(newest))
-	for _, record := range newest {
-		// Done and said to be done: nothing for the sweep to resume, and
-		// nothing for `status` to list as waiting.
-		if !record.Settled {
-			records = append(records, record)
-		}
-	}
-	// A stable order, so that two sweeps of the same issue read the same.
-	sort.Slice(records, func(i, j int) bool {
-		if records[i].Kind != records[j].Kind {
-			return records[i].Kind < records[j].Kind
-		}
-		if records[i].Subject != records[j].Subject {
-			return records[i].Subject < records[j].Subject
-		}
-		return records[i].Due < records[j].Due
-	})
-	return records, unread
+	return read
 }
 
 // resume hands one record to its handler and posts whatever it says.

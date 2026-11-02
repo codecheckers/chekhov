@@ -55,6 +55,7 @@ runway app config set -a chekhov-dev CHEKHOV_MASTODON_TOKEN=...    # optional, s
 runway app config set -a chekhov-dev GOMEMLIMIT=96MiB             # the free plan has 128 MB, see "Memory" below
 runway app config set -a chekhov-dev CHEKHOV_RECORD_KEY=...       # `chekhov record-key`, see record-key.md
 runway app config set -a chekhov-dev CHEKHOV_ADMIN_ISSUE=...      # optional, see "Watching it" below
+# CHEKHOV_NUDGE_* only to switch the nudges on, see "Nudges" below
 # CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org;
 # the production file writes them out and does not read either
 runway app deploy source -y
@@ -519,6 +520,27 @@ them, and a failed sweep is counted by `/nudges` like any other - a sweep that
 keeps panicking shows up as well as one that has stopped. The third is a
 command's own, so the person who asked is told that step failed. See
 [chekhov#50](https://github.com/codecheckers/chekhov/issues/50).
+
+## Nudges
+
+The nightly sweep can nudge a check that has stalled, and does not until a
+deployment says so (#25). Each threshold is in days; unset or `0` is off.
+
+| Variable | Nudge |
+|---|---|
+| `CHEKHOV_NUDGE_QUIET_DAYS` | the assigned codechecker, on a check carrying `work in progress` that no person has commented on for this long; again each such interval, three times at most without an answer |
+| `CHEKHOV_NUDGE_NEEDS_CODECHECKER_DAYS` | the editors, about a check that has carried the `needs codechecker` label for this long, and again each such interval |
+| `CHEKHOV_NUDGE_MOST_PER_SWEEP` | how many nudges one sweep posts at most, 5 when unset; the rest wait a night |
+| `CHEKHOV_NUDGE_ONLY_ISSUES` | the issues nudged, comma-separated, every issue when empty; outside production a nudge that is switched on with this empty is refused at startup |
+
+In production the editors are the editors team, mentioned. Anywhere else
+they are the people `teams.owners` names, and the nudge says so; a settings
+file other than production's that switches the queue nudge on without them
+is refused at startup. The testing
+register is two hundred old test issues, so a development deployment has to
+name the issues it nudges in `CHEKHOV_NUDGE_ONLY_ISSUES`: the live test issue.
+`GET /nudges` reports the thresholds as `nudge_days`, and each sweep's
+`nudged` and `held`.
 
 ## Redeploying
 

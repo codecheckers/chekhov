@@ -134,3 +134,47 @@ func TestIssuesRefuseAnotherRepository(t *testing.T) {
 		t.Error("reading every issue of another repository should be refused")
 	}
 }
+
+// The wait for a codechecker starts when the label was last put on: a check
+// whose codechecker withdrew has waited since then, not since it was opened.
+func TestLabeledAtIsTheNewestTimeTheLabelWentOn(t *testing.T) {
+	var path string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") != "1" {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[
+			{"event": "labeled", "label": {"name": "needs codechecker"}, "created_at": "2026-09-01T10:00:00Z"},
+			{"event": "unlabeled", "label": {"name": "needs codechecker"}, "created_at": "2026-09-05T10:00:00Z"},
+			{"event": "labeled", "label": {"name": "id assigned"}, "created_at": "2026-10-20T10:00:00Z"},
+			{"event": "labeled", "label": {"name": "Needs Codechecker"}, "created_at": "2026-10-01T10:00:00Z"}]`))
+	})
+
+	at, err := client.LabeledAt(context.Background(), client.Repository, 7, "needs codechecker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "/repos/codecheckers/testing-dev-register/issues/7/events"; path != want {
+		t.Errorf("path = %q, want %q", path, want)
+	}
+	if want := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC); !at.Equal(want) {
+		t.Errorf("labeled at %s, want %s", at, want)
+	}
+
+	never, err := client.LabeledAt(context.Background(), client.Repository, 7, "institution")
+	if err != nil || !never.IsZero() {
+		t.Errorf("a label never put on was put on at %s, %v", never, err)
+	}
+}
+
+func TestLabeledAtRefusesAnotherRepository(t *testing.T) {
+	client := stub(t, func(http.ResponseWriter, *http.Request) {
+		t.Error("a request left for another repository")
+	})
+	if _, err := client.LabeledAt(context.Background(), "codecheckers/register", 7, "needs codechecker"); err == nil {
+		t.Error("another repository was read")
+	}
+}

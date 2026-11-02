@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The shipped settings must name the testing register. Development and testing
@@ -423,5 +424,81 @@ func TestANegativeCertificateLimitIsRefused(t *testing.T) {
 	if err := validate("settings-test.yml", settings); err == nil ||
 		!strings.Contains(err.Error(), "links.max_certificate_bytes") {
 		t.Errorf("validate = %v, want a refusal naming links.max_certificate_bytes", err)
+	}
+}
+
+// Nudges are off in every shipped file until a deployment sets a threshold,
+// and post a handful a night when the settings do not say.
+func TestNudgesAreOffByDefault(t *testing.T) {
+	t.Setenv("CHEKHOV_TARGET_REPO", "")
+	for _, env := range []string{"development", "live-test", "production"} {
+		settings, err := Load(env)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if settings.QuietAfter() != 0 || settings.QueueAfter() != 0 {
+			t.Errorf("%s: nudges are on by default", env)
+		}
+		if got := settings.NudgesPerSweep(); got != DefaultNudgesPerSweep {
+			t.Errorf("%s: %d nudges a sweep, want %d", env, got, DefaultNudgesPerSweep)
+		}
+	}
+}
+
+func TestNudgeThresholdsComeFromTheEnvironment(t *testing.T) {
+	t.Setenv("CHEKHOV_NUDGE_QUIET_DAYS", "14")
+	t.Setenv("CHEKHOV_NUDGE_NEEDS_CODECHECKER_DAYS", "7")
+	t.Setenv("CHEKHOV_NUDGE_ONLY_ISSUES", "240")
+	settings := mustLoad(t)
+	if settings.QuietAfter() != 14*24*time.Hour || settings.QueueAfter() != 7*24*time.Hour {
+		t.Errorf("quiet after %s, unassigned after %s", settings.QuietAfter(), settings.QueueAfter())
+	}
+
+	t.Setenv("CHEKHOV_NUDGE_QUIET_DAYS", "-1")
+	if _, err := Load("development"); err == nil {
+		t.Error("a negative threshold was accepted")
+	}
+	t.Setenv("CHEKHOV_NUDGE_QUIET_DAYS", "14")
+	t.Setenv("CHEKHOV_NUDGE_ONLY_ISSUES", "240, x")
+	if _, err := Load("development"); err == nil || !strings.Contains(err.Error(), "not an issue number") {
+		t.Errorf("error %v, want an issue list with a word in it refused", err)
+	}
+}
+
+// The testing register is two hundred issues of test debris, so outside
+// production a nudge may be switched on only for the issues named.
+func TestOnlyTheNamedIssuesAreNudgedOutsideProduction(t *testing.T) {
+	t.Setenv("CHEKHOV_TARGET_REPO", "")
+	t.Setenv("CHEKHOV_NUDGE_QUIET_DAYS", "14")
+	if _, err := Load("development"); err == nil || !strings.Contains(err.Error(), "only_issues") {
+		t.Errorf("error %v, want development refused a nudge on every issue", err)
+	}
+
+	t.Setenv("CHEKHOV_NUDGE_ONLY_ISSUES", "240, #241")
+	settings := mustLoad(t)
+	if !settings.Nudges(240) || !settings.Nudges(241) || settings.Nudges(1) {
+		t.Errorf("nudged 240 %v, 241 %v, 1 %v; want the named two only",
+			settings.Nudges(240), settings.Nudges(241), settings.Nudges(1))
+	}
+
+	t.Setenv("CHEKHOV_NUDGE_ONLY_ISSUES", "")
+	production, err := Load("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !production.Nudges(1) {
+		t.Error("production nudges nothing when no issue is named")
+	}
+}
+
+// Outside production the queue nudge would mention the editors team unless
+// teams.owners names substitutes, so it is refused without them.
+func TestTheQueueNudgeOutsideProductionNeedsSubstitutes(t *testing.T) {
+	t.Setenv("CHEKHOV_NUDGE_NEEDS_CODECHECKER_DAYS", "7")
+	t.Setenv("CHEKHOV_NUDGE_ONLY_ISSUES", "240")
+	settings := mustLoad(t)
+	settings.Chekhov.Teams.Owners = nil
+	if err := validate("settings-development.yml", settings); err == nil || !strings.Contains(err.Error(), "real editors") {
+		t.Errorf("error %v, want the queue nudge refused without substitutes", err)
 	}
 }

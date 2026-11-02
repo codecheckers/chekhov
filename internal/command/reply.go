@@ -488,6 +488,14 @@ func CodeList(items []string) string {
 // early, so it becomes a quote.
 func Code(text string) string { return "`" + strings.ReplaceAll(text, "`", "'") + "`" }
 
+// Days is a number of days as a sentence says it: "a day", "3 days".
+func Days(n int) string {
+	if n == 1 {
+		return "a day"
+	}
+	return fmt.Sprintf("%d days", n)
+}
+
 func plural(n int) string {
 	if n == 1 {
 		return ""
@@ -1077,7 +1085,10 @@ type Swept struct {
 	Closed      int
 	Acted       int
 	Outstanding int
-	Problems    []string
+	// Nudged are the stalled checks the walk nudged, and Held the ones it
+	// would have nudged had it not reached the most one walk posts.
+	Nudged, Held int
+	Problems     []string
 }
 
 // SweptReply says what the walk found. Short when there was nothing to do,
@@ -1106,6 +1117,13 @@ func SweptReply(swept Swept) string {
 			swept.Outstanding, plural(swept.Outstanding))
 	default:
 		out.WriteString("\nNothing outstanding.\n")
+	}
+	if swept.Nudged > 0 {
+		fmt.Fprintf(&out, "\nNudged %d stalled check%s.\n", swept.Nudged, plural(swept.Nudged))
+	}
+	if swept.Held > 0 {
+		fmt.Fprintf(&out, "\nAt least %d more stalled check%s will be nudged on a later night: "+
+			"I post only so many nudges in one walk.\n", swept.Held, plural(swept.Held))
 	}
 
 	// Bounded, because a register-wide failure - an expired token, a walk

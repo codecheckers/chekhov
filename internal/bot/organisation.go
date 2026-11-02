@@ -152,9 +152,5 @@ func since(record followup.Record) string {
 	if raised.IsZero() {
 		return "a while"
 	}
-	days := int(time.Since(raised).Hours() / 24)
-	if days == 1 {
-		return "a day"
-	}
-	return fmt.Sprintf("%d days", days)
+	return command.Days(daysSince(raised, time.Now()))
 }

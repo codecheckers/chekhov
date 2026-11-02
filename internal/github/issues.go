@@ -141,3 +141,39 @@ func (i wireIssue) issue() Issue {
 	}
 	return read
 }
+
+// eventsPerPage is GitHub's maximum page size for an issue's events.
+const eventsPerPage = 100
+
+// LabeledAt is when a label was last put on an issue, zero when it never was.
+// The newest time, because a label taken off and put back - a codechecker
+// who withdrew - starts the wait again. See codecheckers/chekhov#25.
+func (c *Client) LabeledAt(ctx context.Context, repository string, issue int, label string) (time.Time, error) {
+	if err := c.mine(repository, "read the events of an issue"); err != nil {
+		return time.Time{}, err
+	}
+
+	url := fmt.Sprintf("%s/repos/%s/issues/%d/events?per_page=%d",
+		strings.TrimSuffix(c.BaseURL, "/"), repository, issue, eventsPerPage)
+	what := fmt.Sprintf("reading the events of %s#%d", repository, issue)
+
+	type event struct {
+		Event string `json:"event"`
+		Label struct {
+			Name string `json:"name"`
+		} `json:"label"`
+		Created time.Time `json:"created_at"`
+	}
+	var newest time.Time
+	err := paged(ctx, c, what, url, eventsPerPage, func(batch []event) {
+		for _, read := range batch {
+			if read.Event == "labeled" && strings.EqualFold(read.Label.Name, label) && read.Created.After(newest) {
+				newest = read.Created
+			}
+		}
+	})
+	if err != nil {
+		return time.Time{}, fmt.Errorf("could not read the events of %s#%d: %w", repository, issue, err)
+	}
+	return newest, nil
+}
