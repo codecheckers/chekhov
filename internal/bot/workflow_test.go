@@ -30,6 +30,8 @@ type workflow struct {
 	// refuse is an error every label write answers with, for the test that a
 	// failure is reported rather than undone.
 	refuse error
+	// stub is what the services read from, for a test to add to.
+	stub *testserver.Server
 }
 
 func (w *workflow) Comments(context.Context, string, int) ([]github.Comment, error) {
@@ -106,7 +108,9 @@ func checking(t *testing.T, fixture string, labels ...string) (*Server, *workflo
 		HTTP:       stub.Client(),
 		Register:   server.Settings.TargetRepository(),
 		RawContent: stub.URL + "/raw",
+		GitHub:     stub.URL + "/github",
 	}}
+	path.stub = stub
 	return server, path
 }
 

@@ -170,18 +170,24 @@ func (s *Server) destination(ctx context.Context, event mention, role command.Ro
 // Nil when there is nothing to chase with: without an issue there is nowhere
 // to write it, and without a signer nothing would trust it later.
 func (s *Server) outstanding(event mention, handle string, role command.Role, team string) *followup.Record {
+	return s.followUp(event, followup.Record{
+		Kind: followup.KindOrganisation, Subject: handle, Role: string(role), Team: team})
+}
+
+// followUp is a record of something a reply leaves outstanding on this check,
+// asked now - or nil when nothing would come back for it: no issue to come
+// back to, or no key to sign it with.
+func (s *Server) followUp(event mention, record followup.Record) *followup.Record {
 	if event.Issue <= 0 || !s.signer().Signs() {
 		return nil
 	}
-	return &followup.Record{
-		Kind:    followup.KindOrganisation,
-		Check:   event.check(),
-		Subject: handle,
-		Role:    string(role),
-		Team:    team,
-		Asked:   time.Now().UTC().Format(time.RFC3339),
-	}
+	record.Check = event.check()
+	record.Asked = stamped(time.Now())
+	return &record
 }
+
+// stamped is a time as a record writes it.
+func stamped(when time.Time) string { return when.UTC().Format(time.RFC3339) }
 
 // withNote puts a note under a reply, when there is one: the team an
 // assignment put somebody in, or a label that no longer describes the check.

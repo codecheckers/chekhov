@@ -37,7 +37,31 @@ const (
 	// not in the organisation yet, and the owners have been asked to invite
 	// them. See codecheckers/chekhov#47.
 	KindOrganisation = "organisation-invitation"
+	// KindArchive is a copy of a checked repository in the CODECHECK
+	// organisation that was not archived when the check finished; the
+	// handling editor is reminded once the certificate is registered. The
+	// subject is the repository, as register.csv writes it, not a person. See
+	// codecheckers/chekhov#27.
+	KindArchive = "repository-archive"
 )
+
+// outlivesTheCheck are the kinds still due after the check's issue is closed:
+// the register pull request closes it, and archiving comes after that.
+// aboutAThing are the kinds whose subject is a repository, not a person.
+// Properties of a kind, kept beside the kinds so that the sweep and `status`
+// never have to name one.
+var (
+	outlivesTheCheck = map[string]bool{KindArchive: true}
+	aboutAThing      = map[string]bool{KindArchive: true}
+)
+
+// OutlivesTheCheck reports whether a follow-up of this kind is still due once
+// its check is closed.
+func OutlivesTheCheck(kind string) bool { return outlivesTheCheck[kind] }
+
+// AboutAThing reports whether the subject of this kind is a thing - written as
+// code - rather than a person, written as a handle.
+func AboutAThing(kind string) bool { return aboutAThing[kind] }
 
 // block is how a follow-up is written into a comment: the marker that opens
 // it, and the signed-block format every record the bot writes shares
@@ -57,8 +81,13 @@ type Record struct {
 	// the record as well as around it, so that a record lifted into another
 	// issue does not verify.
 	Check string `json:"check"`
-	// Subject is who it is about, lowercased as every handle the bot keeps is.
+	// Subject is who it is about, lowercased as every handle the bot keeps is
+	// - or, for a kind about a thing rather than a person, what.
 	Subject string `json:"subject"`
+	// By is who asked, for a kind that may have to fall back on them: an
+	// archive reminder goes to the handling editor, and to whoever finished
+	// the check when there is none.
+	By string `json:"by,omitempty"`
 	// Role and Team are what was being asked for, empty when the kind needs
 	// neither.
 	Role string `json:"role,omitempty"`
@@ -67,6 +96,12 @@ type Record struct {
 	// because the thread is the only memory the bot has, and a reminder that
 	// could not count itself would go on for ever.
 	Reminders int `json:"reminders,omitempty"`
+	// Settled says the thing is done and has been said to be done. Most kinds
+	// need no such mark, because a handler that finds the world in order
+	// says nothing; a kind that confirms the end out loud needs one, or it
+	// would confirm again every night. Signed like the rest, so it cannot be
+	// forged to silence a reminder.
+	Settled bool `json:"settled,omitempty"`
 	// Asked is when this was raised, RFC 3339. What "three days old" is
 	// measured from, and the reason a sweep needs no clock of its own.
 	Asked string `json:"asked"`

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Reading the issues of the register.
@@ -61,23 +62,33 @@ func (c *Client) Issue(ctx context.Context, repository string, issue int) (Issue
 // requests left out: a pull request is not a check, and GitHub serves both
 // from this endpoint.
 func (c *Client) OpenIssues(ctx context.Context, repository string) ([]Issue, error) {
-	return c.issues(ctx, repository, "open")
+	return c.issues(ctx, repository, "open", "")
 }
 
 // AllIssues returns every issue of the configured repository, open and
 // closed, pull requests left out. A closed check still holds its certificate
 // identifier: an abandoned one leaves its number unused, never free.
 func (c *Client) AllIssues(ctx context.Context, repository string) ([]Issue, error) {
-	return c.issues(ctx, repository, "all")
+	return c.issues(ctx, repository, "all", "")
 }
 
-func (c *Client) issues(ctx context.Context, repository, state string) ([]Issue, error) {
+// ClosedIssuesSince returns the closed issues of the configured repository
+// that changed since a time, pull requests left out. The register pull
+// request closes a check, and an archive reminder (#27) is due after that:
+// "changed since" keeps the walk to the checks somebody is still talking
+// about, and a reminder is itself a change, so a check being reminded stays
+// in it.
+func (c *Client) ClosedIssuesSince(ctx context.Context, repository string, since time.Time) ([]Issue, error) {
+	return c.issues(ctx, repository, "closed", "&since="+since.UTC().Format(time.RFC3339))
+}
+
+func (c *Client) issues(ctx context.Context, repository, state, query string) ([]Issue, error) {
 	if err := c.mine(repository, "read the issues"); err != nil {
 		return nil, err
 	}
 
-	url := fmt.Sprintf("%s/repos/%s/issues?state=%s&per_page=%d",
-		strings.TrimSuffix(c.BaseURL, "/"), repository, state, issuesPerPage)
+	url := fmt.Sprintf("%s/repos/%s/issues?state=%s&per_page=%d%s",
+		strings.TrimSuffix(c.BaseURL, "/"), repository, state, issuesPerPage, query)
 	what := fmt.Sprintf("reading the %s issues of %s", state, repository)
 
 	var issues []Issue

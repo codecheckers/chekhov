@@ -32,6 +32,9 @@ type organisation struct {
 	// issuesErr a register that will not answer at all.
 	thread    []github.Comment
 	issuesErr error
+	// closed is the checks closed lately, which the sweep reads for their
+	// archive reminders.
+	closed []github.Issue
 	// issuesPanic is a register read that panics rather than failing, which
 	// is what the sweep's recover is for.
 	issuesPanic any

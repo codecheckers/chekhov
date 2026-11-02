@@ -100,6 +100,7 @@ for the whole group, before writing #7.
 | `@chekhovbot checklist` | Post/refresh the codechecker's checklist comment | high |
 | `@chekhovbot status` | Summarise this check: roles, certificate, labels, the configuration, what is still open (#22) | done |
 | `@chekhovbot check finish` | Run the rules, move the labels, prompt for the register PR (#22) | done |
+| (in `check finish` and the nightly sweep) | Warn while the copy in `codecheckers/` is not archived, and remind the handling editor every two weeks once the certificate is registered (#27; GitLab #65) | implemented |
 | `@chekhovbot label <command>` | Apply/remove configured label sets (buffy `label_command`) | medium |
 | `@chekhovbot close` | Close the issue with a templated message | low |
 

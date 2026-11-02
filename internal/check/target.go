@@ -21,6 +21,17 @@ import (
 // GitHub, which is what a codechecker almost always means.
 const gitLabGroup = "cdchck"
 
+// gitHubOrganisation is the CODECHECK organisation on GitHub, where the copies
+// of checked repositories live.
+const gitHubOrganisation = "codecheckers"
+
+// ownedBy reports whether a path's first segment is the owner given, however
+// either was capitalised.
+func ownedBy(path, owner string) bool {
+	first, _, _ := strings.Cut(path, "/")
+	return strings.EqualFold(first, owner)
+}
+
 var (
 	// ownerRepo is `owner/repo`, the form both git platforms use.
 	ownerRepo = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$`)
@@ -55,7 +66,7 @@ func ResolveTarget(target string, services *Services) (RepositorySpec, error) {
 	switch {
 	case ownerRepo.MatchString(path):
 		spec.Type = "github"
-		if owner, project, _ := strings.Cut(path, "/"); strings.EqualFold(owner, gitLabGroup) {
+		if _, project, _ := strings.Cut(path, "/"); ownedBy(path, gitLabGroup) {
 			// The group is matched however it was written, but GitLab serves
 			// it lowercase: keeping the caller's capitalisation would 404.
 			spec.Type, spec.Path = "gitlab", gitLabGroup+"/"+project

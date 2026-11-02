@@ -34,8 +34,8 @@ const (
 //
 // It decides by looking rather than by bookkeeping: has the person joined, do
 // they hold the role, are they in the team. So a sweep that runs twice in a
-// day says nothing the second time, and no record has to be marked resolved -
-// which is one fewer thing anybody could forge.
+// day says nothing the second time, and no record has to be marked settled:
+// the finished job is its own announcement.
 func (s *Server) followOrganisation(ctx context.Context, event mention,
 	record followup.Record) (answered, bool, error) {
 	inside, known := s.membership(ctx, record.Subject)

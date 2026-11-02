@@ -361,6 +361,9 @@ type Outstanding struct {
 	// the record does not say.
 	Subject string
 	Since   time.Time
+	// Thing says the subject is a repository rather than a person, written
+	// as code rather than as a handle.
+	Thing bool
 }
 
 // Line is one outstanding thing, for the list under `status`.
@@ -371,11 +374,15 @@ type Outstanding struct {
 // it stands.
 func (o Outstanding) Line() string {
 	what := strings.ReplaceAll(o.Kind, "-", " ")
+	about := mention(o.Subject)
+	if o.Thing {
+		about = Code(o.Subject)
+	}
 	if o.Since.IsZero() {
-		return fmt.Sprintf("%s, about %s", what, mention(o.Subject))
+		return fmt.Sprintf("%s, about %s", what, about)
 	}
 	return fmt.Sprintf("%s, about %s, since %s",
-		what, mention(o.Subject), o.Since.UTC().Format("2006-01-02"))
+		what, about, o.Since.UTC().Format("2006-01-02"))
 }
 
 // FinishedBody is what `check finish` says once the labels have moved: what

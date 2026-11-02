@@ -100,6 +100,7 @@ were notified by test comments before this was written down.
 | `@nuest` | the maintainer, who is running the test |
 | `@chekhovbot` | the bot itself, which the command is addressed to |
 
+<!-- Source: own rule; ArchiveReminder exception added 2026-11-02 (#27). -->
 The one exception is `command.OutsideReply`, which asks the organisation's
 owners to invite somebody: notifying them is the whole point of that reply, and
 the handles are the organisation's current owners read from the organisation,
@@ -107,7 +108,10 @@ never written down. **A development deployment must not ask them**, because a
 test may not notify people who did not ask to be in it - `teams.owners` in the
 settings names who to ask instead, the shipped development and live-test files
 name the maintainer, and the reply says when it used that list rather than the
-organisation's. `command.notifying` is the only function that writes a
+organisation's. The second is `command.ArchiveReminder` (#27), which the
+nightly sweep posts to the handling editor recorded on the check - somebody an
+editor named for that check, so in a test it is whoever the test assigned.
+`command.notifying` is the only function that writes a
 handle so that it notifies, and it is named to be hard to confuse with
 `command.mentions`, which writes one in backticks so that it does not.
 
@@ -530,9 +534,11 @@ register and environment - it is unauthenticated, and the rest is nobody's
 business. Anything new that names a build, a path or a credential belongs
 behind that check.
 
+<!-- Source: own rule, #48; closed checks added 2026-11-02 (#27). -->
 **What a reply leaves outstanding lives in the thread.** A signed follow-up
 record (`internal/followup`) says what kind, who it is about and when it was
-asked; a sweep walks the open issues nightly - a goroutine in the deployment,
+asked; a sweep walks the open issues nightly, and the closed ones changed in
+the last ninety days for the follow-ups that outlive a check - a goroutine in the deployment,
 not a second job with a second token - and hands each record to the handler
 for its kind. A handler decides by **looking at the world**, never by
 bookkeeping: when the thing is done it says nothing, which is what makes the
@@ -695,6 +701,7 @@ exists; read the issues for what does not.
 | #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
 | #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `codecheckers suggest` done; `invite` split out into its own issue |
+| #27 archive reminder | Implemented (0.23): `check finish` warns about a copy in `codecheckers/` that is not archived, and the sweep reminds the handling editor once the row is in `register.csv`; GitLab is #65 |
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |
 | #62 reworded rules | Done (0.16.1 to 0.17.2), answered on testing-dev-register#229 and #230; the R package's side of the placeholder links is codecheckers/codecheck#103 |

@@ -305,6 +305,27 @@ func TestCassetteDepositMetadata(t *testing.T) {
 	}
 }
 
+// The archive reminder reads one field of a repository (#27). Piccolo-2020 is
+// a copy that was archived after its check; the register itself never will
+// be. The stubs decide what the field means; this proves GitHub sends it.
+func TestCassetteRepositoryArchived(t *testing.T) {
+	services := replayServices(t, "repository-archived")
+
+	for spec, want := range map[RepositorySpec]bool{
+		{Type: "github", Path: "codecheckers/Piccolo-2020"}: true,
+		{Type: "github", Path: "codecheckers/register"}:     false,
+	} {
+		archived, err := services.Archived(spec)
+		if err != nil {
+			t.Errorf("%s: %v", spec, err)
+			continue
+		}
+		if archived != want {
+			t.Errorf("%s: archived %v, want %v", spec, archived, want)
+		}
+	}
+}
+
 // A cassette that does not carry an interaction the check asks for must fail
 // loudly rather than quietly reaching the real service.
 func TestCassetteReplayIsStrict(t *testing.T) {

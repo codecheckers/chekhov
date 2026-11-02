@@ -10,6 +10,7 @@ import (
 
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
+	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 )
@@ -131,19 +132,24 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 	var reportErr error
 	// What the placeholder rule decided, read once: the register stage and the
 	// labels stage must agree on it, or #60 comes back.
-	var pending, decided bool
+	// Whether the rules ran at all, read once too, for the same reason.
+	var pending, decided, ran bool
+	// The archive reminder, when the copy is not archived: left on the
+	// finished body only, as every follow-up is.
+	var archive *followup.Record
 	stages := []stage{
 		fixed(command.ReadingReply(target)),
 		{Name: "the rules", Run: func(context.Context) string {
 			report, reportErr = s.reportOn(target, "", services)
 			pending, decided = placeholdersLeft(report)
+			ran = reportErr == nil && report.Refused == nil
 			return command.CheckSummary(summarised("", target, report, reportErr))
 		}},
 		// What has to be true of the register entry, said on its own because
 		// it is the next step. It reads the results in hand rather than
 		// asking again: the wide run has happened and has paid for itself.
 		fixed2(func() string {
-			if reportErr != nil || report.Refused != nil {
+			if !ran {
 				// The rules did not run, so they did not pass: saying the
 				// entry is ready would be the one sentence somebody acts on.
 				return ""
@@ -158,7 +164,7 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 			return command.RegisterFindings(findings)
 		}),
 		{Name: "the labels", Run: func(context.Context) string {
-			if reportErr != nil || report.Refused != nil {
+			if !ran {
 				return "… I could not read the configuration, so I have moved no label: " +
 					"a rule that could not be asked is not a rule that passed.\n"
 			}
@@ -177,8 +183,22 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 			return moved + command.StartedBy("finished", event.Author, time.Now()) + "\n" +
 				command.FinishedBody(pending, ruleNote(placeholderRule))
 		}},
+		// The last step of the editor guide, and the easiest to forget
+		// (#27). Only for a check that is finished: one waiting on metadata
+		// is run again once the DOIs are real, and is asked then.
+		// Unnamed: one quick read, not worth a staged write announcing it.
+		{Run: func(context.Context) string {
+			if !ran || !decided || pending {
+				return ""
+			}
+			var body string
+			body, archive = s.archiveFollowUp(event, target, about.reading, services)
+			return body
+		}},
 	}
-	return (&progress{server: s, event: event, heading: command.FinishHeading, stages: stages}).run(ctx)
+	result := (&progress{server: s, event: event, heading: command.FinishHeading, stages: stages}).run(ctx)
+	result.follow = archive
+	return result
 }
 
 // whatTheBotKnows is the check as all three commands find it: its labels, its
@@ -249,7 +269,8 @@ func (s *Server) standing(ctx context.Context, event mention, reading people.Rea
 	told.Unread = append(told.Unread, unread...)
 	for _, record := range records {
 		told.Outstanding = append(told.Outstanding, command.Outstanding{
-			Kind: record.Kind, Subject: record.Subject, Since: record.Raised()})
+			Kind: record.Kind, Subject: record.Subject, Since: record.Raised(),
+			Thing: followup.AboutAThing(record.Kind)})
 	}
 	return told
 }

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-02
+
+### Added
+
+- `check finish` says when the copy of the repository in `codecheckers/` is not
+  archived, links GitHub's instructions, and the nightly sweep reminds the
+  handling editor once the certificate is in the register, every two weeks and
+  at most six times, until it is archived; a copy in `cdchck/` on GitLab is
+  named as not checked (#27).
+- `status` lists an archive reminder that is still waiting (#27).
+
 ## [0.22.0] - 2026-10-30
 
 ### Added

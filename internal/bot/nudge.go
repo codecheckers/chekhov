@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
@@ -27,7 +28,9 @@ import (
 //     asked rather than from the first.
 //   - A handler decides by **looking at the world**, not by bookkeeping. When
 //     the thing is done, it says nothing - so running twice in a day sends
-//     nothing twice, without a "resolved" flag anybody could forge.
+//     nothing twice. A kind that announces its end out loud, as the archive
+//     reminder does, leaves a settled record with the announcement, signed
+//     like every other, so that it is said once; see followup.Record.Settled.
 
 // Reader is what the sweep needs of the reply path: the open issues, and the
 // comments of one. A reply path that cannot read them sweeps nothing and says
@@ -40,6 +43,24 @@ type Reader interface {
 // The reply path a deployment uses can do both.
 var _ Reader = (*github.Client)(nil)
 
+// RecentlyClosed is the part of the reply path that reads the checks closed
+// lately, for the follow-ups that outlive their check. Asked for apart from
+// Reader, because a path without it still sweeps the open ones.
+type RecentlyClosed interface {
+	ClosedIssuesSince(ctx context.Context, repository string, since time.Time) ([]github.Issue, error)
+}
+
+var _ RecentlyClosed = (*github.Client)(nil)
+
+// recentlyClosed is how far back the sweep reads the closed checks. A
+// reminder is a comment, and a comment is a change, so a check being reminded
+// every two weeks stays inside it for as long as the reminding goes on; one
+// that has gone quiet drops out by itself. Long enough, too, for a check that
+// was closed by hand before its register pull request was merged: nothing is
+// posted on it while it waits for the row, and the reminder must still come
+// when the row does.
+const recentlyClosed = 90 * 24 * time.Hour
+
 // A follower resumes one kind of follow-up. It answers with what to say -
 // empty when there is nothing to say - and whether the follow-up is still
 // waiting on somebody: nothing to do *yet* is not the same as nothing left to
@@ -50,10 +71,15 @@ type follower func(ctx context.Context, event mention, record followup.Record) (
 // followers are the kinds this bot knows how to resume. Adding one is an entry
 // here and a method; the sweep itself does not change. Built once per walk
 // rather than per record, because a sweep asks for it as often as it finds
-// something.
-func (s *Server) followers() map[string]follower {
+// something - and with the walk's services, read afresh once per walk, so
+// that register.csv is downloaded once a night rather than once per record.
+func (s *Server) followers(services *check.Services) map[string]follower {
 	return map[string]follower{
 		followup.KindOrganisation: s.followOrganisation,
+		followup.KindArchive: func(ctx context.Context, event mention,
+			record followup.Record) (answered, bool, error) {
+			return s.followArchive(ctx, event, record, services)
+		},
 	}
 }
 
@@ -111,8 +137,19 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 		return sweep
 	}
 
+	// The closed checks somebody is still talking about, too, for the
+	// follow-ups that are due after a check is closed.
+	if closed, ok := reader.(RecentlyClosed); ok {
+		recent, err := closed.ClosedIssuesSince(ctx, register, time.Now().Add(-recentlyClosed))
+		if err != nil {
+			sweep.Problems = append(sweep.Problems,
+				fmt.Sprintf("could not read the recently closed issues of %s: %s", register, err))
+		}
+		issues = append(issues, recent...)
+	}
+
 	sweep.Issues = len(issues)
-	followers := s.followers()
+	followers := s.followers(s.Services.Fresh())
 	for _, issue := range issues {
 		event := mention{Repository: register, Issue: issue.Number}
 		records, unread := s.outstandingIn(ctx, reader, event)
@@ -120,6 +157,11 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 			sweep.problem(event, "%s", problem)
 		}
 		for _, record := range records {
+			if issue.Closed && !followup.OutlivesTheCheck(record.Kind) {
+				// Asking the owners to invite somebody onto a check that is
+				// over would be a reminder about nothing.
+				continue
+			}
 			s.resume(ctx, event, record, followers, &sweep)
 		}
 	}
@@ -174,7 +216,7 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 			unread = append(unread, err.Error())
 			continue
 		}
-		key := record.Kind + "\x00" + record.Subject
+		key := record.Kind + "\x00" + strings.ToLower(record.Subject)
 		if held, seen := newest[key]; !seen || record.Raised().After(held.Raised()) {
 			newest[key] = record
 		}
@@ -182,7 +224,11 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 
 	records = make([]followup.Record, 0, len(newest))
 	for _, record := range newest {
-		records = append(records, record)
+		// Done and said to be done: nothing for the sweep to resume, and
+		// nothing for `status` to list as waiting.
+		if !record.Settled {
+			records = append(records, record)
+		}
 	}
 	// A stable order, so that two sweeps of the same issue read the same.
 	sort.Slice(records, func(i, j int) bool {
