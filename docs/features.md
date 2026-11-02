@@ -108,7 +108,7 @@ for the whole group, before writing #7.
 
 | Command | Effect | Prio |
 |---|---|---|
-| `@chekhovbot remind @user in two weeks` | Schedule a reminder comment (buffy `reminders`) | medium |
+| `@chekhovbot remind me\|@user in <n> days\|weeks` | Mention the person on the day, quoting the reason given on the lines under the command; kept in a signed follow-up record, dropped when the issue is closed (#25) | implemented |
 | `@chekhovbot remind me when the deposit is published` | Event-based rather than time-based reminder | low |
 | (automatic) stale check nudge | Nudge issues untouched for N days | medium |
 | (automatic) ping editors | Alert editors when a check is unassigned for N days | low |

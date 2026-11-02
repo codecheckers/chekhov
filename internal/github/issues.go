@@ -21,9 +21,12 @@ const issuesPerPage = 100
 
 // An Issue is a checks issue, as much of it as a command needs.
 type Issue struct {
-	Number    int
-	Title     string
-	Body      string
+	Number int
+	Title  string
+	Body   string
+	// Author is who opened the issue: on a checks issue, most often an
+	// author of the paper, and somebody on the check whatever role they hold.
+	Author    string
 	Assignees []string
 	// Labels are the register's own labels on this check, which say things
 	// about it nothing else does: `institution` says an arrangement covers
@@ -107,9 +110,12 @@ func (c *Client) issues(ctx context.Context, repository, state, query string) ([
 
 // wireIssue is what GitHub sends, named apart from the Issue a caller sees.
 type wireIssue struct {
-	Number    int    `json:"number"`
-	Title     string `json:"title"`
-	Body      string `json:"body"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	User   struct {
+		Login string `json:"login"`
+	} `json:"user"`
 	Assignees []struct {
 		Login string `json:"login"`
 	} `json:"assignees"`
@@ -123,7 +129,7 @@ type wireIssue struct {
 }
 
 func (i wireIssue) issue() Issue {
-	read := Issue{Number: i.Number, Title: i.Title, Body: i.Body,
+	read := Issue{Number: i.Number, Title: i.Title, Body: i.Body, Author: i.User.Login,
 		Closed: strings.EqualFold(i.State, "closed")}
 	for _, assignee := range i.Assignees {
 		read.Assignees = append(read.Assignees, assignee.Login)

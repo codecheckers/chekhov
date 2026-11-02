@@ -364,6 +364,9 @@ type Outstanding struct {
 	// Thing says the subject is a repository rather than a person, written
 	// as code rather than as a handle.
 	Thing bool
+	// Due is when a reminder is due, as the record writes it; empty for
+	// every other kind. Listed by its day, which is what it promises.
+	Due string
 }
 
 // Line is one outstanding thing, for the list under `status`.
@@ -377,6 +380,10 @@ func (o Outstanding) Line() string {
 	about := mention(o.Subject)
 	if o.Thing {
 		about = Code(o.Subject)
+	}
+	if o.Due != "" {
+		day, _, _ := strings.Cut(o.Due, "T")
+		return fmt.Sprintf("%s for %s, due %s", what, about, day)
 	}
 	if o.Since.IsZero() {
 		return fmt.Sprintf("%s, about %s", what, about)

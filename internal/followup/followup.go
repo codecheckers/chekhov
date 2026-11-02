@@ -43,6 +43,10 @@ const (
 	// subject is the repository, as register.csv writes it, not a person. See
 	// codecheckers/chekhov#27.
 	KindArchive = "repository-archive"
+	// KindReminder is a reminder somebody asked for with `remind`: the
+	// subject is who to remind, Due when, and Note the reason they gave.
+	// See codecheckers/chekhov#25.
+	KindReminder = "reminder"
 )
 
 // outlivesTheCheck are the kinds still due after the check's issue is closed:
@@ -96,6 +100,17 @@ type Record struct {
 	// because the thread is the only memory the bot has, and a reminder that
 	// could not count itself would go on for ever.
 	Reminders int `json:"reminders,omitempty"`
+	// Due is when a reminder is due, RFC 3339, and it is due on that day in
+	// UTC: the sweep runs once a day, and "in 2 weeks" is a promise about the
+	// day. Kept to the second all the same, because it is part of what a
+	// record is about, as Kind and Subject are: two reminders for one person,
+	// even on one day, are two records, and the one that says the first was
+	// posted carries the same Due and settles only that one.
+	Due string `json:"due,omitempty"`
+	// Note is what the person who asked wrote under the command, quoted back
+	// when the reminder comes. Inside the signature, so that the words
+	// somebody is reminded of are the words that were written.
+	Note string `json:"note,omitempty"`
 	// Settled says the thing is done and has been said to be done. Most kinds
 	// need no such mark, because a handler that finds the world in order
 	// says nothing; a kind that confirms the end out loud needs one, or it
@@ -125,6 +140,19 @@ func (r Record) Raised() time.Time {
 func (r Record) Older(than time.Duration, now time.Time) bool {
 	raised := r.Raised()
 	return !raised.IsZero() && now.Sub(raised) >= than
+}
+
+// DueBy reports whether a reminder is due on the day of now, or was before:
+// false for a record that names no day.
+func (r Record) DueBy(now time.Time) bool {
+	due, err := time.Parse(time.RFC3339, r.Due)
+	return err == nil && due.UTC().Format(time.DateOnly) <= now.UTC().Format(time.DateOnly)
+}
+
+// About is what one record is about: the newest record with a key is the state,
+// and the older ones are the history of what was asked.
+func (r Record) About() string {
+	return r.Kind + "\x00" + strings.ToLower(r.Subject) + "\x00" + r.Due
 }
 
 // Render writes the record as the block that opens a comment, signed as

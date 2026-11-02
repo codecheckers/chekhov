@@ -19,6 +19,7 @@ goes on the first line of the comment, one command per comment.**
 @chekhovbot check ready
 @chekhovbot check start
 @chekhovbot status
+@chekhovbot remind me in 2 weeks
 ```
 
 Tracking issue: <https://github.com/codecheckers/register/issues/209>

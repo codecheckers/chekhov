@@ -270,7 +270,7 @@ func (s *Server) standing(ctx context.Context, event mention, reading people.Rea
 	for _, record := range records {
 		told.Outstanding = append(told.Outstanding, command.Outstanding{
 			Kind: record.Kind, Subject: record.Subject, Since: record.Raised(),
-			Thing: followup.AboutAThing(record.Kind)})
+			Thing: followup.AboutAThing(record.Kind), Due: record.Due})
 	}
 	return told
 }

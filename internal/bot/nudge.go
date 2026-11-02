@@ -23,7 +23,9 @@ import (
 // Two rules make the walk safe to repeat, which matters because it runs
 // nightly and on demand:
 //
-//   - The **newest** record for a subject is the state. A reminder posts a
+//   - The **newest** record for a subject is the state - for a kind, a
+//     subject and, for a reminder, when it is due; see followup.Record.About.
+//     A reminder posts a
 //     fresh one, so "three days" is measured from the last time anybody was
 //     asked rather than from the first.
 //   - A handler decides by **looking at the world**, not by bookkeeping. When
@@ -76,6 +78,7 @@ type follower func(ctx context.Context, event mention, record followup.Record) (
 func (s *Server) followers(services *check.Services) map[string]follower {
 	return map[string]follower{
 		followup.KindOrganisation: s.followOrganisation,
+		followup.KindReminder:     s.followReminder,
 		followup.KindArchive: func(ctx context.Context, event mention,
 			record followup.Record) (answered, bool, error) {
 			return s.followArchive(ctx, event, record, services)
@@ -218,7 +221,7 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 			unread = append(unread, err.Error())
 			continue
 		}
-		key := record.Kind + "\x00" + strings.ToLower(record.Subject)
+		key := record.About()
 		if held, seen := newest[key]; !seen || record.Raised().After(held.Raised()) {
 			newest[key] = record
 		}
@@ -237,7 +240,10 @@ func (s *Server) outstandingIn(ctx context.Context, reader Reader,
 		if records[i].Kind != records[j].Kind {
 			return records[i].Kind < records[j].Kind
 		}
-		return records[i].Subject < records[j].Subject
+		if records[i].Subject != records[j].Subject {
+			return records[i].Subject < records[j].Subject
+		}
+		return records[i].Due < records[j].Due
 	})
 	return records, unread
 }

@@ -573,6 +573,8 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.rules(services))
 	case command.Nudge:
 		return said(s.nudged(ctx))
+	case command.Remind:
+		return s.remind(ctx, event, parsed, roles)
 	case command.Announce:
 		return said(s.announce(ctx, parsed, services))
 	case command.Follow:

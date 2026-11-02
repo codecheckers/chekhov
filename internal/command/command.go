@@ -55,6 +55,8 @@ const (
 	// Nudge walks the register for what earlier replies left outstanding, and
 	// acts on it.
 	Nudge Name = "nudge"
+	// Remind asks the bot to mention somebody on this check after some days.
+	Remind Name = "remind"
 	// Check validates the codecheck.yml of the repository under check.
 	Check Name = "check"
 	// CheckStart begins a check: the labels move, the repository is described

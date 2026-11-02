@@ -192,6 +192,15 @@ var registry = []Definition{
 		Role:    RoleAnyone,
 	},
 	{
+		Name:    Remind,
+		Summary: "Remind yourself, or somebody on this check, in some days or weeks; a reason can follow on the next lines",
+		Usage:   "remind me|@user in <n> days|weeks",
+		Group:   GroupWorkflow,
+		// Anybody may remind themselves; who may remind somebody else is
+		// decided in the command, because it depends on whom it names.
+		Role: RoleAnyone,
+	},
+	{
 		Name:          CheckStart,
 		Summary:       "Begin this check: the labels, what the repository holds, and the checklist",
 		Usage:         "check start [<repository>|<certificate>]",

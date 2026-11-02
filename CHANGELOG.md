@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-02
+
+### Added
+
+- `remind me in <n> days|weeks` and `remind @user in …` mention the person on
+  that day, quoting the reason written under the command; anybody may remind
+  themselves, an editor or the assigned codechecker somebody else on the
+  check, at most ten reminders wait on one issue, and a reminder is dropped
+  when the issue is closed (#25).
+- `status` lists a reminder that is still waiting, with its day (#25).
+
 ## [0.23.1] - 2026-11-02
 
 ### Fixed
