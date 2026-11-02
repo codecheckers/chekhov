@@ -78,6 +78,7 @@ func (h *sweeps) state(development bool) map[string]any {
 		one := map[string]any{
 			"started":     sweep.Started.Format(time.RFC3339),
 			"issues":      sweep.Issues,
+			"closed":      sweep.Closed,
 			"acted":       sweep.Acted,
 			"outstanding": sweep.Outstanding,
 			"problems":    len(sweep.Problems),

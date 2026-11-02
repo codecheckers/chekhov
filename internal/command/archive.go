@@ -34,6 +34,8 @@ type Archive struct {
 	// Editor is whom the reminders go to: the handling editor, or whoever
 	// finished the check when there is none. Empty when nobody is known.
 	Editor string
+	// Most is how many reminders the editor will get at most.
+	Most int
 	// Unknown says the archived status could not be read at all - a GitLab
 	// project, without a token - rather than read as open.
 	Unknown bool
@@ -54,7 +56,7 @@ func ArchiveWarning(a Archive) string {
 		Code(a.Repository), archiving(a.Platform))
 	if a.Editor != "" {
 		fmt.Fprintf(&out, " I will remind %s when the register pull request is merged, "+
-			"and every two weeks after that until it is.", mention(a.Editor))
+			"and every two weeks after that until it is, %d times at most.", mention(a.Editor), a.Most)
 	}
 	out.WriteString("\n")
 	return out.String()

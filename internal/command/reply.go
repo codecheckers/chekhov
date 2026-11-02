@@ -1071,7 +1071,10 @@ func (request OutsideRequest) rest() string {
 
 // A Swept is what one walk of the register came to, as the reply says it.
 type Swept struct {
+	// Issues are the open issues walked, and Closed the ones closed lately,
+	// read for the follow-ups that outlive a check.
 	Issues      int
+	Closed      int
 	Acted       int
 	Outstanding int
 	Problems    []string
@@ -1085,7 +1088,11 @@ const mostProblemsListed = 20
 
 func SweptReply(swept Swept) string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "I walked %d open issue%s.\n", swept.Issues, plural(swept.Issues))
+	fmt.Fprintf(&out, "I walked %d open issue%s", swept.Issues, plural(swept.Issues))
+	if swept.Closed > 0 {
+		fmt.Fprintf(&out, " and %d closed in the last ninety days", swept.Closed)
+	}
+	out.WriteString(".\n")
 
 	switch {
 	case swept.Acted > 0:

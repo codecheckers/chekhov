@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-11-02
+
+### Fixed
+
+- `check finish` says how many archive reminders it will send at most, and
+  `nudge` counts the recently closed issues it walked apart from the open ones
+  (#27).
+
 ## [0.23.0] - 2026-11-02
 
 ### Added

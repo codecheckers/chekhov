@@ -92,7 +92,8 @@ func TestCheckFinishWarnsAboutACopyNotArchived(t *testing.T) {
 		command.Command{Name: command.CheckFinish, Args: []string{"github::codecheckers/demo"}})
 
 	for _, want := range []string{"`github::codecheckers/demo` is not archived",
-		"archiving-repositories", "I will remind `@nuest`"} {
+		"archiving-repositories", "I will remind `@nuest`",
+		fmt.Sprintf("%d times at most", mostArchiveReminders)} {
 		if !strings.Contains(reply.body, want) {
 			t.Errorf("the reply does not say %q:\n%s", want, reply.body)
 		}
@@ -304,6 +305,12 @@ func TestAClosedCheckIsSweptForItsArchiveAlone(t *testing.T) {
 	asked(t, server, replies, "a-newcomer", 4*24*time.Hour)
 
 	swept := server.nudge(context.Background())
+	if swept.Issues != 0 || swept.Closed != 1 {
+		t.Errorf("swept %+v, want the closed check counted apart from the open ones", swept)
+	}
+	if reply := command.SweptReply(swept.Swept); !strings.Contains(reply, "0 open issues and 1 closed") {
+		t.Errorf("the reply does not count the closed check apart:\n%s", reply)
+	}
 	if swept.Acted != 1 || !strings.Contains(replies.last(), "still not archived") {
 		t.Errorf("swept %+v, want the archive reminder alone:\n%s", swept, replies.last())
 	}

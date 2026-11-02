@@ -51,7 +51,7 @@ func (s *Server) archiveFollowUp(event mention, target string, reading people.Re
 		return "", nil
 	}
 	archive := command.Archive{Repository: spec.Copy().String(), Platform: spec.Type,
-		Editor: handlingEditorOr(reading, event.Author)}
+		Editor: handlingEditorOr(reading, event.Author), Most: mostArchiveReminders}
 
 	archived, err := services.Archived(spec)
 	switch {

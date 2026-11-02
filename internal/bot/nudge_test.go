@@ -171,7 +171,7 @@ func TestTheNudgeCommandReportsTheWalk(t *testing.T) {
 	asked(t, server, replies, "a-newcomer", time.Hour)
 
 	reply := answer(t, server, command.Nudge, nil, "")
-	if !strings.Contains(reply, "1 open issue") {
+	if !strings.Contains(reply, "1 open issue.") {
 		t.Errorf("reply:\n%s", reply)
 	}
 	if !strings.Contains(reply, "waiting") {

@@ -137,18 +137,20 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 		return sweep
 	}
 
+	sweep.Issues = len(issues)
 	// The closed checks somebody is still talking about, too, for the
-	// follow-ups that are due after a check is closed.
+	// follow-ups that are due after a check is closed. Counted apart, so
+	// that "open issues" in a reply and in GET /nudges still means that.
 	if closed, ok := reader.(RecentlyClosed); ok {
 		recent, err := closed.ClosedIssuesSince(ctx, register, time.Now().Add(-recentlyClosed))
 		if err != nil {
 			sweep.Problems = append(sweep.Problems,
 				fmt.Sprintf("could not read the recently closed issues of %s: %s", register, err))
 		}
+		sweep.Closed = len(recent)
 		issues = append(issues, recent...)
 	}
 
-	sweep.Issues = len(issues)
 	followers := s.followers(s.Services.Fresh())
 	for _, issue := range issues {
 		event := mention{Repository: register, Issue: issue.Number}
