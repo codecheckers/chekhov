@@ -128,14 +128,19 @@ that way.
 If a test genuinely needs a real account - checking that an assignee sticks,
 say - **ask first**, every time.
 
+<!-- Source: own rule; close on commit, reopen on a failed live run, 2026-11-02. -->
 **A feature is done when the deployment has answered it.** Offline tests prove
 the bot decides correctly; they cannot prove GitHub accepts the write or that
 the reply renders the way it reads in a test. So the live run is part of the
 change, not a queue kept beside it: deploy, run it on the testing register,
-fix what it turns up, and say in the issue what the deployment answered. Until
-then the issue is implemented, not done, and stays In Progress on the board.
-What cannot be run - it needs an account nobody wants to create - waits in
-chekhov#63 rather than in a file.
+fix what it turns up, and say in the issue what the deployment answered.
+**The commit closes the issue anyway** (`closes #N`), with the background
+comment beside it, and the live run follows the push. **When the live run
+fails, reopen the issue** and move it back to In Progress, saying so in the
+reply; the fix closes it again. Reopening needs no go-ahead, because the
+user decided this approach; the comment saying what failed is drafted first,
+as every comment is. What cannot be run - it needs an account nobody wants to
+create - waits in chekhov#63 rather than in a file.
 
 **Deploying** is from a second checkout, so that the platform builds a commit
 and never a working tree: in `~/git/codecheck/chekhov-deploy`,
@@ -181,6 +186,7 @@ bundle that stands for a row not yet in the register carries the next
 `1970-NNN` after the last row: `CC-REG-002` measures the jump against
 `register.csv` alone, where any other year starts from nothing.
 
+<!-- Source: own rule, board status standing go-ahead added 2026-11-02. -->
 **The board is part of the work.** The register development board
 (<https://github.com/orgs/codecheckers/projects/2>) carries Status and Priority
 for everything. When starting on an issue, check whether it is on the board; if
@@ -188,10 +194,18 @@ it is not, say so and offer to add it. Move it on at the steps that matter -
 picked up, implemented, done - rather than only at the end, so that someone
 looking at the board sees what is actually happening.
 
-**Ask before changing anything on an issue or the board.** A status change, a
-label, a comment, a new item: propose it, wait for the go-ahead. The same rule
-as commits, and for the same reason - it is visible to other people the moment
-it happens.
+**Moving an issue's Status on the board needs no go-ahead; do it and say so.**
+*In Progress* when work on it starts, *Done* when the commit that closes it
+is pushed, and back to *In Progress* if the live run fails (see "A feature is
+done when the deployment has answered it"), each mentioned in the reply as it
+happens. A board that lags the work is
+the failure this prevents. `gh project item-edit` does the move; the ids are
+in the `register-project-board` memory.
+
+**Ask before changing anything else on an issue or the board.** A label, a
+comment, a new item, a Priority or a milestone: propose it, wait for the
+go-ahead. The same rule as commits, and for the same reason - it is visible to
+other people the moment it happens.
 
 ## Runway config
 
