@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/httpretry"
 	"github.com/codecheckers/chekhov/internal/people"
 )
 
@@ -520,7 +522,48 @@ func (s *Server) labelFailure(err error, event mention, label string, add bool) 
 	default:
 		s.Logger.Warn("a label could not be changed", "issue", event.Issue,
 			"label", label, "add", add, "error", err)
-		return err.Error()
+		return whyNot(err)
+	}
+}
+
+// whyNot is why a write did not happen, for the reply. What this code words
+// itself - the fence, a conflict between roles, not a person - is said as it
+// is; anything GitHub's is said as command.Failure says it, so that a rate
+// limit and a refused permission are told apart and the API's body never
+// reaches the thread.
+func whyNot(err error) string {
+	if why, ok := gitHubWhy(err); ok {
+		return why
+	}
+	return err.Error()
+}
+
+// gitHubWhy is why GitHub did not take a request, and whether the failure was
+// GitHub's at all: an answer, a request that never got one - a timeout, a
+// connection refused, whose message carries the URL - or the wait for one
+// running out.
+func gitHubWhy(err error) (string, bool) {
+	var status *httpretry.StatusError
+	var request *url.Error
+	if errors.As(err, &status) || errors.As(err, &request) ||
+		errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return failure(err).Why(), true
+	}
+	return "", false
+}
+
+// failure is how a reply words a GitHub write that did not happen: refused,
+// not accepted, rate limited, or none of those. See command.Failure.
+func failure(err error) command.Failure {
+	switch {
+	case github.Refused(err):
+		return command.FailureRefused
+	case github.Unauthorised(err):
+		return command.FailureUnauthorised
+	case github.Limited(err):
+		return command.FailureLimited
+	default:
+		return command.FailureOther
 	}
 }
 

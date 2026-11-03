@@ -79,15 +79,13 @@ type CertificateReserved struct {
 	// editor confirmed the jump with `anyway`.
 	Forced string
 	// Title is the issue's new title, empty when it did not change;
-	// TitleFailed says it should have and could not.
-	Title       string
-	TitleFailed bool
-	// Labelled says the label was added; LabelFailed that it could not be,
-	// and LabelWhy why - in the same words the workflow commands use, so a
+	// TitleWhy says why it could not, when it should have.
+	Title    string
+	TitleWhy string
+	// Labelled says the label was added; LabelWhy why it could not be - in the same words the workflow commands use, so a
 	// refusal reads the same wherever it came from.
-	Labelled    bool
-	LabelFailed bool
-	LabelWhy    string
+	Labelled bool
+	LabelWhy string
 }
 
 // CertificateReservedReply says what `certificate set` did, and is the record of
@@ -111,15 +109,16 @@ func CertificateReservedReply(set CertificateReserved, by string, when time.Time
 		// In a code span: a title is somebody's free text, and a handle in it
 		// would notify.
 		fmt.Fprintf(&reply, "\nTitle set: %s\n", Code(set.Title))
-	case set.TitleFailed:
-		reply.WriteString("\nThe title could not be changed; please add the identifier after a `|`.\n")
+	case set.TitleWhy != "":
+		fmt.Fprintf(&reply, "\nI could not change the title, so please add the identifier after a `|` yourself. %s\n",
+			Sentence(set.TitleWhy))
 	}
 	switch {
 	case set.Labelled:
 		fmt.Fprintf(&reply, "\nLabel `%s` added.\n", set.Label)
-	case set.LabelFailed:
-		fmt.Fprintf(&reply, "\nThe label `%s` could not be added: %s. Please add it.\n",
-			set.Label, oneLine(set.LabelWhy))
+	case set.LabelWhy != "":
+		fmt.Fprintf(&reply, "\nI could not add the label `%s`, so please add it yourself. %s\n",
+			set.Label, Sentence(set.LabelWhy))
 	}
 	if !set.Unchanged || set.Title != "" || set.Labelled {
 		reply.WriteString(entry("set", by, when))

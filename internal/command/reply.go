@@ -738,26 +738,75 @@ func RolesReply(holders Holders, teams Teams, asker Roles, told Provenance) stri
 // always shows the current state, so the thread has to be what says how it got
 // there. It matters most when the record is gone: a comment somebody deleted
 // leaves these behind, and a check can be reconstructed from them.
-func AssignedReply(role Role, handle, replaced string, assignee bool, by string, when time.Time) string {
+//
+// assignee is what AssigneeNote said about the issue's assignee, empty when
+// there was nothing to say.
+func AssignedReply(role Role, handle, replaced, assignee, by string, when time.Time) string {
 	var reply strings.Builder
 	fmt.Fprintf(&reply, "%s is now the %s of this check.\n", mention(handle), role)
 	if replaced != "" {
 		fmt.Fprintf(&reply, "\nReplaces %s.\n", mention(replaced))
 	}
-	if assignee {
-		reply.WriteString("\nAssignee of this issue set.\n")
+	if assignee != "" {
+		fmt.Fprintf(&reply, "\n%s\n", assignee)
 	}
 	reply.WriteString(entry("assigned", by, when))
 	return reply.String()
 }
 
-// RemovedReply says what a removal did, and is the record of it.
-func RemovedReply(role Role, handle string, held bool, by string, when time.Time) string {
+// AssigneeNote is what a reply says about the issue's assignee: set, not set
+// and why, or nothing when there was nothing to do. The role stands either
+// way, and the reply must not read as though both happened when only one did
+// - which is how codecheckers/register#238 read.
+func AssigneeNote(handle string, set bool, why string) string {
+	switch {
+	case set:
+		return "Assignee of this issue set."
+	case why != "":
+		return fmt.Sprintf("I could not make %s the assignee of this issue. %s", mention(handle), Sentence(why))
+	default:
+		return ""
+	}
+}
+
+// AssigneeIgnored is why the assignee was not set when GitHub took the request
+// and left them out: it does that, without an error, for an account that may
+// not be assigned on the repository.
+const AssigneeIgnored = "GitHub took the request and left them out, which it does for an account " +
+	"that may not be assigned here."
+
+// UnassignFailed says the previous assignee is still on the issue, and why:
+// without it the reply reads as though they had been replaced there too.
+func UnassignFailed(handle, why string) string {
+	return fmt.Sprintf("I could not take %s off as assignee of this issue. %s", mention(handle), Sentence(why))
+}
+
+// Sentence makes a reason read as a sentence after another one: a capital
+// first and a full stop last. A reason worded for a list - "the settings do
+// not list it" - and one worded as advice both end up in prose.
+func Sentence(why string) string {
+	why = strings.TrimSpace(oneLine(why))
+	if why == "" {
+		return ""
+	}
+	why = strings.ToUpper(why[:1]) + why[1:]
+	if !strings.HasSuffix(why, ".") {
+		why += "."
+	}
+	return why
+}
+
+// RemovedReply says what a removal did, and is the record of it. assignee is
+// what is to be said about the issue's assignee, empty when nothing is.
+func RemovedReply(role Role, handle string, held bool, assignee, by string, when time.Time) string {
 	if !held {
 		return fmt.Sprintf("%s was not the %s of this check.\n", mention(handle), role)
 	}
-	return fmt.Sprintf("%s is no longer the %s of this check.\n", mention(handle), role) +
-		entry("removed", by, when)
+	reply := fmt.Sprintf("%s is no longer the %s of this check.\n", mention(handle), role)
+	if assignee != "" {
+		reply += "\n" + assignee + "\n"
+	}
+	return reply + entry("removed", by, when)
 }
 
 // entry is what makes a reply the record of a change: who did it, and when.
@@ -1155,9 +1204,10 @@ type Joined struct {
 	// overrule it.
 	Taken string
 	// Granted says the role was recorded now rather than by somebody who got
-	// there first, and Assigned that the issue's assignee was set.
+	// there first, and Assignee what AssigneeNote said about the issue's
+	// assignee.
 	Granted  bool
-	Assigned bool
+	Assignee string
 	// TeamNote is what the team change came to, empty when there was nothing
 	// to change.
 	TeamNote string
@@ -1185,8 +1235,8 @@ func JoinedReply(joined Joined) string {
 		did = append(did, fmt.Sprintf("The %s of this check is `@%s`, who was given the role "+
 			"after I asked for the invitation, so I have left it with them.", joined.Role, joined.Taken))
 	}
-	if joined.Assigned {
-		did = append(did, "Assignee of this issue set.")
+	if joined.Assignee != "" {
+		did = append(did, joined.Assignee)
 	}
 	for _, done := range did {
 		fmt.Fprintf(&out, "\n%s\n", done)

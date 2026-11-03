@@ -60,9 +60,21 @@ func Writes(role string) bool {
 }
 
 // Refused reports whether GitHub refused a request for want of permission: a
-// 403 that is not a rate limit, read the way hold reads one - the headers
-// first, then the body. Asking again does not change it, so a reply must not
-// suggest that it might.
+// 403 that is not a rate limit. Asking again does not change it, so a reply
+// must not suggest that it might.
 func Refused(err error) bool {
-	return httpretry.IsStatus(err, http.StatusForbidden) && hold(err, secondaryLimitPause) == 0
+	return httpretry.IsStatus(err, http.StatusForbidden) && !Limited(err)
+}
+
+// Limited reports whether GitHub said "not now": a 429, or a 403 its headers
+// or body call a rate limit - read as the retry reads it, so that the reply
+// and the retry cannot disagree about one answer.
+func Limited(err error) bool {
+	return httpretry.RateLimited(err, bodySaysRateLimited)
+}
+
+// Unauthorised reports whether GitHub did not accept the token at all: a 401,
+// which is a token expired, revoked or regenerated, not a permission.
+func Unauthorised(err error) bool {
+	return httpretry.IsStatus(err, http.StatusUnauthorized)
 }

@@ -146,10 +146,7 @@ func (s *Server) proposeRow(ctx context.Context, event mention, row command.Row,
 	case err != nil:
 		// The API's own words, URLs and all, are for the log, not the thread.
 		s.Logger.Warn("the register pull request could not be opened", "issue", event.Issue, "error", err)
-		if github.Refused(err) {
-			return command.PullRequestRefused()
-		}
-		return command.PullRequestFailed()
+		return command.PullRequestFailed(failure(err))
 	}
 	return command.PullRequestOpened(pull.Number, pull.URL, pull.Updated, pull.Unchanged, event.Author, time.Now())
 }
@@ -357,7 +354,7 @@ func (s *Server) setRow(ctx context.Context, event mention, change func(*people.
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return fmt.Sprintf("I could not record it: %s\n", err)
+		return fmt.Sprintf("I could not record it: %s\n", whyNot(err))
 	}
 	return command.RowSet(record.Holders(), event.Author)
 }

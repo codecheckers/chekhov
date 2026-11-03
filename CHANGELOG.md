@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-03
+
+### Added
+
+- `assign` says when the issue's assignee could not be set or the previous one
+  removed, and why (codecheckers/register#238).
+
+### Changed
+
+- A write GitHub did not take says whether asking again helps: not for a
+  refused permission or token, in a few minutes for a rate limit
+  (codecheckers/register#238).
+
+### Fixed
+
+- A rate limit on a team change no longer reads as a token that may not manage
+  membership (codecheckers/register#238).
+
 ## [0.25.3] - 2026-11-03
 
 ### Fixed

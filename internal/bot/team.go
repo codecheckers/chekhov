@@ -237,7 +237,7 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 	added, err := changer.AddToTeam(ctx, organisation, team, handle)
 	if err != nil {
 		s.Logger.Warn("could not add somebody to the team", "handle", handle, "team", team, "error", err)
-		return fmt.Sprintf("I could not put them in `%s/%s`: %s", organisation, team, err)
+		return fmt.Sprintf("I could not put them in `%s/%s`: %s", organisation, team, whyNot(err))
 	}
 	login := added.Login
 	if login == "" {

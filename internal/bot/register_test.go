@@ -346,10 +346,10 @@ func TestRegisterSaysWhyThePullRequestWasRefused(t *testing.T) {
 		github.ErrAlreadyRegistered: "already has a row for `1970-001`",
 		// codecheckers/register#238: the account was `read`, and the reply
 		// asked to be asked again, which could never help.
+		refusedPermission: "Asking again will not help",
+		secondaryLimit:    "Ask me again in a few minutes",
 		fmt.Errorf("could not write register.csv: %w", &httpretry.StatusError{Service: "GitHub",
-			Status: http.StatusForbidden, Body: `{"message":"Resource not accessible by personal access token"}`}): "Asking again will not help",
-		fmt.Errorf("could not write register.csv: %w", &httpretry.StatusError{Service: "GitHub",
-			Status: http.StatusBadGateway}): "Ask me again",
+			Status: http.StatusBadGateway}): "if it fails twice",
 	} {
 		server, writer := proposingServer(t, false)
 		writer.refuse = err

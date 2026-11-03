@@ -384,8 +384,12 @@ func hold(failure error, secondary time.Duration) time.Duration {
 	if pause := httpretry.Hold(failure); pause > 0 {
 		return pause
 	}
-	var status *httpretry.StatusError
-	if errors.As(failure, &status) && status.Status == http.StatusForbidden && bodySaysRateLimited(status.Body) {
+	// Read as the reply reads it, so that the queue and the thread cannot
+	// disagree about one answer.
+	// A 403 only: a 429 without a time to wait was never held, and holding
+	// every editor's writes for a minute over one would be a change of pace,
+	// not of wording.
+	if httpretry.IsStatus(failure, http.StatusForbidden) && Limited(failure) {
 		return secondary
 	}
 	return 0

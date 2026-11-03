@@ -22,11 +22,17 @@ type issues struct {
 	*issueReader
 	labelled []string
 	titled   []string
+	// titleErr and labelErr are GitHub refusing to change the title and to
+	// add the label.
+	titleErr, labelErr error
 }
 
 func (r *issues) AllIssues(context.Context, string) ([]github.Issue, error) { return r.issues, nil }
 
 func (r *issues) AddLabel(_ context.Context, _ string, number int, label string) error {
+	if r.labelErr != nil {
+		return r.labelErr
+	}
 	r.labelled = append(r.labelled, fmt.Sprintf("#%d %s", number, label))
 	for i := range r.issues {
 		if r.issues[i].Number == number {
@@ -37,6 +43,9 @@ func (r *issues) AddLabel(_ context.Context, _ string, number int, label string)
 }
 
 func (r *issues) SetTitle(_ context.Context, _ string, number int, title string) error {
+	if r.titleErr != nil {
+		return r.titleErr
+	}
 	r.titled = append(r.titled, fmt.Sprintf("#%d %s", number, title))
 	for i := range r.issues {
 		if r.issues[i].Number == number {

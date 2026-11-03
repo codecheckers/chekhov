@@ -192,7 +192,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return fmt.Sprintf("I could not record the identifier: %s\n", err)
+		return fmt.Sprintf("I could not record the identifier: %s\n", whyNot(err))
 	}
 	if set.Previous == "" && !set.Unchanged {
 		// Set by hand before the bot kept a record: the title is where it was.
@@ -215,18 +215,15 @@ func (s *Server) putOnIssue(ctx context.Context, writer Reserving, event mention
 	if title := check.TitleWithCertificate(this.Title, set.ID); title != this.Title {
 		if err := writer.SetTitle(ctx, event.Repository, event.Issue, title); err != nil {
 			s.Logger.Warn("the identifier could not be put in the title", "issue", event.Issue, "error", err)
-			set.TitleFailed = true
+			set.TitleWhy = whyNot(err)
 		} else {
 			set.Title = title
 		}
 	}
 	if !command.HasLabel(this.Labels, set.Label) {
 		err := writer.AddLabel(ctx, event.Repository, event.Issue, set.Label)
-		if set.LabelWhy = s.labelFailure(err, event, set.Label, true); set.LabelWhy != "" {
-			set.LabelFailed = true
-		} else {
-			set.Labelled = true
-		}
+		set.LabelWhy = s.labelFailure(err, event, set.Label, true)
+		set.Labelled = set.LabelWhy == ""
 	}
 }
 

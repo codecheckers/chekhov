@@ -793,16 +793,16 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 	case errors.Is(err, people.ErrTampered):
 		return said(tamperedReply(err))
 	case err != nil:
-		return said(fmt.Sprintf("%s\n", err))
+		return said(recordFailure("the role", err))
 	}
 
 	// The assigned codechecker is also the issue's assignee, so that the role
 	// is visible where people look for it rather than only in a comment.
-	assigned := false
+	assignee := ""
 	if role == command.RoleAssignedCodechecker {
-		assigned = s.assignee(ctx, event, handle, replaced)
+		assignee = s.assignee(ctx, event, handle, replaced)
 	}
-	return said(withNote(command.AssignedReply(role, handle, replaced, assigned, event.Author, time.Now()),
+	return said(withNote(command.AssignedReply(role, handle, replaced, assignee, event.Author, time.Now()),
 		s.teamNote(ctx, event, handle, role, team, inside)))
 }
 
@@ -822,17 +822,20 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 	})
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
-		return command.RemovedReply(role, handle, false, event.Author, time.Now())
+		return command.RemovedReply(role, handle, false, "", event.Author, time.Now())
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return fmt.Sprintf("%s\n", err)
+		return recordFailure("the removal", err)
 	}
 
+	assignee := ""
 	if role == command.RoleAssignedCodechecker {
-		s.unassign(ctx, event, handle)
+		if why := s.unassign(ctx, event, handle); why != "" {
+			assignee = command.UnassignFailed(handle, why)
+		}
 	}
-	return command.RemovedReply(role, handle, true, event.Author, time.Now())
+	return command.RemovedReply(role, handle, true, assignee, event.Author, time.Now())
 }
 
 // roleCommand is the two things every role command needs before it starts:
@@ -883,7 +886,7 @@ func (s *Server) accept(ctx context.Context, event mention, parsed command.Comma
 	case errors.Is(err, people.ErrUnchanged):
 		return "This record is the one I wrote, so there is nothing to adopt.\n"
 	case err != nil:
-		return fmt.Sprintf("I could not adopt the record of this check: %s\n", err)
+		return fmt.Sprintf("I could not adopt the record of this check: %s\n", whyNot(err))
 	}
 	return command.AcceptedReply(reading.Record.Holders(), event.Author, reading.Signed(), time.Now())
 }
@@ -932,15 +935,17 @@ func (s *Server) team(role command.Role) string {
 	}
 }
 
-// assignee keeps the issue's assignee in step with the assigned codechecker.
+// assignee keeps the issue's assignee in step with the assigned codechecker,
+// and returns what the reply says about it: set, not set and why, or nothing.
 //
-// A failure is logged and reported as "not done" rather than undoing the
-// assignment: the record is the roles, and the assignee is a convenience on
-// top of it.
-func (s *Server) assignee(ctx context.Context, event mention, handle, replaced string) bool {
+// A failure is logged and reported rather than undoing the assignment: the
+// record is the roles, and the assignee is a convenience on top of it. It is
+// reported because on codecheckers/register#238 it was not, and the reply
+// read as though the issue had been assigned.
+func (s *Server) assignee(ctx context.Context, event mention, handle, replaced string) string {
 	assigner, ok := s.Replies.(Assigner)
 	if !ok {
-		return false
+		return ""
 	}
 	// Assign before unassigning: a failure between the two would otherwise
 	// leave the issue with nobody assigned at all, which is worse than the
@@ -949,26 +954,33 @@ func (s *Server) assignee(ctx context.Context, event mention, handle, replaced s
 	if err != nil {
 		s.Logger.Warn("the codechecker could not be made the issue's assignee",
 			"issue", event.Issue, "handle", handle, "error", err)
-		return false
+		return command.AssigneeNote(handle, false, whyNot(err))
+	}
+	note := command.AssigneeNote(handle, true, "")
+	if !slices.ContainsFunc(assigned, func(who string) bool { return strings.EqualFold(who, handle) }) {
+		note = command.AssigneeNote(handle, false, command.AssigneeIgnored)
 	}
 	if replaced != "" {
-		s.unassign(ctx, event, replaced)
-	}
-	for _, who := range assigned {
-		if strings.EqualFold(who, handle) {
-			return true
+		if why := s.unassign(ctx, event, replaced); why != "" {
+			note += "\n\n" + command.UnassignFailed(replaced, why)
 		}
 	}
-	return false
+	return note
 }
 
-func (s *Server) unassign(ctx context.Context, event mention, handle string) {
-	if assigner, ok := s.Replies.(Assigner); ok {
-		if err := assigner.Unassign(ctx, event.Repository, event.Issue, handle); err != nil {
-			s.Logger.Warn("the codechecker could not be unassigned",
-				"issue", event.Issue, "handle", handle, "error", err)
-		}
+// unassign takes somebody off the issue's assignees, and says why not when it
+// could not.
+func (s *Server) unassign(ctx context.Context, event mention, handle string) string {
+	assigner, ok := s.Replies.(Assigner)
+	if !ok {
+		return ""
 	}
+	if err := assigner.Unassign(ctx, event.Repository, event.Issue, handle); err != nil {
+		s.Logger.Warn("the codechecker could not be unassigned",
+			"issue", event.Issue, "handle", handle, "error", err)
+		return whyNot(err)
+	}
+	return ""
 }
 
 // refresh reads the teams again, so that somebody just added to one does not
@@ -1597,4 +1609,14 @@ type readOnly struct{ Claims }
 
 func (readOnly) Comment(context.Context, string, int, string) (int64, error) {
 	return 0, errors.New("a preview posts nothing")
+}
+
+// recordFailure is the reply when the record of a check could not be written.
+// A refusal worded here - a conflict between roles - is said as it is; GitHub
+// not taking the write says what was not recorded, and why.
+func recordFailure(what string, err error) string {
+	if why, ok := gitHubWhy(err); ok {
+		return fmt.Sprintf("I could not record %s. %s\n", what, why)
+	}
+	return err.Error() + "\n"
 }

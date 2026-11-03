@@ -161,12 +161,27 @@ func timedOut(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout())
 }
 
-// rateLimited says whether a refusal means "not now" rather than "not ever".
-// A 429 always does. A 403 is either, for GitHub at least, and the headers are
-// what tell them apart; the body only when they are silent. X-RateLimit-
-// Remaining is not read for any other status: a 422 that spent the last
-// request of the window is still a 422.
+// rateLimited says whether a refusal means "not now" rather than "not ever",
+// with this policy's reading of a body.
 func (p Policy) rateLimited(status *StatusError) bool {
+	return RateLimited(status, p.BodySaysRateLimited)
+}
+
+// RateLimited says whether a refusal means "not now" rather than "not ever".
+// A 429 always does. A 403 is either, for GitHub at least, and the headers are
+// what tell them apart; the body, through bodySays, only when they are silent.
+// X-RateLimit-Remaining is not read for any other status: a 422 that spent the
+// last request of the window is still a 422.
+//
+// Exported because a reply has to tell the two apart as the retry does: a
+// rate limit is "ask me again in a few minutes", a refused permission is
+// "asking again will not help", and two readings of one 403 would sooner or
+// later give a person the wrong one (codecheckers/register#238).
+func RateLimited(err error, bodySays func(body string) bool) bool {
+	var status *StatusError
+	if !errors.As(err, &status) {
+		return false
+	}
 	switch status.Status {
 	case http.StatusTooManyRequests:
 		return true
@@ -174,7 +189,7 @@ func (p Policy) rateLimited(status *StatusError) bool {
 		if status.RetryAfter > 0 || status.RateLimited {
 			return true
 		}
-		return p.BodySaysRateLimited != nil && p.BodySaysRateLimited(status.Body)
+		return bodySays != nil && bodySays(status.Body)
 	default:
 		return false
 	}

@@ -56,23 +56,30 @@ func TestRoleWithoutPermissionsIsAnError(t *testing.T) {
 
 // A 403 for want of permission is a refusal; a 403 that is a rate limit is
 // not, because waiting does change that one - whether the body says so or
-// only the headers do.
-func TestRefusedTellsAPermissionFromARateLimit(t *testing.T) {
+// only the headers do. A 401 is neither: the token itself was not accepted.
+func TestAFailureIsReadAsThePersonHasToHearIt(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		err  error
-		want bool
+		name                           string
+		err                            error
+		refused, limited, unauthorised bool
 	}{
-		{"permission", &httpretry.StatusError{Status: http.StatusForbidden,
-			Body: `{"message": "Resource not accessible by personal access token"}`}, true},
-		{"secondary limit in the body", &httpretry.StatusError{Status: http.StatusForbidden,
-			Body: `{"message": "You have exceeded a secondary rate limit"}`}, false},
-		{"limit in the headers", &httpretry.StatusError{Status: http.StatusForbidden,
-			Body: `{"message": "Forbidden"}`, RetryAfter: time.Minute}, false},
-		{"not a 403", &httpretry.StatusError{Status: http.StatusBadGateway}, false},
+		{name: "permission", err: &httpretry.StatusError{Status: http.StatusForbidden,
+			Body: `{"message": "Resource not accessible by personal access token"}`}, refused: true},
+		{name: "secondary limit in the body", err: &httpretry.StatusError{Status: http.StatusForbidden,
+			Body: `{"message": "You have exceeded a secondary rate limit"}`}, limited: true},
+		{name: "limit in Retry-After", err: &httpretry.StatusError{Status: http.StatusForbidden,
+			Body: `{"message": "Forbidden"}`, RetryAfter: time.Minute}, limited: true},
+		{name: "budget used up", err: &httpretry.StatusError{Status: http.StatusForbidden,
+			Body: `{"message": "Forbidden"}`, RateLimited: true}, limited: true},
+		{name: "429", err: &httpretry.StatusError{Status: http.StatusTooManyRequests}, limited: true},
+		{name: "401", err: &httpretry.StatusError{Status: http.StatusUnauthorized,
+			Body: `{"message": "Bad credentials"}`}, unauthorised: true},
+		{name: "502", err: &httpretry.StatusError{Status: http.StatusBadGateway}},
 	} {
-		if got := Refused(fmt.Errorf("wrapped: %w", tc.err)); got != tc.want {
-			t.Errorf("%s: Refused = %v, want %v", tc.name, got, tc.want)
+		err := fmt.Errorf("wrapped: %w", tc.err)
+		if Refused(err) != tc.refused || Limited(err) != tc.limited || Unauthorised(err) != tc.unauthorised {
+			t.Errorf("%s: refused %v limited %v unauthorised %v, want %v %v %v", tc.name,
+				Refused(err), Limited(err), Unauthorised(err), tc.refused, tc.limited, tc.unauthorised)
 		}
 	}
 }

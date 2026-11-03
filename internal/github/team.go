@@ -195,9 +195,10 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 		return json.Unmarshal(raw, &answered)
 	})
 	switch {
-	case httpretry.IsStatus(err, http.StatusForbidden), httpretry.IsStatus(err, http.StatusUnauthorized):
-		return place, fmt.Errorf("%w, so I cannot add `@%s` to %s/%s",
-			ErrNotPermitted, login, organisation, team)
+	case Refused(err), Unauthorised(err):
+		// Not a rate limit, which is a 403 too and passes on its own.
+		return place, fmt.Errorf("%w, so I cannot add `@%s` to %s/%s: %w",
+			ErrNotPermitted, login, organisation, team, err)
 	case httpretry.IsStatus(err, http.StatusUnprocessableEntity):
 		return place, fmt.Errorf("GitHub refused to put `@%s` in %s/%s, "+
 			"which is what it answers for an account that cannot be in a team: %w",
@@ -264,9 +265,10 @@ func (c *Client) TeamMembership(ctx context.Context, organisation, team, handle 
 		// for an organisation owner read by a mere team maintainer, which is
 		// why AddToTeam has to read the role it gets back as well.
 		return Place{}, nil
-	case httpretry.IsStatus(err, http.StatusForbidden), httpretry.IsStatus(err, http.StatusUnauthorized):
-		return Place{}, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s",
-			ErrNotPermitted, handle, organisation, team)
+	case Refused(err), Unauthorised(err):
+		// Not a rate limit, which is a 403 too and passes on its own.
+		return Place{}, fmt.Errorf("%w, so I cannot read `@%s`'s place in %s/%s: %w",
+			ErrNotPermitted, handle, organisation, team, err)
 	case err != nil:
 		return Place{}, fmt.Errorf("could not read `@%s`'s place in %s/%s: %w",
 			handle, organisation, team, err)

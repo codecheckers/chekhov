@@ -45,17 +45,30 @@ type organisation struct {
 	// and from, which is the other half of finishing an assignment.
 	assigned   []string
 	unassigned []string
+	// assignErr is GitHub refusing to set the assignee, unassignErr to take
+	// one off, and ignore GitHub taking the request and leaving them out.
+	assignErr, unassignErr error
+	ignore                 bool
 	// labeledAt is when a label last went on the check, for how long it has
 	// waited in the queue.
 	labeledAt map[string]time.Time
 }
 
 func (o *organisation) Assign(_ context.Context, _ string, _ int, handle string) ([]string, error) {
+	if o.assignErr != nil {
+		return nil, o.assignErr
+	}
+	if o.ignore {
+		return o.assigned, nil
+	}
 	o.assigned = append(o.assigned, handle)
 	return o.assigned, nil
 }
 
 func (o *organisation) Unassign(_ context.Context, _ string, _ int, handle string) error {
+	if o.unassignErr != nil {
+		return o.unassignErr
+	}
 	o.unassigned = append(o.unassigned, handle)
 	return nil
 }

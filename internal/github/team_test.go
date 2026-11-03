@@ -424,3 +424,22 @@ func TestOrganisationMembershipTellsNoFromBroken(t *testing.T) {
 		t.Error("a handle that is not one should be refused before the request")
 	}
 }
+
+// A secondary rate limit is a 403 as well, and passes: it must not read as a
+// token that may not manage membership, which never does.
+func TestARateLimitIsNotATokenThatMayNotManageMembership(t *testing.T) {
+	client, _ := adding(t, func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/users/") {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"login": "A-Codechecker", "type": "User"}`))
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"message": "You have exceeded a secondary rate limit"}`))
+	})
+
+	_, err := client.AddToTeam(context.Background(), "codecheckers", "codecheckers", "a-codechecker")
+	if errors.Is(err, ErrNotPermitted) || !Limited(err) {
+		t.Fatalf("error %v, want a rate limit and not ErrNotPermitted", err)
+	}
+}

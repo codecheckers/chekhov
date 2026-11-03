@@ -108,6 +108,8 @@ func mustSign(t *testing.T) *people.Signer {
 type issueComments struct {
 	bot      string
 	comments []people.Comment
+	// err is GitHub refusing to post or edit a comment, the record's write.
+	err error
 }
 
 func (c *issueComments) Comments(context.Context, string, int) ([]people.Comment, error) {
@@ -119,11 +121,17 @@ func (c *issueComments) Post(ctx context.Context, repository string, issue int, 
 }
 
 func (c *issueComments) Comment(_ context.Context, _ string, _ int, body string) (int64, error) {
+	if c.err != nil {
+		return 0, c.err
+	}
 	c.comments = append(c.comments, people.Comment{ID: 1, Author: c.bot, Body: body})
 	return 1, nil
 }
 
 func (c *issueComments) Edit(_ context.Context, _ string, comment int64, body string) error {
+	if c.err != nil {
+		return c.err
+	}
 	for i := range c.comments {
 		if c.comments[i].ID == comment {
 			c.comments[i].Body = body
