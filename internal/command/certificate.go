@@ -108,16 +108,16 @@ func CertificateReservedReply(set CertificateReserved, by string, when time.Time
 	case set.Title != "":
 		// In a code span: a title is somebody's free text, and a handle in it
 		// would notify.
-		fmt.Fprintf(&reply, "\nTitle set: %s\n", Code(set.Title))
+		fmt.Fprintf(&reply, "\n✔ Title set: %s\n", Code(set.Title))
 	case set.TitleWhy != "":
-		fmt.Fprintf(&reply, "\nI could not change the title, so please add the identifier after a `|` yourself. %s\n",
+		fmt.Fprintf(&reply, "\n✖ I could not change the title, so please add the identifier after a `|` yourself. %s\n",
 			Sentence(set.TitleWhy))
 	}
 	switch {
 	case set.Labelled:
-		fmt.Fprintf(&reply, "\nLabel `%s` added.\n", set.Label)
+		fmt.Fprintf(&reply, "\n✔ Label `%s` added.\n", set.Label)
 	case set.LabelWhy != "":
-		fmt.Fprintf(&reply, "\nI could not add the label `%s`, so please add it yourself. %s\n",
+		fmt.Fprintf(&reply, "\n✖ I could not add the label `%s`, so please add it yourself. %s\n",
 			set.Label, Sentence(set.LabelWhy))
 	}
 	if !set.Unchanged || set.Title != "" || set.Labelled {

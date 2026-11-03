@@ -148,7 +148,7 @@ func (s *Server) proposeRow(ctx context.Context, event mention, row command.Row,
 		s.Logger.Warn("the register pull request could not be opened", "issue", event.Issue, "error", err)
 		return command.PullRequestFailed(failure(err))
 	}
-	return command.PullRequestOpened(pull.Number, pull.URL, pull.Updated, pull.Unchanged, event.Author, time.Now())
+	return command.PullRequestOpened(pull.Number, pull.Updated, pull.Unchanged, event.Author, time.Now())
 }
 
 // rowFor builds the row as far as it can, and says where each column came
@@ -354,7 +354,7 @@ func (s *Server) setRow(ctx context.Context, event mention, change func(*people.
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return fmt.Sprintf("I could not record it: %s\n", whyNot(err))
+		return fmt.Sprintf("✖ I could not record it: %s\n", whyNot(err))
 	}
 	return command.RowSet(record.Holders(), event.Author)
 }

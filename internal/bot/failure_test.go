@@ -48,7 +48,7 @@ func TestAnAssigneeThatCouldNotBeSetIsSaid(t *testing.T) {
 		replies.assignErr = tc.err
 
 		reply := answer(t, server, command.Assign, []string{"@a-codechecker", "as", "codechecker"}, "")
-		if !strings.Contains(reply, "I could not make `@a-codechecker` the assignee of this issue") {
+		if !strings.Contains(reply, "✖ I could not make `@a-codechecker` the assignee of this issue") {
 			t.Errorf("%s: the reply does not say the assignee was not set:\n%s", tc.name, reply)
 		}
 		if !strings.Contains(reply, "is now the assigned codechecker") {
@@ -65,7 +65,7 @@ func TestATitleThatCouldNotBeChangedSaysWhy(t *testing.T) {
 		register.titleErr = tc.err
 
 		reply := answer(t, server, command.CertificateSet, nil, "")
-		if !strings.Contains(reply, "I could not change the title") || !strings.Contains(reply, "after a `|`") {
+		if !strings.Contains(reply, "✖ I could not change the title") || !strings.Contains(reply, "after a `|`") {
 			t.Errorf("%s: the reply does not say the title stayed:\n%s", tc.name, reply)
 		}
 		saysWhy(t, tc.name, reply, tc.says)
@@ -80,7 +80,7 @@ func TestALabelThatCouldNotBeMovedSaysWhy(t *testing.T) {
 		assignCodechecker(t, server, "a-codechecker")
 
 		reply := answer(t, server, command.CheckStart, nil, "")
-		if !strings.Contains(reply, "could not remove `needs codechecker`") {
+		if !strings.Contains(reply, "✖ could not remove `needs codechecker`") {
 			t.Errorf("%s: the reply does not report the label:\n%s", tc.name, reply)
 		}
 		saysWhy(t, tc.name, reply, tc.says)
@@ -94,7 +94,7 @@ func TestAnAssigneeGitHubLeftOutIsSaid(t *testing.T) {
 	replies.ignore = true
 
 	reply := answer(t, server, command.Assign, []string{"@a-codechecker", "as", "codechecker"}, "")
-	if !strings.Contains(reply, "I could not make `@a-codechecker` the assignee") ||
+	if !strings.Contains(reply, "✖ I could not make `@a-codechecker` the assignee") ||
 		!strings.Contains(reply, "left them out") {
 		t.Errorf("the reply does not say the assignee was left out:\n%s", reply)
 	}
@@ -111,13 +111,13 @@ func TestAnAssigneeThatCouldNotBeRemovedIsSaid(t *testing.T) {
 		replies.unassignErr = tc.err
 
 		reply := answer(t, server, command.Assign, []string{"@a-made-up-codechecker", "as", "codechecker"}, "")
-		if !strings.Contains(reply, "I could not take `@a-codechecker` off as assignee") {
+		if !strings.Contains(reply, "✖ I could not take `@a-codechecker` off as assignee") {
 			t.Errorf("%s: reassigning does not say the old assignee stayed:\n%s", tc.name, reply)
 		}
 		saysWhy(t, tc.name, reply, tc.says)
 
 		reply = answer(t, server, command.Remove, []string{"@a-made-up-codechecker", "as", "codechecker"}, "")
-		if !strings.Contains(reply, "I could not take `@a-made-up-codechecker` off as assignee") {
+		if !strings.Contains(reply, "✖ I could not take `@a-made-up-codechecker` off as assignee") {
 			t.Errorf("%s: removing does not say the assignee stayed:\n%s", tc.name, reply)
 		}
 		saysWhy(t, tc.name, reply, tc.says)
@@ -131,7 +131,7 @@ func TestARecordThatCouldNotBeWrittenSaysWhat(t *testing.T) {
 		server.Checks.Comments.(*issueComments).err = tc.err
 
 		reply := answer(t, server, command.Assign, []string{"@a-codechecker", "as", "codechecker"}, "")
-		if !strings.Contains(reply, "I could not record the role.") {
+		if !strings.Contains(reply, "✖ I could not record the role.") {
 			t.Errorf("%s: the reply does not say the role was not recorded:\n%s", tc.name, reply)
 		}
 		saysWhy(t, tc.name, reply, tc.says)

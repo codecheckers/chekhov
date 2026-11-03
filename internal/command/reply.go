@@ -761,9 +761,9 @@ func AssignedReply(role Role, handle, replaced, assignee, by string, when time.T
 func AssigneeNote(handle string, set bool, why string) string {
 	switch {
 	case set:
-		return "Assignee of this issue set."
+		return "✔ Assignee of this issue set."
 	case why != "":
-		return fmt.Sprintf("I could not make %s the assignee of this issue. %s", mention(handle), Sentence(why))
+		return fmt.Sprintf("✖ I could not make %s the assignee of this issue. %s", mention(handle), Sentence(why))
 	default:
 		return ""
 	}
@@ -778,7 +778,7 @@ const AssigneeIgnored = "GitHub took the request and left them out, which it doe
 // UnassignFailed says the previous assignee is still on the issue, and why:
 // without it the reply reads as though they had been replaced there too.
 func UnassignFailed(handle, why string) string {
-	return fmt.Sprintf("I could not take %s off as assignee of this issue. %s", mention(handle), Sentence(why))
+	return fmt.Sprintf("✖ I could not take %s off as assignee of this issue. %s", mention(handle), Sentence(why))
 }
 
 // Sentence makes a reason read as a sentence after another one: a capital

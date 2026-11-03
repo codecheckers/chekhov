@@ -130,7 +130,7 @@ func LabelChanges(changes []LabelChange) string {
 		fmt.Fprintf(&out, "✔ Labels: %s.\n", list(moved, "and"))
 	}
 	for _, problem := range failed {
-		fmt.Fprintf(&out, "⚠ %s\n", problem)
+		fmt.Fprintf(&out, "✖ %s\n", problem)
 	}
 	return out.String()
 }

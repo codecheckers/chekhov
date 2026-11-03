@@ -306,7 +306,7 @@ func TestSetCertificateWithoutAnIdentifierKeepsTheOneHeld(t *testing.T) {
 	register.issues[0].Labels = nil
 	reply = answer(t, server, command.CertificateSet, nil, "")
 	if !strings.Contains(reply, "`"+year(4)+"` is already the certificate identifier") ||
-		!strings.Contains(reply, "Label `id assigned` added") {
+		!strings.Contains(reply, "✔ Label `id assigned` added") {
 		t.Errorf("the label was not put back on the identifier held:\n%s", reply)
 	}
 }

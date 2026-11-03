@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-11-03
+
+### Changed
+
+- A write a reply reports - the register pull request, the title, a label, the
+  assignee, a team, the record - is marked `✔` when done and `✖` when not,
+  instead of reading like a skipped step (codecheckers/register#238).
+- `register` names the pull request by its number alone, not by its number and
+  its link (codecheckers/register#238).
+
 ## [0.26.0] - 2026-11-03
 
 ### Added

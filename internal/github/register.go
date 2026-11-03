@@ -59,7 +59,6 @@ type RowProposal struct {
 // A RowPullRequest is what ProposeRow left behind.
 type RowPullRequest struct {
 	Number int    `json:"number"`
-	URL    string `json:"html_url"`
 	Title  string `json:"title"`
 	Body   string `json:"body"`
 	// Updated says the pull request was there already and has been brought

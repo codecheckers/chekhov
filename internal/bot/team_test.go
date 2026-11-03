@@ -285,7 +285,7 @@ func TestAssigningACodecheckerPutsThemInTheTeam(t *testing.T) {
 	if replies.addedTo[0] != "codecheckers" {
 		t.Errorf("added to %q, want the ordinary team", replies.addedTo[0])
 	}
-	if !strings.Contains(reply, "I have put `@a-made-up-newcomer` in `codecheckers/codecheckers`") {
+	if !strings.Contains(reply, "✔ I have put `@a-made-up-newcomer` in `codecheckers/codecheckers`") {
 		t.Errorf("the reply does not say what was done:\n%s", reply)
 	}
 }
@@ -473,7 +473,7 @@ func TestAPendingTeamMembershipIsSaidRatherThanIgnored(t *testing.T) {
 	if len(replies.added) != 0 {
 		t.Errorf("somebody with a pending membership was added again: %v", replies.added)
 	}
-	for _, want := range []string{"has not accepted yet", "they are not in it"} {
+	for _, want := range []string{"⚠ `@a-made-up-newcomer` has been invited", "has not accepted yet", "they are not in it"} {
 		if !strings.Contains(reply, want) {
 			t.Errorf("the reply does not say %q:\n%s", want, reply)
 		}

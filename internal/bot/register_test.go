@@ -279,7 +279,7 @@ func (p *proposer) ProposeRow(_ context.Context, _ string, proposal github.RowPr
 		return github.RowPullRequest{}, p.refuse
 	}
 	p.proposed = append(p.proposed, proposal)
-	return github.RowPullRequest{Number: 300, URL: "https://github.example/pull/300",
+	return github.RowPullRequest{Number: 300,
 		Updated: len(p.proposed) > 1}, nil
 }
 
@@ -315,7 +315,7 @@ func TestRegisterOpensThePullRequest(t *testing.T) {
 	if !strings.Contains(proposal.Body, "as `@nuest` asked") || strings.Contains(proposal.Body, " @nuest") {
 		t.Errorf("the body does not name who asked without notifying them:\n%s", proposal.Body)
 	}
-	if !strings.Contains(reply, "Opened the pull request adding this row: #300") {
+	if !strings.Contains(reply, "✔ Opened the pull request adding this row: #300.") {
 		t.Errorf("the reply does not link the pull request:\n%s", reply)
 	}
 
@@ -334,7 +334,7 @@ func TestRegisterOpensNothingWhenARuleFails(t *testing.T) {
 	if len(writer.proposed) != 0 {
 		t.Errorf("a failing row was proposed: %+v", writer.proposed)
 	}
-	if !strings.Contains(reply, "1970-001 is already in register.csv") || !strings.Contains(reply, "opened no pull request") {
+	if !strings.Contains(reply, "1970-001 is already in register.csv") || !strings.Contains(reply, "✖ I have opened no pull request") {
 		t.Errorf("the refusal does not say why:\n%s", reply)
 	}
 }
@@ -353,8 +353,14 @@ func TestRegisterSaysWhyThePullRequestWasRefused(t *testing.T) {
 	} {
 		server, writer := proposingServer(t, false)
 		writer.refuse = err
-		if reply := answer(t, server, command.Register, nil, ""); !strings.Contains(reply, want) {
+		reply := answer(t, server, command.Register, nil, "")
+		if !strings.Contains(reply, want) {
 			t.Errorf("%v: the reply does not say %q:\n%s", err, want, reply)
+		}
+		// Marked as the failure it is, as the stages above it are marked
+		// with what they found: codecheckers/register#238 read as a skip.
+		if !strings.Contains(reply, "\n✖ ") {
+			t.Errorf("%v: the refusal is not marked as one:\n%s", err, reply)
 		}
 	}
 }

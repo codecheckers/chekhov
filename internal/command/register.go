@@ -73,7 +73,7 @@ func RowIncomplete(row Row) string {
 // certificate is not the one the configuration carries: the register would
 // name one identifier and point at a `codecheck.yml` that says another.
 func CertificateMismatch(configured, reserved string) string {
-	return fmt.Sprintf("\n… The `codecheck.yml` says certificate %s, and this check reserved %s, "+
+	return fmt.Sprintf("\n✖ The `codecheck.yml` says certificate %s, and this check reserved %s, "+
 		"so I have not run the register rules: put the reserved identifier in the configuration, "+
 		"or `%s certificate set` the one it carries.\n",
 		certificateOrNone(configured), Code(reserved), Bot)
@@ -90,7 +90,7 @@ func RowSet(holders Holders, by string) string {
 // NoPullRequest is the last stage of `register` when an earlier one stopped
 // it.
 func NoPullRequest() string {
-	return "\n… I have opened no pull request: the row needs what is above put right first. " +
+	return "\n✖ I have opened no pull request: the row needs what is above put right first. " +
 		"A warning does not stop it; an error, or a configuration I could not read or that carries " +
 		"another certificate, does.\n"
 }
@@ -117,7 +117,11 @@ func PullRequestBody(row Row, issue int, by string) string {
 // PullRequestOpened is the reply once the pull request is there, and the
 // record of who asked for it. updated says it was there already, unchanged
 // that it already proposed exactly this and nothing was written.
-func PullRequestOpened(number int, url string, updated, unchanged bool, by string, when time.Time) string {
+//
+// The pull request is named by its number alone: it is in the repository the
+// checks issue is in, so GitHub links `#N` and shows its title on hover, and
+// the URL beside it only said the same thing twice.
+func PullRequestOpened(number int, updated, unchanged bool, by string, when time.Time) string {
 	did := "Opened the pull request adding this row"
 	switch {
 	case unchanged:
@@ -125,20 +129,20 @@ func PullRequestOpened(number int, url string, updated, unchanged bool, by strin
 	case updated:
 		did = "Brought up to date the pull request adding this row"
 	}
-	return fmt.Sprintf("\n✔ %s: #%d, %s.\n", did, number, url) + entry("asked", by, when)
+	return fmt.Sprintf("\n✔ %s: #%d.\n", did, number) + entry("asked", by, when)
 }
 
 // PullRequestFailed is the reply when GitHub would not take a write, and why
 // - which says whether asking again can help. What GitHub said is in the log,
 // which is no place for a thread.
 func PullRequestFailed(why Failure) string {
-	return "\n… I could not open the pull request. " + why.Why() + "\n"
+	return "\n✖ I could not open the pull request. " + why.Why() + "\n"
 }
 
 // AlreadyRegistered is the refusal for a certificate the register file has a
 // row for already, found on the default branch at the moment of writing.
 func AlreadyRegistered(certificate string) string {
-	return fmt.Sprintf("\n… `register.csv` already has a row for %s, so I have opened no pull request. "+
+	return fmt.Sprintf("\n✖ `register.csv` already has a row for %s, so I have opened no pull request. "+
 		"`%s check certificate %s` runs the rules on it.\n", Code(certificate), Bot, certificate)
 }
 
@@ -146,6 +150,6 @@ func AlreadyRegistered(certificate string) string {
 // somebody else's commits on it: an editor's fix that a reset would throw
 // away.
 func BranchNotOurs(certificate string) string {
-	return fmt.Sprintf("\n… The branch `register-%s` has commits that are not mine, so I have left it "+
+	return fmt.Sprintf("\n✖ The branch `register-%s` has commits that are not mine, so I have left it "+
 		"alone and opened no pull request: finish or delete that branch, and ask me again.\n", certificate)
 }
