@@ -2,6 +2,8 @@ package bot
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/httpretry"
 	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
@@ -341,6 +344,12 @@ func TestRegisterSaysWhyThePullRequestWasRefused(t *testing.T) {
 	for err, want := range map[error]string{
 		github.ErrBranchNotOurs:     "has commits that are not mine",
 		github.ErrAlreadyRegistered: "already has a row for `1970-001`",
+		// codecheckers/register#238: the account was `read`, and the reply
+		// asked to be asked again, which could never help.
+		fmt.Errorf("could not write register.csv: %w", &httpretry.StatusError{Service: "GitHub",
+			Status: http.StatusForbidden, Body: `{"message":"Resource not accessible by personal access token"}`}): "Asking again will not help",
+		fmt.Errorf("could not write register.csv: %w", &httpretry.StatusError{Service: "GitHub",
+			Status: http.StatusBadGateway}): "Ask me again",
 	} {
 		server, writer := proposingServer(t, false)
 		writer.refuse = err

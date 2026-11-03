@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.3] - 2026-11-03
+
+### Fixed
+
+- `register` says that asking again will not help when GitHub refuses it
+  permission to write, instead of asking to be asked again
+  (codecheckers/register#238).
+
+### Changed
+
+- At startup the bot checks that its account may write to the register and
+  warns in the log when it may not, because a token with write permissions
+  still cannot write for an account that is only `read`
+  (codecheckers/register#238).
+
 ## [0.25.2] - 2026-11-02
 
 ### Changed

@@ -90,6 +90,7 @@ func Serve(address string) error {
 			"and an edit of them will go unnoticed. See docs/record-key.md")
 	}
 	reloadTeams(server, settings)
+	go server.checkRole(context.Background())
 
 	// The nightly sweep lives in this process: the reply path is here and so
 	// is the token, and a second scheduled job would need a copy of both. It

@@ -133,6 +133,10 @@ type Server struct {
 	// are claimed to writing this check's, so two at once cannot pick one.
 	reserving sync.Mutex
 
+	// role is the account's role on the register as the startup check found
+	// it, for /healthz in development. See checkRole.
+	role roleState
+
 	// done is closed when a background command finishes, for the tests.
 	done chan struct{}
 }
@@ -1521,6 +1525,9 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 			state["token_expires"] = client.TokenExpiry()
 		}
 		state["teams"] = s.teamState()
+		if role := s.role.state(); role != nil {
+			state["repository_permission"] = role
+		}
 		if s.Checks != nil {
 			state["record_key"] = s.Checks.Signer.PublicKey()
 		}

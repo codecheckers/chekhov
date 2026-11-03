@@ -579,9 +579,12 @@ finish.
    have drifted apart.
 3. `runway app logs` — what did it do with the delivery?
 4. A `401 Bad credentials` in the log means the token expired or was revoked,
-   and a `403 Resource not accessible by personal access token` means it lacks
-   a permission - Issues: read and write is what posting a comment needs. See
-   [`github-token.md`](github-token.md).
+   and a `403 Resource not accessible by personal access token` means the
+   token **or the account** lacks a permission - Issues: read and write is what
+   posting a comment needs, and the account needs the `write` role on the
+   register for everything else. Look for `the bot's account cannot write to
+   the register` near the start of the log, which the startup check writes
+   when the role is too low. See [`github-token.md`](github-token.md).
 5. Redeliver the event from GitHub once the cause is fixed. The bot is not
    idempotent — a redelivery posts another comment — which is fine for a
    listing and worth thinking about for anything that changes the register.

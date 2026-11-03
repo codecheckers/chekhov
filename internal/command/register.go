@@ -135,6 +135,17 @@ func PullRequestFailed() string {
 		"and what it said is in my log. Ask me again; if it fails twice, it needs somebody who can read the log.\n"
 }
 
+// PullRequestRefused is the reply when GitHub refused a write for want of
+// permission, a 403 that is not a rate limit. Asking again cannot help, so
+// unlike PullRequestFailed it does not suggest it: the bot's account or its
+// token is short of write on the register, which only somebody who maintains
+// the register can change. See docs/github-token.md.
+func PullRequestRefused() string {
+	return "\n… I could not open the pull request: GitHub refused me permission to write to this repository. " +
+		"Asking again will not help until somebody who maintains the register gives my account, or my token, " +
+		"write access to it; the request it refused is in my log.\n"
+}
+
 // AlreadyRegistered is the refusal for a certificate the register file has a
 // row for already, found on the default branch at the moment of writing.
 func AlreadyRegistered(certificate string) string {

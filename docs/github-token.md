@@ -148,6 +148,12 @@ It is not worth regenerating a narrower token now and a wider one in a month.
 What matters is that it is still one repository: the production register is out
 of reach either way.
 
+The production token, `ckekhov-production` (the name has a typo; renaming it
+keeps the value), has the same permissions on `codecheckers/register` alone,
+approved by the organisation (checked 2026-11-03). Its writes failed anyway
+until the account was given `write` on that repository: see Account
+prerequisites below.
+
 ## One token, or two
 
 One. The dangerous capability is "can act as `@chekhovbot` on a register", and
@@ -183,11 +189,33 @@ when the bot outgrows commenting.
 ## Account prerequisites
 
 - `chekhovbot` is an active member of the `codecheckers` organisation.
-- Its permission on `codecheckers/testing-dev-register` is `write` (checked
-  2026-10-21): labels, assignees and the `register-*` branches need it, and
-  so does deleting somebody else's comment, which `check zenodo` does to a
-  comment holding a share link. On `codecheckers/register` it is `read`
-  (checked 2026-10-27), so there the reply asks the person to delete it.
+- Its role is **`write`** on every register it works on:
+  `codecheckers/testing-dev-register` (checked 2026-10-21) and
+  `codecheckers/register` (granted and checked 2026-11-03). Labels, the
+  issue's assignee, the title, the `register-*` branches and deleting somebody
+  else's comment - which `check zenodo` does to a comment holding a share
+  link - all need it.
+- **The token cannot do more than the account.** A fine-grained token's
+  permissions are a ceiling, not a grant: what it may actually do is what both
+  the token and the account's role on the repository allow. A token with
+  Contents, Issues and Pull requests at read and write, acting for an account
+  that is only `read` on the repository, can comment and nothing else. GitHub
+  answers every other write `403 Resource not accessible by personal access
+  token` - the same words it uses for a token missing the permission, so the
+  message alone does not say which of the two is short. That is how production
+  started out: `chekhovbot` was `read` on `codecheckers/register` from 0.22.0
+  until 2026-11-03, and on codecheckers/register#238 `assign` could not set the
+  assignee, `certificate set` could not change the title and `register` could
+  not create the tree for its commit, all with that 403, while the token's page
+  showed every permission in place. Check both:
+
+  ```sh
+  gh api repos/<owner>/<register>/collaborators/chekhovbot/permission --jq .role_name
+  ```
+
+  The bot checks the account's side itself at startup and logs
+  `the bot's account cannot write to the register` when its role is below
+  `write`; in development `/healthz` reports it as `repository_permission`.
 - **Protect the default branch** of a register the bot writes to, so that a
   change reaches it only through a reviewed pull request. The token's Contents
   write would otherwise reach `main` too; the guard refuses it, and branch
@@ -206,7 +234,8 @@ warning when it is within a fortnight, but do not rely on reading logs:
    app - the running process keeps the token it started with, and goes on
    answering 401 to everything until it is restarted.
 4. Check `GET /healthz`, which reports the new expiry date and, in
-   development, whether the teams could be read.
+   development, whether the teams could be read and the account's role on
+   the register.
 5. Delete the old token.
 
 Editing an existing token's *permissions* leaves its value alone and needs none
