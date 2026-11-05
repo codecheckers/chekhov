@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/codecheckers/chekhov/internal/announce/announcetest"
+	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/mastodon"
 )
 
@@ -208,7 +209,7 @@ func TestHandle(t *testing.T) {
 }
 
 func TestAnnounced(t *testing.T) {
-	certificate := Certificate{ID: "1970-001", Page: "https://example.org/1970-001/"}
+	certificate := Certificate{Published: check.Published{ID: "1970-001"}, Page: "https://example.org/1970-001/"}
 	statuses := []mastodon.Posted{
 		{URL: "https://example.social/1", Content: "<p>something else</p>"},
 		{URL: "https://example.social/2", Content: "<p>New CODECHECK certificate 1970-001</p>"},

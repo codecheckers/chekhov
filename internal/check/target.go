@@ -165,14 +165,10 @@ func specOfPath(platform string, pieces []string) string {
 // the bot works on, which is the only thing that knows where a finished
 // CODECHECK lives.
 func repositoryOfCertificate(certificate string, services *Services) (RepositorySpec, error) {
-	if !services.Enabled() {
-		return RepositorySpec{}, fmt.Errorf("looking %s up needs the register", certificate)
-	}
-	register, err := services.registerCSV()
+	entry, found, err := services.RowOfCertificate(certificate)
 	if err != nil {
-		return RepositorySpec{}, fmt.Errorf("could not read the register: %w", err)
+		return RepositorySpec{}, err
 	}
-	entry, found := register.entryFor(certificate)
 	if !found {
 		return RepositorySpec{}, fmt.Errorf("%s is not in the register (%s)", certificate, services.Register)
 	}

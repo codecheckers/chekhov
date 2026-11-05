@@ -1038,7 +1038,7 @@ func (s *Server) check(ctx context.Context, event mention, parsed command.Comman
 		return s.links(ctx, event, configuration, services)
 	}
 
-	report, err := s.reportOn(target, part, services)
+	report, _, err := s.reportOn(target, part, services)
 	if err != nil {
 		return said(fmt.Sprintf("%s\n", err))
 	}
@@ -1071,15 +1071,16 @@ func checkArguments(parsed command.Command) (part, target string) {
 // The one path from "a target somebody wrote" to "a report", so that `check`
 // and the commands that wrap it - `check start`, `status`, `check finish` -
 // cannot end up with two ideas of what `check config` means. What differs is
-// how much of the report each of them shows.
-func (s *Server) reportOn(target, part string, services *check.Services) (check.Report, error) {
+// how much of the report each of them shows. The configuration comes back
+// with it, for `check finish` to hold the register's page against.
+func (s *Server) reportOn(target, part string, services *check.Services) (check.Report, check.Config, error) {
 	context, err := s.read(target, services)
 	if err != nil {
-		return check.Report{}, fmt.Errorf("I could not read `%s`: %w", target, err)
+		return check.Report{}, check.Config{}, fmt.Errorf("I could not read `%s`: %w", target, err)
 	}
 	report, err := check.RunPart(context, "", false, part)
 	report.Measure(context)
-	return report, err
+	return report, context.Config, err
 }
 
 // rules says which catalogue this build judges by, and whether the register

@@ -131,18 +131,23 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 	// repository is being read has to be on the issue while that happens, or
 	// the staging buys this command, the slowest of the three, nothing.
 	var report check.Report
+	var configuration check.Config
 	var reportErr error
 	// What the placeholder rule decided, read once: the register stage and the
 	// labels stage must agree on it, or #60 comes back.
 	// Whether the rules ran at all, read once too, for the same reason.
 	var pending, decided, ran bool
+	// finished is the three read together: the check is done, not waiting on
+	// metadata, which is when the register's page and the archive are asked
+	// about.
+	finished := func() bool { return ran && decided && !pending }
 	// The archive reminder, when the copy is not archived: left on the
 	// finished body only, as every follow-up is.
 	var archive *followup.Record
 	stages := []stage{
 		fixed(command.ReadingReply(target)),
 		{Name: "the rules", Run: func(context.Context) string {
-			report, reportErr = s.reportOn(target, "", services)
+			report, configuration, reportErr = s.reportOn(target, "", services)
 			pending, decided = placeholdersLeft(report)
 			ran = reportErr == nil && report.Refused == nil
 			return command.CheckSummary(summarised("", target, report, reportErr))
@@ -185,12 +190,23 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 			return moved + command.StartedBy("finished", event.Author, time.Now()) + "\n" +
 				command.FinishedBody(pending, ruleNote(placeholderRule))
 		}},
+		// The register's page for the certificate, which is what the check
+		// produced as far as a reader is concerned; see landingPage. Only
+		// for a finished check, as the archive below: one waiting on
+		// metadata is not registered yet. Unnamed, as the archive: one
+		// read at most, and none at all before the certificate is registered.
+		{Run: func(context.Context) string {
+			if !finished() {
+				return ""
+			}
+			return s.landingPage(configuration, about.reading, services)
+		}},
 		// The last step of the editor guide, and the easiest to forget
 		// (#27). Only for a check that is finished: one waiting on metadata
 		// is run again once the DOIs are real, and is asked then.
 		// Unnamed: one quick read, not worth a staged write announcing it.
 		{Run: func(context.Context) string {
-			if !ran || !decided || pending {
+			if !finished() {
 				return ""
 			}
 			var body string

@@ -9,7 +9,6 @@
 package announce
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -25,16 +24,10 @@ type Person = check.Person
 
 // A Certificate is what a toot is about.
 type Certificate struct {
-	ID string
+	check.Published
 	// Page is the landing page the certificate was read from, ending in a
 	// slash; the page images are next to it.
-	Page           string
-	PaperTitle     string
-	PaperReference string
-	Report         string
-	Venue          string
-	Authors        []Person
-	Codecheckers   []Person
+	Page string
 }
 
 // Load reads a published certificate and the accounts of the people and the
@@ -53,44 +46,16 @@ func Load(services *check.Services, settings *config.Settings, id string) (Certi
 	go func() { read <- services.CSVs(sources...) }()
 
 	page := settings.CertificateURL(id)
-	raw, err := services.FetchFile(page + "index.json")
+	published, err := services.PublishedAt(page)
 	if err != nil {
 		return Certificate{}, Directory{}, fmt.Errorf("certificate %s is not published, or not yet: %w", id, err)
 	}
-
-	var published struct {
-		Certificate struct {
-			ID string `json:"id"`
-		} `json:"certificate"`
-		Paper struct {
-			Title     string   `json:"title"`
-			Authors   []Person `json:"authors"`
-			Reference string   `json:"reference"`
-		} `json:"paper"`
-		Codecheck struct {
-			Codecheckers []Person `json:"codecheckers"`
-			Report       string   `json:"report"`
-			Venue        string   `json:"venue"`
-		} `json:"codecheck"`
-	}
-	if err := json.Unmarshal(raw, &published); err != nil {
-		return Certificate{}, Directory{}, fmt.Errorf("%sindex.json could not be read: %w", page, err)
-	}
-	if published.Certificate.ID != id {
+	if published.ID != id {
 		return Certificate{}, Directory{}, fmt.Errorf("%sindex.json is certificate %q, not %s",
-			page, published.Certificate.ID, id)
+			page, published.ID, id)
 	}
 
-	certificate := Certificate{
-		ID:             id,
-		Page:           page,
-		PaperTitle:     oneLine(published.Paper.Title),
-		PaperReference: strings.TrimSpace(published.Paper.Reference),
-		Report:         strings.TrimSpace(published.Codecheck.Report),
-		Venue:          strings.TrimSpace(published.Codecheck.Venue),
-		Authors:        published.Paper.Authors,
-		Codecheckers:   published.Codecheck.Codecheckers,
-	}
+	certificate := Certificate{Published: published, Page: page}
 
 	tables := <-read
 	venues, people := tables[0], tables[1:]
@@ -405,5 +370,3 @@ func firstOf(row map[string]string, keys ...string) string {
 	}
 	return ""
 }
-
-func oneLine(text string) string { return strings.Join(strings.Fields(text), " ") }

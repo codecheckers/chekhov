@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-05
+
+### Added
+
+- `check finish` checks the register's page for a certificate that is in
+  `register.csv`: a bold link when it agrees with `codecheck.yml` on the
+  certificate, the paper's title and reference, the report and the
+  codecheckers, and a failure listing what differs, or saying that the page is
+  missing. A certificate not registered yet is told where its page will be,
+  and one that is not the certificate in the record of the check is refused.
+
 ## [0.26.2] - 2026-11-04
 
 ### Changed

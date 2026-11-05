@@ -55,7 +55,9 @@ be fixed before it is published; it deletes the comment that held the link,
 which anyone who can read the issue could otherwise use. `@chekhovbot check start`, `@chekhovbot status` and
 `@chekhovbot check finish` say where a check stands and move the register's labels with it, running the
 checks that already exist rather than repeating them: because those take time,
-the reply is posted at once and rewritten in place as each answers.
+the reply is posted at once and rewritten in place as each answers. Once the
+certificate is in `register.csv`, `check finish` also reads its page in the
+register and links it when it says what `codecheck.yml` says.
 `@chekhovbot check register` builds the row the check would get in
 `register.csv` - from the issue's Repository line and labels, or what an editor
 set with `repository set` and `venue set` - and runs the rules on it before
