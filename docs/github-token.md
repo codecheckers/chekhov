@@ -148,9 +148,9 @@ It is not worth regenerating a narrower token now and a wider one in a month.
 What matters is that it is still one repository: the production register is out
 of reach either way.
 
-The production token, `ckekhov-production` (the name has a typo; renaming it
-keeps the value), has the same permissions on `codecheckers/register` alone,
-approved by the organisation (checked 2026-11-03). Its writes failed anyway
+The production token, `chekhov-production`, has the same permissions on
+`codecheckers/register` alone, approved by the organisation (checked
+2026-11-03). Its writes failed anyway
 until the account was given `write` on that repository: see Account
 prerequisites below.
 
