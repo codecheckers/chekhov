@@ -82,7 +82,7 @@ func CertificateMismatch(configured, reserved string) string {
 // RowSet is the reply to `repository set` and `venue set`: what the record now
 // says of the row, and that the rest is still read from the issue.
 func RowSet(holders Holders, by string) string {
-	return fmt.Sprintf("Recorded for the register row, as %s asked.\n%s\n"+
+	return fmt.Sprintf("✔ Recorded for the register row, as %s asked.\n%s\n"+
 		"A column not set here is read from the issue when the row is built: "+
 		"`%s check register` shows it.\n", mention(by), RowLine(holders), Bot)
 }
@@ -136,7 +136,7 @@ func PullRequestOpened(number int, updated, unchanged bool, by string, when time
 // - which says whether asking again can help. What GitHub said is in the log,
 // which is no place for a thread.
 func PullRequestFailed(why Failure) string {
-	return "\n✖ I could not open the pull request. " + why.Why() + "\n"
+	return "\n" + NotDone("open the pull request", why.Why()) + "\n"
 }
 
 // AlreadyRegistered is the refusal for a certificate the register file has a

@@ -647,7 +647,7 @@ func (p Provenance) Sentence() string {
 // write.
 func AcceptedReply(holders Holders, editor string, signed bool, when time.Time) string {
 	var reply strings.Builder
-	reply.WriteString("Adopted.\n\n")
+	reply.WriteString("✔ Adopted.\n\n")
 	reply.WriteString(RolesTable(holders))
 	if signed {
 		reply.WriteString("\nSigned again.\n")
@@ -743,7 +743,7 @@ func RolesReply(holders Holders, teams Teams, asker Roles, told Provenance) stri
 // there was nothing to say.
 func AssignedReply(role Role, handle, replaced, assignee, by string, when time.Time) string {
 	var reply strings.Builder
-	fmt.Fprintf(&reply, "%s is now the %s of this check.\n", mention(handle), role)
+	fmt.Fprintf(&reply, "✔ %s is now the %s of this check.\n", mention(handle), role)
 	if replaced != "" {
 		fmt.Fprintf(&reply, "\nReplaces %s.\n", mention(replaced))
 	}
@@ -763,7 +763,7 @@ func AssigneeNote(handle string, set bool, why string) string {
 	case set:
 		return "✔ Assignee of this issue set."
 	case why != "":
-		return fmt.Sprintf("✖ I could not make %s the assignee of this issue. %s", mention(handle), Sentence(why))
+		return NotDone(fmt.Sprintf("make %s the assignee of this issue", mention(handle)), why)
 	default:
 		return ""
 	}
@@ -778,7 +778,17 @@ const AssigneeIgnored = "GitHub took the request and left them out, which it doe
 // UnassignFailed says the previous assignee is still on the issue, and why:
 // without it the reply reads as though they had been replaced there too.
 func UnassignFailed(handle, why string) string {
-	return fmt.Sprintf("✖ I could not take %s off as assignee of this issue. %s", mention(handle), Sentence(why))
+	return NotDone(fmt.Sprintf("take %s off as assignee of this issue", mention(handle)), why)
+}
+
+// NotDone is the line for a write a reply reports and GitHub did not take:
+// what was not done, as the end of "I could not ...", and why. Marked `✖`
+// like a failed rule, because on codecheckers/register#238 a refused pull
+// request read "…", which says "not checked", and was easy to read past.
+// One place for the mark and the punctuation, so that the next such line
+// cannot be written without either.
+func NotDone(what, why string) string {
+	return strings.TrimSpace(fmt.Sprintf("✖ I could not %s. %s", what, Sentence(why)))
 }
 
 // Sentence makes a reason read as a sentence after another one: a capital
@@ -802,7 +812,7 @@ func RemovedReply(role Role, handle string, held bool, assignee, by string, when
 	if !held {
 		return fmt.Sprintf("%s was not the %s of this check.\n", mention(handle), role)
 	}
-	reply := fmt.Sprintf("%s is no longer the %s of this check.\n", mention(handle), role)
+	reply := fmt.Sprintf("✔ %s is no longer the %s of this check.\n", mention(handle), role)
 	if assignee != "" {
 		reply += "\n" + assignee + "\n"
 	}
@@ -1229,7 +1239,7 @@ func JoinedReply(joined Joined) string {
 		did = append(did, joined.TeamNote)
 	}
 	if joined.Granted {
-		did = append(did, fmt.Sprintf("They are now the %s of this check.", joined.Role))
+		did = append(did, fmt.Sprintf("✔ They are now the %s of this check.", joined.Role))
 	}
 	if joined.Taken != "" {
 		did = append(did, fmt.Sprintf("The %s of this check is `@%s`, who was given the role "+

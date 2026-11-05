@@ -192,7 +192,7 @@ func (s *Server) setCertificate(ctx context.Context, event mention, parsed comma
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return fmt.Sprintf("✖ I could not record the identifier: %s\n", whyNot(err))
+		return command.NotDone("record the identifier", whyNot(err)) + "\n"
 	}
 	if set.Previous == "" && !set.Unchanged {
 		// Set by hand before the bot kept a record: the title is where it was.

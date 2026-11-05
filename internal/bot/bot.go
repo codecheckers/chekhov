@@ -886,7 +886,7 @@ func (s *Server) accept(ctx context.Context, event mention, parsed command.Comma
 	case errors.Is(err, people.ErrUnchanged):
 		return "This record is the one I wrote, so there is nothing to adopt.\n"
 	case err != nil:
-		return fmt.Sprintf("✖ I could not adopt the record of this check: %s\n", whyNot(err))
+		return command.NotDone("adopt the record of this check", whyNot(err)) + "\n"
 	}
 	return command.AcceptedReply(reading.Record.Holders(), event.Author, reading.Signed(), time.Now())
 }
@@ -1616,7 +1616,7 @@ func (readOnly) Comment(context.Context, string, int, string) (int64, error) {
 // not taking the write says what was not recorded, and why.
 func recordFailure(what string, err error) string {
 	if why, ok := gitHubWhy(err); ok {
-		return fmt.Sprintf("✖ I could not record %s. %s\n", what, why)
+		return command.NotDone("record "+what, why) + "\n"
 	}
 	return err.Error() + "\n"
 }

@@ -2,7 +2,6 @@ package bot
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -230,14 +229,13 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 		// Somebody an owner invited through the team, who has not accepted.
 		// Adding them again would change nothing, and saying nothing would
 		// leave the editor believing the team was handled.
-		return fmt.Sprintf("⚠ `@%s` has been invited to `%s/%s` and has not accepted yet, "+
-			"so they are not in it.", handle, organisation, team)
+		return command.TeamPending(handle, organisation, team)
 	}
 
 	added, err := changer.AddToTeam(ctx, organisation, team, handle)
 	if err != nil {
 		s.Logger.Warn("could not add somebody to the team", "handle", handle, "team", team, "error", err)
-		return fmt.Sprintf("✖ I could not put them in `%s/%s`: %s", organisation, team, whyNot(err))
+		return command.TeamFailed(organisation, team, whyNot(err))
 	}
 	login := added.Login
 	if login == "" {
@@ -248,10 +246,9 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 		// and GitHub answers 404 when this bot reads their membership - so
 		// the add above is how it finds out they were there all along. It is
 		// not a failure, and the role is not the bot's to change.
-		return fmt.Sprintf("ℹ `@%s` is already in `%s/%s`, as a maintainer - "+
-			"which I did not set and will not change.", login, organisation, team)
+		return command.TeamMaintainer(login, organisation, team)
 	}
-	return fmt.Sprintf("✔ I have put `@%s` in `%s/%s`.", login, organisation, team)
+	return command.TeamAdded(login, organisation, team)
 }
 
 // managedTeam reports whether a team is one the settings allow the bot to add

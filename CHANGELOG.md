@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.2] - 2026-11-04
+
+### Changed
+
+- A change to the record of a check - a role given or taken, the identifier,
+  the register row, an adopted record - is marked `✔` on its first line, as
+  the writes reported beneath it are (codecheckers/register#238).
+- Every GitHub write a reply reports as not done reads "✖ I could not …",
+  followed by why, in one form (codecheckers/register#238).
+
+### Fixed
+
+- A label that could not be added read "could not adde" (codecheckers/register#238).
+
 ## [0.26.1] - 2026-11-03
 
 ### Changed

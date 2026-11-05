@@ -167,8 +167,8 @@ func (s *Server) checkFinish(ctx context.Context, event mention, parsed command.
 		}),
 		{Name: "the labels", Run: func(context.Context) string {
 			if !ran {
-				return "✖ I could not read the configuration, so I have moved no label: " +
-					"a rule that could not be asked is not a rule that passed.\n"
+				return command.NotDone("read the configuration, so I have moved no label",
+					"a rule that could not be asked is not a rule that passed") + "\n"
 			}
 			if !decided {
 				return fmt.Sprintf("✖ `%s` could not be checked, so I have moved no label. "+

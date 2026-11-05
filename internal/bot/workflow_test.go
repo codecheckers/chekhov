@@ -256,7 +256,7 @@ func TestARefusedLabelIsExplainedNotPassedOn(t *testing.T) {
 	assignCodechecker(t, server, "a-codechecker")
 
 	reply := answer(t, server, command.CheckStart, nil, "")
-	if !strings.Contains(reply, "the settings do not list it under `labels.managed`") {
+	if !strings.Contains(reply, "The settings do not list it under `labels.managed`.") {
 		t.Errorf("the reply does not say why the label stayed:\n%s", reply)
 	}
 	if strings.Contains(reply, "refusing to remove") {

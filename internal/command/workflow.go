@@ -109,20 +109,19 @@ type LabelChange struct {
 func LabelChanges(changes []LabelChange) string {
 	var moved, failed []string
 	for _, change := range changes {
-		verb := "removed"
+		// Both forms written out: trimming the past tense made "adde".
+		verb, did := "remove", "removed"
 		if change.Added {
-			verb = "added"
+			verb, did = "add", "added"
 		}
 		if change.Done {
-			moved = append(moved, fmt.Sprintf("%s %s", verb, Code(change.Label)))
+			moved = append(moved, fmt.Sprintf("%s %s", did, Code(change.Label)))
 			continue
 		}
-		// Flattened here rather than by the caller: a GitHub error carries
-		// the response body, and a proxy's HTML page would otherwise end the
-		// line and take the rest of the reply with it. The renderer owns the
-		// constraint, so no future caller has to remember it.
-		failed = append(failed, fmt.Sprintf("could not %s %s: %s",
-			strings.TrimSuffix(verb, "d"), Code(change.Label), oneLine(change.Why)))
+		// NotDone flattens the reason, through Sentence: a GitHub error
+		// carries the response body, and a proxy's HTML page would otherwise
+		// end the line and take the rest of the reply with it.
+		failed = append(failed, NotDone(fmt.Sprintf("%s %s", verb, Code(change.Label)), change.Why))
 	}
 
 	var out strings.Builder
@@ -130,7 +129,7 @@ func LabelChanges(changes []LabelChange) string {
 		fmt.Fprintf(&out, "✔ Labels: %s.\n", list(moved, "and"))
 	}
 	for _, problem := range failed {
-		fmt.Fprintf(&out, "✖ %s\n", problem)
+		fmt.Fprintf(&out, "%s\n", problem)
 	}
 	return out.String()
 }

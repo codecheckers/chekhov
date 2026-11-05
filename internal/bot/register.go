@@ -354,7 +354,7 @@ func (s *Server) setRow(ctx context.Context, event mention, change func(*people.
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return fmt.Sprintf("✖ I could not record it: %s\n", whyNot(err))
+		return command.NotDone("record it", whyNot(err)) + "\n"
 	}
 	return command.RowSet(record.Holders(), event.Author)
 }

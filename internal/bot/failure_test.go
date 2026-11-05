@@ -80,7 +80,8 @@ func TestALabelThatCouldNotBeMovedSaysWhy(t *testing.T) {
 		assignCodechecker(t, server, "a-codechecker")
 
 		reply := answer(t, server, command.CheckStart, nil, "")
-		if !strings.Contains(reply, "✖ could not remove `needs codechecker`") {
+		if !strings.Contains(reply, "✖ I could not remove `needs codechecker`") ||
+			!strings.Contains(reply, "✖ I could not add `work in progress`") {
 			t.Errorf("%s: the reply does not report the label:\n%s", tc.name, reply)
 		}
 		saysWhy(t, tc.name, reply, tc.says)

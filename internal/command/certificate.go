@@ -96,7 +96,7 @@ func CertificateReservedReply(set CertificateReserved, by string, when time.Time
 	if set.Unchanged {
 		fmt.Fprintf(&reply, "`%s` is already the certificate identifier of this check.\n", set.ID)
 	} else {
-		fmt.Fprintf(&reply, "`%s` is now the certificate identifier of this check.\n", set.ID)
+		fmt.Fprintf(&reply, "✔ `%s` is now the certificate identifier of this check.\n", set.ID)
 	}
 	if set.Previous != "" {
 		fmt.Fprintf(&reply, "\nReplaces `%s`.\n", set.Previous)
@@ -110,15 +110,15 @@ func CertificateReservedReply(set CertificateReserved, by string, when time.Time
 		// would notify.
 		fmt.Fprintf(&reply, "\n✔ Title set: %s\n", Code(set.Title))
 	case set.TitleWhy != "":
-		fmt.Fprintf(&reply, "\n✖ I could not change the title, so please add the identifier after a `|` yourself. %s\n",
-			Sentence(set.TitleWhy))
+		fmt.Fprintf(&reply, "\n%s\n",
+			NotDone("change the title, so please add the identifier after a `|` yourself", set.TitleWhy))
 	}
 	switch {
 	case set.Labelled:
 		fmt.Fprintf(&reply, "\n✔ Label `%s` added.\n", set.Label)
 	case set.LabelWhy != "":
-		fmt.Fprintf(&reply, "\n✖ I could not add the label `%s`, so please add it yourself. %s\n",
-			set.Label, Sentence(set.LabelWhy))
+		fmt.Fprintf(&reply, "\n%s\n",
+			NotDone(fmt.Sprintf("add the label `%s`, so please add it yourself", set.Label), set.LabelWhy))
 	}
 	if !set.Unchanged || set.Title != "" || set.Labelled {
 		reply.WriteString(entry("set", by, when))

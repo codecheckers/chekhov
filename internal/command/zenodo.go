@@ -142,15 +142,15 @@ func ShareLinkNote(l ShareLink) string {
 	case !l.Held:
 		return ""
 	case l.Deleted:
-		return "\nI deleted the comment that asked, because anyone who can read this issue could have used " +
+		return "\n✔ I deleted the comment that asked, because anyone who can read this issue could have used " +
 			"the share link in it. " + revoke
 	case l.InDescription:
-		return "\nThe share link is in the issue's description, where anyone who can read this issue can use it. " +
+		return "\n⚠ The share link is in the issue's description, where anyone who can read this issue can use it. " +
 			"Edit it out. The description keeps its earlier version, and " + revoke
 	}
-	return "\nThe share link is in the comment that asked, where anyone who can read this issue can use it, " +
-		"and I could not delete it. Delete the comment rather than edit it, because an edited comment keeps its " +
-		"earlier version. " + revoke
+	return "\n" + NotDone("delete the comment that asked",
+		"the share link in it can be used by anyone who can read this issue") +
+		" Delete the comment rather than edit it, because an edited comment keeps its earlier version. " + revoke
 }
 
 // UnreadableRecord is `check zenodo` naming something that is not a Zenodo

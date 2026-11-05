@@ -129,7 +129,7 @@ func TestCheckZenodoDeletesTheShareLink(t *testing.T) {
 
 	replies.deleted, replies.err = nil, errors.New("deleting comment 42 on codecheckers/register: GitHub answered 403")
 	reply := ask(server, 42, "", link)
-	if !strings.Contains(reply, "I could not delete it") || strings.Contains(reply, "403") {
+	if !strings.Contains(reply, "✖ I could not delete the comment that asked. The share link in it") || strings.Contains(reply, "403") {
 		t.Errorf("the reply does not say the comment could not be deleted, or quotes GitHub:\n%s", reply)
 	}
 	replies.err = nil
