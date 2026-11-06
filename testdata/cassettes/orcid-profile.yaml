@@ -1,0 +1,64 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: pub.orcid.org
+        headers:
+            Accept:
+                - application/json
+            User-Agent:
+                - chekhov/dev (+https://github.com/codecheckers/chekhov; the CODECHECK register bot)
+        url: https://pub.orcid.org/v3.0/0000-0001-8607-8025/person
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"last-modified-date":{"value":1572037363977},"name":{"created-date":{"value":1460755608732},"last-modified-date":{"value":1460755608732},"given-names":{"value":"Stephen"},"family-name":{"value":"Eglen"},"credit-name":null,"source":null,"visibility":"public","path":"0000-0001-8607-8025"},"other-names":{"last-modified-date":null,"other-name":[],"path":"/0000-0001-8607-8025/other-names"},"biography":null,"researcher-urls":{"last-modified-date":{"value":1572037363977},"researcher-url":[{"created-date":{"value":1405915722009},"last-modified-date":{"value":1572037363977},"source":{"source-orcid":{"uri":"https://orcid.org/0000-0001-8607-8025","path":"0000-0001-8607-8025","host":"orcid.org"},"source-client-id":null,"source-name":{"value":"Stephen Eglen"},"assertion-origin-orcid":null,"assertion-origin-client-id":null,"assertion-origin-name":null},"url-name":"Home page","url":{"value":"https://sje30.github.io"},"visibility":"public","path":"/0000-0001-8607-8025/researcher-urls/308279","put-code":308279,"display-index":0}],"path":"/0000-0001-8607-8025/researcher-urls"},"emails":{"last-modified-date":null,"email":[],"path":"/0000-0001-8607-8025/email"},"addresses":{"last-modified-date":{"value":1465226976952},"address":[{"created-date":{"value":1453658634187},"last-modified-date":{"value":1465226976952},"source":{"source-orcid":{"uri":"https://orcid.org/0000-0001-8607-8025","path":"0000-0001-8607-8025","host":"orcid.org"},"source-client-id":null,"source-name":{"value":"Stephen Eglen"},"assertion-origin-orcid":null,"assertion-origin-client-id":null,"assertion-origin-name":null},"country":{"value":"GB"},"visibility":"public","path":"/0000-0001-8607-8025/address/15623","put-code":15623,"display-index":0}],"path":"/0000-0001-8607-8025/address"},"keywords":{"last-modified-date":null,"keyword":[],"path":"/0000-0001-8607-8025/keywords"},"external-identifiers":{"last-modified-date":null,"external-identifier":[],"path":"/0000-0001-8607-8025/external-identifiers"},"path":"/0000-0001-8607-8025/person"}'
+        headers:
+            Access-Control-Allow-Origin:
+                - '*'
+            Cache-Control:
+                - no-cache, no-store, max-age=0, must-revalidate
+            Cf-Apo-Via:
+                - origin,host
+            Cf-Cache-Status:
+                - DYNAMIC
+            Cf-Ray:
+                - a566eef37d4bcc97-TXL
+            Content-Type:
+                - application/json;charset=UTF-8
+            Date:
+                - Fri, 06 Nov 2026 20:43:57 GMT
+            Expires:
+                - "0"
+            Pragma:
+                - no-cache
+            Server:
+                - cloudflare
+            Set-Cookie:
+                - __cf_bm=IxF_W6pR0lyxTBRy5Nqc19EkZEYwLlslzYZsqQGDyiw-1793997837.3533456-1.0.1.1-PuGnvBp5eawOBZiuBt_YDVDiyYOpZwdYB6MGaqCcGtPGqH0NOCHu5L8FtyZ4Lj0jGjtAv.50pgYpBWYcSK9D.AlxSGHgoH3LsxpLOvV1xxj2.znL.ocXWJit_ylQPnPB; HttpOnly; SameSite=None; Partitioned; Secure; Path=/; Domain=orcid.org; Expires=Fri, 06 Nov 2026 21:13:57 GMT
+            Strict-Transport-Security:
+                - max-age=31536000 ; includeSubDomains
+            Vary:
+                - Accept-Encoding
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - DENY
+            X-Target:
+                - reg-prod-papi-use2-a1
+            X-Via:
+                - b2-newvpc
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 245.368987ms

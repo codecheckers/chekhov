@@ -72,6 +72,10 @@ type Client struct {
 	// otherwise, which is the only reason it is a field.
 	SecondaryLimitPause time.Duration
 	writes              httpretry.Pacer
+	// shared is the queue of the client this one was made from by For, so
+	// that a second repository's writes wait in the same line as the first
+	// one's; nil for a client made by New, which uses writes.
+	shared *httpretry.Pacer
 
 	// tokenExpiry is what GitHub last said about the token's lifetime. A
 	// fine-grained token expires, and a bot that goes quiet on a Monday is
@@ -94,6 +98,40 @@ func New(token, repository, signature string) *Client {
 
 		SecondaryLimitPause: secondaryLimitPause,
 	}
+}
+
+// For is a client for one more repository, the codechecker lists, which
+// writes as this one does and waits in this one's queue.
+//
+// A client of its own rather than a second repository on this one, so that
+// every fence here keeps meaning one repository: the new client may comment
+// on the issues of the repository it names and nothing else. It carries none
+// of this client's allowances - no labels, no register file, no teams - and is
+// given only what that repository needs. Its writes share this client's
+// Pacer, because a deployment's writes to GitHub are one queue whichever
+// repository they go to: a burst on two repositories is still a burst.
+func (c *Client) For(repository string) *Client {
+	return &Client{
+		HTTP:                c.HTTP,
+		Token:               c.Token,
+		BaseURL:             c.BaseURL,
+		Repository:          repository,
+		Account:             c.Account,
+		Signature:           c.Signature,
+		Logger:              c.Logger,
+		RetryWait:           c.RetryWait,
+		WriteInterval:       c.WriteInterval,
+		SecondaryLimitPause: c.SecondaryLimitPause,
+		shared:              c.queue(),
+	}
+}
+
+// queue is the Pacer this client's writes wait in.
+func (c *Client) queue() *httpretry.Pacer {
+	if c.shared != nil {
+		return c.shared
+	}
+	return &c.writes
 }
 
 // mine refuses a repository that is not the one this bot works on, before any
@@ -207,7 +245,7 @@ func (c *Client) do(ctx context.Context, method, url string, payload []byte) (_ 
 	// any other. The turn ends when the answer is in, and a rate limit holds
 	// back the whole queue rather than only the write that was told.
 	if method != http.MethodGet {
-		done, err := c.writes.Turn(ctx, c.WriteInterval)
+		done, err := c.queue().Turn(ctx, c.WriteInterval)
 		if err != nil {
 			return nil, err
 		}

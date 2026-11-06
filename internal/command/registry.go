@@ -60,6 +60,12 @@ type Definition struct {
 	// labels.go, and codecheckers/chekhov#44. A command whose subject is not
 	// the check - check, rules, version, hello - leaves it off.
 	AboutTheCheck bool
+	// Lists says the command is answered on the codechecker lists, in a
+	// registration issue, and nowhere else (#49). The two repositories have
+	// commands of their own: a check has no registration and a registration
+	// no check, so each listing shows only its own, and a command asked in
+	// the wrong place is told where it belongs.
+	Lists bool
 }
 
 // registry is every command the bot answers to.
@@ -160,6 +166,14 @@ var registry = []Definition{
 		Group:         GroupPeople,
 		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
+	},
+	{
+		Name:    IncludeCheck,
+		Summary: "Say what a registration as a codechecker still needs: the row, the ORCID, a way to reach you, and whether you are listed already",
+		Usage:   "include check",
+		Group:   GroupPeople,
+		Roles:   Roles{RoleAnyone},
+		Lists:   true,
 	},
 	{
 		Name:    Nudge,
@@ -364,13 +378,14 @@ func (d Definition) NeedsCheckRoles() bool {
 	return false
 }
 
-// Visible returns the commands a role should be told about: the ones they may
-// run, minus the hidden ones. A command someone may not run is absent rather
-// than shown and refused, so the listing is a list of what to do next.
+// Visible returns the commands a role should be told about on the register:
+// the ones they may run, minus the hidden ones and those of the lists. A
+// command someone may not run is absent rather than shown and refused, so the
+// listing is a list of what to do next.
 func Visible(roles Roles) []Definition {
 	var visible []Definition
 	for _, definition := range registry {
-		if !definition.Hidden && definition.Permits(roles) {
+		if !definition.Hidden && !definition.Lists && definition.Permits(roles) {
 			visible = append(visible, definition)
 		}
 	}
@@ -428,6 +443,9 @@ func SuggestSub(parent Name, word string) (Name, bool) {
 	prefix := string(parent) + " "
 	best, distance, bestIsSub := Name(""), 0, false
 	for _, definition := range registry {
+		if definition.Lists {
+			continue
+		}
 		// The parent's own subcommands, and the commands whose whole name is
 		// one word: `check status` is the mistake somebody makes once
 		// `check start` and `check finish` exist, and the answer to it is the
@@ -486,6 +504,11 @@ func Subcommands(word string, roles Roles) []Name {
 var families = func() map[string][]Definition {
 	byParent := make(map[string][]Definition)
 	for _, definition := range registry {
+		// The lists' commands are answered there alone, so the register
+		// neither lists them under a parent nor offers one as a typo.
+		if definition.Lists {
+			continue
+		}
 		begun := make(map[string]bool)
 		for _, spelling := range definition.spellings() {
 			if first, _, phrase := strings.Cut(spelling, " "); phrase && !begun[first] {

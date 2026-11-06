@@ -1,6 +1,7 @@
 package check
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -159,6 +160,64 @@ type orcidPerson struct {
 			Value string `json:"value"`
 		} `json:"family-name"`
 	} `json:"name"`
+	// Emails and ResearcherURLs are read for a registration only: is there a
+	// way to reach this person besides GitHub (codecheckers/chekhov#49).
+	Emails struct {
+		Email []struct {
+			Email string `json:"email"`
+		} `json:"email"`
+	} `json:"emails"`
+	ResearcherURLs struct {
+		ResearcherURL []struct {
+			URL struct {
+				Value string `json:"value"`
+			} `json:"url"`
+		} `json:"researcher-url"`
+	} `json:"researcher-urls"`
+}
+
+// ORCIDProfile is what a codechecker's registration needs from an ORCID
+// record: does it exist, and does it give a way to reach the person.
+type ORCIDProfile struct {
+	Name string
+	// Emails are the public addresses. ORCID answers no address both for a
+	// person who has none and for one who keeps it private, and either way
+	// there is none to reach them by.
+	Emails []string
+	// Pages are the researcher's own links, where an address may be.
+	Pages []string
+}
+
+// ORCIDProfile reads a public ORCID record. An identifier ORCID does not know
+// is IsNotFound; any other error is ORCID not answering, which says nothing
+// about the identifier.
+func (s *Services) ORCIDProfile(ctx context.Context, orcid string) (ORCIDProfile, error) {
+	if !s.Enabled() {
+		return ORCIDProfile{}, fmt.Errorf("external services not enabled, this needs the ORCID API")
+	}
+	person, err := s.orcidPerson(ctx, orcid)
+	if err != nil {
+		return ORCIDProfile{}, err
+	}
+	profile := ORCIDProfile{Name: strings.TrimSpace(person.Name.GivenNames.Value + " " + person.Name.FamilyName.Value)}
+	for _, email := range person.Emails.Email {
+		if address := strings.TrimSpace(email.Email); address != "" {
+			profile.Emails = append(profile.Emails, address)
+		}
+	}
+	for _, page := range person.ResearcherURLs.ResearcherURL {
+		if link := strings.TrimSpace(page.URL.Value); link != "" {
+			profile.Pages = append(profile.Pages, link)
+		}
+	}
+	return profile, nil
+}
+
+// ORCIDWellFormed reports whether an ORCID is written as one, bare, with a
+// check digit that holds: what CC-MET-001 asks of an ORCID in a codecheck.yml,
+// asked of one in a registration.
+func ORCIDWellFormed(orcid string) bool {
+	return orcidPattern.MatchString(orcid) && orcidCheckDigitHolds(orcid)
 }
 
 // rule: CC-MET-002 orcid-resolves
@@ -252,9 +311,14 @@ func orcidNameMatch(c Context) Result {
 }
 
 func orcidRecord(c Context, orcid string) (orcidPerson, error) {
+	return c.Services.orcidPerson(context.Background(), orcid)
+}
+
+// orcidPerson reads a public ORCID record: the one request behind the rules
+// and a registration alike.
+func (s *Services) orcidPerson(ctx context.Context, orcid string) (orcidPerson, error) {
 	var person orcidPerson
-	url := c.Services.ORCID + "/" + orcid + "/person"
-	err := c.Services.getJSON(url, nil, &person)
+	err := s.getJSONContext(ctx, s.ORCID+"/"+orcid+"/person", nil, &person)
 	return person, err
 }
 

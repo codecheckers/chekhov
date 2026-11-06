@@ -337,3 +337,26 @@ func TestCassetteReplayIsStrict(t *testing.T) {
 		t.Errorf("a request that is not in the cassette answered %d instead of failing", status)
 	}
 }
+
+// A registration reads the emails and the researcher's own links off an ORCID
+// record (codecheckers/chekhov#49). The recorded record shows no public email
+// and one link; the stubs decide what that means, this proves ORCID sends the
+// two fields under the names the reader looks for. A cassette of its own,
+// because an interaction replays once and paper-metadata's is used up there.
+func TestCassetteORCIDProfile(t *testing.T) {
+	services := replayServices(t, "orcid-profile")
+
+	profile, err := services.ORCIDProfile(context.Background(), "0000-0001-8607-8025")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.Name != "Stephen Eglen" {
+		t.Errorf("name = %q", profile.Name)
+	}
+	if len(profile.Emails) != 0 {
+		t.Errorf("emails = %q, want none: the recorded record shows none", profile.Emails)
+	}
+	if len(profile.Pages) != 1 || profile.Pages[0] != "https://sje30.github.io" {
+		t.Errorf("pages = %q, want the one researcher URL", profile.Pages)
+	}
+}

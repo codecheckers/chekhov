@@ -320,6 +320,14 @@ Add webhook.
 | Secret | the same value as `CHEKHOV_GH_SECRET_TOKEN` |
 | Events | **Issues** and **Issue comments** only |
 
+The codechecker lists are a second repository each app answers on, a
+registration there and nothing else (#49): `codecheckers/testing-dev-codecheckers`
+at `chekhov-dev`, `codecheckers/codecheckers` at `chekhov`, named by `lists` in
+the settings file. Each gets a webhook of its own, to the same app, with the
+same secret and the same two events, and the app's token needs that repository
+too; see `docs/github-token.md`. Until both are there the bot simply hears
+nothing from the lists.
+
 GitHub's *Recent Deliveries* tab on that page is the first place to look when
 something is wrong: it shows the request, the response, and has a **Redeliver**
 button, which is how a failed delivery is replayed without writing another

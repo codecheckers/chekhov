@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-06
+
+### Added
+
+- The bot answers on the codechecker lists, a second repository: a
+  registration issue is told what its row still needs - the columns, the
+  ORCID, a way to reach the person besides GitHub, whether they are listed
+  already - when it is opened, and again on `include check`. A registration
+  is complete only when all of it could be checked (#49).
+
 ## [0.27.0] - 2026-11-05
 
 ### Added

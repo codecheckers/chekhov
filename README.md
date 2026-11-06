@@ -58,6 +58,13 @@ checks that already exist rather than repeating them: because those take time,
 the reply is posted at once and rewritten in place as each answers. Once the
 certificate is in `register.csv`, `check finish` also reads its page in the
 register and links it when it says what `codecheck.yml` says.
+
+On the codechecker lists,
+[`codecheckers/codecheckers`](https://github.com/codecheckers/codecheckers),
+the bot answers a registration as a codechecker: when the issue is opened, and
+again on `@chekhovbot include check`, it says what the row still needs - the
+columns, the ORCID, a way to reach the person besides GitHub, and whether they
+are listed already. It answers nothing else there.
 `@chekhovbot check register` builds the row the check would get in
 `register.csv` - from the issue's Repository line and labels, or what an editor
 set with `repository set` and `venue set` - and runs the rules on it before

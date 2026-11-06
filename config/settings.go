@@ -41,6 +41,7 @@ type Settings struct {
 			AdminIssue IssueNumber `yaml:"admin_issue"`
 		} `yaml:"env"`
 		Metadata Metadata `yaml:"metadata"`
+		Lists    Lists    `yaml:"lists"`
 		Links    Links    `yaml:"links"`
 		Mastodon Mastodon `yaml:"mastodon"`
 		Nudges   Nudges   `yaml:"nudges"`
@@ -239,6 +240,39 @@ func (s *Settings) MetadataSource() string { return s.Chekhov.Metadata.Source }
 // MetadataMailto is the address sent to OpenAlex for its polite pool.
 func (s *Settings) MetadataMailto() string { return s.Chekhov.Metadata.Mailto }
 
+// Lists is the second repository the bot works on: the codechecker lists,
+// where people register as codecheckers (codecheckers/chekhov#49).
+//
+// A second target and not a widening of the first: the bot answers there only
+// to a registration, and writes there through a client of its own that names
+// that repository and no other, so a register command can never reach the
+// lists nor a registration the register. Empty switches it off.
+type Lists struct {
+	// Repository is owner/repo.
+	Repository string `yaml:"repository"`
+	// RegistrationLabel marks a registration issue; the issue template puts
+	// it on, and an opened issue without it is not answered.
+	RegistrationLabel string `yaml:"registration_label"`
+	// Files are the URLs of the lists a registration is compared with, to
+	// say whether somebody is listed already.
+	Files []string `yaml:"files"`
+}
+
+// productionLists is the repository real people register in.
+const productionLists = "codecheckers/codecheckers"
+
+// ListsRepository is the repository of the codechecker lists, owner/repo, or
+// empty when this deployment does not work on it.
+func (s *Settings) ListsRepository() string { return strings.TrimSpace(s.Chekhov.Lists.Repository) }
+
+// RegistrationLabel marks a registration issue on the lists repository.
+func (s *Settings) RegistrationLabel() string {
+	return strings.TrimSpace(s.Chekhov.Lists.RegistrationLabel)
+}
+
+// ListFiles are the URLs of the lists a registration is compared with.
+func (s *Settings) ListFiles() []string { return trimmed(s.Chekhov.Lists.Files) }
+
 // Links is how `check links` keeps its noise down and its downloads small.
 type Links struct {
 	// SkipHosts are sites that answer an automated request with a refusal
@@ -306,8 +340,13 @@ var productionFile = settingsFile("production")
 // isProductionRegister compares the way a person might write the repository:
 // case aside, and with a trailing slash or ".git" left on.
 func isProductionRegister(repository string) bool {
-	repository = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(repository), "/"), ".git")
-	return strings.EqualFold(repository, productionRegister)
+	return sameRepository(repository, productionRegister)
+}
+
+// sameRepository compares two repositories the way isProductionRegister does.
+func sameRepository(written, repository string) bool {
+	written = strings.TrimSuffix(strings.TrimSuffix(strings.TrimSpace(written), "/"), ".git")
+	return strings.EqualFold(written, repository)
 }
 
 // settingsFile is the embedded file an environment reads.
@@ -362,6 +401,24 @@ func validate(name string, s *Settings) error {
 	if isProductionRegister(s.Chekhov.Env.TargetRepository) && name != productionFile {
 		return fmt.Errorf("%s names the production register %s; only %s may",
 			name, productionRegister, productionFile)
+	}
+	// The lists are a second target, held to the same rule as the register:
+	// only the production file may name the real one, so a test registration
+	// cannot invite somebody into the real team or propose a row to the real
+	// list. They must not be the register either, or a registration would be
+	// answered with the register's commands and the other way round.
+	if lists := s.ListsRepository(); lists != "" {
+		switch {
+		case sameRepository(lists, productionLists) && name != productionFile:
+			return fmt.Errorf("%s names the production lists %s; only %s may",
+				name, productionLists, productionFile)
+		case sameRepository(lists, s.TargetRepository()):
+			return fmt.Errorf("%s names %s as both the register and the lists; they are two repositories",
+				name, lists)
+		case s.RegistrationLabel() == "":
+			return fmt.Errorf("%s names the lists %s but no lists.registration_label; "+
+				"no registration would ever be recognised", name, lists)
+		}
 	}
 	nudges := s.Chekhov.Nudges
 	if nudges.QuietDays < 0 || nudges.NeedsCodecheckerDays < 0 || nudges.MostPerSweep < 0 {

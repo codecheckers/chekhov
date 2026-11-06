@@ -90,6 +90,17 @@ chekhov:
       - codecheckers
       - institutional-codecheckers
 
+  # The codechecker lists, where people register as codecheckers; see
+  # settings-development.yml and codecheckers/chekhov#49. Written out, as the
+  # register is.
+  lists:
+    repository: codecheckers/codecheckers
+    registration_label: registration
+    files:
+      - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/codecheckers.csv
+      - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/institutional-codecheckers.csv
+      - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/agile-codecheckers.csv
+
   # The sweep's own comments about a check that has stalled. Each threshold is
   # in days, 0 switches it off, and both are off until the editors switch
   # them on, on the deployment. The editors told about the queue are the

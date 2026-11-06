@@ -502,3 +502,76 @@ func TestTheQueueNudgeOutsideProductionNeedsSubstitutes(t *testing.T) {
 		t.Errorf("error %v, want the queue nudge refused without substitutes", err)
 	}
 }
+
+// The lists are a second target, and the shipped files name the testing one
+// outside production, as they name the testing register (#49).
+func TestShippedSettingsNameTheTestingLists(t *testing.T) {
+	t.Setenv("CHEKHOV_LISTS_REPO", "")
+	for _, environment := range []string{"development", "live-test"} {
+		settings, err := Load(environment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := settings.ListsRepository(); got != "codecheckers/testing-dev-codecheckers" {
+			t.Errorf("%s: lists = %q, want the testing lists", environment, got)
+		}
+		if got := settings.RegistrationLabel(); got != "registration" {
+			t.Errorf("%s: registration label = %q", environment, got)
+		}
+		for _, file := range settings.ListFiles() {
+			if !strings.Contains(file, "/codecheckers/testing-dev-codecheckers/") {
+				t.Errorf("%s: list file %q is not on the testing lists", environment, file)
+			}
+		}
+	}
+
+	settings, err := Load("production")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings.ListsRepository(); got != productionLists {
+		t.Errorf("production lists = %q, want %s", got, productionLists)
+	}
+	if len(settings.ListFiles()) != 3 {
+		t.Errorf("production list files = %q, want the three lists", settings.ListFiles())
+	}
+}
+
+// Only the production file may name the real lists, however it is written.
+func TestDevelopmentRefusesTheProductionLists(t *testing.T) {
+	for _, lists := range []string{"codecheckers/codecheckers", " Codecheckers/Codecheckers/", "codecheckers/codecheckers.git"} {
+		t.Setenv("CHEKHOV_LISTS_REPO", lists)
+		for _, environment := range []string{"development", "live-test"} {
+			if _, err := Load(environment); err == nil || !strings.Contains(err.Error(), "production lists") {
+				t.Errorf("%s with %q: error %v, want the production lists refused", environment, lists, err)
+			}
+		}
+	}
+}
+
+// The register and the lists are two repositories, and lists without the
+// label that marks a registration would never answer one.
+func TestTheListsAreTheirOwnRepositoryWithALabel(t *testing.T) {
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	same := *settings
+	same.Chekhov.Lists.Repository = settings.TargetRepository()
+	if err := validate("settings-development.yml", &same); err == nil || !strings.Contains(err.Error(), "both the register and the lists") {
+		t.Errorf("lists naming the register: error %v", err)
+	}
+
+	unlabelled := *settings
+	unlabelled.Chekhov.Lists.RegistrationLabel = " "
+	if err := validate("settings-development.yml", &unlabelled); err == nil || !strings.Contains(err.Error(), "registration_label") {
+		t.Errorf("lists without a label: error %v", err)
+	}
+
+	off := *settings
+	off.Chekhov.Lists = Lists{}
+	if err := validate("settings-development.yml", &off); err != nil {
+		t.Errorf("no lists at all must be allowed, it switches them off: %v", err)
+	}
+}

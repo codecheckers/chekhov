@@ -158,7 +158,12 @@ func deliver(t *testing.T, server *Server, eventType, fixture string) *httptest.
 	if err != nil {
 		t.Fatal(err)
 	}
+	return deliverBody(t, server, eventType, body)
+}
 
+// deliverBody sends a delivery, signed, and waits for the command it starts.
+func deliverBody(t *testing.T, server *Server, eventType string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
 	request := httptest.NewRequest(http.MethodPost, "/dispatch", strings.NewReader(string(body)))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-GitHub-Event", eventType)

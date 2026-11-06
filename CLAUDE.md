@@ -466,8 +466,9 @@ usage - which the platform reads as a crash loop.
   service per deployment, so every command of every editor shares the queue:
   a burst of comments from a young account is what GitHub's spam detection
   hid `@chekhovbot` for, after a live test. A rate limit holds the whole
-  queue; reads are not held up. Never build a second writing client - it
-  would bring a second queue. Tests set `WriteInterval` to 0.
+  queue; reads are not held up. Never build a second write queue: a client
+  for another repository comes from `Client.For`, which shares this one's
+  Pacer (the codechecker lists, #49). Tests set `WriteInterval` to 0.
 - Three guards, in this order: the repository is the configured target, the
   author is not the bot itself, the event is an opened issue or a created
   comment. Everything else is a 204 with a log line, never an error.
@@ -715,11 +716,11 @@ exists; read the issues for what does not.
 | #18 roles | Done: `codechecker`, `assigned codechecker`, `author`; editors come from the GitHub team, per-check roles from a bot-owned comment |
 | #20 certificate identifier | Done: `certificate next` and `certificate set`, with the launch-pad's algorithm plus `register.csv` (`internal/check/certificate.go`); a year that has not started is refused (0.17) |
 | #21 register | Done: `check register`, `repository set`, `venue set`, `check certificate`, and `register`, the pull request |
-| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply |
+| #22 workflow state | Done: `check start`, `status`, `check finish`, the labels in the settings, and the staged reply; `check finish` reads the register's page of a registered certificate through its `index.json`, links it in bold when it agrees with `codecheck.yml` and fails it when it is missing or differs (0.27.0, no issue of its own), answered on testing-dev-register#248 |
 | #23 announce, register#217 fediverse columns | Done |
 | #24 find a codechecker | `codecheckers` and `codecheckers suggest` done; `invite` split out into its own issue |
 | #25 reminders and nudges | `remind` (0.24.0): a follow-up record per reminder, posted by the sweep on its day; live on testing-dev-register#240. Nudges (0.25.0): quiet checks and the queue, off until `CHEKHOV_NUDGE_*` set, at most five a sweep; live on testing-dev-register#241, and off again on `chekhov-dev` since 2026-11-04 until work on them restarts |
-| register#238 write access | The first production `register` got 403s: the bot's account was `read` on the register, whatever the token allowed. Now `write`; a startup check logs the role (0.25.3, `docs/github-token.md`); a reply tells a refused permission from a rate limit (0.26.0) and marks every GitHub write `✔` or `✖` through `command.NotDone` (0.26.1, 0.26.2); 0.26.0 and 0.26.1 answered on testing-dev-register#243 and #244, 0.26.2 not yet live |
+| register#238 write access | The first production `register` got 403s: the bot's account was `read` on the register, whatever the token allowed. Now `write`; a startup check logs the role (0.25.3, `docs/github-token.md`); a reply tells a refused permission from a rate limit (0.26.0) and marks every GitHub write `✔` or `✖` through `command.NotDone` (0.26.1, 0.26.2); answered on testing-dev-register#243, #244 and #249; in production since 0.27.0 (2026-11-05) |
 | #27 archive reminder | Done (0.23.1): `check finish` warns about a copy in `codecheckers/` that is not archived, and the sweep reminds the handling editor once the row is in `register.csv`; answered on testing-dev-register#239; GitLab is #65 |
 | #28 `check ready` | Done (0.18): a README, a `codecheck.yml` with a manifest, a licence and a paper, each the existing rule but the README; answered on testing-dev-register#231 |
 | #26 `check zenodo` | Done (0.20): the policy items and the CC-REP rules on a record or a draft (`internal/check/curation.go`); a draft by its share link proven on the sandbox (`sandbox_test.go`), whose link hides the community request; the comment with the link is deleted, not edited, because an edit keeps the earlier version; answered on testing-dev-register#232 |

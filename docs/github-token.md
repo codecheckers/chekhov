@@ -41,7 +41,7 @@ access tokens → Generate new token.
 | Token name | `chekhov-dev` (say what it is for; the name is all future-you sees), `chekhov-production` for the production one |
 | Resource owner | **`codecheckers`** — *not* `chekhovbot`. A user-owned token reaches only that user's own repositories, and the registers belong to the organisation |
 | Expiration | 90 days for development. The maximum is 366 days |
-| Repository access | Only select repositories → **`codecheckers/testing-dev-register`**; for production a separate token with **`codecheckers/register`** alone, never one token for both |
+| Repository access | Only select repositories → **`codecheckers/testing-dev-register`** and **`codecheckers/testing-dev-codecheckers`**, the codechecker lists it answers registrations on (#49); for production a separate token with **`codecheckers/register`** and **`codecheckers/codecheckers`**, never one token for both |
 
 Permissions, under Repository permissions:
 

@@ -102,6 +102,10 @@ const (
 	// Register does what `check register` does and then opens the pull
 	// request adding the row, for an editor to merge (#21).
 	Register Name = "register"
+	// IncludeCheck reads a registration as a codechecker on the lists
+	// repository and says what it still needs (#49). A phrase, because
+	// `include` itself - adding the person - is the editors' and comes next.
+	IncludeCheck Name = "include check"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

@@ -54,7 +54,8 @@ func TestListingShowsEveryVisibleCommand(t *testing.T) {
 			// The whole command as listed, mention and code span included:
 			// `register ...` is the end of `check register ...` too.
 			mentioned := strings.Contains(listing, "`"+Bot+" "+escapePipes(definition.Usage)+"`")
-			visible := !definition.Hidden && definition.Permits(Roles{role})
+			// The lists' own commands are listed there, not on the register (#49).
+			visible := !definition.Hidden && !definition.Lists && definition.Permits(Roles{role})
 			if !visible && mentioned {
 				t.Errorf("%s is listed for %s but should not be", definition.Name, role)
 			}
@@ -592,5 +593,29 @@ func TestASubcommandTypoIsSuggestedForEveryParent(t *testing.T) {
 		if meant, found := SuggestSub(want.parent, want.word); !found || meant != want.meant {
 			t.Errorf("SuggestSub(%q, %q) = %q, %v; want %q", want.parent, want.word, meant, found, want.meant)
 		}
+	}
+}
+
+// The commands of the lists are answered there and nowhere else, so the
+// register's listing leaves them out for everybody (#49).
+func TestTheListsCommandsAreNotListedOnTheRegister(t *testing.T) {
+	definition, found := Lookup(string(IncludeCheck))
+	if !found || !definition.Lists {
+		t.Fatalf("include check: found %v, lists %v", found, definition.Lists)
+	}
+	for _, role := range []Role{RoleAnyone, RoleEditor} {
+		if strings.Contains(Listing(Roles{role}), "include check") {
+			t.Errorf("the register's listing for %s offers include check", role)
+		}
+	}
+}
+
+// Nor does the register offer one under its first word, or as a typo.
+func TestTheRegisterDoesNotSuggestTheListsCommands(t *testing.T) {
+	if children := Children("include", Roles{RoleEditor}); len(children) != 0 {
+		t.Errorf("`include` offers %q on the register", children)
+	}
+	if name, _ := SuggestSub("include", "chek"); name == IncludeCheck {
+		t.Errorf("a typo after `include` is answered with %q", name)
 	}
 }

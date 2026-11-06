@@ -29,6 +29,9 @@ type event struct {
 		User   struct {
 			Login string `json:"login"`
 		} `json:"user"`
+		Labels []struct {
+			Name string `json:"name"`
+		} `json:"labels"`
 	} `json:"issue"`
 	Comment struct {
 		ID   int64  `json:"id"`
@@ -47,6 +50,12 @@ type mention struct {
 	Body       string
 	// Comment is the comment the command is in, 0 for an issue's description.
 	Comment int64
+	// IssueAuthor, IssueBody and Labels are the issue's own, as GitHub sent
+	// them with the event: a registration on the lists is read from them,
+	// whoever wrote the comment that asked (#49).
+	IssueAuthor string
+	IssueBody   string
+	Labels      []string
 
 	// read is the issue this mention is on, read once for the whole command,
 	// with whatever the command has since done to its labels applied.
@@ -80,21 +89,31 @@ func parseEvent(eventType string, payload []byte) (mention, bool, error) {
 		return mention{}, false, fmt.Errorf("could not read the %s payload: %w", eventType, err)
 	}
 
+	labels := make([]string, 0, len(parsed.Issue.Labels))
+	for _, label := range parsed.Issue.Labels {
+		labels = append(labels, label.Name)
+	}
 	switch {
 	case eventType == "issues" && parsed.Action == "opened":
 		return mention{
-			Repository: parsed.Repository.FullName,
-			Issue:      parsed.Issue.Number,
-			Author:     parsed.Issue.User.Login,
-			Body:       parsed.Issue.Body,
+			Repository:  parsed.Repository.FullName,
+			Issue:       parsed.Issue.Number,
+			Author:      parsed.Issue.User.Login,
+			Body:        parsed.Issue.Body,
+			IssueAuthor: parsed.Issue.User.Login,
+			IssueBody:   parsed.Issue.Body,
+			Labels:      labels,
 		}, true, nil
 	case eventType == "issue_comment" && parsed.Action == "created":
 		return mention{
-			Repository: parsed.Repository.FullName,
-			Issue:      parsed.Issue.Number,
-			Author:     parsed.Comment.User.Login,
-			Body:       parsed.Comment.Body,
-			Comment:    parsed.Comment.ID,
+			Repository:  parsed.Repository.FullName,
+			Issue:       parsed.Issue.Number,
+			Author:      parsed.Comment.User.Login,
+			Body:        parsed.Comment.Body,
+			Comment:     parsed.Comment.ID,
+			IssueAuthor: parsed.Issue.User.Login,
+			IssueBody:   parsed.Issue.Body,
+			Labels:      labels,
 		}, true, nil
 	default:
 		return mention{}, false, nil

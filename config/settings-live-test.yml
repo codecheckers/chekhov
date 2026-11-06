@@ -123,6 +123,22 @@ chekhov:
       - codecheckers
       - institutional-codecheckers
 
+  # The codechecker lists, where people register as codecheckers: a second
+  # repository the bot answers on, to a registration issue and nothing else
+  # (codecheckers/chekhov#49). Only the production file may name
+  # codecheckers/codecheckers; the settings are refused otherwise. An empty
+  # CHEKHOV_LISTS_REPO falls back to the default below, so switching the lists
+  # off is an empty `repository:` here, in a build of its own.
+  lists:
+    repository: ${CHEKHOV_LISTS_REPO:-codecheckers/testing-dev-codecheckers}
+    # The label the registration template puts on its issue.
+    registration_label: registration
+    # Compared with a registration, to say whether somebody is listed already.
+    files:
+      - https://raw.githubusercontent.com/${CHEKHOV_LISTS_REPO:-codecheckers/testing-dev-codecheckers}/HEAD/codecheckers.csv
+      - https://raw.githubusercontent.com/${CHEKHOV_LISTS_REPO:-codecheckers/testing-dev-codecheckers}/HEAD/institutional-codecheckers.csv
+      - https://raw.githubusercontent.com/${CHEKHOV_LISTS_REPO:-codecheckers/testing-dev-codecheckers}/HEAD/agile-codecheckers.csv
+
   # The sweep's own comments about a check that has stalled - not the
   # follow-ups an earlier reply asked for, which come whatever this says.
   # Each threshold is in days, and 0 switches it off, which is the default:

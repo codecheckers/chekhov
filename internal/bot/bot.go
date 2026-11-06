@@ -89,9 +89,13 @@ type Toots interface {
 
 // Server is the whole bot: one webhook endpoint, one health endpoint, no state.
 type Server struct {
-	Settings   *config.Settings
-	Secret     string
-	Replies    Poster
+	Settings *config.Settings
+	Secret   string
+	Replies  Poster
+	// Lists is where the bot answers on the codechecker lists, a client that
+	// writes there and nowhere else; nil when this deployment does not work
+	// on them, and then nothing there is answered. See lists.go.
+	Lists      Poster
 	Deployment command.Deployment
 	Logger     *slog.Logger
 
@@ -203,6 +207,10 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	parsed, addressed := command.Parse(event.Body)
+	if !addressed && s.registrationOpened(event) {
+		// A registration is answered unasked, as the first reply to it.
+		parsed, addressed = command.Command{Name: command.IncludeCheck}, true
+	}
 	if !addressed {
 		// The common case on a busy issue, and it has to stay cheap and silent.
 		w.WriteHeader(http.StatusNoContent)
@@ -217,9 +225,9 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 // refuse says why a delivery is not acted on, or returns an empty string.
 func (s *Server) refuse(event mention) string {
 	switch {
-	case event.Repository != s.Settings.TargetRepository():
+	case s.posterFor(event.Repository) == nil:
 		// A misconfigured webhook must not reach the production register.
-		return fmt.Sprintf("this bot works on %s", s.Settings.TargetRepository())
+		return fmt.Sprintf("this bot works on %s", s.worksOn())
 	case strings.EqualFold(event.Author, s.Settings.BotUser()):
 		// Otherwise a reply is a comment, and a comment gets a reply.
 		return "the comment is the bot's own"
@@ -294,7 +302,7 @@ func (s *Server) post(ctx context.Context, event mention, result answered) (int6
 		err := result.to.write(ctx, body)
 		return result.to.comment, err
 	}
-	return s.Replies.Comment(ctx, event.Repository, event.Issue, body)
+	return s.posterFor(event.Repository).Comment(ctx, event.Repository, event.Issue, body)
 }
 
 // bodyOf is what actually goes on the issue: the reply defused, with the
@@ -351,7 +359,7 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 	s.survive("apologising for the panic", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), reportTimeout)
 		defer cancel()
-		_, _ = s.Replies.Comment(ctx, event.Repository, event.Issue,
+		_, _ = s.posterFor(event.Repository).Comment(ctx, event.Repository, event.Issue,
 			fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
 	})
 }
@@ -488,6 +496,11 @@ type answered struct {
 func said(body string) answered { return answered{body: body} }
 
 func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) answered {
+	// The lists have commands of their own and no check: nothing below
+	// applies there. See lists.go.
+	if s.onLists(event) {
+		return said(s.answerOnLists(ctx, event, parsed))
+	}
 	// Afresh, and once: within one command the issue cannot change under the
 	// bot, and three parts of a command want it - and as many want its
 	// comments, the first of them before the command is even allowed to run.
@@ -589,6 +602,8 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return s.assign(ctx, event, parsed)
 	case command.Remove:
 		return said(s.remove(ctx, event, parsed))
+	case command.IncludeCheck:
+		return said(command.ListsCommandReply(parsed.Name, s.Settings.ListsRepository()))
 	case command.ListRoles:
 		return said(s.listRoles(ctx, event, roles))
 	case command.ListCodecheckers:
