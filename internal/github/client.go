@@ -109,15 +109,17 @@ func New(token, repository, signature string) *Client {
 // of this client's allowances - no labels, no register file, no teams - and is
 // given only what that repository needs. Its writes share this client's
 // Pacer, because a deployment's writes to GitHub are one queue whichever
-// repository they go to: a burst on two repositories is still a burst.
-func (c *Client) For(repository string) *Client {
+// repository they go to: a burst on two repositories is still a burst. The
+// signature is its own too, because a development footer names the
+// repository the bot is working on, and that is the other one.
+func (c *Client) For(repository, signature string) *Client {
 	return &Client{
 		HTTP:                c.HTTP,
 		Token:               c.Token,
 		BaseURL:             c.BaseURL,
 		Repository:          repository,
 		Account:             c.Account,
-		Signature:           c.Signature,
+		Signature:           signature,
 		Logger:              c.Logger,
 		RetryWait:           c.RetryWait,
 		WriteInterval:       c.WriteInterval,

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.1] - 2026-11-08
+
+### Fixed
+
+- A reply on the codechecker lists names the lists in its development footer,
+  not the register, and a complete registration of somebody already in the
+  team no longer promises to add them to it (#49).
+
 ## [0.28.0] - 2026-11-06
 
 ### Added

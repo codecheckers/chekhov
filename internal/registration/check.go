@@ -47,6 +47,9 @@ type Report struct {
 	// issue holds none.
 	Row      Row
 	Findings []Finding
+	// InTeam says the registrant is in the codecheckers team already, so
+	// being listed is all that is left.
+	InTeam bool
 }
 
 // Complete reports whether a row was found and nothing holds it up.
@@ -87,6 +90,7 @@ func Check(ctx context.Context, body string, world World) Report {
 		report.Findings = append(report.Findings, listed(report.Row, world.Lists())...)
 	}
 	if world.InTeam != nil && world.InTeam(ctx, report.Row.Login()) {
+		report.InTeam = true
 		report.Findings = append(report.Findings, finding(Note,
 			"You are in %s already, so being listed is what is left.", code(world.Team)))
 	}

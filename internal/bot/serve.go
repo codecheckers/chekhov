@@ -64,7 +64,9 @@ func Serve(address string) error {
 	// client of their own that writes there and nowhere else, in the same
 	// queue as everything above. See internal/bot/lists.go and #49.
 	if lists := settings.ListsRepository(); lists != "" {
-		server.Lists = replies.For(lists)
+		onLists := deployment
+		onLists.Register = lists
+		server.Lists = replies.For(lists, onLists.Signature())
 	}
 	// A deployment is always online: the checks it runs read repositories and
 	// ask Crossref, ORCID and Zenodo. The command line makes that a choice per

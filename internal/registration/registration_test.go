@@ -259,7 +259,7 @@ func TestSomebodyListedAlreadyIsNotListedTwice(t *testing.T) {
 		Table: check.Table{Rows: []map[string]string{{"name": "Josiah Carberry", "handle": "@" + registrant}}}})
 	report = Check(context.Background(), filed(t, validRow), elsewhere)
 	said := texts(report.Findings)
-	if !report.Complete() || !strings.Contains(said, "`agile-codecheckers.csv`") || !strings.Contains(said, "in `codecheckers/codecheckers` already") {
+	if !report.Complete() || !report.InTeam || !strings.Contains(said, "`agile-codecheckers.csv`") || !strings.Contains(said, "in `codecheckers/codecheckers` already") {
 		t.Errorf("on the AGILE list and in the team: %+v", report.Findings)
 	}
 

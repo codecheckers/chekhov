@@ -35,8 +35,12 @@ func RegistrationReply(report registration.Report, first bool) string {
 	}
 
 	if report.Complete() {
-		out.WriteString("✔ **Your registration has everything the list needs.** " +
-			"An editor will add you to the list and to the team.\n")
+		next := "to the list and to the team"
+		if report.InTeam {
+			next = "to the list"
+		}
+		fmt.Fprintf(&out, "✔ **Your registration has everything the list needs.** "+
+			"An editor will add you %s.\n", next)
 	} else {
 		out.WriteString("**Before you can be listed, your registration needs this:**\n\n")
 		writeFindings(&out, blocking)
