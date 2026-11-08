@@ -392,21 +392,49 @@ func (c *Client) onlyOurs(ctx context.Context, api, defaultBranch, branch string
 	return nil
 }
 
+// openPull is the open pull request from a row's branch into the default
+// branch, the zero one for none. By head and base both: a pull request from
+// the branch into somewhere else is not the one adding the row.
+func (c *Client) openPull(ctx context.Context, api, repository, defaultBranch, branch string) (RowPullRequest, error) {
+	owner, _, _ := strings.Cut(repository, "/")
+	var pulls []RowPullRequest
+	err := c.read(ctx, api+"/pulls?state=open&head="+url.QueryEscape(owner+":"+branch)+
+		"&base="+url.QueryEscape(defaultBranch), &pulls)
+	if err != nil || len(pulls) == 0 {
+		return RowPullRequest{}, err
+	}
+	return pulls[0], nil
+}
+
+// OpenRowPullRequest is the pull request open to add the row with this key -
+// a certificate, a handle - the zero one when there is none: never opened,
+// or closed without being merged. A read only, which is how the sweep tells
+// a row waiting for an editor from one nobody is going to merge (#49).
+func (c *Client) OpenRowPullRequest(ctx context.Context, repository, key string) (RowPullRequest, error) {
+	if err := c.mine(repository, "read the pull requests"); err != nil {
+		return RowPullRequest{}, err
+	}
+	file := c.Rows
+	if !file.writes() {
+		return RowPullRequest{}, errors.New("this client adds rows to no file")
+	}
+	api := strings.TrimSuffix(c.BaseURL, "/") + "/repos/" + repository
+	var about struct {
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := c.read(ctx, api, &about); err != nil {
+		return RowPullRequest{}, err
+	}
+	branch := file.branchFor(map[string]string{file.key: key})
+	pull, err := c.openPull(ctx, api, repository, about.DefaultBranch, branch)
+	pull.Branch = branch
+	return pull, err
+}
+
 // pullRequest opens the pull request, or updates the one that is open.
 func (c *Client) pullRequest(ctx context.Context, api, repository, defaultBranch, branch string,
 	proposal RowProposal) (RowPullRequest, error) {
-	owner, _, _ := strings.Cut(repository, "/")
-	open := func() (RowPullRequest, error) {
-		var pulls []RowPullRequest
-		// By head and base both: a pull request from the branch into
-		// somewhere else is not the one adding the row.
-		err := c.read(ctx, api+"/pulls?state=open&head="+url.QueryEscape(owner+":"+branch)+
-			"&base="+url.QueryEscape(defaultBranch), &pulls)
-		if err != nil || len(pulls) == 0 {
-			return RowPullRequest{}, err
-		}
-		return pulls[0], nil
-	}
+	open := func() (RowPullRequest, error) { return c.openPull(ctx, api, repository, defaultBranch, branch) }
 
 	existing, err := open()
 	if err != nil {

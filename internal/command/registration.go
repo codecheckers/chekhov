@@ -239,6 +239,14 @@ func InvitationWaiting(organisation string) string {
 		organisation, organisation)
 }
 
+// NoRowPullRequest says a registrant is in the team and not on the list, and
+// no pull request is open to put them there.
+func NoRowPullRequest(handle, file string) string {
+	return fmt.Sprintf("%s is in the team, and not on `%s`: no pull request is open to add the row - it "+
+		"could not be opened, or was closed without being merged. `%s %s` opens it again.\n",
+		mention(handle), file, Bot, Include)
+}
+
 // IncludeTeamNote is what putting a joined registrant in the team said, while
 // the row is still to be merged.
 func IncludeTeamNote(note string) string {

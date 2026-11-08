@@ -187,10 +187,12 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 		return answered{body: note + "\n"}, true, nil
 	case err != nil:
 		return answered{}, true, err
+	case inTeam && !listed && note == "":
+		return s.noRowPullRequest(ctx, event, record)
 	case !inTeam || !listed:
 		if note == "" {
-			// Nothing done, nothing to say: the pull request is waiting for an
-			// editor, or the team for whatever stopped it last time.
+			// Nothing done, nothing to say: the team for whatever stopped it
+			// last time.
 			return answered{}, true, nil
 		}
 		return answered{body: command.IncludeTeamNote(note)}, true, nil
@@ -217,6 +219,43 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 		body = note + "\n\n" + body
 	}
 	return answered{body: body, follow: done}, false, nil
+}
+
+// RowPullRequests is the part of the lists' reply path that says whether a
+// row's pull request is still open.
+type RowPullRequests interface {
+	OpenRowPullRequest(ctx context.Context, repository, key string) (github.RowPullRequest, error)
+}
+
+var _ RowPullRequests = (*github.Client)(nil)
+
+// noRowPullRequest is the one thing left being the row: quiet while its pull
+// request is open and waiting for an editor, and said when there is none to
+// merge - `include` could not open it, or it was closed unmerged - every
+// three days at most and as often as the owners are reminded, so that a
+// registration does not wait in silence for a pull request that will never
+// come.
+func (s *Server) noRowPullRequest(ctx context.Context, event mention, record followup.Record) (answered, bool, error) {
+	if !record.Older(remindAfter, time.Now()) || record.Reminders > mostReminders {
+		return answered{}, true, nil
+	}
+	reader, ok := s.Lists.(RowPullRequests)
+	if !ok {
+		return answered{}, true, errors.New("this deployment cannot read the pull requests of the lists")
+	}
+	pull, err := reader.OpenRowPullRequest(ctx, event.Repository, record.Subject)
+	if err != nil {
+		return answered{}, true, err
+	}
+	if pull.Number != 0 {
+		return answered{}, true, nil
+	}
+	next := s.followUp(event, record)
+	if next != nil {
+		next.Reminders = record.Reminders + 1
+	}
+	return answered{body: command.NoRowPullRequest(record.Subject, registration.RegistrationList),
+		follow: next}, true, nil
 }
 
 // onTheList reads the registration list as it is now, and says whether it has

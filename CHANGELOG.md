@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-08
+
+### Added
+
+- The sweep says when a registrant is in the team and not on the list with
+  no pull request open to add the row - `include` could not open it, or it
+  was closed unmerged - every three days at most, rather than waiting in
+  silence (#49).
+
 ## [0.30.0] - 2026-11-08
 
 ### Added

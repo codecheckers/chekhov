@@ -424,3 +424,29 @@ func TestAListRowAlreadyThereOrMisnamedIsRefused(t *testing.T) {
 		t.Errorf("a misnamed row sent %+v", fake.requests)
 	}
 }
+
+// The sweep asks whether a row's pull request is still open: the one the
+// first proposal opened is, and one for a handle nobody proposed is not
+// (#49).
+func TestTheOpenRowPullRequestIsFoundByItsKey(t *testing.T) {
+	fake, client := listing(t)
+	row := map[string]string{"name": "Josiah Carberry", "handle": "@a-made-up-registrant"}
+	if _, err := propose(t, client, RowProposal{Row: row, Title: "add", Body: "for #1", Message: "add"}); err != nil {
+		t.Fatal(err)
+	}
+	writes := len(fake.writes())
+	open, err := client.OpenRowPullRequest(context.Background(), "codecheckers/testing-dev-register", "@A-Made-Up-Registrant")
+	if err != nil || open.Number != 300 || open.Branch != "codechecker-a-made-up-registrant" {
+		t.Errorf("open = %+v, %v", open, err)
+	}
+	none, err := client.OpenRowPullRequest(context.Background(), "codecheckers/testing-dev-register", "a-made-up-other-person")
+	if err != nil || none.Number != 0 {
+		t.Errorf("none = %+v, %v", none, err)
+	}
+	if len(fake.writes()) != writes {
+		t.Errorf("a read wrote: %q", fake.writes()[writes:])
+	}
+	if _, err := client.OpenRowPullRequest(context.Background(), "codecheckers/register", "x"); err == nil {
+		t.Error("read another repository's pull requests")
+	}
+}

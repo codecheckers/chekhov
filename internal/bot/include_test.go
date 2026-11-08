@@ -264,6 +264,12 @@ type listsThread struct {
 	listWriter
 	thread []github.Comment
 	closed []int
+	// open is the number of the row's pull request still open, 0 for none.
+	open int
+}
+
+func (l *listsThread) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
+	return github.RowPullRequest{Number: l.open}, nil
 }
 
 func (l *listsThread) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
@@ -423,6 +429,33 @@ func TestTheSweepSaysATeamProblemEveryThreeDaysAtMost(t *testing.T) {
 	says(t, lists.last(), "has been invited to `codecheckers/codecheckers` and has not accepted yet")
 	if _, err := followup.Parse(lists.last(), testLists+"#7", server.signer()); err != nil {
 		t.Errorf("the note carries no record to measure the next from: %v", err)
+	}
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("said it again the same night:\n%s", lists.last())
+	}
+}
+
+// In the team, not on the list, and no pull request open to put them there:
+// said, every three days at most, rather than waited on in silence. A pull
+// request still open is an editor's to merge, and nothing is said.
+func TestTheSweepSaysWhenNoPullRequestWillAddTheRow(t *testing.T) {
+	server, org, lists := sweepingLists(t, 4*day, "")
+	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+	lists.open = 12
+	before := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != before {
+		t.Errorf("said something with the pull request open:\n%s", lists.last())
+	}
+
+	lists.open = 0
+	server.nudge(context.Background())
+	says(t, lists.last(), "no pull request is open to add the row", "`@chekhovbot include` opens it again")
+	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
+	if err != nil || record.Reminders != 1 {
+		t.Errorf("the note's record: %+v, %v", record, err)
 	}
 	said := lists.count()
 	server.nudge(context.Background())
