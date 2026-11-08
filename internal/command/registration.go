@@ -189,8 +189,9 @@ func IncludeOwner(handle, organisation string) string {
 // IncludeInvited says an invitation is out and not yet accepted: the owners
 // have done their half, and the rest waits for the registrant.
 func IncludeInvited(handle, organisation, team string) string {
-	return Item(fmt.Sprintf("… %s has been invited to `%s` and has not accepted yet. Once they have, "+
-		"`%s %s` again puts them in `%s/%s`.", mention(handle), organisation, Bot, Include, organisation, team))
+	return Item(fmt.Sprintf("… %s has been invited to `%s` and has not accepted yet. I look every night, "+
+		"and put them in `%s/%s` once they have; `%s %s` does it sooner.",
+		mention(handle), organisation, organisation, team, Bot, Include))
 }
 
 // IncludeUnknown is an organisation that could not be asked about them.
@@ -209,7 +210,54 @@ func IncludeOutsideReply(request OutsideRequest) string {
 	// An invitation out would have been seen: GitHub shows the bot a pending
 	// one (#49), so this asks only when there is none.
 	request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation, as a member. "+
-		"Once they accept, `%s %s` again puts them in `%s/%s`.",
-		request.Handle, Bot, Include, request.Organisation, request.Team))
+		"I look every night, and put them in `%s/%s` once they have accepted.",
+		request.Handle, request.Organisation, request.Team))
 	return out.String()
+}
+
+// The sweep's side of `include` (#49): what it says while the inclusion is
+// not finished, and the welcome once it is.
+
+// StillWaiting reminds the owners of an ask, `assign`'s or `include`'s.
+func StillWaiting(since string, ask string) string {
+	return fmt.Sprintf("Still waiting, %s on.\n\n%s", since, ask)
+}
+
+// LastAsk is the last reminder to the owners the sweep posts by itself, and
+// the command that asks once more.
+func LastAsk(since, handle string, times int, rerun string) string {
+	return fmt.Sprintf("Still waiting, %s on. I have asked %d times now, so this is the last time I will "+
+		"ask by myself: %s is still not in the organisation, and `%s` asks once more.\n",
+		since, times, mention(handle), rerun)
+}
+
+// InvitationWaiting tells the registrant, on their own issue - which notifies
+// them without a mention - that the invitation is there to accept.
+func InvitationWaiting(organisation string) string {
+	return fmt.Sprintf("The invitation to the `%s` organisation is waiting for you: you can accept it at "+
+		"https://github.com/orgs/%s/invitation. Once you have, I put you in the team and welcome you here.\n",
+		organisation, organisation)
+}
+
+// IncludeTeamNote is what putting a joined registrant in the team said, while
+// the row is still to be merged.
+func IncludeTeamNote(note string) string {
+	return note + "\n\nThe pull request adding the row is what is left; I welcome you here once it is merged.\n"
+}
+
+// Welcome is the end of a registration: in the team, on the list. The wording
+// is not-a-bot.md's in codecheckers/codecheckers, the snippet the editors
+// posted by hand, with its second sentence saying what is now so rather than
+// what the editor did. Fixed text, as everything on a registration is: what
+// is personal is the handling editor's own comment.
+func Welcome(organisation, team, lists, file, closing string) string {
+	return fmt.Sprintf("You are in [the team](https://github.com/orgs/%s/teams/%s) and on "+
+		"[the list](https://github.com/%s/blob/HEAD/%s). Welcome! :heart:\n\n"+
+		"We will get in touch when we have a paper matching your expertise, which strongly depends on "+
+		"the ongoing conversations with journals and publishers - we'll keep you posted. Until then, feel "+
+		"free to keep an eye open for interesting preprints in your domain, which you can introduce to a "+
+		"[community CODECHECK](https://codecheck.org.uk/guide/community-workflow). If you're engaged as "+
+		"reviewer, why not suggest a CODECHECK with your next review? If you are editor at a journal, "+
+		"we'd be happy to chat with you about establishing CODECHECKs there! :muscle:\n%s",
+		organisation, team, lists, file, closing)
 }

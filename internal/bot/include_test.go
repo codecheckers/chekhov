@@ -3,10 +3,13 @@ package bot
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
 )
 
@@ -252,5 +255,178 @@ func TestIncludeDefusesTheTitle(t *testing.T) {
 	}
 	if strings.Contains(lists.proposed[0].Title, "<!--") {
 		t.Errorf("the title looks like a record: %q", lists.proposed[0].Title)
+	}
+}
+
+// The lists' reply path as the sweep uses it: it reads the open issues and
+// their comments, keeps what the bot posts in the thread, and closes.
+type listsThread struct {
+	listWriter
+	thread []github.Comment
+	closed []int
+}
+
+func (l *listsThread) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
+	id, err := l.listWriter.Comment(ctx, repository, issue, body)
+	l.thread = append(l.thread, github.Comment{ID: id, Author: "chekhovbot", Body: body, Created: time.Now()})
+	return id, err
+}
+
+func (l *listsThread) Comments(_ context.Context, _ string, _ int) ([]github.Comment, error) {
+	return l.thread, nil
+}
+
+func (l *listsThread) Issue(_ context.Context, _ string, issue int) (github.Issue, error) {
+	return github.Issue{Number: issue}, nil
+}
+
+func (l *listsThread) OpenIssues(_ context.Context, _ string) ([]github.Issue, error) {
+	return []github.Issue{{Number: 7}}, nil
+}
+
+func (l *listsThread) CloseIssue(_ context.Context, _ string, issue int) error {
+	l.closed = append(l.closed, issue)
+	return nil
+}
+
+// sweepingLists is a bot whose lists hold one registration, #7, with an
+// `include` left on it however long ago, and the list as given.
+func sweepingLists(t *testing.T, ago time.Duration, list string) (*Server, *organisation, *listsThread) {
+	t.Helper()
+	server, org, _ := including(t)
+	lists := &listsThread{}
+	server.Lists = lists
+	stubbed, _, _, stub := listsServer(t)
+	stub.Handle("/lists/codecheckers.csv", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("name,handle,ORCID,contact,fields,languages,ecr_until,ecr_checked,fediverse\n" + list))
+	})
+	server.Services, server.Settings.Chekhov.Lists.Files = stubbed.Services, stubbed.Settings.Chekhov.Lists.Files
+	block, err := followup.Render(followup.Record{
+		Kind: followup.KindInclusion, Check: testLists + "#7", Subject: madeUpRegistrar,
+		Team: "codecheckers", Asked: time.Now().UTC().Add(-ago).Format(time.RFC3339),
+	}, server.signer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lists.thread = append(lists.thread, github.Comment{ID: 1, Author: "chekhovbot", Body: block + "Including"})
+	return server, org, lists
+}
+
+// `include` leaves the record the sweep follows it up from.
+func TestIncludeLeavesARecordForTheSweep(t *testing.T) {
+	server, _, lists := including(t)
+	reply := includeBy(t, server, lists, "nuest")
+	record, err := followup.Parse(reply, testLists+"#7", server.signer())
+	if err != nil {
+		t.Fatalf("no record: %v\n%s", err, reply)
+	}
+	if record.Kind != followup.KindInclusion || record.Subject != madeUpRegistrar || record.Team != "codecheckers" {
+		t.Errorf("the record is %+v", record)
+	}
+}
+
+// No invitation three days on: the owners are reminded, with a fresh record.
+func TestTheSweepRemindsTheOwnersOfAnInclusion(t *testing.T) {
+	server, _, lists := sweepingLists(t, 4*day, "")
+	swept := server.nudge(context.Background())
+	if swept.Acted != 1 || swept.Outstanding != 1 {
+		t.Fatalf("swept %+v", swept)
+	}
+	says(t, lists.last(), "Still waiting, 4 days on", "@an-owner", "I see no invitation")
+	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
+	if err != nil || record.Reminders != 1 {
+		t.Errorf("the reminder's record: %+v, %v", record, err)
+	}
+}
+
+// An invitation waiting a week is the registrant's to accept: they are told
+// once, on their own issue, and the owners are not asked again.
+func TestTheSweepTellsTheRegistrantOnceAboutTheInvitation(t *testing.T) {
+	server, org, lists := sweepingLists(t, 8*day, "")
+	org.invitations[madeUpRegistrar] = github.Invitation{State: "pending", Role: "member"}
+
+	server.nudge(context.Background())
+	says(t, lists.last(), "waiting for you", "https://github.com/orgs/codecheckers/invitation")
+	saysNot(t, lists.last(), "@an-owner", "@"+madeUpRegistrar)
+
+	told := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != told {
+		t.Errorf("told twice:\n%s", lists.last())
+	}
+}
+
+// Joined but the row not merged: the bot does the team, and waits.
+func TestTheSweepPutsAJoinedRegistrantInTheTeam(t *testing.T) {
+	server, org, lists := sweepingLists(t, day, "")
+	org.members[madeUpRegistrar] = true
+
+	swept := server.nudge(context.Background())
+	if swept.Outstanding != 1 || strings.Join(org.added, ",") != madeUpRegistrar {
+		t.Fatalf("swept %+v, added %q", swept, org.added)
+	}
+	says(t, lists.last(), "I have put `@a-made-up-registrant` in `codecheckers/codecheckers`", "is what is left")
+	if len(lists.closed) != 0 {
+		t.Error("closed a registration whose row is not merged")
+	}
+
+	// In the team and still not listed: nothing to say.
+	org.inTeam[madeUpRegistrar] = true
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("said something with nothing done:\n%s", lists.last())
+	}
+}
+
+// In the organisation, in the team, on the list: the welcome, once, and the
+// issue closed.
+func TestTheSweepWelcomesAndClosesOnceAllHolds(t *testing.T) {
+	server, org, lists := sweepingLists(t, day, registrationRow+"\n")
+	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+
+	swept := server.nudge(context.Background())
+	if swept.Acted != 1 || swept.Outstanding != 0 {
+		t.Fatalf("swept %+v", swept)
+	}
+	says(t, lists.last(), "Welcome! :heart:", "https://github.com/orgs/codecheckers/teams/codecheckers",
+		"https://github.com/"+testLists+"/blob/HEAD/codecheckers.csv", "community CODECHECK")
+	if fmt.Sprint(lists.closed) != "[7]" {
+		t.Errorf("closed %v", lists.closed)
+	}
+	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
+	if err != nil || !record.Settled {
+		t.Errorf("the welcome's record: %+v, %v", record, err)
+	}
+
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("welcomed twice:\n%s", lists.last())
+	}
+}
+
+// A team the registrant could not be put in - an invitation to it not
+// accepted - is said every three days at most, not every night.
+func TestTheSweepSaysATeamProblemEveryThreeDaysAtMost(t *testing.T) {
+	server, org, lists := sweepingLists(t, day, "")
+	org.members[madeUpRegistrar], org.pending[madeUpRegistrar] = true, true
+	before := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != before {
+		t.Errorf("said a day-old team problem:\n%s", lists.last())
+	}
+
+	server, org, lists = sweepingLists(t, 4*day, "")
+	org.members[madeUpRegistrar], org.pending[madeUpRegistrar] = true, true
+	server.nudge(context.Background())
+	says(t, lists.last(), "has been invited to `codecheckers/codecheckers` and has not accepted yet")
+	if _, err := followup.Parse(lists.last(), testLists+"#7", server.signer()); err != nil {
+		t.Errorf("the note carries no record to measure the next from: %v", err)
+	}
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("said it again the same night:\n%s", lists.last())
 	}
 }

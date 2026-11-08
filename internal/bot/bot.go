@@ -499,7 +499,7 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	// The lists have commands of their own and no check: nothing below
 	// applies there. See lists.go.
 	if s.onLists(event) {
-		return said(s.answerOnLists(ctx, event, parsed))
+		return s.answerOnLists(ctx, event, parsed)
 	}
 	// And the other way round: a command of the lists means nothing on the
 	// register, whoever asks, and is pointed there. The registry says which.

@@ -1148,10 +1148,13 @@ func (request OutsideRequest) rest() string {
 type Swept struct {
 	// Issues are the open issues walked, and Closed the ones closed lately,
 	// read for the follow-ups that outlive a check.
-	Issues      int
-	Closed      int
-	Acted       int
-	Outstanding int
+	Issues int
+	Closed int
+	// Registrations are the open issues of the codechecker lists, walked
+	// for what an `include` left outstanding (#49).
+	Registrations int
+	Acted         int
+	Outstanding   int
 	// Nudged are the stalled checks the walk nudged, and Held the ones it
 	// would have nudged had it not reached the most one walk posts.
 	Nudged, Held int
@@ -1169,6 +1172,9 @@ func SweptReply(swept Swept) string {
 	fmt.Fprintf(&out, "I walked %d open issue%s", swept.Issues, plural(swept.Issues))
 	if swept.Closed > 0 {
 		fmt.Fprintf(&out, " and %d closed in the last ninety days", swept.Closed)
+	}
+	if swept.Registrations > 0 {
+		fmt.Fprintf(&out, ", and %d open registration%s on the lists", swept.Registrations, plural(swept.Registrations))
 	}
 	out.WriteString(".\n")
 

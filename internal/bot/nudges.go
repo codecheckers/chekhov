@@ -76,14 +76,15 @@ func (h *sweeps) state(development bool, switched map[string]int) map[string]any
 	walked := make([]map[string]any, 0, len(h.done))
 	for _, sweep := range h.done {
 		one := map[string]any{
-			"started":     sweep.Started.Format(time.RFC3339),
-			"issues":      sweep.Issues,
-			"closed":      sweep.Closed,
-			"acted":       sweep.Acted,
-			"outstanding": sweep.Outstanding,
-			"nudged":      sweep.Nudged,
-			"held":        sweep.Held,
-			"problems":    len(sweep.Problems),
+			"started":       sweep.Started.Format(time.RFC3339),
+			"issues":        sweep.Issues,
+			"closed":        sweep.Closed,
+			"registrations": sweep.Registrations,
+			"acted":         sweep.Acted,
+			"outstanding":   sweep.Outstanding,
+			"nudged":        sweep.Nudged,
+			"held":          sweep.Held,
+			"problems":      len(sweep.Problems),
 		}
 		if development {
 			one["problem"] = sweep.Problems

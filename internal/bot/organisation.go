@@ -9,6 +9,7 @@ import (
 
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
+	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 )
 
@@ -38,13 +39,15 @@ const (
 // the finished job is its own announcement.
 func (s *Server) followOrganisation(ctx context.Context, event mention,
 	record followup.Record) (answered, bool, error) {
-	inside, known := s.membership(ctx, record.Subject)
+	invitation, known := s.whereStands(ctx, record.Subject)
 	if !known {
 		return answered{}, false, fmt.Errorf("could not read whether `@%s` is in the organisation yet",
 			record.Subject)
 	}
-	if !inside {
-		if !record.Older(remindAfter, time.Now()) {
+	if !invitation.Joined() {
+		if !record.Older(remindAfter, time.Now()) || invitation.Invited() {
+			// Not yet due, or the owners have done their half: an invitation
+			// is out, and accepting it is the person's (#49).
 			return answered{}, true, nil
 		}
 		result, err := s.remindTheOwners(ctx, event, record)
@@ -56,38 +59,61 @@ func (s *Server) followOrganisation(ctx context.Context, event mention,
 	return result, false, err
 }
 
+// whereStands is where somebody stands with the organisation - member, invited,
+// neither - in one read, and whether it could be read at all.
+func (s *Server) whereStands(ctx context.Context, handle string) (github.Invitation, bool) {
+	organisation := s.Settings.TeamOrganisation()
+	reader, ok := s.Replies.(Organisation)
+	if !ok || organisation == "" {
+		return github.Invitation{}, false
+	}
+	invitation, err := reader.OrganisationMembership(ctx, organisation, handle)
+	if err != nil {
+		s.Logger.Warn("could not read where somebody stands with the organisation",
+			"handle", handle, "organisation", organisation, "error", err)
+		return github.Invitation{}, false
+	}
+	return invitation, true
+}
+
 // remindTheOwners asks again, and leaves a fresh record so that the next
 // reminder is three days from now rather than three days from the first ask.
 func (s *Server) remindTheOwners(ctx context.Context, event mention,
 	record followup.Record) (answered, error) {
 	if record.Reminders > mostReminders {
-		// Asked often enough, and said so already. The record stays, so that
-		// the sweep still notices if they join.
+		// Asked often enough, and said so already: the owners are not read
+		// for a reminder that will not be posted.
 		return answered{}, nil
 	}
-
 	role := command.Role(record.Role)
-	body := s.outsideReply(ctx, record.Subject, role, record.Team)
-	if body == "" {
+	ask := s.outsideReply(ctx, record.Subject, role, record.Team)
+	if ask == "" {
 		return answered{}, nil
 	}
-	asked := s.outstanding(event, record.Subject, role, record.Team)
-	if asked != nil {
-		asked.Reminders = record.Reminders + 1
+	return s.reminder(event, record, ask, fmt.Sprintf("%s assign @%s as %s",
+		command.Bot, record.Subject, role.Typed())), nil
+}
+
+// reminder is the rhythm every ask to the owners keeps, `assign`'s and
+// `include`'s alike: asked again with a fresh record, so that the next time is
+// measured from now; the last time said to be the last, with the command that
+// asks once more; and after that, nothing, while the record stays so that the
+// sweep still notices when they join.
+func (s *Server) reminder(event mention, record followup.Record, ask, rerun string) answered {
+	if record.Reminders > mostReminders {
+		return answered{}
+	}
+	next := s.followUp(event, record)
+	if next != nil {
+		// Asking the owners again means there is no invitation to accept: a
+		// registrant told about an earlier one is told about the next.
+		next.Reminders, next.Told = record.Reminders+1, false
 	}
 	if record.Reminders == mostReminders {
-		return answered{
-			body: fmt.Sprintf("Still waiting, %s on. I have asked %d times now, so this is the "+
-				"last time I will ask by myself: `@%s` is still not in the organisation, and "+
-				"running `%s assign @%s as %s` again is what asks once more.\n",
-				since(record), record.Reminders+1, record.Subject, command.Bot, record.Subject, role.Typed()),
-			follow: asked,
-		}, nil
+		return answered{body: command.LastAsk(since(record), record.Subject, record.Reminders+1, rerun),
+			follow: next}
 	}
-	return answered{
-		body:   fmt.Sprintf("Still waiting, %s on.\n\n%s", since(record), body),
-		follow: asked,
-	}, nil
+	return answered{body: command.StillWaiting(since(record), ask), follow: next}
 }
 
 // finish does what the ask promised, now that they have joined: the team, the

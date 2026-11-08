@@ -83,6 +83,10 @@ func (s *Server) followers(services *check.Services) map[string]follower {
 			record followup.Record) (answered, bool, error) {
 			return s.followArchive(ctx, event, record, services)
 		},
+		followup.KindInclusion: func(ctx context.Context, event mention,
+			record followup.Record) (answered, bool, error) {
+			return s.followInclusion(ctx, event, record, services)
+		},
 	}
 }
 
@@ -176,7 +180,41 @@ func (s *Server) nudge(ctx context.Context) Sweep {
 			s.nudgeStalled(ctx, event, issue, thread, &sweep)
 		}
 	}
+	s.sweepLists(ctx, followers, &sweep)
 	return sweep
+}
+
+// sweepLists walks the open registrations on the codechecker lists for what
+// an `include` left outstanding (#49). Open ones only: the welcome closes the
+// issue it is posted on. Read through the lists' own client, because a client
+// reads the issues of its own repository and no other; counted apart, so
+// that "open issues" in a reply and in GET /nudges still means the register's.
+func (s *Server) sweepLists(ctx context.Context, followers map[string]follower, sweep *Sweep) {
+	lists := s.Settings.ListsRepository()
+	if lists == "" || s.Lists == nil {
+		return
+	}
+	reader, ok := s.Lists.(Reader)
+	if !ok {
+		sweep.Problems = append(sweep.Problems, "this deployment cannot read the issues of the lists")
+		return
+	}
+	issues, err := reader.OpenIssues(ctx, lists)
+	if err != nil {
+		sweep.Problems = append(sweep.Problems, fmt.Sprintf("could not read the issues of %s: %s", lists, err))
+		return
+	}
+	sweep.Registrations = len(issues)
+	for _, issue := range issues {
+		event := mention{Repository: lists, Issue: issue.Number}
+		records, unread := s.outstandingIn(ctx, reader, event)
+		for _, problem := range unread {
+			sweep.problem(event, "%s", problem)
+		}
+		for _, record := range records {
+			s.resume(ctx, event, record, followers, sweep)
+		}
+	}
 }
 
 // An issueThread is what the sweep reads out of one issue's comments: the comments

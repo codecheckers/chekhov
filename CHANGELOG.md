@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-11-08
+
+### Added
+
+- The nightly sweep follows up an `include` on the codechecker lists: it
+  reminds the owners of an invitation not sent, tells the registrant once
+  about one waiting, puts a joined registrant in the team, and - once they
+  are in the team and their row is merged - posts the welcome and closes the
+  registration (#49).
+- `@chekhovbot nudge` and `GET /nudges` count the open registrations the
+  sweep walked on the lists, apart from the register's issues (#49).
+
+### Changed
+
+- `assign`'s follow-up no longer reminds the owners while an invitation is
+  waiting to be accepted (#49).
+
 ## [0.29.1] - 2026-11-08
 
 ### Changed

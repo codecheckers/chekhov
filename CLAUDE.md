@@ -557,11 +557,15 @@ behind that check.
 **What a reply leaves outstanding lives in the thread.** A signed follow-up
 record (`internal/followup`) says what kind, who it is about and when it was
 asked; a sweep walks the open issues nightly, and the closed ones changed in
-the last ninety days for the follow-ups that outlive a check - a goroutine in the deployment,
+the last ninety days for the follow-ups that outlive a check, and the open
+registrations on the codechecker lists through the lists' own client (#49) - a goroutine in the deployment,
 not a second job with a second token - and hands each record to the handler
 for its kind. A handler decides by **looking at the world**, never by
 bookkeeping: when the thing is done it says nothing, which is what makes the
-sweep safe to run twice. A record is only a record because **the bot wrote
+sweep safe to run twice. The exceptions are marks of what was **said**,
+signed in the record, never of what was done: `Settled` for an end confirmed
+out loud, and `Told` for something somebody was told once - an inclusion's
+invitation waiting to be accepted (#49). A record is only a record because **the bot wrote
 it** - the sweep reads its own comments and nobody else's, as
 `people.Checks.Read` does, because a deployment with no record key signs
 nothing and anybody can comment on an issue of the register. `GET /nudges` reports the sweeps for the weekly

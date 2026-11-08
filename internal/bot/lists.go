@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/registration"
 )
@@ -60,26 +61,25 @@ func (s *Server) isRegistration(event mention) bool {
 
 // answerOnLists is the reply to one command on the lists. The first answer to
 // an issue - the one to its being opened - thanks the registrant for it.
-func (s *Server) answerOnLists(ctx context.Context, event mention, parsed command.Command) string {
+func (s *Server) answerOnLists(ctx context.Context, event mention, parsed command.Command) answered {
 	definition, found := command.Lookup(string(parsed.Name))
 	switch {
 	case !found || !definition.Lists:
-		return command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository())
+		return said(command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository()))
 	case !s.isRegistration(event):
-		return command.NotARegistrationReply(s.Settings.RegistrationLabel())
-	// Only the standing roles: the lists have no check, so no record and no
-	// per-check role.
-	// Only the standing roles, and only for a command not for anybody: the
-	// answer to every opened registration needs no team read.
+		return said(command.NotARegistrationReply(s.Settings.RegistrationLabel()))
+	// Only the standing roles, as the lists have no check and so no per-check
+	// role; and only for a command not for anybody, so that the answer to
+	// every opened registration needs no team read.
 	case !definition.Permits(nil) && !definition.Permits(s.standingRoles(ctx, event)):
-		return definition.Refusal()
+		return said(definition.Refusal())
 	case parsed.Name == command.Include && len(parsed.Args) > 0:
-		return command.IncludeTakesNoArguments()
+		return said(command.IncludeTakesNoArguments())
 	case parsed.Name == command.Include:
 		return s.include(ctx, event)
 	}
 	report := registration.Check(ctx, event.IssueBody, s.registrationWorld(event))
-	return command.RegistrationReply(report, event.Comment == 0)
+	return said(command.RegistrationReply(report, event.Comment == 0))
 }
 
 // registrationWorld is what a registration is checked against: ORCID, the
@@ -92,21 +92,23 @@ func (s *Server) registrationWorld(event mention) registration.World {
 		ORCID:  services.ORCIDProfile,
 		Team:   s.Settings.TeamOrganisation() + "/" + team,
 		InTeam: func(ctx context.Context, login string) bool { return s.Teams.Has(ctx, team, login) },
-		Lists: func() []registration.List {
-			files := s.Settings.ListFiles()
-			lists := make([]registration.List, len(files))
-			for i, file := range files {
-				lists[i].URL = file
-				// An offline run has no client to read them with, and a
-				// nil Services must not be asked.
-				lists[i].Err = fmt.Errorf("external services not enabled")
-			}
-			if services.Enabled() {
-				for i, table := range services.CSVs(files...) {
-					lists[i].Table = table
-				}
-			}
-			return lists
-		},
+		Lists:  func() []registration.List { return s.readLists(services, s.Settings.ListFiles()...) },
 	}
+}
+
+// readLists reads the codechecker lists as they are now, each with why it
+// could not be read. Offline there is no client to read them with, and a nil
+// Services must not be asked.
+func (s *Server) readLists(services *check.Services, files ...string) []registration.List {
+	lists := make([]registration.List, len(files))
+	for i, file := range files {
+		lists[i].URL = file
+		lists[i].Err = fmt.Errorf("external services not enabled")
+	}
+	if services.Enabled() {
+		for i, table := range services.CSVs(files...) {
+			lists[i].Table = table
+		}
+	}
+	return lists
 }

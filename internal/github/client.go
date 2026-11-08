@@ -57,6 +57,10 @@ type Client struct {
 	// register.go.
 	Rows    RowFile
 	Account string
+	// Closes says this client may close an issue of its repository: the
+	// lists', which closes the registration it welcomes (#49). Never the
+	// register's, whose checks are closed by their pull requests.
+	Closes bool
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string

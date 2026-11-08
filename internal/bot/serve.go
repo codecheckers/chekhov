@@ -71,6 +71,9 @@ func Serve(address string) error {
 		// The one list `include` adds rows to, on a codechecker-<login>
 		// branch; see internal/github/register.go.
 		listsClient.Rows = github.ListRows(registration.RegistrationList)
+		// And closes the registration it welcomes; the register's client
+		// closes nothing.
+		listsClient.Closes = true
 		server.Lists = listsClient
 	}
 	// A deployment is always online: the checks it runs read repositories and

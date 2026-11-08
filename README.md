@@ -67,7 +67,9 @@ columns, the ORCID, a way to reach the person besides GitHub, and whether they
 are listed already. `@chekhovbot include`, for editors, then opens the pull
 request adding the row to `codecheckers.csv` and checks the organisation's side:
 it asks the owners to invite somebody it sees no invitation for, says when one
-is waiting to be accepted, and puts a member in the codecheckers team. It
+is waiting to be accepted, and puts a member in the codecheckers team. The
+nightly sweep follows it up from there, and once they are in the team and
+their row is merged, posts the welcome and closes the registration. It
 answers nothing else there.
 `@chekhovbot check register` builds the row the check would get in
 `register.csv` - from the issue's Repository line and labels, or what an editor

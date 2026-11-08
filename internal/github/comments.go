@@ -273,3 +273,18 @@ func (c *Client) writeIssue(ctx context.Context, method, repository string, issu
 	endpoint := fmt.Sprintf("%s/repos/%s/issues/%d%s", strings.TrimSuffix(c.BaseURL, "/"), repository, issue, path)
 	return c.send(ctx, method, endpoint, fmt.Sprintf("%s on %s#%d", what, repository, issue), payload)
 }
+
+// CloseIssue closes an issue as done. The one caller is the welcome on the
+// codechecker lists (#49), which closes the registration it answers once the
+// person is listed and in the team; a check on the register is closed by its
+// pull request, never by the bot, and only a client with Closes set closes
+// anything. A PATCH of the state and nothing else, on an issue of the
+// configured repository.
+func (c *Client) CloseIssue(ctx context.Context, repository string, issue int) error {
+	if !c.Closes {
+		return refused("this client closes no issues: only the codechecker lists' does, for a welcome")
+	}
+	_, err := c.writeIssue(ctx, http.MethodPatch, repository, issue, "", "close the issue",
+		map[string]string{"state": "closed", "state_reason": "completed"})
+	return err
+}

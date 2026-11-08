@@ -60,6 +60,13 @@ const (
 	// times in a row without an answer, so that the asking stops. The
 	// subject is the codechecker.
 	KindQuietNudge = "quiet-nudge"
+	// KindInclusion is a registration an editor ran `include` on: the subject
+	// is the registrant, Team the team they belong in. The sweep looks at the
+	// organisation, the team and the list until all three hold, and then
+	// welcomes them, settled, and closes the issue; Told says the registrant
+	// has been told that an invitation waits for them, so that they are told
+	// once. See codecheckers/chekhov#49.
+	KindInclusion = "codechecker-inclusion"
 )
 
 // outlivesTheCheck are the kinds still due after the check's issue is closed:
@@ -131,6 +138,11 @@ type Record struct {
 	// would confirm again every night. Signed like the rest, so it cannot be
 	// forged to silence a reminder.
 	Settled bool `json:"settled,omitempty"`
+	// Told says the person the follow-up is about has been told what is
+	// theirs to do - an inclusion's invitation, waiting to be accepted - so
+	// that it is said once. State the bot keeps, as Settled is, never words
+	// anybody wrote; signed like the rest.
+	Told bool `json:"told,omitempty"`
 	// Asked is when this was raised, RFC 3339. What "three days old" is
 	// measured from, and the reason a sweep needs no clock of its own.
 	Asked string `json:"asked"`

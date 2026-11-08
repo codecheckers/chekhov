@@ -42,6 +42,16 @@ type List struct {
 
 func (l List) name() string { return path.Base(l.URL) }
 
+// Holds reports whether the list has a row for a login, its @ and case aside.
+func (l List) Holds(handle string) bool {
+	return slices.ContainsFunc(l.Rows, func(row map[string]string) bool { return sameLogin(row, handle) })
+}
+
+// sameLogin reports whether a row of a list is somebody's, by handle.
+func sameLogin(row map[string]string, handle string) bool {
+	return strings.EqualFold(login(row["handle"]), login(handle))
+}
+
 // Report is what a registration still needs.
 type Report struct {
 	// Row is the registration as it would be listed, the zero Row when the
@@ -170,7 +180,7 @@ func listed(row Row, lists []List) []Finding {
 			continue
 		}
 		for _, existing := range list.Rows {
-			same := strings.EqualFold(login(existing["handle"]), row.Login()) ||
+			same := sameLogin(existing, row.Handle) ||
 				row.ORCID != "" && strings.EqualFold(check.ORCIDDigits(existing["ORCID"]), row.ORCID)
 			if !same {
 				continue

@@ -11,6 +11,7 @@ import (
 
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
+	"github.com/codecheckers/chekhov/internal/github"
 )
 
 // asked puts an ask to the owners on the issue, raised however long ago.
@@ -480,5 +481,18 @@ func TestABackgroundPanicIsReportedRatherThanEndingTheProcess(t *testing.T) {
 	report := replies.comments[0].Body
 	if !strings.Contains(report, "team load at startup") || !strings.Contains(report, "boom") {
 		t.Errorf("the report does not say what panicked:\n%s", report)
+	}
+}
+
+// An invitation the owners sent is their half done: `assign`'s sweep does not
+// remind them of it (#49).
+func TestASweepDoesNotRemindTheOwnersOfAnInvitationOut(t *testing.T) {
+	server, replies := organised(t)
+	asked(t, server, replies, "a-made-up-newcomer", 4*24*time.Hour)
+	replies.invitations = map[string]github.Invitation{"a-made-up-newcomer": {State: "pending", Role: "member"}}
+
+	swept := server.nudge(context.Background())
+	if swept.Acted != 0 || swept.Outstanding != 1 {
+		t.Errorf("swept %+v, want one left waiting and nobody reminded", swept)
 	}
 }

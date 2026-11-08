@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -58,5 +59,32 @@ func TestAClientForTheListsWritesThereOnly(t *testing.T) {
 	}
 	if lists.Rows.writes() || len(lists.AddableLabels) != 0 || lists.Organisation != "" {
 		t.Errorf("the lists client carries the register's allowances: %+v", lists)
+	}
+}
+
+// Closing is a PATCH of the state on an issue of the client's own repository,
+// and nothing else (#49).
+func TestCloseIssueClosesOnlyItsOwnRepositorysIssue(t *testing.T) {
+	var sent []string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		sent = append(sent, r.Method+" "+r.URL.Path+" "+string(raw))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	})
+	ctx := context.Background()
+	if err := client.CloseIssue(ctx, client.Repository, 7); err == nil {
+		t.Error("a client not set to close closed an issue")
+	}
+	client.Closes = true
+	if err := client.CloseIssue(ctx, client.Repository, 7); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if err := client.CloseIssue(ctx, "codecheckers/register", 7); err == nil {
+		t.Error("closed an issue of another repository")
+	}
+	if len(sent) != 1 || !strings.HasPrefix(sent[0], "PATCH /repos/"+client.Repository+"/issues/7 ") ||
+		!strings.Contains(sent[0], `"state":"closed"`) {
+		t.Errorf("sent %q", sent)
 	}
 }

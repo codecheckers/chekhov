@@ -160,7 +160,8 @@ func (s *Server) teamNote(ctx context.Context, event mention, handle string,
 	if team == "" || !inside {
 		return ""
 	}
-	return s.intoTheTeam(ctx, handle, team)
+	note, _ := s.intoTheTeam(ctx, handle, team)
+	return note
 }
 
 // destination is the team this role puts somebody in on this check, empty for
@@ -217,11 +218,14 @@ func withNote(reply, note string) string {
 // so this is a team change, which is the bot's to make. A failure costs the
 // membership and not the role - the role is recorded either way, and the reply
 // says what was left undone.
-func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
+//
+// in says whether they are in it now, whatever was said: the welcome on the
+// lists waits for it, and a note alone cannot tell "added" from "could not".
+func (s *Server) intoTheTeam(ctx context.Context, handle, team string) (note string, in bool) {
 	organisation := s.Settings.TeamOrganisation()
 	changer, ok := s.Replies.(Organisation)
 	if !ok || organisation == "" || team == "" {
-		return ""
+		return "", false
 	}
 
 	// The read is only an optimisation - the write below is idempotent - so a
@@ -237,18 +241,18 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 		// In the team already, whatever role they hold there. Nothing to do
 		// and nothing to say - and nothing to write, which matters for a
 		// maintainer: a PUT asking for `member` would take the role away.
-		return ""
+		return "", true
 	case err == nil && place.Pending:
 		// Somebody an owner invited through the team, who has not accepted.
 		// Adding them again would change nothing, and saying nothing would
 		// leave the editor believing the team was handled.
-		return command.TeamPending(handle, organisation, team)
+		return command.TeamPending(handle, organisation, team), false
 	}
 
 	added, err := changer.AddToTeam(ctx, organisation, team, handle)
 	if err != nil {
 		s.Logger.Warn("could not add somebody to the team", "handle", handle, "team", team, "error", err)
-		return command.TeamFailed(organisation, team, whyNot(err))
+		return command.TeamFailed(organisation, team, whyNot(err)), false
 	}
 	login := added.Login
 	if login == "" {
@@ -259,9 +263,9 @@ func (s *Server) intoTheTeam(ctx context.Context, handle, team string) string {
 		// and GitHub answers 404 when this bot reads their membership - so
 		// the add above is how it finds out they were there all along. It is
 		// not a failure, and the role is not the bot's to change.
-		return command.TeamMaintainer(login, organisation, team)
+		return command.TeamMaintainer(login, organisation, team), true
 	}
-	return command.TeamAdded(login, organisation, team)
+	return command.TeamAdded(login, organisation, team), true
 }
 
 // managedTeam reports whether a team is one the settings allow the bot to add
