@@ -3,6 +3,7 @@ package registration
 import (
 	"context"
 	"path"
+	"slices"
 	"strings"
 
 	"github.com/codecheckers/chekhov/internal/check"
@@ -53,16 +54,29 @@ type Report struct {
 }
 
 // Complete reports whether a row was found and nothing holds it up.
-func (r Report) Complete() bool {
-	if r.Row == (Row{}) {
-		return false
-	}
+func (r Report) Complete() bool { return r.Row != (Row{}) && len(r.Blocking()) == 0 }
+
+// Listed reports whether the registrant is on the registration list already.
+func (r Report) Listed() bool {
+	return slices.ContainsFunc(r.Findings, func(f Finding) bool { return f.listed })
+}
+
+// Includable reports whether `include` may go on: a row, and nothing holding
+// it up but being listed already. An `include` whose pull request has been
+// merged is that, and the organisation's half may still be open.
+func (r Report) Includable() bool {
+	return r.Row != (Row{}) && !slices.ContainsFunc(r.Blocking(), func(f Finding) bool { return !f.listed })
+}
+
+// Blocking is the findings that hold the registration up.
+func (r Report) Blocking() []Finding {
+	var blocking []Finding
 	for _, finding := range r.Findings {
 		if finding.Blocks() {
-			return false
+			blocking = append(blocking, finding)
 		}
 	}
-	return true
+	return blocking
 }
 
 // Check reads a registration issue and checks the row against the world.
@@ -162,9 +176,11 @@ func listed(row Row, lists []List) []Finding {
 				continue
 			}
 			if list.name() == RegistrationList {
-				findings = append(findings, failed("You are on %s already, as %s. If something "+
+				onIt := failed("You are on %s already, as %s. If something "+
 					"there has changed, an editor can correct the row.", code(list.name()),
-					code(strings.TrimSpace(existing["name"]))))
+					code(strings.TrimSpace(existing["name"])))
+				onIt.listed = true
+				findings = append(findings, onIt)
 			} else {
 				findings = append(findings, finding(Note,
 					"You are on %s already, which is fine: that list is kept separately.", code(list.name())))

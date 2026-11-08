@@ -139,10 +139,10 @@ func (s *Server) proposeRow(ctx context.Context, event mention, row command.Row,
 		Body: command.Defuse(command.PullRequestBody(row, event.Issue, event.Author)),
 	})
 	switch {
-	case errors.Is(err, github.ErrAlreadyRegistered):
+	case errors.Is(err, github.ErrRowExists):
 		return command.AlreadyRegistered(proposed.Certificate)
 	case errors.Is(err, github.ErrBranchNotOurs):
-		return command.BranchNotOurs(proposed.Certificate)
+		return command.BranchNotOurs(pull.Branch)
 	case err != nil:
 		// The API's own words, URLs and all, are for the log, not the thread.
 		s.Logger.Warn("the register pull request could not be opened", "issue", event.Issue, "error", err)

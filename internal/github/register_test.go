@@ -29,6 +29,9 @@ type fakeRegister struct {
 	texts    map[int]string    // number -> title + "\n" + body
 	moves    []string          // "branch=commit", every time a ref is written
 	requests []sent
+	// file is the one file the fake repository holds, register.csv unless
+	// a test says otherwise.
+	file string
 }
 
 type fakeCommit struct {
@@ -46,6 +49,7 @@ func newFakeRegister() *fakeRegister {
 		trees:   map[string]string{},
 		pulls:   map[string]int{},
 		texts:   map[int]string{},
+		file:    "register.csv",
 	}
 }
 
@@ -84,7 +88,7 @@ func (f *fakeRegister) handler(w http.ResponseWriter, r *http.Request) {
 			parents = fmt.Sprintf(`[{"sha": %q}]`, parent)
 		}
 		fmt.Fprintf(w, `{"sha": %q, "tree": {"sha": "tree-of-%s"}, "parents": %s}`, sha, sha, parents)
-	case path == "/contents/register.csv" && r.Method == http.MethodGet:
+	case path == "/contents/"+f.file && r.Method == http.MethodGet:
 		text := f.commits[f.resolve(r.URL.Query().Get("ref"))].file
 		fmt.Fprintf(w, `{"content": %q, "encoding": "base64"}`, base64.StdEncoding.EncodeToString([]byte(text)))
 	case path == "/git/trees" && r.Method == http.MethodPost:
@@ -163,7 +167,7 @@ func (f *fakeRegister) fileOn(branch string) string { return f.commits[f.refs[br
 func proposing(t *testing.T, fake *fakeRegister) *Client {
 	t.Helper()
 	client := stub(t, fake.handler)
-	client.RegisterFile, client.Account = "register.csv", "chekhovbot"
+	client.Rows, client.Account = RegisterRows("register.csv"), "chekhovbot"
 	return client
 }
 
@@ -311,8 +315,8 @@ func TestACertificateAlreadyRegisteredIsRefused(t *testing.T) {
 	taken.Row = map[string]string{"Certificate": "1970-001"}
 
 	_, err := propose(t, proposing(t, fake), taken)
-	if !errors.Is(err, ErrAlreadyRegistered) {
-		t.Errorf("err = %v, want ErrAlreadyRegistered", err)
+	if !errors.Is(err, ErrRowExists) {
+		t.Errorf("err = %v, want ErrRowExists", err)
 	}
 	if writes := fake.writes(); len(writes) != 0 {
 		t.Errorf("a refusal wrote %q", writes)
@@ -327,7 +331,7 @@ func TestAProposalOutsideItsFenceSendsNothing(t *testing.T) {
 			p.Row = map[string]string{"Certificate": "main"}
 		},
 		"another repository":          func(_ *Client, _ *RowProposal, r *string) { *r = "codecheckers/register" },
-		"no register file configured": func(c *Client, _ *RowProposal, _ *string) { c.RegisterFile = "" },
+		"no register file configured": func(c *Client, _ *RowProposal, _ *string) { c.Rows = RowFile{} },
 		"no account of its own":       func(c *Client, _ *RowProposal, _ *string) { c.Account = "" },
 	} {
 		fake := newFakeRegister()
@@ -347,14 +351,76 @@ func TestAProposalOutsideItsFenceSendsNothing(t *testing.T) {
 // with a byte-order mark still has a Certificate column.
 func TestTheRowFollowsTheFilesOwnShape(t *testing.T) {
 	text := "\ufeffCertificate,Venue\r\n1970-001,x\r\n"
-	got, err := withRow(text, map[string]string{"Certificate": "1970-002", "Venue": "y"})
+	got, err := withRow(text, RegisterRows("register.csv"), map[string]string{"Certificate": "1970-002", "Venue": "y"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got != text+"1970-002,y\r\n" {
 		t.Errorf("got %q", got)
 	}
-	if _, err := withRow(text, map[string]string{"Certificate": "1970-001"}); !errors.Is(err, ErrAlreadyRegistered) {
+	if _, err := withRow(text, RegisterRows("register.csv"), map[string]string{"Certificate": "1970-001"}); !errors.Is(err, ErrRowExists) {
 		t.Errorf("a certificate behind a byte-order mark was not found: %v", err)
+	}
+}
+
+const listCSV = "name,handle,ORCID,contact,fields,languages,ecr_until,ecr_checked,fediverse\n" +
+	"Fake Codechecker,@a-made-up-other-person,0000-0000-0000-0002,see ORCID page,testing,Go,NA,NA,\n"
+
+// listing is a client for the lists, on a fake repository holding listCSV.
+func listing(t *testing.T) (*fakeRegister, *Client) {
+	t.Helper()
+	fake := newFakeRegister()
+	fake.file = "codecheckers.csv"
+	fake.commits["base-sha"] = fakeCommit{file: listCSV, author: "nuest"}
+	client := stub(t, fake.handler)
+	client.Rows, client.Account = ListRows("codecheckers.csv"), "chekhovbot"
+	return fake, client
+}
+
+// A client for the lists adds a codechecker's row the same way, on a branch
+// named for their login, keyed by handle (codecheckers/chekhov#49).
+func TestAListRowGoesOnACodecheckerBranch(t *testing.T) {
+	fake, client := listing(t)
+	row := map[string]string{"name": "Josiah Carberry", "handle": "@A-Made-Up-Registrant",
+		"ORCID": "0000-0002-1825-0097", "contact": "https://example.invalid/contact"}
+	pull, err := propose(t, client, RowProposal{Row: row, Title: "add", Body: "for #1", Message: "add"})
+	if err != nil {
+		t.Fatalf("propose: %v", err)
+	}
+	if pull.Number != 300 {
+		t.Errorf("pull request %+v", pull)
+	}
+	want := listCSV + "Josiah Carberry,@A-Made-Up-Registrant,0000-0002-1825-0097,https://example.invalid/contact,,,,,\n"
+	if got := fake.fileOn("codechecker-a-made-up-registrant"); got != want {
+		t.Errorf("the branch's file is\n%s", got)
+	}
+	for _, request := range fake.requests {
+		if request.Method == http.MethodPost && strings.HasSuffix(request.Path, "/git/trees") &&
+			!strings.Contains(request.Body, `"path":"codecheckers.csv"`) {
+			t.Errorf("the tree names another file: %s", request.Body)
+		}
+	}
+}
+
+// Somebody listed already is refused before any write, whatever the case or
+// the @ of their handle; a handle that cannot name a branch sends nothing.
+func TestAListRowAlreadyThereOrMisnamedIsRefused(t *testing.T) {
+	fake, client := listing(t)
+	listed := map[string]string{"name": "Fake", "handle": "A-MADE-UP-OTHER-PERSON"}
+	if _, err := propose(t, client, RowProposal{Row: listed}); !errors.Is(err, ErrRowExists) {
+		t.Errorf("err = %v, want ErrRowExists", err)
+	}
+	if writes := fake.writes(); len(writes) != 0 {
+		t.Errorf("a refusal wrote %q", writes)
+	}
+
+	fake, client = listing(t)
+	for _, handle := range []string{"@-../main", "", "@a/b"} {
+		if _, err := propose(t, client, RowProposal{Row: map[string]string{"handle": handle}}); err == nil {
+			t.Errorf("the handle %q named a branch", handle)
+		}
+	}
+	if len(fake.requests) != 0 {
+		t.Errorf("a misnamed row sent %+v", fake.requests)
 	}
 }

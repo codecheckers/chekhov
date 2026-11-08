@@ -276,7 +276,8 @@ type proposer struct {
 
 func (p *proposer) ProposeRow(_ context.Context, _ string, proposal github.RowProposal) (github.RowPullRequest, error) {
 	if p.refuse != nil {
-		return github.RowPullRequest{}, p.refuse
+		// Named as the writer names it, refusals and all.
+		return github.RowPullRequest{Branch: "register-" + proposal.Row["Certificate"]}, p.refuse
 	}
 	p.proposed = append(p.proposed, proposal)
 	return github.RowPullRequest{Number: 300,
@@ -342,8 +343,8 @@ func TestRegisterOpensNothingWhenARuleFails(t *testing.T) {
 // What the writer refuses is said in the reply's words.
 func TestRegisterSaysWhyThePullRequestWasRefused(t *testing.T) {
 	for err, want := range map[error]string{
-		github.ErrBranchNotOurs:     "has commits that are not mine",
-		github.ErrAlreadyRegistered: "already has a row for `1970-001`",
+		github.ErrBranchNotOurs: "The branch `register-1970-001` has commits that are not mine",
+		github.ErrRowExists:     "already has a row for `1970-001`",
 		// codecheckers/register#238: the account was `read`, and the reply
 		// asked to be asked again, which could never help.
 		refusedPermission: "Asking again will not help",

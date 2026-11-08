@@ -54,7 +54,7 @@ func (c *Client) guard(method string, target *url.URL, payload []byte) error {
 		return nil
 	}
 	return refused("refusing to %s %s: this bot writes to the issues of %s, to the "+
-		"membership of its managed teams, and the register file on a branch of its own, nothing else",
+		"membership of its managed teams, and the register file or the codechecker list on a branch of its own, nothing else",
 		method, path, c.Repository)
 }
 
@@ -69,8 +69,12 @@ func (c *Client) guard(method string, target *url.URL, payload []byte) error {
 // repository. That is the method's to get right and the merging editor's to
 // see; the default branch is reached only through their review. No payload is
 // no write of these: a redirected one, whose body this never sees, is refused.
+//
+// The codechecker list is the same write with another file and another
+// branch: Rows says which one this client has, and it has one at most.
 func (c *Client) registerWrite(method string, segments []string, payload []byte) bool {
-	if len(segments) < 4 || segments[0] != "repos" || c.RegisterFile == "" ||
+	file := c.Rows
+	if len(segments) < 4 || segments[0] != "repos" || !file.writes() ||
 		c.mine(segments[1]+"/"+segments[2], "write") != nil {
 		return false
 	}
@@ -95,7 +99,7 @@ func (c *Client) registerWrite(method string, segments []string, payload []byte)
 			return false
 		}
 		for _, entry := range tree {
-			if entry.Path != c.RegisterFile {
+			if entry.Path != file.path {
 				return false
 			}
 		}
@@ -108,14 +112,14 @@ func (c *Client) registerWrite(method string, segments []string, payload []byte)
 			return false
 		}
 		branch, isBranch := strings.CutPrefix(ref, "refs/heads/")
-		return isBranch && registerBranch.MatchString(branch)
+		return isBranch && file.branch.MatchString(branch)
 	case method == http.MethodPatch && strings.HasPrefix(rest, "git/refs/heads/"):
-		return registerBranch.MatchString(strings.TrimPrefix(rest, "git/refs/heads/"))
+		return file.branch.MatchString(strings.TrimPrefix(rest, "git/refs/heads/"))
 	case method == http.MethodPost && rest == "pulls":
 		var head string
-		return field("head", &head) && registerBranch.MatchString(head)
+		return field("head", &head) && file.branch.MatchString(head)
 	// Which pull request a number names is not in the request; ProposeRow
-	// patches only the one it found by its register branch and base.
+	// patches only the one it found by its row's branch and base.
 	case method == http.MethodPatch && pullNumber.MatchString(rest):
 		for key := range keys {
 			if key != "title" && key != "body" {

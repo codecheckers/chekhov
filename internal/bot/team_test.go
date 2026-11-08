@@ -52,6 +52,23 @@ type organisation struct {
 	// labeledAt is when a label last went on the check, for how long it has
 	// waited in the queue.
 	labeledAt map[string]time.Time
+	// invitations is where somebody stands with the organisation beyond
+	// being a member: an invitation waiting, or a role. A member with none
+	// here is an ordinary member.
+	invitations map[string]github.Invitation
+}
+
+func (o *organisation) OrganisationMembership(_ context.Context, _, handle string) (github.Invitation, error) {
+	if o.membersErr != nil {
+		return github.Invitation{}, o.membersErr
+	}
+	if invitation, found := o.invitations[handle]; found {
+		return invitation, nil
+	}
+	if o.members[handle] {
+		return github.Invitation{State: "active", Role: "member"}, nil
+	}
+	return github.Invitation{}, nil
 }
 
 func (o *organisation) Assign(_ context.Context, _ string, _ int, handle string) ([]string, error) {

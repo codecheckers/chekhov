@@ -81,7 +81,7 @@ func TestTheGuardLetsThroughOnlyTheBotsOwnWrites(t *testing.T) {
 func TestTheGuardLetsThroughThePullRequestAndNothingBesideIt(t *testing.T) {
 	const repo = "https://api.github.com/repos/codecheckers/testing-dev-register"
 	client := guarded()
-	client.RegisterFile = "register.csv"
+	client.Rows = RegisterRows("register.csv")
 	for _, testCase := range []guardCase{
 		{"a tree changing the register file", http.MethodPost, repo + "/git/trees",
 			`{"base_tree": "t", "tree": [{"path": "register.csv", "content": "x"}]}`, true},
@@ -117,9 +117,40 @@ func TestTheGuardLetsThroughThePullRequestAndNothingBesideIt(t *testing.T) {
 	}
 
 	// Without a register file configured, none of it.
-	client.RegisterFile = ""
+	client.Rows = RowFile{}
 	testGuard(t, client, guardCase{"a branch, no register file", http.MethodPost, repo + "/git/refs",
 		`{"ref": "refs/heads/register-1970-021"}`, false})
+}
+
+// A client for the lists gets the same pull request with its own file and its
+// own branches, and none of the register's (#49).
+func TestTheGuardLetsTheListsAddACodecheckerAndNothingElse(t *testing.T) {
+	const repo = "https://api.github.com/repos/codecheckers/testing-dev-register"
+	client := guarded()
+	client.Rows = ListRows("codecheckers.csv")
+	for _, testCase := range []guardCase{
+		{"a tree changing the list", http.MethodPost, repo + "/git/trees",
+			`{"tree": [{"path": "codecheckers.csv", "content": "x"}]}`, true},
+		{"creating a codechecker branch", http.MethodPost, repo + "/git/refs",
+			`{"ref": "refs/heads/codechecker-a-made-up-registrant", "sha": "c"}`, true},
+		{"moving one", http.MethodPatch, repo + "/git/refs/heads/codechecker-a-made-up-registrant", `{"sha": "c"}`, true},
+		{"opening a pull request from one", http.MethodPost, repo + "/pulls",
+			`{"head": "codechecker-a-made-up-registrant", "base": "main"}`, true},
+
+		{"a tree changing another list", http.MethodPost, repo + "/git/trees",
+			`{"tree": [{"path": "institutional-codecheckers.csv"}]}`, false},
+		{"a tree changing the register", http.MethodPost, repo + "/git/trees", `{"tree": [{"path": "register.csv"}]}`, false},
+		{"creating a register branch", http.MethodPost, repo + "/git/refs",
+			`{"ref": "refs/heads/register-1970-021", "sha": "c"}`, false},
+		{"a codechecker branch with an uppercase login", http.MethodPost, repo + "/git/refs",
+			`{"ref": "refs/heads/codechecker-Somebody", "sha": "c"}`, false},
+		{"a codechecker branch that climbs", http.MethodPost, repo + "/git/refs",
+			`{"ref": "refs/heads/codechecker-x/../main", "sha": "c"}`, false},
+		{"moving the default branch", http.MethodPatch, repo + "/git/refs/heads/main", `{"sha": "c"}`, false},
+	} {
+		testGuard(t, client, testCase)
+	}
+
 }
 
 // A guardCase is one request put to the guard.

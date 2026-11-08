@@ -23,7 +23,7 @@ func TestAClientForTheListsWritesThereOnly(t *testing.T) {
 	})
 	register.Organisation, register.ManagedTeams = "codecheckers", []string{"codecheckers"}
 	register.AddableLabels, register.RemovableLabels = []string{"id assigned"}, []string{"id assigned"}
-	register.RegisterFile = "register.csv"
+	register.Rows = RegisterRows("register.csv")
 
 	register.Signature = "working on `codecheckers/testing-dev-register`"
 	lists := register.For("codecheckers/testing-dev-codecheckers", "working on `codecheckers/testing-dev-codecheckers`")
@@ -56,7 +56,7 @@ func TestAClientForTheListsWritesThereOnly(t *testing.T) {
 	if lists.Signature == register.Signature {
 		t.Error("the lists client signs its comments as working on the register")
 	}
-	if lists.RegisterFile != "" || len(lists.AddableLabels) != 0 || lists.Organisation != "" {
+	if lists.Rows.writes() || len(lists.AddableLabels) != 0 || lists.Organisation != "" {
 		t.Errorf("the lists client carries the register's allowances: %+v", lists)
 	}
 }

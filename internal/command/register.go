@@ -135,9 +135,9 @@ func PullRequestOpened(number int, updated, unchanged bool, by string, when time
 // PullRequestFailed is the reply when GitHub would not take a write, and why
 // - which says whether asking again can help. What GitHub said is in the log,
 // which is no place for a thread.
-func PullRequestFailed(why Failure) string {
-	return "\n" + NotDone("open the pull request", why.Why()) + "\n"
-}
+func PullRequestFailed(why Failure) string { return "\n" + pullRequestNotDone(why) + "\n" }
+
+func pullRequestNotDone(why Failure) string { return NotDone("open the pull request", why.Why()) }
 
 // AlreadyRegistered is the refusal for a certificate the register file has a
 // row for already, found on the default branch at the moment of writing.
@@ -148,8 +148,10 @@ func AlreadyRegistered(certificate string) string {
 
 // BranchNotOurs is the refusal when the branch the bot would write has
 // somebody else's commits on it: an editor's fix that a reset would throw
-// away.
-func BranchNotOurs(certificate string) string {
-	return fmt.Sprintf("\n✖ The branch `register-%s` has commits that are not mine, so I have left it "+
-		"alone and opened no pull request: finish or delete that branch, and ask me again.\n", certificate)
+// away. The branch is the one the writer named, so the two cannot disagree.
+func BranchNotOurs(branch string) string { return "\n✖ " + branchNotOurs(branch) + "\n" }
+
+func branchNotOurs(branch string) string {
+	return fmt.Sprintf("The branch `%s` has commits that are not mine, so I have left it "+
+		"alone and opened no pull request: finish or delete that branch, and ask me again.", branch)
 }

@@ -30,9 +30,13 @@ type Organisation interface {
 	Owners(ctx context.Context, organisation string) ([]string, error)
 	TeamMembership(ctx context.Context, organisation, team, handle string) (github.Place, error)
 	AddToTeam(ctx context.Context, organisation, team, handle string) (github.Place, error)
+	// OrganisationMembership is where somebody stands beyond yes or no: an
+	// invitation waiting, and the role - which is how `include` checks the
+	// owners' half (#49).
+	OrganisationMembership(ctx context.Context, organisation, handle string) (github.Invitation, error)
 }
 
-// The reply path a deployment uses can do all four, which a type assertion
+// The reply path a deployment uses can do all of it, which a type assertion
 // would otherwise only discover at runtime - as a command refusing with a
 // message that sends an editor to audit a token that is perfectly fine.
 var _ Organisation = (*github.Client)(nil)
@@ -66,30 +70,39 @@ func (s *Server) membership(ctx context.Context, handle string) (inside, known b
 // once they have, empty for a role that puts nobody in one.
 func (s *Server) outsideReply(ctx context.Context, handle string,
 	role command.Role, team string) string {
-	organisation := s.Settings.TeamOrganisation()
-	reader, ok := s.Replies.(Organisation)
-	if !ok || organisation == "" {
+	request, ok := s.ownersRequest(ctx, command.OutsideRequest{
+		Handle: handle, Role: role, Organisation: s.Settings.TeamOrganisation(), Team: team,
+	})
+	if !ok {
 		return ""
 	}
+	return command.OutsideReply(request)
+}
 
-	request := command.OutsideRequest{
-		Handle: handle, Role: role, Organisation: organisation, Team: team,
+// ownersRequest fills in who to ask: the organisation's owners, or why they
+// could not be read. False when this reply path cannot read the organisation
+// at all. Shared by `assign` and `include`, so that both ask the same people
+// the same way.
+func (s *Server) ownersRequest(ctx context.Context, request command.OutsideRequest) (command.OutsideRequest, bool) {
+	reader, ok := s.Replies.(Organisation)
+	if !ok || request.Organisation == "" {
+		return request, false
 	}
 	// A deployment may name who to ask instead of reading the organisation's
-	// owners. That reply is the one place the bot writes a plain @mention, so
-	// a development deployment asks whoever is testing it rather than
-	// notifying three people who did not ask to be in a test.
+	// owners. These replies are the one place the bot writes a plain
+	// @mention, so a development deployment asks whoever is testing it rather
+	// than notifying three people who did not ask to be in a test.
 	if configured := s.Settings.OwnersOverride(); len(configured) > 0 {
 		request.Owners, request.Configured = configured, true
-		return command.OutsideReply(request)
+		return request, true
 	}
-	owners, err := reader.Owners(ctx, organisation)
+	owners, err := reader.Owners(ctx, request.Organisation)
 	if err != nil {
 		request.Unreadable = err.Error()
 	} else {
 		request.Owners = owners
 	}
-	return command.OutsideReply(request)
+	return request, true
 }
 
 // teamFor is the team a codechecker on this check belongs in.

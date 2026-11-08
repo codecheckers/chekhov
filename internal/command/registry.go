@@ -1,6 +1,7 @@
 package command
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -173,6 +174,14 @@ var registry = []Definition{
 		Usage:   "include check",
 		Group:   GroupPeople,
 		Roles:   Roles{RoleAnyone},
+		Lists:   true,
+	},
+	{
+		Name:    Include,
+		Summary: "Add a registered codechecker: the pull request adding their row to the list, and the team once they are in the organisation",
+		Usage:   "include",
+		Group:   GroupPeople,
+		Roles:   Roles{RoleEditor},
 		Lists:   true,
 	},
 	{
@@ -360,6 +369,12 @@ func (d Definition) Who() string {
 		who = append(who, may.Description())
 	}
 	return list(who, "or")
+}
+
+// Refusal is the reply to somebody the command is not for, on the register
+// and on the lists alike.
+func (d Definition) Refusal() string {
+	return fmt.Sprintf("`%s %s` is for %s.\n", Bot, d.Name, d.Who())
 }
 
 // NeedsCheckRoles reports whether answering "may they run this?" costs a read

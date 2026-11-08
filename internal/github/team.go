@@ -363,3 +363,49 @@ func (c *Client) InOrganisation(ctx context.Context, organisation, handle string
 		return false, fmt.Errorf("could not read whether `@%s` is in %s: %w", handle, organisation, err)
 	}
 }
+
+// An Invitation is where somebody stands with the organisation: invited and
+// not yet accepted, a member, or neither - and in which role.
+type Invitation struct {
+	// State is "pending" or "active", empty when the organisation shows no
+	// membership or invitation at all.
+	State string `json:"state"`
+	// Role is "member" or "admin", an owner.
+	Role string `json:"role"`
+}
+
+// Invited says an invitation is waiting for them; Joined that they accepted.
+func (i Invitation) Invited() bool { return i.State == "pending" }
+func (i Invitation) Joined() bool  { return i.State == "active" }
+
+// Owner says they are an owner of the organisation.
+func (i Invitation) Owner() bool { return i.Role == "admin" }
+
+// OrganisationMembership is somebody's membership of the organisation, or the
+// invitation to it - which is how the bot checks the owners' half of bringing
+// somebody in: whether an invitation exists, and in which role (#49).
+//
+// A read only. The same path written to sets an organisation role, which this
+// package never does: see the note at the top of this file.
+func (c *Client) OrganisationMembership(ctx context.Context, organisation, handle string) (Invitation, error) {
+	if organisation != c.Organisation {
+		return Invitation{}, fmt.Errorf("refusing to read the members of %s: this bot works on %s only",
+			organisation, c.Organisation)
+	}
+	if !IsHandle(handle) {
+		return Invitation{}, fmt.Errorf("%q is not a GitHub handle", handle)
+	}
+	url := fmt.Sprintf("%s/orgs/%s/memberships/%s", strings.TrimSuffix(c.BaseURL, "/"), organisation, handle)
+	var invitation Invitation
+	err := c.read(ctx, url, &invitation)
+	switch {
+	case err == nil:
+		return invitation, nil
+	case httpretry.IsStatus(err, http.StatusNotFound):
+		// Neither a member nor invited - as far as this token can see: GitHub
+		// may show an invitation to owners only.
+		return Invitation{}, nil
+	default:
+		return Invitation{}, fmt.Errorf("could not read whether `@%s` is in %s: %w", handle, organisation, err)
+	}
+}

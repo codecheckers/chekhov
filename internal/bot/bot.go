@@ -501,6 +501,11 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	if s.onLists(event) {
 		return said(s.answerOnLists(ctx, event, parsed))
 	}
+	// And the other way round: a command of the lists means nothing on the
+	// register, whoever asks, and is pointed there. The registry says which.
+	if definition, found := command.Lookup(string(parsed.Name)); found && definition.Lists {
+		return said(command.ListsCommandReply(parsed.Name, s.Settings.ListsRepository()))
+	}
 	// Afresh, and once: within one command the issue cannot change under the
 	// bot, and three parts of a command want it - and as many want its
 	// comments, the first of them before the command is even allowed to run.
@@ -525,8 +530,7 @@ func (s *Server) answer(ctx context.Context, event mention, parsed command.Comma
 	}
 
 	if found && !definition.Permits(roles) {
-		return said(fmt.Sprintf("`%s %s` is for %s.\n",
-			command.Bot, parsed.Name, definition.Who()))
+		return said(definition.Refusal())
 	}
 
 	// A second word after a command that begins others may be one of them,
@@ -602,8 +606,6 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return s.assign(ctx, event, parsed)
 	case command.Remove:
 		return said(s.remove(ctx, event, parsed))
-	case command.IncludeCheck:
-		return said(command.ListsCommandReply(parsed.Name, s.Settings.ListsRepository()))
 	case command.ListRoles:
 		return said(s.listRoles(ctx, event, roles))
 	case command.ListCodecheckers:

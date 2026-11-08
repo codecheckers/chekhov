@@ -45,12 +45,52 @@ import (
 // agreeing with it.
 var registerBranch = regexp.MustCompile(`^register-[0-9]{4}-[0-9]{3}$`)
 
+// codecheckerBranch is the branch adding somebody to the codechecker list:
+// codechecker-<login>, the login lowercased as GitHub compares it, and in
+// handleShape's alphabet so that it can never name the default branch.
+var codecheckerBranch = regexp.MustCompile(`^codechecker-[a-z0-9](?:[a-z0-9-]{0,38})$`)
+
+// A RowFile is the one CSV a client proposes rows to: where it is, the column
+// that tells one row from another and how to compare it, and the branch a
+// proposal goes on. One per client - the register, or the lists - so that
+// every fence keeps meaning one file on one kind of branch; the zero RowFile
+// writes nothing.
+type RowFile struct {
+	path, key, prefix string
+	branch            *regexp.Regexp
+	normalise         func(string) string
+}
+
+// RegisterRows is the register file, keyed by certificate, on
+// register-YYYY-NNN branches.
+func RegisterRows(path string) RowFile {
+	return RowFile{path: path, key: "Certificate", prefix: "register-", branch: registerBranch,
+		normalise: strings.TrimSpace}
+}
+
+// ListRows is a codechecker list, keyed by handle - with or without its @, in
+// any case, as GitHub compares logins - on codechecker-<login> branches.
+func ListRows(path string) RowFile {
+	return RowFile{path: path, key: "handle", prefix: "codechecker-", branch: codecheckerBranch,
+		normalise: func(s string) string { return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(s), "@")) }}
+}
+
+// writes reports whether there is a file at all.
+func (f RowFile) writes() bool { return f.path != "" }
+
+// branchFor is the branch a row goes on: the prefix and the row's key.
+func (f RowFile) branchFor(row map[string]string) string { return f.prefix + f.normalise(row[f.key]) }
+
+// sameKey compares two keys as the file means them.
+func (f RowFile) sameKey(a, b string) bool { return f.normalise(a) == f.normalise(b) }
+
 // A RowProposal is the row to add, and what to say about it.
 type RowProposal struct {
 	// Row is the value of each column by its name in the file's header. A
 	// column the file has and Row does not is left empty, so the row is
-	// written in the file's own shape, whatever that is. Its Certificate
-	// names the branch and is checked against the file.
+	// written in the file's own shape, whatever that is. Its key - the
+	// Certificate of a register row, the handle of a codechecker - names the
+	// branch and is checked against the file.
 	Row map[string]string
 	// Title and Body are the pull request's, and Message the commit's.
 	Title, Body, Message string
@@ -66,31 +106,36 @@ type RowPullRequest struct {
 	// exactly this, and nothing was written.
 	Updated   bool `json:"-"`
 	Unchanged bool `json:"-"`
+	// Branch is the branch the row is on, or would have been on: named also
+	// with ErrBranchNotOurs, so that the refusal says which.
+	Branch string `json:"-"`
 }
 
-// ErrAlreadyRegistered is a certificate the default branch's register file
+// ErrRowExists is a key - a certificate, a handle - the default branch's file
 // already has a row for.
-var ErrAlreadyRegistered = errors.New("the certificate is already in the register file")
+var ErrRowExists = errors.New("the file already has a row for it")
 
-// ErrBranchNotOurs is a register branch with commits by somebody other than
-// the bot, which a second `register` would otherwise throw away.
+// ErrBranchNotOurs is a row's branch with commits by somebody other than the
+// bot, which asking again would otherwise throw away.
 var ErrBranchNotOurs = errors.New("the branch has commits by somebody else")
 
-// ProposeRow opens a pull request adding one row to the register file, or
-// brings the one it opened before up to date: the row is added to the default
-// branch as it is now, so a register that moved on in between is the one the
-// row is added to. A branch that already holds exactly that is left alone.
+// ProposeRow opens a pull request adding one row to the file this client
+// writes - the register, or the codechecker list - or brings the one it
+// opened before up to date: the row is added to the default branch as it is
+// now, so a file that moved on in between is the one the row is added to. A
+// branch that already holds exactly that is left alone.
 func (c *Client) ProposeRow(ctx context.Context, repository string, proposal RowProposal) (RowPullRequest, error) {
 	if err := c.mine(repository, "propose a row"); err != nil {
 		return RowPullRequest{}, err
 	}
-	if c.RegisterFile == "" || c.Account == "" {
-		return RowPullRequest{}, refused("no register file or no account of the bot's own is configured, " +
+	file := c.Rows
+	if !file.writes() || c.Account == "" {
+		return RowPullRequest{}, refused("no file to add rows to or no account of the bot's own is configured, " +
 			"so I write none: without the account a branch of mine cannot be told from somebody's work")
 	}
-	branch := "register-" + proposal.Row["Certificate"]
-	if !registerBranch.MatchString(branch) {
-		return RowPullRequest{}, fmt.Errorf("%q is not a certificate identifier", proposal.Row["Certificate"])
+	branch := file.branchFor(proposal.Row)
+	if !file.branch.MatchString(branch) {
+		return RowPullRequest{}, fmt.Errorf("%q cannot name a branch of mine", proposal.Row[file.key])
 	}
 	api := strings.TrimSuffix(c.BaseURL, "/") + "/repos/" + repository
 
@@ -110,11 +155,11 @@ func (c *Client) ProposeRow(ctx context.Context, repository string, proposal Row
 	}
 	// The file as that commit has it, not as the branch has it by the time
 	// the request arrives: one snapshot, whatever is merged meanwhile.
-	text, err := c.registerFile(ctx, api, base)
+	text, err := c.fileAt(ctx, api, file.path, base)
 	if err != nil {
 		return RowPullRequest{}, err
 	}
-	content, err := withRow(text, proposal.Row)
+	content, err := withRow(text, file, proposal.Row)
 	if err != nil {
 		return RowPullRequest{}, err
 	}
@@ -126,12 +171,12 @@ func (c *Client) ProposeRow(ctx context.Context, repository string, proposal Row
 	}
 	if exists {
 		if err := c.onlyOurs(ctx, api, about.DefaultBranch, branch); err != nil {
-			return RowPullRequest{}, err
+			return RowPullRequest{Branch: branch}, err
 		}
 	}
-	held := exists && c.holds(ctx, api, current, base, content)
+	held := exists && c.holds(ctx, api, file.path, current, base, content)
 	if !held {
-		commit, err := c.commitRow(ctx, api, baseCommit.Tree.SHA, base, content, proposal.Message)
+		commit, err := c.commitRow(ctx, api, file.path, baseCommit.Tree.SHA, base, content, proposal.Message)
 		if err != nil {
 			return RowPullRequest{}, err
 		}
@@ -141,6 +186,7 @@ func (c *Client) ProposeRow(ctx context.Context, repository string, proposal Row
 	}
 	pull, err := c.pullRequest(ctx, api, repository, about.DefaultBranch, branch, proposal)
 	pull.Unchanged = held && pull.Unchanged
+	pull.Branch = branch
 	return pull, err
 }
 
@@ -168,22 +214,22 @@ func (c *Client) refSHA(ctx context.Context, api, branch string) (string, error)
 	return ref.Object.SHA, nil
 }
 
-// registerFile is the register file as one commit has it.
-func (c *Client) registerFile(ctx context.Context, api, ref string) (string, error) {
+// fileAt is a file as one commit has it.
+func (c *Client) fileAt(ctx context.Context, api, path, ref string) (string, error) {
 	var file struct {
 		Content  string `json:"content"`
 		Encoding string `json:"encoding"`
 	}
-	if err := c.read(ctx, api+"/contents/"+escapePath(c.RegisterFile)+"?ref="+url.QueryEscape(ref), &file); err != nil {
+	if err := c.read(ctx, api+"/contents/"+escapePath(path)+"?ref="+url.QueryEscape(ref), &file); err != nil {
 		return "", err
 	}
 	if file.Encoding != "base64" {
 		return "", fmt.Errorf("%s came back as %q, not base64: too large to edit through the API",
-			c.RegisterFile, file.Encoding)
+			path, file.Encoding)
 	}
 	raw, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(file.Content, "\n", ""))
 	if err != nil {
-		return "", fmt.Errorf("%s could not be decoded: %w", c.RegisterFile, err)
+		return "", fmt.Errorf("%s could not be decoded: %w", path, err)
 	}
 	return string(raw), nil
 }
@@ -200,30 +246,30 @@ func escapePath(path string) string {
 
 // withRow is the file with the row appended in the order of its own header,
 // in its own line endings. The copy is the default branch's as it is now, so
-// a certificate somebody registered since the bot last read the register is
-// caught here.
-func withRow(text string, row map[string]string) (string, error) {
+// a row somebody added since the bot last read the file - a certificate
+// registered, a codechecker listed - is caught here, by its key column.
+func withRow(text string, file RowFile, row map[string]string) (string, error) {
 	reader := csv.NewReader(strings.NewReader(text))
 	reader.Comment = '#'
 	reader.FieldsPerRecord = -1
 	records, err := reader.ReadAll()
 	if err != nil {
-		return "", fmt.Errorf("the register file is not CSV I can read: %w", err)
+		return "", fmt.Errorf("the file is not CSV I can read: %w", err)
 	}
 	if len(records) == 0 {
-		return "", errors.New("the register file is empty")
+		return "", errors.New("the file is empty")
 	}
 	header := make([]string, len(records[0]))
 	for i, column := range records[0] {
 		header[i] = strings.TrimSpace(strings.TrimPrefix(column, "\ufeff"))
 	}
-	certificate := slices.Index(header, "Certificate")
-	if certificate < 0 {
-		return "", errors.New("the register file has no Certificate column")
+	at := slices.Index(header, file.key)
+	if at < 0 {
+		return "", fmt.Errorf("the file has no %s column", file.key)
 	}
 	for _, record := range records[1:] {
-		if certificate < len(record) && strings.TrimSpace(record[certificate]) == row["Certificate"] {
-			return "", ErrAlreadyRegistered
+		if at < len(record) && file.sameKey(record[at], row[file.key]) {
+			return "", ErrRowExists
 		}
 	}
 
@@ -253,7 +299,7 @@ func withRow(text string, row map[string]string) (string, error) {
 // holds reports whether the branch already is the row on the base: its one
 // commit sits on base and its file is the content. Asking again with nothing
 // changed then writes nothing, rather than a commit that changes nothing.
-func (c *Client) holds(ctx context.Context, api, head, base, content string) bool {
+func (c *Client) holds(ctx context.Context, api, path, head, base, content string) bool {
 	var commit gitCommit
 	if err := c.read(ctx, api+"/git/commits/"+head, &commit); err != nil {
 		return false
@@ -261,31 +307,31 @@ func (c *Client) holds(ctx context.Context, api, head, base, content string) boo
 	if len(commit.Parents) != 1 || commit.Parents[0].SHA != base {
 		return false
 	}
-	text, err := c.registerFile(ctx, api, head)
+	text, err := c.fileAt(ctx, api, path, head)
 	return err == nil && text == content
 }
 
-// commitRow makes the commit: a tree that is base's with the register file
-// replaced, and a commit of it whose parent is base. Neither moves a branch.
-func (c *Client) commitRow(ctx context.Context, api, baseTree, base, content, message string) (string, error) {
+// commitRow makes the commit: a tree that is base's with the file replaced,
+// and a commit of it whose parent is base. Neither moves a branch.
+func (c *Client) commitRow(ctx context.Context, api, path, baseTree, base, content, message string) (string, error) {
 	var tree struct {
 		SHA string `json:"sha"`
 	}
 	err := c.write(ctx, http.MethodPost, api+"/git/trees", map[string]any{
 		"base_tree": baseTree,
 		"tree": []map[string]string{
-			{"path": c.RegisterFile, "mode": "100644", "type": "blob", "content": content},
+			{"path": path, "mode": "100644", "type": "blob", "content": content},
 		},
 	}, &tree)
 	if err != nil {
-		return "", fmt.Errorf("could not write %s: %w", c.RegisterFile, err)
+		return "", fmt.Errorf("could not write %s: %w", path, err)
 	}
 	var commit gitCommit
 	err = c.write(ctx, http.MethodPost, api+"/git/commits", map[string]any{
 		"message": message, "tree": tree.SHA, "parents": []string{base},
 	}, &commit)
 	if err != nil {
-		return "", fmt.Errorf("could not commit %s: %w", c.RegisterFile, err)
+		return "", fmt.Errorf("could not commit %s: %w", path, err)
 	}
 	return commit.SHA, nil
 }

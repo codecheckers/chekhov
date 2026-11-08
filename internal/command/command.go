@@ -106,6 +106,9 @@ const (
 	// repository and says what it still needs (#49). A phrase, because
 	// `include` itself - adding the person - is the editors' and comes next.
 	IncludeCheck Name = "include check"
+	// Include adds a registered codechecker: the pull request adding their
+	// row to the list, and the team once they are in the organisation (#49).
+	Include Name = "include"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

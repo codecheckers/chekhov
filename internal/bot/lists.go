@@ -61,11 +61,22 @@ func (s *Server) isRegistration(event mention) bool {
 // answerOnLists is the reply to one command on the lists. The first answer to
 // an issue - the one to its being opened - thanks the registrant for it.
 func (s *Server) answerOnLists(ctx context.Context, event mention, parsed command.Command) string {
+	definition, found := command.Lookup(string(parsed.Name))
 	switch {
-	case parsed.Name != command.IncludeCheck:
+	case !found || !definition.Lists:
 		return command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository())
 	case !s.isRegistration(event):
 		return command.NotARegistrationReply(s.Settings.RegistrationLabel())
+	// Only the standing roles: the lists have no check, so no record and no
+	// per-check role.
+	// Only the standing roles, and only for a command not for anybody: the
+	// answer to every opened registration needs no team read.
+	case !definition.Permits(nil) && !definition.Permits(s.standingRoles(ctx, event)):
+		return definition.Refusal()
+	case parsed.Name == command.Include && len(parsed.Args) > 0:
+		return command.IncludeTakesNoArguments()
+	case parsed.Name == command.Include:
+		return s.include(ctx, event)
 	}
 	report := registration.Check(ctx, event.IssueBody, s.registrationWorld(event))
 	return command.RegistrationReply(report, event.Comment == 0)

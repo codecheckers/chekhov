@@ -50,6 +50,18 @@ type Row struct {
 // Login is the handle without its @.
 func (r Row) Login() string { return login(r.Handle) }
 
+// Cells is the row by the list's column names, which is how the pull request
+// adding it writes it: in the order of the file's own header, whatever that is.
+func (r Row) Cells() map[string]string {
+	values := []string{r.Name, r.Handle, r.ORCID, r.Contact, r.Fields, r.Languages,
+		r.ECRUntil, r.ECRChecked, r.Fediverse}
+	cells := make(map[string]string, len(columns))
+	for i, column := range columns {
+		cells[column] = values[i]
+	}
+	return cells
+}
+
 // Outcome is how a finding is reported, with the symbols the bot uses
 // everywhere.
 type Outcome string
@@ -66,6 +78,10 @@ type Finding struct {
 	Outcome Outcome
 	// Text says what was found, in a sentence addressed to the registrant.
 	Text string
+	// listed marks the one failure that is not the registration's to fix:
+	// the person is on the list already - which, after `include`, is what a
+	// merged pull request looks like.
+	listed bool
 }
 
 // Blocks reports whether a finding holds the registration up. A failure

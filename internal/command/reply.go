@@ -1077,24 +1077,9 @@ func OutsideReply(request OutsideRequest) string {
 		"the %s of this check: somebody outside the organisation cannot hold a role on one.\n",
 		request.Handle, request.Organisation, request.Role)
 
-	if request.Unreadable != "" {
-		fmt.Fprintf(&out, "\nAn organisation owner has to invite them, and I could not read "+
-			"who the owners are: %s\n", oneLine(request.Unreadable))
+	if !request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation. "+
+		"I will handle the rest: once they accept, %s", request.Handle, request.rest())) {
 		return out.String()
-	}
-	if len(request.Owners) == 0 {
-		out.WriteString("\nAn organisation owner has to invite them, and I could not find one.\n")
-		return out.String()
-	}
-
-	fmt.Fprintf(&out, "\n%s — please invite `@%s` to the organisation. "+
-		"I will handle the rest: once they accept, %s\n",
-		notifying(request.Owners), request.Handle, request.rest())
-	if request.Configured {
-		// Said plainly: a reader must not take this for the organisation's
-		// owners having been asked.
-		out.WriteString("\n*This deployment is configured to ask the people above rather than " +
-			"the organisation's owners, so the owners have not been notified.*\n")
 	}
 	// What to do next, said once and honestly: the nightly sweep picks this
 	// up (codecheckers/chekhov#48), so nobody has to come back to the thread,
@@ -1104,6 +1089,29 @@ func OutsideReply(request OutsideRequest) string {
 		"this once they have joined; `%s assign @%s as %s` does it sooner, and asks the "+
 		"owners again if they still have not.\n", Bot, request.Handle, request.Role.Typed())
 	return out.String()
+}
+
+// ask writes the request to the owners - the one paragraph that notifies them
+// - or why nobody could be asked, which it reports as false. please is what
+// they are asked to do.
+func (request OutsideRequest) ask(out *strings.Builder, please string) bool {
+	if request.Unreadable != "" {
+		fmt.Fprintf(out, "\nAn organisation owner has to invite them, and I could not read "+
+			"who the owners are: %s\n", oneLine(request.Unreadable))
+		return false
+	}
+	if len(request.Owners) == 0 {
+		out.WriteString("\nAn organisation owner has to invite them, and I could not find one.\n")
+		return false
+	}
+	fmt.Fprintf(out, "\n%s — %s\n", notifying(request.Owners), please)
+	if request.Configured {
+		// Said plainly: a reader must not take this for the organisation's
+		// owners having been asked.
+		out.WriteString("\n*This deployment is configured to ask the people above rather than " +
+			"the organisation's owners, so the owners have not been notified.*\n")
+	}
+	return true
 }
 
 // UnmanagedTeamReply refuses a team the settings do not allow the bot to add

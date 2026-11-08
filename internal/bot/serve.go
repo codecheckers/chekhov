@@ -19,6 +19,7 @@ import (
 	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/mastodon"
 	"github.com/codecheckers/chekhov/internal/people"
+	"github.com/codecheckers/chekhov/internal/registration"
 )
 
 // Serve runs the bot until the process is asked to stop.
@@ -57,7 +58,7 @@ func Serve(address string) error {
 	replies.AddableLabels, replies.RemovableLabels = settings.AddableLabels(), settings.RemovableLabels()
 	// The one file it may write, on a branch of its own, and whose commits
 	// on such a branch are its own to replace; see internal/github/register.go.
-	replies.RegisterFile, replies.Account = settings.RegisterFile(), settings.BotUser()
+	replies.Rows, replies.Account = github.RegisterRows(settings.RegisterFile()), settings.BotUser()
 
 	server := New(settings, secret, replies, deployment)
 	// The codechecker lists are a second repository, answered through a
@@ -66,7 +67,11 @@ func Serve(address string) error {
 	if lists := settings.ListsRepository(); lists != "" {
 		onLists := deployment
 		onLists.Register = lists
-		server.Lists = replies.For(lists, onLists.Signature())
+		listsClient := replies.For(lists, onLists.Signature())
+		// The one list `include` adds rows to, on a codechecker-<login>
+		// branch; see internal/github/register.go.
+		listsClient.Rows = github.ListRows(registration.RegistrationList)
+		server.Lists = listsClient
 	}
 	// A deployment is always online: the checks it runs read repositories and
 	// ask Crossref, ORCID and Zenodo. The command line makes that a choice per

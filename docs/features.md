@@ -120,7 +120,8 @@ for the whole group, before writing #7.
 |---|---|---|
 | (automatic) registration report | On an opened registration issue on the codechecker lists, say what the row still needs: the columns, the ORCID, a way to reach the person besides GitHub, whether they are listed already (#49) | implemented |
 | `@chekhovbot include check` | The same report again, after the registrant edited the row (#49) | implemented |
-| `@chekhovbot include` | Invite the registrant to the team, open the pull request adding the row, welcome them when it is merged (editors, #49) | medium |
+| `@chekhovbot include` | Open the pull request adding the row; check the invitation to the organisation (none: ask the owners, pending: say so, joined: put them in the team) (editors, #49) | implemented |
+| welcome on merge | Follow up an `include` nightly, and welcome the registrant once the row is merged and they are in the team (#49) | medium |
 | `@chekhovbot buddy exchange` | Open/track a buddy-exchange request (see testing register template) | low |
 | `@chekhovbot docs <topic>` | Link the relevant part of the CODECHECK guide | low |
 

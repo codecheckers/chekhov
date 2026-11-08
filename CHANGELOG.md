@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-11-08
+
+### Added
+
+- `@chekhovbot include`, for editors on a complete registration: opens the
+  pull request adding the row to `codecheckers.csv`, and checks the
+  organisation's side - the owners are asked to invite somebody with no
+  invitation in sight, an invitation waiting is said to be waiting, and a
+  member is put in the codecheckers team (#49).
+
 ## [0.28.1] - 2026-11-08
 
 ### Fixed

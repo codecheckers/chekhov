@@ -49,13 +49,14 @@ type Client struct {
 	// otherwise, and then the change is refused. See AddLabel.
 	AddableLabels   []string
 	RemovableLabels []string
-	// RegisterFile is the one file this client will write, and only on a
-	// register-YYYY-NNN branch; Account is the bot's own login, the only
-	// author whose commits on such a branch it may replace. Empty unless a
+	// Rows is the one file this client will write, and only on a branch of
+	// its kind: RegisterRows on register-YYYY-NNN, ListRows on
+	// codechecker-<login> (#49). Account is the bot's own login, the only
+	// author whose commits on such a branch it may replace. Nothing unless a
 	// deployment says otherwise, and the pull request is then refused. See
 	// register.go.
-	RegisterFile string
-	Account      string
+	Rows    RowFile
+	Account string
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string

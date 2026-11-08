@@ -100,9 +100,10 @@ were notified by test comments before this was written down.
 | `@nuest` | the maintainer, who is running the test |
 | `@chekhovbot` | the bot itself, which the command is addressed to |
 
-<!-- Source: own rule; ArchiveReminder exception added 2026-11-02 (#27). -->
+<!-- Source: own rule; ArchiveReminder exception added 2026-11-02 (#27), IncludeOutsideReply 2026-11-08 (#49). -->
 The one exception is `command.OutsideReply`, which asks the organisation's
-owners to invite somebody: notifying them is the whole point of that reply, and
+owners to invite somebody - and `command.IncludeOutsideReply`, the same ask for
+a registered codechecker, through the same `OutsideRequest.ask` (#49): notifying them is the whole point of that reply, and
 the handles are the organisation's current owners read from the organisation,
 never written down. **A development deployment must not ask them**, because a
 test may not notify people who did not ask to be in it - `teams.owners` in the

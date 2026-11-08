@@ -443,3 +443,50 @@ func TestARateLimitIsNotATokenThatMayNotManageMembership(t *testing.T) {
 		t.Fatalf("error %v, want a rate limit and not ErrNotPermitted", err)
 	}
 }
+
+// The owners' half of bringing somebody in is read, never written: an
+// invitation waiting, a member and their role, or nothing at all (#49).
+func TestTheOrganisationMembershipIsReadOnly(t *testing.T) {
+	var asked []string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.Method+" "+r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/orgs/codecheckers/memberships/a-made-up-registrant":
+			_, _ = w.Write([]byte(`{"state": "pending", "role": "member"}`))
+		case "/orgs/codecheckers/memberships/a-made-up-other-person":
+			_, _ = w.Write([]byte(`{"state": "active", "role": "admin"}`))
+		default:
+			http.Error(w, `{"message": "Not Found"}`, http.StatusNotFound)
+		}
+	})
+	client.Organisation = "codecheckers"
+	ctx := context.Background()
+
+	invited, err := client.OrganisationMembership(ctx, "codecheckers", "a-made-up-registrant")
+	if err != nil || !invited.Invited() || invited.Joined() || invited.Owner() {
+		t.Errorf("pending: %+v, %v", invited, err)
+	}
+	owner, err := client.OrganisationMembership(ctx, "codecheckers", "a-made-up-other-person")
+	if err != nil || !owner.Joined() || !owner.Owner() {
+		t.Errorf("active owner: %+v, %v", owner, err)
+	}
+	none, err := client.OrganisationMembership(ctx, "codecheckers", "a-codechecker")
+	if err != nil || none != (Invitation{}) {
+		t.Errorf("404 is no invitation, not a failure: %+v, %v", none, err)
+	}
+	if _, err := client.OrganisationMembership(ctx, "elsewhere", "a-codechecker"); err == nil {
+		t.Error("read another organisation")
+	}
+	if _, err := client.OrganisationMembership(ctx, "codecheckers", "../x"); err == nil {
+		t.Error("read a handle that is not one")
+	}
+	for _, request := range asked {
+		if !strings.HasPrefix(request, "GET ") {
+			t.Errorf("wrote %s", request)
+		}
+	}
+	if len(asked) != 3 {
+		t.Errorf("asked %q", asked)
+	}
+}

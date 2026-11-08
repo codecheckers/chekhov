@@ -64,7 +64,11 @@ On the codechecker lists,
 the bot answers a registration as a codechecker: when the issue is opened, and
 again on `@chekhovbot include check`, it says what the row still needs - the
 columns, the ORCID, a way to reach the person besides GitHub, and whether they
-are listed already. It answers nothing else there.
+are listed already. `@chekhovbot include`, for editors, then opens the pull
+request adding the row to `codecheckers.csv` and checks the organisation's side:
+it asks the owners to invite somebody it sees no invitation for, says when one
+is waiting to be accepted, and puts a member in the codecheckers team. It
+answers nothing else there.
 `@chekhovbot check register` builds the row the check would get in
 `register.csv` - from the issue's Repository line and labels, or what an editor
 set with `repository set` and `venue set` - and runs the rules on it before

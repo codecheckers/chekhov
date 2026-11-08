@@ -202,7 +202,7 @@ func TestRepliesNameOnlyCommandsThatExist(t *testing.T) {
 		Checklist(), ReadingReply("github::codecheckers/demo"),
 		RowIncomplete(Row{}), CertificateMismatch("1970-001", "1970-002"),
 		RowSet(Holders{Venue: "codecheck"}, "nuest"),
-		NoPullRequest(), AlreadyRegistered("1970-001"), BranchNotOurs("1970-001"),
+		NoPullRequest(), AlreadyRegistered("1970-001"), BranchNotOurs("register-1970-001"),
 		PullRequestFailed(FailureOther), PullRequestFailed(FailureRefused), PullRequestFailed(FailureLimited),
 		PullRequestBody(Row{}, 1, "nuest"),
 	}
