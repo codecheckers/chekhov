@@ -206,13 +206,10 @@ func IncludeOutsideReply(request OutsideRequest) string {
 	var out strings.Builder
 	out.WriteString(Item(fmt.Sprintf("✖ %s is not in the `%s` organisation, and I see no invitation for them.",
 		mention(request.Handle), request.Organisation)))
-	if request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation, as a member. "+
+	// An invitation out would have been seen: GitHub shows the bot a pending
+	// one (#49), so this asks only when there is none.
+	request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation, as a member. "+
 		"Once they accept, `%s %s` again puts them in `%s/%s`.",
-		request.Handle, Bot, Include, request.Organisation, request.Team)) {
-		// Whether GitHub shows an invitation to a bot that is not an owner is
-		// not certain; said, so that an owner who did invite is not left
-		// wondering.
-		out.WriteString("\nIf an invitation is out already, it is waiting for them to accept it.\n")
-	}
+		request.Handle, Bot, Include, request.Organisation, request.Team))
 	return out.String()
 }

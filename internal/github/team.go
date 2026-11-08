@@ -402,8 +402,9 @@ func (c *Client) OrganisationMembership(ctx context.Context, organisation, handl
 	case err == nil:
 		return invitation, nil
 	case httpretry.IsStatus(err, http.StatusNotFound):
-		// Neither a member nor invited - as far as this token can see: GitHub
-		// may show an invitation to owners only.
+		// Neither a member nor invited. A pending invitation is shown to a
+		// member that is not an owner - the bot - as `pending`: seen with the
+		// production token on 2026-11-08 (#49).
 		return Invitation{}, nil
 	default:
 		return Invitation{}, fmt.Errorf("could not read whether `@%s` is in %s: %w", handle, organisation, err)
