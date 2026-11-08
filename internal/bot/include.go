@@ -57,6 +57,22 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 	if !ok {
 		return command.NotFromHere("open a pull request")
 	}
+	// A pull request already adding the row is the one to merge, whoever
+	// opened it: an editor's, opened by hand from a branch of their own, is
+	// not opened a second time beside. The bot's own is brought up to date
+	// below, as asking again always did. Could not tell is the old path: the
+	// bot's branch is still fenced by name.
+	open, err := s.openRowPullRequest(ctx, event, row.Login())
+	switch {
+	case err != nil:
+		// Not knowing whether an editor's pull request is there is not a
+		// reason to open a second one beside it.
+		s.Logger.Warn("could not read the open pull requests of the lists", "issue", event.Issue, "error", err)
+		return command.Item(command.NotDone("tell whether a pull request already adds the row, so I have opened none",
+			whyNot(err)))
+	case open.Number != 0 && open.By != "":
+		return command.ListPullRequestBySomebody(file, open.Number, open.By)
+	}
 	pull, err := writer.ProposeRow(ctx, event.Repository, github.RowProposal{
 		Row: row.Cells(),
 		// Defused as the body is: the name is the registrant's own text.
@@ -67,6 +83,10 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 	switch {
 	case errors.Is(err, github.ErrRowExists):
 		return command.AlreadyListed(row.Login(), file)
+	case errors.Is(err, github.ErrBranchNotOurs) && open.Number != 0:
+		// Somebody's commits on the bot's branch, and its pull request open:
+		// theirs to finish, which may have changed the row.
+		return command.ListBranchWorkedOn(pull.Branch, open.Number)
 	case errors.Is(err, github.ErrBranchNotOurs):
 		return command.ListBranchNotOurs(pull.Branch)
 	case err != nil:
@@ -229,6 +249,17 @@ type RowPullRequests interface {
 
 var _ RowPullRequests = (*github.Client)(nil)
 
+// openRowPullRequest is the pull request open to add the row, anybody's, the
+// zero one for none - or for a reply path that cannot tell, which only the
+// bot's own branch fences then.
+func (s *Server) openRowPullRequest(ctx context.Context, event mention, login string) (github.RowPullRequest, error) {
+	reader, ok := s.Lists.(RowPullRequests)
+	if !ok {
+		return github.RowPullRequest{}, nil
+	}
+	return reader.OpenRowPullRequest(ctx, event.Repository, login)
+}
+
 // noRowPullRequest is the one thing left being the row: quiet while its pull
 // request is open and waiting for an editor, and said when there is none to
 // merge - `include` could not open it, or it was closed unmerged - every
@@ -243,6 +274,8 @@ func (s *Server) noRowPullRequest(ctx context.Context, event mention, record fol
 	if !ok {
 		return answered{}, true, errors.New("this deployment cannot read the pull requests of the lists")
 	}
+	// Anybody's: an editor's pull request, opened by hand, is as good as the
+	// bot's.
 	pull, err := reader.OpenRowPullRequest(ctx, event.Repository, record.Subject)
 	if err != nil {
 		return answered{}, true, err

@@ -179,23 +179,32 @@ func listed(row Row, lists []List) []Finding {
 				"I could not read %s to see whether you are on it already (%s).", code(list.name()), list.Err))
 			continue
 		}
+		// The row with their handle if there is one, and only then one with
+		// their ORCID: a list that drifted can hold both, and the registrant's
+		// own row is the one that says they are listed.
+		var match map[string]string
 		for _, existing := range list.Rows {
-			same := sameLogin(existing, row.Handle) ||
-				row.ORCID != "" && strings.EqualFold(check.ORCIDDigits(existing["ORCID"]), row.ORCID)
-			if !same {
-				continue
+			if sameLogin(existing, row.Handle) {
+				match = existing
+				break
 			}
+			if match == nil && row.ORCID != "" && strings.EqualFold(check.ORCIDDigits(existing["ORCID"]), row.ORCID) {
+				match = existing
+			}
+		}
+		if existing := match; existing != nil {
 			if list.name() == RegistrationList {
 				onIt := failed("You are on %s already, as %s. If something "+
 					"there has changed, an editor can correct the row.", code(list.name()),
 					code(strings.TrimSpace(existing["name"])))
-				onIt.listed = true
+				// By handle only: the same ORCID under another handle is a
+				// row an editor has to look at, not this registration listed.
+				onIt.listed = sameLogin(existing, row.Handle)
 				findings = append(findings, onIt)
 			} else {
 				findings = append(findings, finding(Note,
 					"You are on %s already, which is fine: that list is kept separately.", code(list.name())))
 			}
-			break
 		}
 	}
 	return findings

@@ -135,6 +135,25 @@ func ListPullRequestOpened(file string, number int, updated, unchanged bool) str
 	return Item(fmt.Sprintf("✔ %s `%s`: #%d. An editor merges it.", did, file, number))
 }
 
+// ListPullRequestBySomebody is a pull request already open to add the row,
+// opened by somebody else - by hand, on a branch of their own - or with their
+// commits on the bot's branch: the one to merge, and no second one opened.
+func ListPullRequestBySomebody(file string, number int, by string) string {
+	who := "somebody else"
+	if by != "" {
+		who = mention(by)
+	}
+	return Item(fmt.Sprintf("✔ #%d, by %s, already adds the row to `%s`, so I have opened no second "+
+		"pull request. An editor merges it.", number, who, file))
+}
+
+// ListBranchWorkedOn is the bot's branch with somebody else's commits on it
+// and its pull request open: theirs to finish, and left alone.
+func ListBranchWorkedOn(branch string, number int) string {
+	return Item(fmt.Sprintf("… #%d, on `%s`, has commits that are not mine, so I have left it alone: "+
+		"whoever is working on it finishes it, and an editor merges it.", number, branch))
+}
+
 // AlreadyListed is somebody the list has a row for already: their pull
 // request merged, or the row there before. Not a failure of `include`, which
 // goes on to the organisation.

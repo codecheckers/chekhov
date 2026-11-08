@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-09
+
+### Added
+
+- `include` and the sweep find a pull request already open to add the
+  registrant's row, whoever opened it and from whichever branch: `include`
+  opens no second one beside an editor's - nor any, when it cannot tell - and
+  the sweep does not call such a row missing. Somebody's commits on the bot's
+  branch are left for them to finish (#49).
+
+### Fixed
+
+- The same ORCID on the list under another handle no longer counts as the
+  registrant being listed already; `include` waits for an editor to look at
+  that row (#49).
+
 ## [0.31.0] - 2026-11-08
 
 ### Added

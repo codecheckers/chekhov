@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/codecheckers/chekhov/internal/httpretry"
@@ -109,6 +108,9 @@ type RowPullRequest struct {
 	// Branch is the branch the row is on, or would have been on: named also
 	// with ErrBranchNotOurs, so that the refusal says which.
 	Branch string `json:"-"`
+	// By is who opened a pull request somebody else opened, found by
+	// OpenRowPullRequest; empty for the bot's own.
+	By string `json:"-"`
 }
 
 // ErrRowExists is a key - a certificate, a handle - the default branch's file
@@ -263,9 +265,9 @@ func withRow(text string, file RowFile, row map[string]string) (string, error) {
 	for i, column := range records[0] {
 		header[i] = strings.TrimSpace(strings.TrimPrefix(column, "\ufeff"))
 	}
-	at := slices.Index(header, file.key)
-	if at < 0 {
-		return "", fmt.Errorf("the file has no %s column", file.key)
+	at, err := columnIn(header, file.key)
+	if err != nil {
+		return "", err
 	}
 	for _, record := range records[1:] {
 		if at < len(record) && file.sameKey(record[at], row[file.key]) {
@@ -407,9 +409,18 @@ func (c *Client) openPull(ctx context.Context, api, repository, defaultBranch, b
 }
 
 // OpenRowPullRequest is the pull request open to add the row with this key -
-// a certificate, a handle - the zero one when there is none: never opened,
-// or closed without being merged. A read only, which is how the sweep tells
-// a row waiting for an editor from one nobody is going to merge (#49).
+// a certificate, a handle - whoever opened it, the zero one when there is
+// none: never opened, or closed without being merged. A read only, which is
+// how `include` keeps from opening a second pull request beside an editor's,
+// and how the sweep tells a row waiting for an editor from one nobody is
+// going to merge (#49).
+//
+// The bot's own branch is asked first, by name. Then every other pull
+// request open into the default branch is read for a line it adds to the
+// file whose key column is this key: an editor who opened one by hand named
+// the branch as they liked. The lists have few open pull requests, so this is
+// a read per pull request rather than a search, and it reads what the pull
+// request changes rather than what its title says.
 func (c *Client) OpenRowPullRequest(ctx context.Context, repository, key string) (RowPullRequest, error) {
 	if err := c.mine(repository, "read the pull requests"); err != nil {
 		return RowPullRequest{}, err
@@ -427,8 +438,99 @@ func (c *Client) OpenRowPullRequest(ctx context.Context, repository, key string)
 	}
 	branch := file.branchFor(map[string]string{file.key: key})
 	pull, err := c.openPull(ctx, api, repository, about.DefaultBranch, branch)
-	pull.Branch = branch
-	return pull, err
+	if err != nil || pull.Number != 0 {
+		pull.Branch = branch
+		return pull, err
+	}
+
+	text, err := c.fileAt(ctx, api, file.path, about.DefaultBranch)
+	if err != nil {
+		return RowPullRequest{}, err
+	}
+	at, err := keyColumn(text, file.key)
+	if err != nil {
+		return RowPullRequest{}, err
+	}
+	type openPull struct {
+		RowPullRequest
+		Head struct {
+			Ref string `json:"ref"`
+		} `json:"head"`
+		User struct {
+			Login string `json:"login"`
+		} `json:"user"`
+	}
+	var open []openPull
+	err = paged(ctx, c, "reading the open pull requests of "+repository,
+		api+"/pulls?state=open&per_page=100&base="+url.QueryEscape(about.DefaultBranch), 100,
+		func(batch []openPull) { open = append(open, batch...) })
+	if err != nil {
+		return RowPullRequest{}, err
+	}
+	for _, candidate := range open {
+		var files []struct {
+			Filename string `json:"filename"`
+			Patch    string `json:"patch"`
+		}
+		// One that cannot be read - closed since the listing, say - is not
+		// the one, and must not hide the one that is.
+		if err := c.read(ctx, fmt.Sprintf("%s/pulls/%d/files?per_page=100", api, candidate.Number), &files); err != nil {
+			continue
+		}
+		for _, changed := range files {
+			if changed.Filename == file.path && file.adds(changed.Patch, at, key) {
+				found := candidate.RowPullRequest
+				found.Branch, found.By = candidate.Head.Ref, candidate.User.Login
+				if strings.EqualFold(found.By, c.Account) {
+					// The bot's own, on a branch named some other way.
+					found.By = ""
+				}
+				return found, nil
+			}
+		}
+	}
+	return RowPullRequest{}, nil
+}
+
+// keyColumn is where the key is in the file's header.
+func keyColumn(text, key string) (int, error) {
+	reader := csv.NewReader(strings.NewReader(text))
+	reader.Comment = '#'
+	reader.FieldsPerRecord = -1
+	header, err := reader.Read()
+	if err != nil {
+		return 0, fmt.Errorf("the file has no header I can read: %w", err)
+	}
+	return columnIn(header, key)
+}
+
+// columnIn is where a column is in a header, a byte-order mark and spaces
+// aside.
+func columnIn(header []string, key string) (int, error) {
+	for i, column := range header {
+		if strings.TrimSpace(strings.TrimPrefix(column, "\ufeff")) == key {
+			return i, nil
+		}
+	}
+	return 0, fmt.Errorf("the file has no %s column", key)
+}
+
+// adds reports whether a diff adds a line whose key column, at, is this key.
+// A line that is not CSV is nobody's row.
+func (f RowFile) adds(patch string, at int, key string) bool {
+	for _, line := range strings.Split(patch, "\n") {
+		added, ok := strings.CutPrefix(line, "+")
+		if !ok || strings.HasPrefix(line, "+++") {
+			continue
+		}
+		reader := csv.NewReader(strings.NewReader(added))
+		reader.FieldsPerRecord = -1
+		fields, err := reader.Read()
+		if err == nil && at < len(fields) && f.sameKey(fields[at], key) {
+			return true
+		}
+	}
+	return false
 }
 
 // pullRequest opens the pull request, or updates the one that is open.

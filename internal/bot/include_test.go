@@ -21,6 +21,14 @@ type listWriter struct {
 	recorder
 	proposed []github.RowProposal
 	refuse   error
+	// open is a pull request already adding the row, by somebody else
+	// when its By is set.
+	open    github.RowPullRequest
+	openErr error
+}
+
+func (l *listWriter) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
+	return l.open, l.openErr
 }
 
 func (l *listWriter) ProposeRow(_ context.Context, repository string, proposal github.RowProposal) (github.RowPullRequest, error) {
@@ -264,12 +272,12 @@ type listsThread struct {
 	listWriter
 	thread []github.Comment
 	closed []int
-	// open is the number of the row's pull request still open, 0 for none.
-	open int
+	// pending is the number of the row's pull request still open, 0 for none.
+	pending int
 }
 
 func (l *listsThread) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
-	return github.RowPullRequest{Number: l.open}, nil
+	return github.RowPullRequest{Number: l.pending}, nil
 }
 
 func (l *listsThread) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
@@ -443,14 +451,14 @@ func TestTheSweepSaysATeamProblemEveryThreeDaysAtMost(t *testing.T) {
 func TestTheSweepSaysWhenNoPullRequestWillAddTheRow(t *testing.T) {
 	server, org, lists := sweepingLists(t, 4*day, "")
 	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
-	lists.open = 12
+	lists.pending = 12
 	before := lists.count()
 	server.nudge(context.Background())
 	if lists.count() != before {
 		t.Errorf("said something with the pull request open:\n%s", lists.last())
 	}
 
-	lists.open = 0
+	lists.pending = 0
 	server.nudge(context.Background())
 	says(t, lists.last(), "no pull request is open to add the row", "`@chekhovbot include` opens it again")
 	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
@@ -461,5 +469,49 @@ func TestTheSweepSaysWhenNoPullRequestWillAddTheRow(t *testing.T) {
 	server.nudge(context.Background())
 	if lists.count() != said {
 		t.Errorf("said it again the same night:\n%s", lists.last())
+	}
+}
+
+// A pull request somebody opened by hand already adds the row: it is the one
+// to merge, and no second one is opened beside it. The organisation's half
+// goes on as ever.
+func TestIncludeLeavesAPullRequestOpenedByHandAlone(t *testing.T) {
+	server, org, lists := including(t)
+	org.members[madeUpRegistrar] = true
+	lists.open = github.RowPullRequest{Number: 41, By: "a-made-up-other-person", Branch: "add-josiah"}
+
+	reply := includeBy(t, server, lists, "nuest")
+	says(t, reply, "#41, by `@a-made-up-other-person`, already adds the row", "I have put `@a-made-up-registrant`")
+	if len(lists.proposed) != 0 {
+		t.Errorf("opened a second pull request: %+v", lists.proposed)
+	}
+}
+
+// The bot's own pull request open is brought up to date, as asking again
+// always did; with somebody's commits on its branch, it is theirs, and said
+// to be on its way rather than refused.
+func TestIncludeWithItsOwnPullRequestOpen(t *testing.T) {
+	server, _, lists := including(t)
+	lists.open = github.RowPullRequest{Number: 12, Branch: "codechecker-a-made-up-registrant"}
+	includeBy(t, server, lists, "nuest")
+	if len(lists.proposed) != 1 {
+		t.Errorf("did not bring its own pull request up to date: %+v", lists.proposed)
+	}
+
+	server, _, lists = including(t)
+	lists.open = github.RowPullRequest{Number: 12, Branch: "codechecker-a-made-up-registrant"}
+	lists.refuse = github.ErrBranchNotOurs
+	says(t, includeBy(t, server, lists, "nuest"),
+		"#12, on `codechecker-a-made-up-registrant`, has commits that are not mine, so I have left it alone")
+}
+
+// Not knowing whether a pull request already adds the row is no reason to
+// open a second one beside it.
+func TestIncludeOpensNoPullRequestWhenItCannotTellWhetherOneIsOpen(t *testing.T) {
+	server, _, lists := including(t)
+	lists.openErr = errors.New("GitHub is having a bad day")
+	says(t, includeBy(t, server, lists, "nuest"), "✖ I could not tell whether a pull request already adds the row")
+	if len(lists.proposed) != 0 {
+		t.Errorf("opened a pull request blind: %+v", lists.proposed)
 	}
 }

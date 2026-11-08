@@ -32,6 +32,15 @@ type fakeRegister struct {
 	// file is the one file the fake repository holds, register.csv unless
 	// a test says otherwise.
 	file string
+	// byHand are pull requests somebody opened from a branch of their own,
+	// with the patch each makes to the file.
+	byHand []handMade
+}
+
+type handMade struct {
+	number      int
+	head, user  string
+	file, patch string
 }
 
 type fakeCommit struct {
@@ -125,6 +134,26 @@ func (f *fakeRegister) handler(w http.ResponseWriter, r *http.Request) {
 			commits = append(commits, fmt.Sprintf(`{"author": {"login": %q}, "parents": %s}`, f.commits[sha].author, parents))
 		}
 		fmt.Fprintf(w, `{"commits": [%s]}`, strings.Join(commits, ","))
+	case path == "/pulls" && r.Method == http.MethodGet && r.URL.Query().Get("head") == "":
+		var open []string
+		for _, pull := range f.byHand {
+			open = append(open, fmt.Sprintf(`{"number": %d, "head": {"ref": %q}, "user": {"login": %q}}`,
+				pull.number, pull.head, pull.user))
+		}
+		fmt.Fprintf(w, `[%s]`, strings.Join(open, ","))
+	case strings.HasPrefix(path, "/pulls/") && strings.HasSuffix(path, "/files") && r.Method == http.MethodGet:
+		if path == "/pulls/400/files" {
+			// Closed between the listing and the read.
+			http.Error(w, `{"message": "Not Found"}`, http.StatusNotFound)
+			return
+		}
+		for _, pull := range f.byHand {
+			if path == fmt.Sprintf("/pulls/%d/files", pull.number) {
+				fmt.Fprintf(w, `[{"filename": %q, "patch": %q}]`, pull.file, pull.patch)
+				return
+			}
+		}
+		fmt.Fprint(w, `[]`)
 	case path == "/pulls" && r.Method == http.MethodGet:
 		head := strings.TrimPrefix(r.URL.Query().Get("head"), "codecheckers:")
 		if number, found := f.pulls[head]; found && r.URL.Query().Get("base") == "main" {
@@ -448,5 +477,41 @@ func TestTheOpenRowPullRequestIsFoundByItsKey(t *testing.T) {
 	}
 	if _, err := client.OpenRowPullRequest(context.Background(), "codecheckers/register", "x"); err == nil {
 		t.Error("read another repository's pull requests")
+	}
+}
+
+// A pull request somebody opened by hand, from a branch of their own, is found
+// by the row it adds: by its key column, in any case, with or without the @ -
+// and one that adds somebody else, or only names them elsewhere in the line,
+// is not it (#49).
+func TestAnOpenRowPullRequestOpenedByHandIsFound(t *testing.T) {
+	fake, client := listing(t)
+	fake.byHand = []handMade{
+		{number: 400, head: "gone", user: "a-made-up-other-person"},
+		{number: 401, head: "add-somebody", user: "a-made-up-other-person", file: "codecheckers.csv",
+			patch: "@@ -1,2 +1,3 @@\n name,handle\n+Somebody,@a-made-up-other-person,0000-0000-0000-0009,a-made-up-registrant,,,,,\n"},
+		{number: 402, head: "elsewhere", user: "a-made-up-other-person", file: "institutional-codecheckers.csv",
+			patch: "+Josiah Carberry,@a-made-up-registrant,,,,,,,\n"},
+		{number: 403, head: "add-josiah", user: "a-made-up-other-person", file: "codecheckers.csv",
+			patch: "@@ -2 +2,2 @@\n+Josiah Carberry,A-Made-Up-Registrant,0000-0002-1825-0097,x,,,,,\n"},
+	}
+	open, err := client.OpenRowPullRequest(context.Background(), "codecheckers/testing-dev-register", "@a-made-up-registrant")
+	if err != nil || open.Number != 403 || open.By != "a-made-up-other-person" || open.Branch != "add-josiah" {
+		t.Errorf("open = %+v, %v", open, err)
+	}
+	if writes := fake.writes(); len(writes) != 0 {
+		t.Errorf("a read wrote: %q", writes)
+	}
+}
+
+// One the bot opened itself, on a branch named some other way, is its own and
+// not somebody else's.
+func TestAnOpenRowPullRequestByTheBotIsItsOwn(t *testing.T) {
+	fake, client := listing(t)
+	fake.byHand = []handMade{{number: 404, head: "codechecker-old-name", user: "chekhovbot", file: "codecheckers.csv",
+		patch: "+Josiah Carberry,@a-made-up-registrant,,,,,,,\n"}}
+	open, err := client.OpenRowPullRequest(context.Background(), "codecheckers/testing-dev-register", "a-made-up-registrant")
+	if err != nil || open.Number != 404 || open.By != "" {
+		t.Errorf("open = %+v, %v", open, err)
 	}
 }

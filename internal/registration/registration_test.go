@@ -251,6 +251,11 @@ func TestSomebodyListedAlreadyIsNotListedTwice(t *testing.T) {
 	if report.Complete() || !strings.Contains(texts(report.Findings), "on `codecheckers.csv` already") {
 		t.Errorf("listed by ORCID: %+v", report.Findings)
 	}
+	// Under another handle, so not this registration listed: `include` is
+	// held up until an editor has looked at that row.
+	if report.Listed() || report.Includable() {
+		t.Errorf("the same ORCID under another handle counts as listed: %+v", report.Findings)
+	}
 
 	// On another list is not a reason to refuse, and is said.
 	elsewhere := world()
@@ -289,5 +294,19 @@ func TestTheListsAreReadOnlyForARow(t *testing.T) {
 	}
 	if report := Check(context.Background(), "I would like to register.", asked); report.Complete() {
 		t.Error("an issue without a row is complete")
+	}
+}
+
+// A list that drifted holds the same ORCID twice: the registrant's own row,
+// by handle, is the one that says they are listed, wherever it is.
+func TestTheRegistrantsOwnRowWinsOverAnOlderOneWithTheirORCID(t *testing.T) {
+	drifted := world()
+	drifted.Lists = lists(List{URL: "https://example.invalid/codecheckers.csv", Table: check.Table{Rows: []map[string]string{
+		{"name": "J. Carberry", "handle": "@someone-renamed", "ORCID": carberry},
+		{"name": "Josiah Carberry", "handle": "@" + registrant, "ORCID": carberry},
+	}}})
+	report := Check(context.Background(), filed(t, validRow), drifted)
+	if !report.Listed() || !report.Includable() {
+		t.Errorf("the registrant's own row was not found: %+v", report.Findings)
 	}
 }
