@@ -567,3 +567,49 @@ func (c *Client) pullRequest(ctx context.Context, api, repository, defaultBranch
 	}
 	return created, nil
 }
+
+// RequestReview asks people to review a pull request adding a row, so that a
+// person confirms the row before it is merged (#49): an ORCID and a contact
+// address are somebody's identity. Only on a client that adds rows, only the
+// reviewers field, and never a merge - see registerWrite.
+func (c *Client) RequestReview(ctx context.Context, repository string, number int, reviewers []string) error {
+	if err := c.mine(repository, "request a review"); err != nil {
+		return err
+	}
+	if !c.Rows.writes() {
+		return refused("this client adds rows to no file, so it requests no reviews")
+	}
+	for _, reviewer := range reviewers {
+		if !IsHandle(reviewer) {
+			return fmt.Errorf("%q is not a GitHub handle", reviewer)
+		}
+	}
+	api := strings.TrimSuffix(c.BaseURL, "/") + "/repos/" + repository
+	return c.write(ctx, http.MethodPost, fmt.Sprintf("%s/pulls/%d/requested_reviewers", api, number),
+		map[string][]string{"reviewers": reviewers}, nil)
+}
+
+// Reviewed reports whether a pull request has a reviewer: one requested, or a
+// review given. A read only, so that a review request that failed is asked
+// again, and one that was given is not asked for twice (#49).
+func (c *Client) Reviewed(ctx context.Context, repository string, number int) (bool, error) {
+	if err := c.mine(repository, "read the reviews"); err != nil {
+		return false, err
+	}
+	api := fmt.Sprintf("%s/repos/%s/pulls/%d", strings.TrimSuffix(c.BaseURL, "/"), repository, number)
+	var requested struct {
+		Users []struct{} `json:"users"`
+		Teams []struct{} `json:"teams"`
+	}
+	if err := c.read(ctx, api+"/requested_reviewers", &requested); err != nil {
+		return false, err
+	}
+	if len(requested.Users)+len(requested.Teams) > 0 {
+		return true, nil
+	}
+	var reviews []struct{}
+	if err := c.read(ctx, api+"/reviews?per_page=1", &reviews); err != nil {
+		return false, err
+	}
+	return len(reviews) > 0, nil
+}

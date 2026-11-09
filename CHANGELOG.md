@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-09
+
+### Added
+
+- `include` asks the organisation's owners to review the pull request it
+  opens - never the registrant, who cannot confirm their own row - so that a
+  person confirms an ORCID and a contact before they are listed (#49).
+- A registration warns when the person is in the institutional team already
+  (#49).
+
+### Changed
+
+- Being on another list - the institutional or the agile one - is a warning
+  for an editor rather than a note: it holds nothing up, since somebody can
+  be in more than one group, and `include` repeats it (#49).
+
 ## [0.33.0] - 2026-11-09
 
 ### Added

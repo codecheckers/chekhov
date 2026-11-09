@@ -310,3 +310,24 @@ func TestTheRegistrantsOwnRowWinsOverAnOlderOneWithTheirORCID(t *testing.T) {
 		t.Errorf("the registrant's own row was not found: %+v", report.Findings)
 	}
 }
+
+// Another list, or the institutional team, is a warning and holds nothing up:
+// somebody can be in more than one group.
+func TestOtherGroupsAreWarnedAboutNotRefused(t *testing.T) {
+	other := world()
+	other.Institutional = "codecheckers/institutional-codecheckers"
+	other.InInstitutional = func(context.Context, string) bool { return true }
+	other.Lists = lists(List{URL: "https://example.invalid/institutional-codecheckers.csv",
+		Table: check.Table{Rows: []map[string]string{{"name": "Josiah Carberry", "handle": "@" + registrant}}}})
+	report := Check(context.Background(), filed(t, validRow), other)
+	warned := 0
+	for _, finding := range report.Findings {
+		if finding.Outcome == Warning && (strings.Contains(finding.Text, "institutional-codecheckers.csv") ||
+			strings.Contains(finding.Text, "`codecheckers/institutional-codecheckers`")) {
+			warned++
+		}
+	}
+	if warned != 2 || !report.Complete() {
+		t.Errorf("want two warnings and a complete registration: %+v", report.Findings)
+	}
+}

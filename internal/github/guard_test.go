@@ -346,3 +346,23 @@ func TestTheGuardOpensAnIssueOnlyForAClientThatOpens(t *testing.T) {
 	testGuard(t, client, guardCase{"opening an issue, allowed", http.MethodPost, issues, `{"title": "t"}`, true})
 	testGuard(t, client, guardCase{"changing the issues at once", http.MethodPatch, issues, `{}`, false})
 }
+
+// A review request gets through for a client that adds rows, with reviewers
+// and nothing else in it (#49).
+func TestTheGuardLetsAReviewRequestThroughAndNothingElse(t *testing.T) {
+	const repo = "https://api.github.com/repos/codecheckers/testing-dev-register"
+	client := guarded()
+	client.Rows = ListRows("codecheckers.csv")
+	for _, testCase := range []guardCase{
+		{"requesting reviewers", http.MethodPost, repo + "/pulls/8/requested_reviewers", `{"reviewers": ["nuest"]}`, true},
+		{"requesting a team", http.MethodPost, repo + "/pulls/8/requested_reviewers",
+			`{"reviewers": ["nuest"], "team_reviewers": ["editors"]}`, false},
+		{"removing reviewers", http.MethodDelete, repo + "/pulls/8/requested_reviewers", `{"reviewers": ["nuest"]}`, false},
+		{"approving", http.MethodPost, repo + "/pulls/8/reviews", `{"event": "APPROVE"}`, false},
+	} {
+		testGuard(t, client, testCase)
+	}
+	client.Rows = RowFile{}
+	testGuard(t, client, guardCase{"a client that adds no rows", http.MethodPost, repo + "/pulls/8/requested_reviewers",
+		`{"reviewers": ["nuest"]}`, false})
+}

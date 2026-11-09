@@ -118,6 +118,11 @@ func (c *Client) registerWrite(method string, segments []string, payload []byte)
 	case method == http.MethodPost && rest == "pulls":
 		var head string
 		return field("head", &head) && file.branch.MatchString(head)
+	// Asking for a review of one, by reviewers and nothing else (#49). Of any
+	// pull request in the repository: a review request changes nothing in it.
+	case method == http.MethodPost && reviewRequest.MatchString(rest):
+		_, reviewers := keys["reviewers"]
+		return reviewers && len(keys) == 1
 	// Which pull request a number names is not in the request; ProposeRow
 	// patches only the one it found by its row's branch and base.
 	case method == http.MethodPatch && pullNumber.MatchString(rest):
@@ -131,8 +136,12 @@ func (c *Client) registerWrite(method string, segments []string, payload []byte)
 	return false
 }
 
-// pullNumber is the path of one pull request: digits, no sign.
-var pullNumber = regexp.MustCompile(`^pulls/[0-9]+$`)
+// pullNumber is the path of one pull request: digits, no sign; reviewRequest
+// the reviewers requested on one.
+var (
+	pullNumber    = regexp.MustCompile(`^pulls/[0-9]+$`)
+	reviewRequest = regexp.MustCompile(`^pulls/[0-9]+/requested_reviewers$`)
+)
 
 // issueWrite is /repos/<the configured repository>/issues/..., which covers
 // every comment, label, assignee and title the bot writes. A DELETE reaches

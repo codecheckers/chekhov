@@ -40,6 +40,9 @@ func (s *Server) include(ctx context.Context, event mention) answered {
 
 	var out strings.Builder
 	out.WriteString(command.IncludeHeading(login))
+	// What holds nothing up and is still for an editor to see: another list,
+	// the institutional team.
+	out.WriteString(command.IncludeWarnings(report))
 	if report.Listed() {
 		// The pull request was merged, or the row was there before: the
 		// organisation's half is what is left to look at.
@@ -96,7 +99,62 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 		s.Logger.Warn("the list pull request could not be opened", "issue", event.Issue, "error", err)
 		return command.ListPullRequestFailed(failure(err))
 	}
-	return command.ListPullRequestOpened(file, pull.Number, pull.Updated, pull.Unchanged)
+	return command.ListPullRequestOpened(file, pull.Number, pull.Updated, pull.Unchanged) +
+		s.requestReview(ctx, event.Repository, pull.Number, row.Login())
+}
+
+// Reviewing is the part of the lists' reply path that asks for a review of
+// the pull request adding a row.
+type Reviewing interface {
+	RequestReview(ctx context.Context, repository string, number int, reviewers []string) error
+	Reviewed(ctx context.Context, repository string, number int) (bool, error)
+}
+
+var _ Reviewing = (*github.Client)(nil)
+
+// requestReview asks the owners to review the pull request: a person confirms
+// an ORCID and a contact before they are listed, and the bot never merges
+// (#49). The owners as the ask to invite reads them - the organisation's, or
+// in development the ones the settings name - and never the registrant, who
+// cannot confirm their own row.
+func (s *Server) requestReview(ctx context.Context, repository string, number int, registrant string) string {
+	reviewing, ok := s.Lists.(Reviewing)
+	if !ok {
+		return command.NotFromHere("ask for a review")
+	}
+	// Asked once: a pull request with a reviewer requested or a review given
+	// is not asked again - which also asks again for one whose first request
+	// failed, on the next `include`.
+	switch reviewed, err := reviewing.Reviewed(ctx, repository, number); {
+	case err != nil:
+		s.Logger.Warn("could not read the reviews of a pull request", "pull", number, "error", err)
+		return command.Item(command.NotDone("tell whether a review is asked for already, so I have asked nobody",
+			whyNot(err)))
+	case reviewed:
+		return ""
+	}
+	request, readable := s.ownersRequest(ctx, command.OutsideRequest{Organisation: s.Settings.TeamOrganisation()})
+	if !readable {
+		return command.NotFromHere("read who the owners are, to ask for a review")
+	}
+	if request.Unreadable != "" {
+		return command.Item(command.NotDone("read who the owners are, so I have asked nobody to review it",
+			request.Unreadable))
+	}
+	var reviewers []string
+	for _, owner := range request.Owners {
+		if !strings.EqualFold(owner, registrant) {
+			reviewers = append(reviewers, owner)
+		}
+	}
+	if len(reviewers) == 0 {
+		return command.NoReviewer(number)
+	}
+	if err := reviewing.RequestReview(ctx, repository, number, reviewers); err != nil {
+		s.Logger.Warn("could not request a review", "pull", number, "error", err)
+		return command.Item(command.NotDone("ask for a review", whyNot(err)))
+	}
+	return command.ReviewRequested(number, reviewers, request.Configured)
 }
 
 // organisationStep checks the owners' half and does the bot's: where the

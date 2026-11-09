@@ -127,6 +127,9 @@ test issues whose records name people. The sixth is
 opens on the lists for somebody who has joined - when an `assign` asked the
 owners for them, or an editor typed `include open` - naming the one person
 who has to answer it; in a test, a handle the test chose, so the maintainer's.
+The review `include` requests on its pull request notifies through GitHub
+rather than a mention, and goes to the same owners `OutsideReply` asks - so
+in development to `teams.owners` - and never to the registrant.
 `command.notifying` is the only function that writes a
 handle so that it notifies, and it is named to be hard to confuse with
 `command.mentions`, which writes one in backticks so that it does not.

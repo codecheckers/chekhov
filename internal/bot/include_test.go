@@ -25,6 +25,24 @@ type listWriter struct {
 	// when its By is set.
 	open    github.RowPullRequest
 	openErr error
+	// reviewers are the review requests, as "#N a,b", and reviewErr GitHub
+	// refusing one.
+	reviewers []string
+	reviewErr error
+}
+
+// Reviewed says a review was asked of somebody already.
+func (l *listWriter) Reviewed(_ context.Context, _ string, _ int) (bool, error) {
+	return len(l.reviewers) > 0, nil
+}
+
+// RequestReview records whom a review was asked of.
+func (l *listWriter) RequestReview(_ context.Context, _ string, number int, reviewers []string) error {
+	if l.reviewErr != nil {
+		return l.reviewErr
+	}
+	l.reviewers = append(l.reviewers, fmt.Sprintf("#%d %s", number, strings.Join(reviewers, ",")))
+	return nil
 }
 
 func (l *listWriter) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
@@ -129,7 +147,7 @@ func TestIncludeSeesAnInvitationWaiting(t *testing.T) {
 
 	reply := includeBy(t, server, lists, "nuest")
 	says(t, reply, "has been invited to `codecheckers` and has not accepted yet")
-	saysNot(t, reply, "@an-owner")
+	saysNot(t, reply, "@an-owner and @another-owner —")
 	if len(org.added) != 0 {
 		t.Errorf("put somebody who has not accepted in a team: %q", org.added)
 	}
@@ -143,7 +161,7 @@ func TestIncludePutsAMemberInTheTeam(t *testing.T) {
 
 	reply := includeBy(t, server, lists, "nuest")
 	says(t, reply, "I have put `@a-made-up-registrant` in `codecheckers/codecheckers`")
-	saysNot(t, reply, "@an-owner", "is an owner")
+	saysNot(t, reply, "@an-owner and @another-owner —", "is an owner")
 	if strings.Join(org.added, ",") != madeUpRegistrar {
 		t.Errorf("added %q", org.added)
 	}
@@ -528,4 +546,59 @@ func TestIncludeOpensNoPullRequestWhenItCannotTellWhetherOneIsOpen(t *testing.T)
 	if len(lists.proposed) != 0 {
 		t.Errorf("opened a pull request blind: %+v", lists.proposed)
 	}
+}
+
+// A pull request the bot opened is reviewed by the owners - never by the
+// registrant, who cannot confirm their own row - and asked for once: one
+// brought up to date is not asked again.
+func TestIncludeAsksTheOwnersToReviewThePullRequest(t *testing.T) {
+	server, org, lists := including(t)
+	org.owners = []string{"an-owner", madeUpRegistrar}
+	says(t, includeBy(t, server, lists, "nuest"), "✔ Asked `@an-owner` to review #12 before it is merged")
+	if strings.Join(lists.reviewers, ";") != "#12 an-owner" {
+		t.Errorf("reviews asked: %q", lists.reviewers)
+	}
+
+	includeBy(t, server, lists, "nuest")
+	if len(lists.reviewers) != 1 {
+		t.Errorf("asked again for a pull request brought up to date: %q", lists.reviewers)
+	}
+
+	server, org, lists = including(t)
+	org.owners = []string{madeUpRegistrar}
+	says(t, includeBy(t, server, lists, "nuest"), "The only owner I could ask to review #12 is the registrant")
+	if len(lists.reviewers) != 0 {
+		t.Errorf("asked the registrant: %q", lists.reviewers)
+	}
+}
+
+// Somebody in the institutional team, or on another list, is warned about
+// and included all the same: being in more than one group is possible.
+func TestIncludeWarnsAboutTheInstitutionalTeamAndOtherLists(t *testing.T) {
+	server, _, lists := including(t)
+	server.Teams.Reader = teamList{
+		server.Settings.EditorsTeam():       {"nuest"},
+		server.Settings.CodecheckersTeam():  {"nuest"},
+		server.Settings.InstitutionalTeam(): {madeUpRegistrar},
+	}
+	server.Teams.Refresh(context.Background())
+	reply := includeBy(t, server, lists, "nuest")
+	says(t, reply, "- ⚠ You are in `codecheckers/institutional-codecheckers` already",
+		"Opened the pull request adding the row")
+	if len(lists.proposed) != 1 {
+		t.Errorf("a warning held the row up: %+v", lists.proposed)
+	}
+}
+
+// A review request that failed is asked again on the next `include`, and the
+// configured list is said to be the configured one.
+func TestIncludeAsksAgainForAReviewThatFailed(t *testing.T) {
+	server, _, lists := including(t)
+	lists.reviewErr = errors.New("GitHub is having a bad day")
+	says(t, includeBy(t, server, lists, "nuest"), "✖ I could not ask for a review")
+
+	lists.reviewErr = nil
+	server.Settings.Chekhov.Teams.Owners = []string{"an-owner"}
+	says(t, includeBy(t, server, lists, "nuest"),
+		"✔ Asked `@an-owner` to review #12 before it is merged - the people this deployment is configured to ask")
 }

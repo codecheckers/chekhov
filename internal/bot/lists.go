@@ -93,14 +93,21 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 // codecheckers team and the lists as they are now.
 func (s *Server) registrationWorld(author string) registration.World {
 	services := s.Services.Fresh()
-	team := s.Settings.CodecheckersTeam()
-	return registration.World{
+	team, institutional := s.Settings.CodecheckersTeam(), s.Settings.InstitutionalTeam()
+	world := registration.World{
 		Author: author,
 		ORCID:  services.ORCIDProfile,
 		Team:   s.Settings.TeamOrganisation() + "/" + team,
 		InTeam: func(ctx context.Context, login string) bool { return s.Teams.Has(ctx, team, login) },
 		Lists:  func() []registration.List { return s.readLists(services, s.Settings.ListFiles()...) },
 	}
+	if institutional != "" {
+		world.Institutional = s.Settings.TeamOrganisation() + "/" + institutional
+		world.InInstitutional = func(ctx context.Context, login string) bool {
+			return s.Teams.Has(ctx, institutional, login)
+		}
+	}
+	return world
 }
 
 // readLists reads the codechecker lists as they are now, each with why it

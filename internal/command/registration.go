@@ -104,6 +104,21 @@ func IncludeIncomplete(report registration.Report, inComment bool) string {
 	return out.String()
 }
 
+// IncludeWarnings are a registration's warnings, as items of the reply to
+// `include`: nothing that holds it up, and something the editor merging the
+// row should know - another list, the institutional team.
+func IncludeWarnings(report registration.Report) string {
+	var warnings []registration.Finding
+	for _, finding := range report.Findings {
+		if finding.Outcome == registration.Warning {
+			warnings = append(warnings, finding)
+		}
+	}
+	var out strings.Builder
+	writeFindings(&out, warnings)
+	return out.String()
+}
+
 // ListPullRequestTitle is the title of the pull request adding somebody to
 // the list. Their name, not their handle: a handle in a title reads as a
 // mention, and the handle is in the row.
@@ -154,6 +169,25 @@ func ListPullRequestBySomebody(file string, number int, by string) string {
 func ListBranchWorkedOn(branch string, number int) string {
 	return Item(fmt.Sprintf("… #%d, on `%s`, has commits that are not mine, so I have left it alone: "+
 		"whoever is working on it finishes it, and an editor merges it.", number, branch))
+}
+
+// ReviewRequested says who was asked to review the pull request. In
+// backticks: GitHub's own review request is what notifies them.
+//
+// configured says the reviewers are the ones the settings name rather than
+// the organisation's owners, which is said, as OutsideReply says it.
+func ReviewRequested(number int, reviewers []string, configured bool) string {
+	whose := ""
+	if configured {
+		whose = " - the people this deployment is configured to ask, not the organisation's owners"
+	}
+	return Item(fmt.Sprintf("✔ Asked %s to review #%d before it is merged%s.", mentions(reviewers), number, whose))
+}
+
+// NoReviewer is a pull request with nobody to review it but the registrant.
+func NoReviewer(number int) string {
+	return Item(fmt.Sprintf("… The only owner I could ask to review #%d is the registrant, who cannot confirm "+
+		"their own row, so I have asked nobody: an editor reviews it.", number))
 }
 
 // AlreadyListed is somebody the list has a row for already: their pull

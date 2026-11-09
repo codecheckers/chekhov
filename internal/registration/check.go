@@ -28,6 +28,12 @@ type World struct {
 	// changes nothing else.
 	Team   string
 	InTeam func(ctx context.Context, login string) bool
+	// Institutional is the institutional codecheckers' team, and
+	// InInstitutional whether somebody is in it. Being there as well is
+	// possible - somebody checks for an institution and on the open list -
+	// so it is a warning for an editor to look at, never a refusal.
+	Institutional   string
+	InInstitutional func(ctx context.Context, login string) bool
 	// Lists reads the codechecker lists. Asked only once a row was found:
 	// a first attempt often has none, and three downloads would answer
 	// nothing then.
@@ -45,6 +51,15 @@ func (l List) name() string { return path.Base(l.URL) }
 // Holds reports whether the list has a row for a login, its @ and case aside.
 func (l List) Holds(handle string) bool {
 	return slices.ContainsFunc(l.Rows, func(row map[string]string) bool { return sameLogin(row, handle) })
+}
+
+// nameOf is how a row of a list names somebody: its name, or its handle when
+// the name is empty.
+func nameOf(row map[string]string) string {
+	if name := strings.TrimSpace(row["name"]); name != "" {
+		return name
+	}
+	return strings.TrimSpace(row["handle"])
 }
 
 // sameLogin reports whether a row of a list is somebody's, by handle.
@@ -112,6 +127,11 @@ func Check(ctx context.Context, body string, world World) Report {
 	report.Findings = append(report.Findings, orcid(ctx, report.Row, world)...)
 	if world.Lists != nil {
 		report.Findings = append(report.Findings, listed(report.Row, world.Lists())...)
+	}
+	if world.Institutional != "" && world.InInstitutional != nil && world.InInstitutional(ctx, report.Row.Login()) {
+		report.Findings = append(report.Findings, warning("You are in %s already, the institutional "+
+			"codecheckers' team. Being in both is possible; an editor will check that both are meant.",
+			code(world.Institutional)))
 	}
 	if world.InTeam != nil && world.InTeam(ctx, report.Row.Login()) {
 		report.InTeam = true
@@ -196,14 +216,17 @@ func listed(row Row, lists []List) []Finding {
 			if list.name() == RegistrationList {
 				onIt := failed("You are on %s already, as %s. If something "+
 					"there has changed, an editor can correct the row.", code(list.name()),
-					code(strings.TrimSpace(existing["name"])))
+					code(nameOf(existing)))
 				// By handle only: the same ORCID under another handle is a
 				// row an editor has to look at, not this registration listed.
 				onIt.listed = sameLogin(existing, row.Handle)
 				findings = append(findings, onIt)
 			} else {
-				findings = append(findings, finding(Note,
-					"You are on %s already, which is fine: that list is kept separately.", code(list.name())))
+				// Somebody can check for an institution and on the open list
+				// too, so this holds nothing up: an editor looks at it.
+				findings = append(findings, warning("You are on %s already, as %s. Being on more than "+
+					"one list is possible; an editor will check that the rows agree.", code(list.name()),
+					code(nameOf(existing))))
 			}
 		}
 	}

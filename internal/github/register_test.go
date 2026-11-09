@@ -141,6 +141,14 @@ func (f *fakeRegister) handler(w http.ResponseWriter, r *http.Request) {
 				pull.number, pull.head, pull.user))
 		}
 		fmt.Fprintf(w, `[%s]`, strings.Join(open, ","))
+	case strings.HasSuffix(path, "/requested_reviewers") && r.Method == http.MethodGet:
+		fmt.Fprint(w, `{"users": [], "teams": []}`)
+	case strings.HasSuffix(path, "/reviews") && r.Method == http.MethodGet:
+		if path == "/pulls/301/reviews" {
+			fmt.Fprint(w, `[{"id": 1}]`)
+			return
+		}
+		fmt.Fprint(w, `[]`)
 	case strings.HasPrefix(path, "/pulls/") && strings.HasSuffix(path, "/files") && r.Method == http.MethodGet:
 		if path == "/pulls/400/files" {
 			// Closed between the listing and the read.
@@ -513,5 +521,21 @@ func TestAnOpenRowPullRequestByTheBotIsItsOwn(t *testing.T) {
 	open, err := client.OpenRowPullRequest(context.Background(), "codecheckers/testing-dev-register", "a-made-up-registrant")
 	if err != nil || open.Number != 404 || open.By != "" {
 		t.Errorf("open = %+v, %v", open, err)
+	}
+}
+
+// Whether a pull request has a reviewer is read, never written: none on #300,
+// a review given on #301 (#49).
+func TestReviewedReadsRequestsAndReviews(t *testing.T) {
+	fake, client := listing(t)
+	ctx := context.Background()
+	if reviewed, err := client.Reviewed(ctx, "codecheckers/testing-dev-register", 300); err != nil || reviewed {
+		t.Errorf("#300: %v, %v", reviewed, err)
+	}
+	if reviewed, err := client.Reviewed(ctx, "codecheckers/testing-dev-register", 301); err != nil || !reviewed {
+		t.Errorf("#301: %v, %v", reviewed, err)
+	}
+	if writes := fake.writes(); len(writes) != 0 {
+		t.Errorf("a read wrote: %q", writes)
 	}
 }
