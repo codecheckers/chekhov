@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/codecheckers/chekhov/config"
 	"path"
 	"strings"
 	"time"
@@ -100,7 +101,7 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 		return command.ListPullRequestFailed(failure(err))
 	}
 	return command.ListPullRequestOpened(file, pull.Number, pull.Updated, pull.Unchanged) +
-		s.requestReview(ctx, event.Repository, pull.Number, row.Login())
+		s.requestReview(ctx, event.Repository, pull.Number, row.Login(), event.Author)
 }
 
 // Reviewing is the part of the lists' reply path that asks for a review of
@@ -112,12 +113,11 @@ type Reviewing interface {
 
 var _ Reviewing = (*github.Client)(nil)
 
-// requestReview asks the owners to review the pull request: a person confirms
-// an ORCID and a contact before they are listed, and the bot never merges
-// (#49). The owners as the ask to invite reads them - the organisation's, or
-// in development the ones the settings name - and never the registrant, who
-// cannot confirm their own row.
-func (s *Server) requestReview(ctx context.Context, repository string, number int, registrant string) string {
+// requestReview asks for a review of the pull request: a person confirms an
+// ORCID and a contact before they are listed, and the bot never merges (#49).
+// Whom is the settings' lists.reviewers - the editor who ran `include` by
+// default - and never the registrant, who cannot confirm their own row.
+func (s *Server) requestReview(ctx context.Context, repository string, number int, registrant, asker string) string {
 	reviewing, ok := s.Lists.(Reviewing)
 	if !ok {
 		return command.NotFromHere("ask for a review")
@@ -133,18 +133,14 @@ func (s *Server) requestReview(ctx context.Context, repository string, number in
 	case reviewed:
 		return ""
 	}
-	request, readable := s.ownersRequest(ctx, command.OutsideRequest{Organisation: s.Settings.TeamOrganisation()})
-	if !readable {
-		return command.NotFromHere("read who the owners are, to ask for a review")
-	}
-	if request.Unreadable != "" {
-		return command.Item(command.NotDone("read who the owners are, so I have asked nobody to review it",
-			request.Unreadable))
+	candidates, configured, unread := s.reviewers(ctx, asker)
+	if unread != "" {
+		return unread
 	}
 	var reviewers []string
-	for _, owner := range request.Owners {
-		if !strings.EqualFold(owner, registrant) {
-			reviewers = append(reviewers, owner)
+	for _, candidate := range candidates {
+		if !strings.EqualFold(candidate, registrant) {
+			reviewers = append(reviewers, candidate)
 		}
 	}
 	if len(reviewers) == 0 {
@@ -154,7 +150,41 @@ func (s *Server) requestReview(ctx context.Context, repository string, number in
 		s.Logger.Warn("could not request a review", "pull", number, "error", err)
 		return command.Item(command.NotDone("ask for a review", whyNot(err)))
 	}
-	return command.ReviewRequested(number, reviewers, request.Configured)
+	return command.ReviewRequested(number, reviewers, configured)
+}
+
+// reviewers are whom the settings say to ask for a review, whether they are
+// the development stand-ins rather than the people the mode names, and why
+// they could not be read when they could not. A development deployment asks
+// `teams.owners` for the owners and for the editors alike, as every reply
+// that notifies a group does there.
+func (s *Server) reviewers(ctx context.Context, asker string) (handles []string, configured bool, unread string) {
+	mode, named := s.Settings.ListReviewers()
+	switch mode {
+	case config.ReviewByAsker:
+		return []string{asker}, false, ""
+	case config.ReviewByOwners:
+		request, readable := s.ownersRequest(ctx, command.OutsideRequest{Organisation: s.Settings.TeamOrganisation()})
+		switch {
+		case !readable:
+			return nil, false, command.NotFromHere("read who the owners are, to ask for a review")
+		case request.Unreadable != "":
+			return nil, false, command.Item(command.NotDone("read who the owners are, so I have asked nobody "+
+				"to review it", request.Unreadable))
+		}
+		return request.Owners, request.Configured, ""
+	case config.ReviewByEditors:
+		if stand := s.Settings.OwnersOverride(); len(stand) > 0 {
+			return stand, true, ""
+		}
+		editors := s.Teams.Members(ctx, s.Settings.EditorsTeam())
+		if len(editors) == 0 {
+			return nil, false, command.Item(command.NotDone("read the editors team, so I have asked nobody "+
+				"to review it", "a team that cannot be read has no members"))
+		}
+		return editors, false, ""
+	}
+	return named, false, ""
 }
 
 // organisationStep checks the owners' half and does the bot's: where the

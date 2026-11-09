@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-11-09
+
+### Changed
+
+- `include` asks the editor who ran it to review the pull request it opens,
+  rather than the owners; `lists.reviewers` in the settings names somebody
+  else - the owners, the editors, or named accounts such as a community
+  manager. Never the registrant (#49).
+
 ## [0.35.0] - 2026-11-09
 
 ### Added

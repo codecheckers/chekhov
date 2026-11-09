@@ -557,6 +557,7 @@ func TestIncludeOpensNoPullRequestWhenItCannotTellWhetherOneIsOpen(t *testing.T)
 // brought up to date is not asked again.
 func TestIncludeAsksTheOwnersToReviewThePullRequest(t *testing.T) {
 	server, org, lists := including(t)
+	server.Settings.Chekhov.Lists.Reviewers = []string{"owners"}
 	org.owners = []string{"an-owner", madeUpRegistrar}
 	says(t, includeBy(t, server, lists, "nuest"), "✔ Asked `@an-owner` to review #12 before it is merged")
 	if strings.Join(lists.reviewers, ";") != "#12 an-owner" {
@@ -569,8 +570,9 @@ func TestIncludeAsksTheOwnersToReviewThePullRequest(t *testing.T) {
 	}
 
 	server, org, lists = including(t)
+	server.Settings.Chekhov.Lists.Reviewers = []string{"owners"}
 	org.owners = []string{madeUpRegistrar}
-	says(t, includeBy(t, server, lists, "nuest"), "The only owner I could ask to review #12 is the registrant")
+	says(t, includeBy(t, server, lists, "nuest"), "The only one I could ask to review #12 is the registrant")
 	if len(lists.reviewers) != 0 {
 		t.Errorf("asked the registrant: %q", lists.reviewers)
 	}
@@ -602,6 +604,7 @@ func TestIncludeAsksAgainForAReviewThatFailed(t *testing.T) {
 	says(t, includeBy(t, server, lists, "nuest"), "✖ I could not ask for a review")
 
 	lists.reviewErr = nil
+	server.Settings.Chekhov.Lists.Reviewers = []string{"owners"}
 	server.Settings.Chekhov.Teams.Owners = []string{"an-owner"}
 	says(t, includeBy(t, server, lists, "nuest"),
 		"✔ Asked `@an-owner` to review #12 before it is merged - the people this deployment is configured to ask")
@@ -732,4 +735,37 @@ func TestARecheckKeepsTheEditorsTold(t *testing.T) {
 	if err != nil || !record.Told || !record.Settled {
 		t.Errorf("the re-check's record forgot the editors were told: %+v, %v", record, err)
 	}
+}
+
+// By default the editor who ran `include` reviews it; the settings may name
+// accounts instead, or the editors team - and never the registrant, whoever
+// is named.
+func TestIncludeAsksTheReviewersTheSettingsName(t *testing.T) {
+	server, _, lists := including(t)
+	says(t, includeBy(t, server, lists, "nuest"), "✔ Asked `@nuest` to review #12 before it is merged.")
+
+	server, _, lists = including(t)
+	server.Settings.Chekhov.Lists.Reviewers = []string{"@a-made-up-community-manager", madeUpRegistrar}
+	says(t, includeBy(t, server, lists, "nuest"), "✔ Asked `@a-made-up-community-manager` to review #12")
+	if strings.Join(lists.reviewers, ";") != "#12 a-made-up-community-manager" {
+		t.Errorf("reviews asked: %q", lists.reviewers)
+	}
+
+	server, _, lists = including(t)
+	server.Settings.Chekhov.Lists.Reviewers = []string{"editors"}
+	server.Teams.Reader = teamList{server.Settings.EditorsTeam(): {"nuest", "a-codechecker"},
+		server.Settings.CodecheckersTeam(): {"nuest"}}
+	server.Teams.Refresh(context.Background())
+	includeBy(t, server, lists, "nuest")
+	if strings.Join(lists.reviewers, ";") != "#12 a-codechecker,nuest" {
+		t.Errorf("reviews asked of the editors: %q", lists.reviewers)
+	}
+
+	// The editor including themselves asks nobody.
+	server, _, lists = including(t)
+	eventType, payload := registrationEvent(testLists, strings.Replace(registrationRow, "@"+madeUpRegistrar, "@nuest", 1),
+		"@chekhovbot include", "nuest", "registration")
+	payload["issue"].(map[string]any)["user"] = map[string]string{"login": "nuest"}
+	deliverEvent(t, server, eventType, payload)
+	says(t, lists.last(), "The only one I could ask to review #12 is the registrant")
 }

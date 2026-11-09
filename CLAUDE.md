@@ -128,8 +128,9 @@ opens on the lists for somebody who has joined - when an `assign` asked the
 owners for them, or an editor typed `include open` - naming the one person
 who has to answer it; in a test, a handle the test chose, so the maintainer's.
 The review `include` requests on its pull request notifies through GitHub
-rather than a mention, and goes to the same owners `OutsideReply` asks - so
-in development to `teams.owners` - and never to the registrant. The seventh
+rather than a mention, and goes to whom `lists.reviewers` names - the editor
+who ran it by default, the owners or the editors (in development
+`teams.owners` for either), or named accounts - and never to the registrant. The seventh
 and eighth are the sweep's on the lists: `command.ReadyToInclude` tells the
 editors - `EditorsToTell`, as the queue nudge - about a complete registration
 nobody has included, once; and `command.PullRequestWaiting` reminds the

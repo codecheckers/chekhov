@@ -133,6 +133,10 @@ chekhov:
     repository: ${CHEKHOV_LISTS_REPO:-codecheckers/testing-dev-codecheckers}
     # The label the registration template puts on its issue.
     registration_label: registration
+    # Whom `include` asks to review the pull request adding a row: "asker",
+    # the editor who ran it, when empty; "owners"; "editors"; or one or more
+    # handles, e.g. a community manager. Never the registrant (#49).
+    reviewers: []
     # Compared with a registration, to say whether somebody is listed already.
     files:
       - https://raw.githubusercontent.com/${CHEKHOV_LISTS_REPO:-codecheckers/testing-dev-codecheckers}/HEAD/codecheckers.csv

@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -113,6 +114,25 @@ func (t *Teams) Has(ctx context.Context, name, handle string) bool {
 	cached.mu.Lock()
 	defer cached.mu.Unlock()
 	return cached.members[handle]
+}
+
+// Members are a team's members as the cache holds them, sorted; none for a
+// team that cannot be read, which fails closed as Has does.
+func (t *Teams) Members(ctx context.Context, name string) []string {
+	if t == nil || strings.TrimSpace(name) == "" {
+		return nil
+	}
+	cached := t.fetch(ctx, name, false)
+	cached.mu.Lock()
+	defer cached.mu.Unlock()
+	members := make([]string, 0, len(cached.members))
+	for member, in := range cached.members {
+		if in {
+			members = append(members, member)
+		}
+	}
+	sort.Strings(members)
+	return members
 }
 
 // Refresh reads the named teams now, whatever the age of what is held, and

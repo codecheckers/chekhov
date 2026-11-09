@@ -96,6 +96,10 @@ chekhov:
   lists:
     repository: codecheckers/codecheckers
     registration_label: registration
+    # Whom `include` asks to review the pull request adding a row: "asker",
+    # the editor who ran it, when empty; "owners"; "editors"; or one or more
+    # handles, e.g. a community manager. Never the registrant (#49).
+    reviewers: []
     files:
       - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/codecheckers.csv
       - https://raw.githubusercontent.com/codecheckers/codecheckers/HEAD/institutional-codecheckers.csv

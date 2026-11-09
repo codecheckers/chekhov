@@ -575,3 +575,33 @@ func TestTheListsAreTheirOwnRepositoryWithALabel(t *testing.T) {
 		t.Errorf("no lists at all must be allowed, it switches them off: %v", err)
 	}
 }
+
+// Whom `include` asks to review: the asker by default, one mode, or handles -
+// never a mode beside a handle, nor something that is not a handle (#49).
+func TestTheListsReviewersAreOneModeOrHandles(t *testing.T) {
+	for given, valid := range map[string]bool{
+		"":                                    true,
+		"owners":                              true,
+		"Editors":                             true,
+		"@a-made-up-community-manager":        true,
+		"a-made-up-community-manager,@x1":     true,
+		"owners,@a-made-up-community-manager": false,
+		"not a handle":                        false,
+	} {
+		settings, err := Load("development")
+		if err != nil {
+			t.Fatal(err)
+		}
+		settings.Chekhov.Lists.Reviewers = nil
+		if given != "" {
+			settings.Chekhov.Lists.Reviewers = strings.Split(given, ",")
+		}
+		if err := validate("test", settings); (err == nil) != valid {
+			t.Errorf("%q: validate = %v, want valid %v", given, err, valid)
+		}
+	}
+	settings, _ := Load("development")
+	if mode, named := settings.ListReviewers(); mode != ReviewByAsker || named != nil {
+		t.Errorf("the shipped default is %q %q, want the asker", mode, named)
+	}
+}

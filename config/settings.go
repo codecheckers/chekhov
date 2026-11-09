@@ -15,6 +15,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -256,7 +257,40 @@ type Lists struct {
 	// Files are the URLs of the lists a registration is compared with, to
 	// say whether somebody is listed already.
 	Files []string `yaml:"files"`
+	// Reviewers are whom `include` asks to review the pull request adding a
+	// row: `asker`, the editor who ran it, which is what empty means;
+	// `owners`, the organisation's; `editors`, the editors team; or one or
+	// more handles - a community manager, say. Never the registrant.
+	Reviewers []string `yaml:"reviewers"`
 }
+
+// Who reviews the pull request `include` opens; see Lists.Reviewers.
+const (
+	ReviewByAsker   = "asker"
+	ReviewByOwners  = "owners"
+	ReviewByEditors = "editors"
+)
+
+// ListReviewers says whom `include` asks to review: one of the ReviewBy
+// modes, or, with an empty mode, the named handles.
+func (s *Settings) ListReviewers() (mode string, named []string) {
+	given := trimmed(s.Chekhov.Lists.Reviewers)
+	switch {
+	case len(given) == 0:
+		return ReviewByAsker, nil
+	case len(given) == 1 && reviewModes[strings.ToLower(given[0])]:
+		return strings.ToLower(given[0]), nil
+	}
+	for _, handle := range given {
+		named = append(named, strings.TrimPrefix(handle, "@"))
+	}
+	return "", named
+}
+
+var reviewModes = map[string]bool{ReviewByAsker: true, ReviewByOwners: true, ReviewByEditors: true}
+
+// reviewerHandle is a GitHub handle as the settings may name a reviewer.
+var reviewerHandle = regexp.MustCompile(`^@?[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
 
 // productionLists is the repository real people register in.
 const productionLists = "codecheckers/codecheckers"
@@ -418,6 +452,16 @@ func validate(name string, s *Settings) error {
 		case s.RegistrationLabel() == "":
 			return fmt.Errorf("%s names the lists %s but no lists.registration_label; "+
 				"no registration would ever be recognised", name, lists)
+		}
+		// A mode alone, or handles alone: `owners` beside a handle is a
+		// mistake, and a handle that is not one would be asked of nobody.
+		if mode, named := s.ListReviewers(); mode == "" {
+			for _, handle := range named {
+				if reviewModes[strings.ToLower(handle)] || !reviewerHandle.MatchString(handle) {
+					return fmt.Errorf("%s: lists.reviewers is %q - one of asker, owners or editors, "+
+						"or GitHub handles, not both", name, s.Chekhov.Lists.Reviewers)
+				}
+			}
 		}
 	}
 	nudges := s.Chekhov.Nudges

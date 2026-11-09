@@ -186,8 +186,8 @@ func ReviewRequested(number int, reviewers []string, configured bool) string {
 
 // NoReviewer is a pull request with nobody to review it but the registrant.
 func NoReviewer(number int) string {
-	return Item(fmt.Sprintf("… The only owner I could ask to review #%d is the registrant, who cannot confirm "+
-		"their own row, so I have asked nobody: an editor reviews it.", number))
+	return Item(fmt.Sprintf("… The only one I could ask to review #%d is the registrant, who cannot confirm "+
+		"their own row, so I have asked nobody: another editor reviews it.", number))
 }
 
 // AlreadyListed is somebody the list has a row for already: their pull
