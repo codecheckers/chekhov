@@ -51,9 +51,17 @@ func (s *Server) include(ctx context.Context, event mention) answered {
 	} else {
 		out.WriteString(s.proposeListing(ctx, event, report.Row))
 	}
-	out.WriteString(s.organisationStep(ctx, login))
-	return answered{body: out.String(), follow: s.followUp(event, followup.Record{
-		Kind: followup.KindInclusion, Subject: strings.ToLower(login), Team: s.Settings.CodecheckersTeam()})}
+	step, inTeam := s.organisationStep(ctx, login)
+	out.WriteString(step)
+	record := followup.Record{Kind: followup.KindInclusion, Subject: strings.ToLower(login), Team: s.Settings.CodecheckersTeam()}
+	if report.Listed() && inTeam {
+		// On the list and in the team: nothing is left to follow up, so the
+		// welcome comes now, as the sweep would post it - asking `include`
+		// again after the merge finishes the job rather than waiting a night.
+		welcome, done := s.welcome(ctx, event, record)
+		return answered{body: out.String() + "\n" + welcome, follow: done}
+	}
+	return answered{body: out.String(), follow: s.followUp(event, record)}
 }
 
 // proposeListing opens the pull request adding the row, or says why it did
@@ -192,35 +200,39 @@ func (s *Server) reviewers(ctx context.Context, asker string) (handles []string,
 //
 // Decided by looking, every time: an invitation the owners sent since the
 // last `include` is seen, and asking again changes nothing that is done.
-func (s *Server) organisationStep(ctx context.Context, login string) string {
+//
+// inTeam says they are in the organisation and in the team now, which with
+// the row on the list is the whole of an inclusion.
+func (s *Server) organisationStep(ctx context.Context, login string) (step string, inTeam bool) {
 	organisation, team := s.Settings.TeamOrganisation(), s.Settings.CodecheckersTeam()
 	reader, ok := s.Replies.(Organisation)
 	if !ok || organisation == "" {
-		return command.NotFromHere("read the organisation")
+		return command.NotFromHere("read the organisation"), false
 	}
 	// A team the bot may not add to is said here, in its own words, rather
 	// than as the fence's refusal - and none at all is not "in it already".
 	if team == "" || !s.managedTeam(team) {
-		return command.TeamNotManaged(organisation, team)
+		return command.TeamNotManaged(organisation, team), false
 	}
 	invitation, err := reader.OrganisationMembership(ctx, organisation, login)
 	switch {
 	case err != nil:
 		s.Logger.Warn("could not read where somebody stands with the organisation",
 			"handle", login, "organisation", organisation, "error", err)
-		return command.IncludeUnknown(login, organisation, whyNot(err))
+		return command.IncludeUnknown(login, organisation, whyNot(err)), false
 	case invitation.Invited():
-		return command.IncludeInvited(login, organisation, team)
+		return command.IncludeInvited(login, organisation, team), false
 	case !invitation.Joined():
 		// Able to read the organisation is able to read its owners: the one
 		// interface covers both.
 		request, _ := s.ownersRequest(ctx, command.OutsideRequest{
 			Handle: login, Organisation: organisation, Team: team})
-		return command.IncludeOutsideReply(request)
+		return command.IncludeOutsideReply(request), false
 	}
 
 	var out strings.Builder
-	if note, _ := s.intoTheTeam(ctx, login, team); note != "" {
+	note, in := s.intoTheTeam(ctx, login, team)
+	if note != "" {
 		out.WriteString(command.Item(note))
 	} else {
 		out.WriteString(command.IncludeInTeam(login, organisation, team))
@@ -228,7 +240,7 @@ func (s *Server) organisationStep(ctx context.Context, login string) string {
 	if invitation.Owner() {
 		out.WriteString(command.IncludeOwner(login, organisation))
 	}
-	return out.String()
+	return out.String(), in
 }
 
 // Closer is the part of the lists' reply path that closes a registration
@@ -302,6 +314,17 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 		return answered{body: command.IncludeTeamNote(note)}, true, nil
 	}
 
+	body, done := s.welcome(ctx, event, record)
+	if note != "" {
+		body = note + "\n\n" + body
+	}
+	return answered{body: body, follow: done}, false, nil
+}
+
+// welcome is the end of an inclusion, from the sweep or from `include` alike:
+// the issue closed, and the welcome with a settled record, so that it is said
+// once whichever said it.
+func (s *Server) welcome(ctx context.Context, event mention, record followup.Record) (string, *followup.Record) {
 	why := ""
 	if closer, ok := s.Lists.(Closer); !ok {
 		why = "this deployment cannot"
@@ -317,12 +340,8 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 	if done != nil {
 		done.Settled = true
 	}
-	body := command.Welcome(organisation, record.Team, s.Settings.ListsRepository(),
-		registration.RegistrationList, closing)
-	if note != "" {
-		body = note + "\n\n" + body
-	}
-	return answered{body: body, follow: done}, false, nil
+	return command.Welcome(s.Settings.TeamOrganisation(), record.Team, s.Settings.ListsRepository(),
+		registration.RegistrationList, closing), done
 }
 
 // RowPullRequests is the part of the lists' reply path that says whether a

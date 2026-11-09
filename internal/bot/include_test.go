@@ -769,3 +769,31 @@ func TestIncludeAsksTheReviewersTheSettingsName(t *testing.T) {
 	deliverEvent(t, server, eventType, payload)
 	says(t, lists.last(), "The only one I could ask to review #12 is the registrant")
 }
+
+// `include` asked again after the merge, the registrant in the team: the
+// welcome now, settled, and the issue closed - not a night's wait for the
+// sweep.
+func TestIncludeAfterTheMergeWelcomesAtOnce(t *testing.T) {
+	server, org, lists := sweepingLists(t, day, registrationRow+"\n")
+	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+	lists.thread = nil
+
+	eventType, payload := registrationEvent(testLists, registrationRow, "@chekhovbot include", "nuest", "registration")
+	deliverEvent(t, server, eventType, payload)
+	reply := lists.last()
+	says(t, reply, "has a row for `@a-made-up-registrant`", "is in `codecheckers/codecheckers` already",
+		"Welcome! :heart:")
+	if fmt.Sprint(lists.closed) != "[7]" {
+		t.Errorf("closed %v", lists.closed)
+	}
+	record, err := followup.Parse(reply, testLists+"#7", server.signer())
+	if err != nil || record.Kind != followup.KindInclusion || !record.Settled {
+		t.Errorf("the record: %+v, %v", record, err)
+	}
+	// And the sweep says nothing more.
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("welcomed twice:\n%s", lists.last())
+	}
+}

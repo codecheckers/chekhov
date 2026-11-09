@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-11-09
+
+### Added
+
+- `include` asked again once the row is merged and the registrant is in the
+  team posts the welcome and closes the registration itself, as the nightly
+  sweep would, rather than leaving it for the night (#49).
+
 ## [0.36.0] - 2026-11-09
 
 ### Changed
