@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-09
+
+### Added
+
+- A codechecker who joins the organisation after an `assign` asked the owners
+  for them is asked for their row on the lists, in a registration the bot
+  opens - once, and never beside one they have or are on the list with.
+  `@chekhovbot include open @handle`, for editors, opens one by hand. The row
+  comes in the registrant's comment, `include check` and `include` read it
+  from there, and the sweep reminds them once when none has come a week on
+  (#49).
+
 ## [0.32.0] - 2026-11-09
 
 ### Added

@@ -83,6 +83,7 @@ func (s *Server) followers(services *check.Services) map[string]follower {
 			record followup.Record) (answered, bool, error) {
 			return s.followArchive(ctx, event, record, services)
 		},
+		followup.KindRegistration: s.followRegistration,
 		followup.KindInclusion: func(ctx context.Context, event mention,
 			record followup.Record) (answered, bool, error) {
 			return s.followInclusion(ctx, event, record, services)
@@ -207,6 +208,9 @@ func (s *Server) sweepLists(ctx context.Context, followers map[string]follower, 
 	sweep.Registrations = len(issues)
 	for _, issue := range issues {
 		event := mention{Repository: lists, Issue: issue.Number}
+		// One listing of the comments per issue, as on the register: the
+		// handlers read them again.
+		event.comments = &people.Listing{Source: reader, Repository: lists, Issue: issue.Number}
 		records, unread := s.outstandingIn(ctx, reader, event)
 		for _, problem := range unread {
 			sweep.problem(event, "%s", problem)

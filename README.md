@@ -68,7 +68,9 @@ are listed already. `@chekhovbot include`, for editors, then opens the pull
 request adding the row to `codecheckers.csv` and checks the organisation's side:
 it asks the owners to invite somebody it sees no invitation for, says when one
 is waiting to be accepted, and puts a member in the codecheckers team. The
-nightly sweep follows it up from there, and once they are in the team and
+nightly sweep follows it up from there - and opens a registration by itself for a
+codechecker who joins after an `assign` asked the owners for them, as
+`@chekhovbot include open @handle` does for an editor - and once they are in the team and
 their row is merged, posts the welcome and closes the registration. It
 answers nothing else there.
 `@chekhovbot check register` builds the row the check would get in

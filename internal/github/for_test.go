@@ -88,3 +88,34 @@ func TestCloseIssueClosesOnlyItsOwnRepositorysIssue(t *testing.T) {
 		t.Errorf("sent %q", sent)
 	}
 }
+
+// Opening is a POST of an issue in the client's own repository, with a label
+// it may add, from a client set to open - nothing else (#49).
+func TestCreateIssueOpensOnlyWhereAllowed(t *testing.T) {
+	var sent []string
+	client := stub(t, func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		sent = append(sent, r.Method+" "+r.URL.Path+" "+string(raw))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"number": 9}`))
+	})
+	ctx := context.Background()
+	if _, err := client.CreateIssue(ctx, client.Repository, "t", "b", nil); err == nil {
+		t.Error("a client not set to open opened an issue")
+	}
+	client.Opens, client.AddableLabels = true, []string{"registration"}
+	if _, err := client.CreateIssue(ctx, client.Repository, "t", "b", []string{"bug"}); err == nil {
+		t.Error("opened an issue with a label it may not add")
+	}
+	if _, err := client.CreateIssue(ctx, "codecheckers/register", "t", "b", nil); err == nil {
+		t.Error("opened an issue in another repository")
+	}
+	number, err := client.CreateIssue(ctx, client.Repository, "t", "b", []string{"registration"})
+	if err != nil || number != 9 {
+		t.Fatalf("open: %d, %v", number, err)
+	}
+	if len(sent) != 1 || !strings.HasPrefix(sent[0], "POST /repos/"+client.Repository+"/issues ") ||
+		!strings.Contains(sent[0], `"labels":["registration"]`) {
+		t.Errorf("sent %q", sent)
+	}
+}

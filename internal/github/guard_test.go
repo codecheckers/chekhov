@@ -335,3 +335,14 @@ func TestTheSecondaryLimitHoldsTheQueue(t *testing.T) {
 		}
 	}
 }
+
+// Opening an issue gets through only for a client that opens registrations
+// (#49): the fence holds it as well as the method.
+func TestTheGuardOpensAnIssueOnlyForAClientThatOpens(t *testing.T) {
+	const issues = "https://api.github.com/repos/codecheckers/testing-dev-register/issues"
+	client := guarded()
+	testGuard(t, client, guardCase{"opening an issue, not allowed", http.MethodPost, issues, `{"title": "t"}`, false})
+	client.Opens = true
+	testGuard(t, client, guardCase{"opening an issue, allowed", http.MethodPost, issues, `{"title": "t"}`, true})
+	testGuard(t, client, guardCase{"changing the issues at once", http.MethodPatch, issues, `{}`, false})
+}

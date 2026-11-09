@@ -67,6 +67,12 @@ const (
 	// has been told that an invitation waits for them, so that they are told
 	// once. See codecheckers/chekhov#49.
 	KindInclusion = "codechecker-inclusion"
+	// KindRegistration is a registration the bot opened for somebody who
+	// joined: the subject is who it is for, whose comments the row is read
+	// from, since an issue's first post is its author's to edit and the bot
+	// is that author. The sweep reminds them once, Told, when no row has come
+	// a week on. See codecheckers/chekhov#49.
+	KindRegistration = "codechecker-registration"
 )
 
 // outlivesTheCheck are the kinds still due after the check's issue is closed:

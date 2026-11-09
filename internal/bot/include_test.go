@@ -274,6 +274,20 @@ type listsThread struct {
 	closed []int
 	// pending is the number of the row's pull request still open, 0 for none.
 	pending int
+	// issues are the lists' issues, open and closed, and opened the ones
+	// the bot opened here, as "title\nbody".
+	issues []github.Issue
+	opened []string
+}
+
+func (l *listsThread) LabelledIssues(_ context.Context, _, _ string) ([]github.Issue, error) {
+	return l.issues, nil
+}
+
+func (l *listsThread) CreateIssue(_ context.Context, _, title, body string, labels []string) (int, error) {
+	l.opened = append(l.opened, title+"\n"+body+"\n"+strings.Join(labels, ","))
+	l.issues = append(l.issues, github.Issue{Number: 20 + len(l.opened), Title: title, Author: "chekhovbot", Labels: labels})
+	return 20 + len(l.opened), nil
 }
 
 func (l *listsThread) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {

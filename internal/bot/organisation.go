@@ -165,10 +165,17 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 		// got there first, and saying so every night would be noise.
 		return answered{}, nil
 	}
+	// A codechecker who joined through the ask is asked for their row on the
+	// lists (#49): once, and only for the list registrations go on - the
+	// institutional one has columns of its own and is kept by hand.
+	registered, opened := "", false
+	if role.Checks() && record.Team == s.Settings.CodecheckersTeam() && s.Settings.ListsRepository() != "" {
+		registered, opened = s.openRegistration(ctx, record.Subject)
+	}
 	return answered{body: command.JoinedReply(command.Joined{
 		Handle: record.Subject, Role: role, Granted: granted, Taken: taken,
 		Assignee: assignee, TeamNote: note, Lists: s.codecheckerListPages(),
-		Organisation: s.Settings.TeamOrganisation(),
+		Organisation: s.Settings.TeamOrganisation(), Registration: registered, Registered: opened,
 	})}, nil
 }
 

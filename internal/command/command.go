@@ -109,6 +109,10 @@ const (
 	// Include adds a registered codechecker: the pull request adding their
 	// row to the list, and the team once they are in the organisation (#49).
 	Include Name = "include"
+	// IncludeOpen opens a registration for somebody who has joined, asking
+	// for their row (#49): what the sweep does when somebody an `assign`
+	// asked the owners for accepts, for an editor to ask by hand.
+	IncludeOpen Name = "include open"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

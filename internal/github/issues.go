@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -73,6 +74,12 @@ func (c *Client) OpenIssues(ctx context.Context, repository string) ([]Issue, er
 // identifier: an abandoned one leaves its number unused, never free.
 func (c *Client) AllIssues(ctx context.Context, repository string) ([]Issue, error) {
 	return c.issues(ctx, repository, "all", "")
+}
+
+// LabelledIssues returns every issue of the configured repository that
+// carries a label, open and closed: on the lists, the registrations (#49).
+func (c *Client) LabelledIssues(ctx context.Context, repository, label string) ([]Issue, error) {
+	return c.issues(ctx, repository, "all", "&labels="+url.QueryEscape(label))
 }
 
 // ClosedIssuesSince returns the closed issues of the configured repository

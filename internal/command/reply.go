@@ -1240,6 +1240,11 @@ type Joined struct {
 	// Organisation is the one they joined, named from the settings rather
 	// than written down here.
 	Organisation string
+	// Registration is what opening their registration on the lists came to,
+	// empty when none was tried, and Registered whether one is there now, or
+	// no need for one: only then is the row not a person's job (#49).
+	Registration string
+	Registered   bool
 }
 
 // JoinedReply says that the wait is over and what was done, for the nightly
@@ -1266,6 +1271,12 @@ func JoinedReply(joined Joined) string {
 		fmt.Fprintf(&out, "\n%s\n", done)
 	}
 
+	if joined.Registration != "" {
+		fmt.Fprintf(&out, "\n%s", joined.Registration)
+	}
+	if joined.Registered {
+		return out.String()
+	}
 	if joined.Role.Checks() && len(joined.Lists) > 0 {
 		out.WriteString("\nThe row in the codechecker list is still a person's job - " +
 			"it carries their name, ORCID, fields and languages, which I have no way to know:\n\n")

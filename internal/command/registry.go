@@ -177,6 +177,14 @@ var registry = []Definition{
 		Lists:   true,
 	},
 	{
+		Name:    IncludeOpen,
+		Summary: "Open a registration for somebody who has joined the organisation, asking for their row",
+		Usage:   "include open @handle",
+		Group:   GroupPeople,
+		Roles:   Roles{RoleEditor},
+		Lists:   true,
+	},
+	{
 		Name:    Include,
 		Summary: "Add a registered codechecker: the pull request adding their row to the list, and the team once they are in the organisation",
 		Usage:   "include",

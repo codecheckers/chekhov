@@ -29,9 +29,12 @@ import (
 // the nightly sweep follows it up from: until they are in the organisation,
 // in the team and on the list, and then the welcome.
 func (s *Server) include(ctx context.Context, event mention) answered {
-	report := registration.Check(ctx, event.IssueBody, s.registrationWorld(event))
+	report, inComment, unread := s.checkRegistration(ctx, event)
+	if unread != "" {
+		return said(unread)
+	}
 	if !report.Includable() {
-		return said(command.IncludeIncomplete(report))
+		return said(command.IncludeIncomplete(report, inComment))
 	}
 	login := report.Row.Login()
 
@@ -171,14 +174,7 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 	}
 	switch {
 	case invitation.Invited():
-		if record.Told || !record.Older(invitationWaitingAfter, time.Now()) {
-			return answered{}, true, nil
-		}
-		told := s.followUp(event, record)
-		if told != nil {
-			told.Told = true
-		}
-		return answered{body: command.InvitationWaiting(organisation), follow: told}, true, nil
+		return s.tellOnce(event, record, invitationWaitingAfter, command.InvitationWaiting(organisation)), true, nil
 	case !invitation.Joined():
 		// The owners are read only when there is a reminder left to post.
 		if !record.Older(remindAfter, time.Now()) || record.Reminders > mostReminders {

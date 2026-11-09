@@ -66,29 +66,36 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 	switch {
 	case !found || !definition.Lists:
 		return said(command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository()))
-	case !s.isRegistration(event):
+	// `include open` is asked on any issue of the lists: it opens a
+	// registration rather than answering one.
+	case parsed.Name != command.IncludeOpen && !s.isRegistration(event):
 		return said(command.NotARegistrationReply(s.Settings.RegistrationLabel()))
 	// Only the standing roles, as the lists have no check and so no per-check
 	// role; and only for a command not for anybody, so that the answer to
 	// every opened registration needs no team read.
 	case !definition.Permits(nil) && !definition.Permits(s.standingRoles(ctx, event)):
 		return said(definition.Refusal())
+	case parsed.Name == command.IncludeOpen:
+		return said(s.includeOpen(ctx, parsed))
 	case parsed.Name == command.Include && len(parsed.Args) > 0:
 		return said(command.IncludeTakesNoArguments())
 	case parsed.Name == command.Include:
 		return s.include(ctx, event)
 	}
-	report := registration.Check(ctx, event.IssueBody, s.registrationWorld(event))
-	return said(command.RegistrationReply(report, event.Comment == 0))
+	report, inComment, unread := s.checkRegistration(ctx, event)
+	if unread != "" {
+		return said(unread)
+	}
+	return said(command.RegistrationReply(report, event.Comment == 0, inComment))
 }
 
 // registrationWorld is what a registration is checked against: ORCID, the
 // codecheckers team and the lists as they are now.
-func (s *Server) registrationWorld(event mention) registration.World {
+func (s *Server) registrationWorld(author string) registration.World {
 	services := s.Services.Fresh()
 	team := s.Settings.CodecheckersTeam()
 	return registration.World{
-		Author: event.IssueAuthor,
+		Author: author,
 		ORCID:  services.ORCIDProfile,
 		Team:   s.Settings.TeamOrganisation() + "/" + team,
 		InTeam: func(ctx context.Context, login string) bool { return s.Teams.Has(ctx, team, login) },

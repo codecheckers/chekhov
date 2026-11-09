@@ -61,6 +61,10 @@ type Client struct {
 	// lists', which closes the registration it welcomes (#49). Never the
 	// register's, whose checks are closed by their pull requests.
 	Closes bool
+	// Opens says this client may open an issue in its repository: the
+	// lists', which opens a registration for somebody who has joined (#49).
+	// Never the register's, whose checks people open.
+	Opens bool
 	// Signature is appended to every comment: which bot, which build, which
 	// register. A reply read years later has to say what answered it.
 	Signature string

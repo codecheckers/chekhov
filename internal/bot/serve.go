@@ -74,6 +74,9 @@ func Serve(address string) error {
 		// And closes the registration it welcomes; the register's client
 		// closes nothing.
 		listsClient.Closes = true
+		// And opens a registration for somebody who has joined, labelled as
+		// the template labels one, which is the one label it may put on.
+		listsClient.Opens, listsClient.AddableLabels = true, []string{settings.RegistrationLabel()}
 		server.Lists = listsClient
 	}
 	// A deployment is always online: the checks it runs read repositories and

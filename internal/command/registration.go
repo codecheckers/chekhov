@@ -19,7 +19,10 @@ import (
 
 // RegistrationReply is what a registration still needs. First says it is the
 // answer to the issue being opened, which thanks them for it.
-func RegistrationReply(report registration.Report, first bool) string {
+//
+// inComment says the row is read from the registrant's comment, on a
+// registration the bot opened, rather than from the first post.
+func RegistrationReply(report registration.Report, first, inComment bool) string {
 	var out strings.Builder
 	if first {
 		out.WriteString("Thanks for your interest in becoming a codechecker! :heart:\n\n")
@@ -42,8 +45,7 @@ func RegistrationReply(report registration.Report, first bool) string {
 	} else {
 		out.WriteString("**Before you can be listed, your registration needs this:**\n\n")
 		writeFindings(&out, report.Blocking())
-		fmt.Fprintf(&out, "\nPlease edit the row in the first post of this issue, and then comment "+
-			"`%s %s` for me to look again.\n", Bot, IncludeCheck)
+		fmt.Fprintf(&out, "\n%s\n", askAgain(inComment))
 	}
 	if len(rest) > 0 {
 		out.WriteString("\n")
@@ -68,8 +70,9 @@ func NotARegistrationReply(label string) string {
 // OnListsReply answers a command of the register asked on the lists: there
 // the bot answers a registration and nothing else.
 func OnListsReply(lists, register string) string {
-	return fmt.Sprintf("On %s I answer `%s %s`, in a registration issue, and `%s %s` for an editor. "+
-		"Everything else I do is for the checks on %s.\n", Code(lists), Bot, IncludeCheck, Bot, Include, Code(register))
+	return fmt.Sprintf("On %s I answer `%s %s`, in a registration issue, and `%s %s` and `%s %s` for an editor. "+
+		"Everything else I do is for the checks on %s.\n", Code(lists), Bot, IncludeCheck, Bot, Include, Bot, IncludeOpen,
+		Code(register))
 }
 
 // ListsCommandReply answers a command of the lists asked on the register.
@@ -93,12 +96,11 @@ func IncludeHeading(handle string) string {
 
 // IncludeIncomplete refuses `include` for a registration that still needs
 // something: the same findings the registrant was given, and nothing written.
-func IncludeIncomplete(report registration.Report) string {
+func IncludeIncomplete(report registration.Report, inComment bool) string {
 	var out strings.Builder
 	out.WriteString("I have not included anybody: the registration still needs this.\n\n")
 	writeFindings(&out, report.Blocking())
-	fmt.Fprintf(&out, "\nOnce the row in the first post has been edited, `%s %s` looks again, "+
-		"and `%s %s` includes them.\n", Bot, IncludeCheck, Bot, Include)
+	fmt.Fprintf(&out, "\n%s Then `%s %s` includes them.\n", askAgain(inComment), Bot, Include)
 	return out.String()
 }
 
@@ -287,4 +289,109 @@ func Welcome(organisation, team, lists, file, closing string) string {
 		"reviewer, why not suggest a CODECHECK with your next review? If you are editor at a journal, "+
 		"we'd be happy to chat with you about establishing CODECHECKs there! :muscle:\n%s",
 		organisation, team, lists, file, closing)
+}
+
+// askAgain is how to have the row looked at again: edit the first post, or -
+// on a registration the bot opened, whose first post is the bot's - comment.
+func askAgain(inComment bool) string {
+	if inComment {
+		return "Please comment here with " + rowInComment + ", for me to look again."
+	}
+	return fmt.Sprintf("Please edit the row in the first post of this issue, and then comment "+
+		"`%s %s` for me to look again.", Bot, IncludeCheck)
+}
+
+// rowInComment is how a row comes on a registration the bot opened, said the
+// same way wherever it is asked for.
+var rowInComment = fmt.Sprintf("`%s %s` on its first line and your row below it, in a `csv` code block",
+	Bot, IncludeCheck)
+
+// RegistrationNotOpened is a registration GitHub would not open.
+func RegistrationNotOpened(login, why string) string {
+	return Item(NotDone("open a registration for "+mention(login), why))
+}
+
+// RegistrationUnread is a registration whose row could not be read.
+func RegistrationUnread(why string) string {
+	return NotDone("read this registration", why) + "\n"
+}
+
+// RegistrationTitle names a registration the bot opened. The login without
+// its @: a title is no place for a mention.
+func RegistrationTitle(login string) string {
+	return "Registration as a codechecker: " + login
+}
+
+// RegistrationInvite is the first post of a registration the bot opens for
+// somebody who has joined: what the list needs and what each column is for,
+// in the registration template's own words. It names them so that they are
+// notified - the one person who has to act on it, and whom an editor or an
+// owner just brought in.
+func RegistrationInvite(login, file string) string {
+	return fmt.Sprintf("%s, welcome to CODECHECK! :heart: To be listed in `%s`, please answer here with a "+
+		"comment, %s:\n\n```csv\n%s\n```\n\n"+
+		"What each column is for:\n\n%s\n"+
+		"I check the row and say what it still needs, and an editor then includes you. If something in it "+
+		"changes, comment again the same way.\n",
+		notifying([]string{login}), file, rowInComment, templateRow, columnHelp)
+}
+
+// templateRow and columnHelp are the registration template's, from
+// codecheckers/codecheckers, so that a registration asks the same whichever
+// way it was opened.
+const templateRow = `name,@GitHub-handle,ORCID ID (not url),contact (or "see ORCID page" - ONLY IF your profile has a public email),"fields","languages",ecr_until (YYYY-MM, or open/expired/NA),ecr_checked (<current month>;<source URL>, or NA),fediverse (@user@instance, optional)`
+
+const columnHelp = `- ORCID is needed for the checks anyway, and we hope this will have updated contact information in the future
+- Contact is important if your ORCID does not have an email, e.g., institutional or personal website or ideally just an email that will work for a long time
+- Fields/domains of expertise is a lower case list of stuff you have experience with, which may help us to increase the chance of you being familiar with a workflow/tool you shall check
+- Programming language(s) and experience levels, e.g., "R (intermediate)", "nomic data analysis with MatLab", "spatial data analysis with Python (basic)"; don't worry about experience level too much, anyone should be able to check any workflow given proper documentation; we acknowledge that a CODECHECK can be conducted more efficiently if there is some familiarity with the used tools
+- ecr_until records until when you are an early career researcher (ECR), i.e., within 8 years of the award of your PhD and not yet transitioned to an independent researcher. Please put the month 8 years after your PhD was awarded as YYYY-MM, e.g. "2029-04" if you got your PhD in April 2021. Write "open" if you do not have a PhD yet, "expired" if you have one but are not sure when the 8 years ran out, and "NA" if you'd rather not say. Career breaks such as parental leave extend the window - just say so below and we will adjust the date.
+- ecr_checked is where that information comes from, as "<current month>;<URL>". If the PhD date is on your ORCID profile, use that, e.g. "2026-08;https://orcid.org/0000-0001-0002-0003". Otherwise just write "NA" and we will fill in the link to this issue.
+- fediverse is optional: your Mastodon or other fediverse account as @user@instance, e.g. "@christina@fediscience.org". We use it to mention you when we announce a CODECHECK you worked on. Leave it empty if you prefer.
+`
+
+// RegistrationFor is the bot's first comment on a registration it opened,
+// which carries the record of who it is for.
+func RegistrationFor(login string) string {
+	return fmt.Sprintf("This registration is for %s: I read the row from their comments.\n", mention(login))
+}
+
+// RegistrationOpened says a registration was opened for somebody, as an item
+// of the reply that asked for it or of the one saying they joined.
+func RegistrationOpened(lists string, number int, login string) string {
+	return Item(fmt.Sprintf("✔ I have opened %s#%d for %s to register on the codechecker list.",
+		lists, number, mention(login)))
+}
+
+// RegistrationExists is somebody who has a registration already, opened by
+// them or by the bot: never a second one.
+func RegistrationExists(lists string, number int, login string) string {
+	return Item(fmt.Sprintf("✔ %s already has a registration, %s#%d, so I have opened no second one.",
+		mention(login), lists, number))
+}
+
+// RegistrationNotNeeded is somebody on the list already.
+func RegistrationNotNeeded(login, file string) string {
+	return Item(fmt.Sprintf("✔ %s is on `%s` already, so there is no registration to open.", mention(login), file))
+}
+
+// IncludeOpenNotAMember refuses to open a registration for somebody outside
+// the organisation: it would notify them, and a mistyped handle is a stranger.
+func IncludeOpenNotAMember(login, organisation string) string {
+	return fmt.Sprintf("%s is not a member of `%s`, so I have opened no registration: `%s %s` is for "+
+		"somebody who has joined, and the registration notifies them.\n", mention(login), organisation, Bot, IncludeOpen)
+}
+
+// IncludeOpenUsage is `include open` without one handle after it.
+func IncludeOpenUsage() string {
+	return fmt.Sprintf("`%s %s @handle` opens a registration for one person who has joined the organisation.\n",
+		Bot, IncludeOpen)
+}
+
+// RowAsked reminds somebody, once, that their registration waits for their
+// row. On the issue they were named on, which notifies them without a second
+// mention.
+func RowAsked() string {
+	return "This registration is still waiting for your row: a comment with " + rowInComment +
+		", as the first post says. I will not ask again.\n"
 }

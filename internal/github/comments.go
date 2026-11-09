@@ -288,3 +288,35 @@ func (c *Client) CloseIssue(ctx context.Context, repository string, issue int) e
 		map[string]string{"state": "closed", "state_reason": "completed"})
 	return err
 }
+
+// CreateIssue opens an issue and says its number. The one caller is the
+// registration the codechecker lists open for somebody who has joined (#49),
+// so only a client with Opens set opens anything, and only with labels from
+// AddableLabels: a label in the request is a label put on, and the list is
+// what keeps a typo from becoming one.
+func (c *Client) CreateIssue(ctx context.Context, repository, title, body string, labels []string) (int, error) {
+	if !c.Opens {
+		return 0, refused("this client opens no issues: only the codechecker lists' does, for a registration")
+	}
+	for _, label := range labels {
+		if err := allowed(label, c.AddableLabels, "add"); err != nil {
+			return 0, err
+		}
+	}
+	if err := c.mine(repository, "open an issue"); err != nil {
+		return 0, err
+	}
+	endpoint := fmt.Sprintf("%s/repos/%s/issues", strings.TrimSuffix(c.BaseURL, "/"), repository)
+	raw, err := c.send(ctx, http.MethodPost, endpoint, "open an issue on "+repository,
+		map[string]any{"title": title, "body": body, "labels": labels})
+	if err != nil {
+		return 0, err
+	}
+	var created struct {
+		Number int `json:"number"`
+	}
+	if err := json.Unmarshal(raw, &created); err != nil || created.Number == 0 {
+		return 0, fmt.Errorf("the new issue's number could not be read back: %v", err)
+	}
+	return created.Number, nil
+}

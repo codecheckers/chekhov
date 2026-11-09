@@ -145,6 +145,11 @@ func (c *Client) issueWrite(method string, segments []string) bool {
 		c.mine(segments[1]+"/"+segments[2], "write") != nil {
 		return false
 	}
+	// The issues themselves, rather than one of them: opening an issue, which
+	// only a client that opens registrations does (#49).
+	if len(segments) == 4 {
+		return method == http.MethodPost && c.Opens
+	}
 	if method != http.MethodDelete {
 		return true
 	}
