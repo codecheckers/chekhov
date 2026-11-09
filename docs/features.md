@@ -122,7 +122,7 @@ for the whole group, before writing #7.
 | `@chekhovbot include check` | The same report again, after the registrant edited the row (#49) | implemented |
 | `@chekhovbot include` | Open the pull request adding the row, and ask the owners (never the registrant) to review it; check the invitation to the organisation (none: ask the owners, pending: say so, joined: put them in the team) (editors, #49) | implemented |
 | `@chekhovbot include open @handle` | Open a registration for somebody who has joined, asking for their row; done by itself when an `assign` asked the owners and they accept (editors, #49) | implemented |
-| welcome on merge | Follow up an `include` nightly: remind the owners of an invitation not sent, tell the registrant once about one waiting, put them in the team, and welcome them and close the issue once the row is merged (#49) | implemented |
+| welcome on merge | Tell the editors once about a complete registration nobody included; remind the owners weekly of the row's pull request waiting; follow up an `include` nightly: remind the owners of an invitation not sent, tell the registrant once about one waiting, put them in the team, and welcome them and close the issue once the row is merged (#49) | implemented |
 | `@chekhovbot buddy exchange` | Open/track a buddy-exchange request (see testing register template) | low |
 | `@chekhovbot docs <topic>` | Link the relevant part of the CODECHECK guide | low |
 

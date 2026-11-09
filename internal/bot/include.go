@@ -321,7 +321,7 @@ func (s *Server) openRowPullRequest(ctx context.Context, event mention, login st
 // registration does not wait in silence for a pull request that will never
 // come.
 func (s *Server) noRowPullRequest(ctx context.Context, event mention, record followup.Record) (answered, bool, error) {
-	if !record.Older(remindAfter, time.Now()) || record.Reminders > mostReminders {
+	if !record.Older(remindAfter, time.Now()) {
 		return answered{}, true, nil
 	}
 	reader, ok := s.Lists.(RowPullRequests)
@@ -335,6 +335,9 @@ func (s *Server) noRowPullRequest(ctx context.Context, event mention, record fol
 		return answered{}, true, err
 	}
 	if pull.Number != 0 {
+		return s.pullRequestWaiting(ctx, event, record, pull), true, nil
+	}
+	if record.Reminders > mostReminders {
 		return answered{}, true, nil
 	}
 	next := s.followUp(event, record)
@@ -344,6 +347,33 @@ func (s *Server) noRowPullRequest(ctx context.Context, event mention, record fol
 	return answered{body: command.NoRowPullRequest(record.Subject, registration.RegistrationList),
 		follow: next}, true, nil
 }
+
+// pullRequestWaiting reminds the owners of the row's pull request, open and
+// waiting for an editor: once it has waited a week, then weekly, by its own
+// age - GitHub's, not the record's, which each reminder renews - and for as
+// many weeks as any ask is repeated. The record says only when it was last
+// said, so that a sweep twice in a night says it once.
+func (s *Server) pullRequestWaiting(ctx context.Context, event mention, record followup.Record,
+	pull github.RowPullRequest) answered {
+	age := time.Since(pull.Created)
+	if pull.Created.IsZero() || age < pullRequestWaitingAfter ||
+		age > pullRequestWaitingAfter*(mostReminders+1) || !record.Older(pullRequestWaitingAfter, time.Now()) {
+		return answered{}
+	}
+	request, readable := s.ownersRequest(ctx, command.OutsideRequest{Organisation: s.Settings.TeamOrganisation()})
+	var owners []string
+	if readable && request.Unreadable == "" {
+		// Owners that cannot be read leave the reminder unaddressed rather
+		// than unsaid.
+		owners = request.Owners
+	}
+	return answered{body: command.PullRequestWaiting(owners, request.Configured, pull.Number,
+		command.Days(daysSince(pull.Created, time.Now()))), follow: s.followUp(event, record)}
+}
+
+// pullRequestWaitingAfter is how long the pull request adding a row waits for
+// an editor before the owners are reminded of it.
+const pullRequestWaitingAfter = 7 * 24 * time.Hour
 
 // onTheList reads the registration list as it is now, and says whether it has
 // a row for the registrant: their pull request merged.

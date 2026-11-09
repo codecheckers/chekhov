@@ -290,8 +290,12 @@ type listsThread struct {
 	listWriter
 	thread []github.Comment
 	closed []int
-	// pending is the number of the row's pull request still open, 0 for none.
-	pending int
+	// pending is the number of the row's pull request still open, 0 for none,
+	// and pendingSince when it was opened.
+	pending      int
+	pendingSince time.Time
+	// body is the registration's first post, by the registrant.
+	body string
 	// issues are the lists' issues, open and closed, and opened the ones
 	// the bot opened here, as "title\nbody".
 	issues []github.Issue
@@ -309,7 +313,7 @@ func (l *listsThread) CreateIssue(_ context.Context, _, title, body string, labe
 }
 
 func (l *listsThread) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
-	return github.RowPullRequest{Number: l.pending}, nil
+	return github.RowPullRequest{Number: l.pending, Created: l.pendingSince}, nil
 }
 
 func (l *listsThread) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
@@ -323,7 +327,7 @@ func (l *listsThread) Comments(_ context.Context, _ string, _ int) ([]github.Com
 }
 
 func (l *listsThread) Issue(_ context.Context, _ string, issue int) (github.Issue, error) {
-	return github.Issue{Number: issue}, nil
+	return github.Issue{Number: issue, Author: madeUpRegistrar, Body: l.body}, nil
 }
 
 func (l *listsThread) OpenIssues(_ context.Context, _ string) ([]github.Issue, error) {
@@ -601,4 +605,131 @@ func TestIncludeAsksAgainForAReviewThatFailed(t *testing.T) {
 	server.Settings.Chekhov.Teams.Owners = []string{"an-owner"}
 	says(t, includeBy(t, server, lists, "nuest"),
 		"✔ Asked `@an-owner` to review #12 before it is merged - the people this deployment is configured to ask")
+}
+
+// A complete registration's reply leaves a record; two days on with nobody
+// having run `include`, the editors are told once - and not at all once an
+// `include` has left its record, once a pull request adds the row, or once the
+// row was edited incomplete; nor where the queue nudge is off.
+func TestTheSweepTellsTheEditorsARegistrationIsReady(t *testing.T) {
+	ready := func(t *testing.T, server *Server) string {
+		block, err := followup.Render(followup.Record{Kind: followup.KindReady, Check: testLists + "#7",
+			Subject: madeUpRegistrar, Asked: time.Now().UTC().Add(-3 * day).Format(time.RFC3339)}, server.signer())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return block + "has everything"
+	}
+	complete := "Your data:\n\n```csv\n" + registrationRow + "\n```\n"
+	setUp := func(t *testing.T, body string) (*Server, *listsThread) {
+		server, _, lists := sweepingLists(t, day, "")
+		server.Settings.Chekhov.Nudges.NeedsCodecheckerDays = 7
+		lists.body = body
+		lists.thread = []github.Comment{{ID: 1, Author: "chekhovbot", Body: ready(t, server)}}
+		return server, lists
+	}
+	toldEditors := func(lists *listsThread, from int) bool {
+		for _, comment := range lists.comments[from:] {
+			if strings.Contains(comment.Body, "nobody has included it") {
+				return true
+			}
+		}
+		return false
+	}
+
+	server, lists := setUp(t, complete)
+	server.nudge(context.Background())
+	says(t, lists.last(), "@codecheckers/editors, this registration of `@a-made-up-registrant` has had everything",
+		"`@chekhovbot include` opens the pull request")
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("told the editors twice:\n%s", lists.last())
+	}
+
+	for name, change := range map[string]func(*Server, *listsThread){
+		"an include on it":    func(server *Server, l *listsThread) { l.thread = append(l.thread, sweepingRecord(t, server)) },
+		"a pull request open": func(_ *Server, l *listsThread) { l.pending, l.pendingSince = 12, time.Now() },
+		"edited incomplete":   func(_ *Server, l *listsThread) { l.body = "Your data:\n\n```csv\nJust a name\n```\n" },
+		"the queue nudge off": func(server *Server, _ *listsThread) { server.Settings.Chekhov.Nudges.NeedsCodecheckerDays = 0 },
+	} {
+		server, lists := setUp(t, complete)
+		change(server, lists)
+		server.nudge(context.Background())
+		if toldEditors(lists, 0) {
+			t.Errorf("%s: told the editors", name)
+		}
+	}
+}
+
+// sweepingRecord is an `include`'s record on the lists' issue #7.
+func sweepingRecord(t *testing.T, server *Server) github.Comment {
+	t.Helper()
+	block, err := followup.Render(followup.Record{Kind: followup.KindInclusion, Check: testLists + "#7",
+		Subject: madeUpRegistrar, Team: "codecheckers", Asked: time.Now().UTC().Format(time.RFC3339)}, server.signer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return github.Comment{ID: 5, Author: "chekhovbot", Body: block + "Including"}
+}
+
+// The reply that finds a registration complete leaves the record.
+func TestACompleteRegistrationLeavesAReadyRecord(t *testing.T) {
+	server, _, lists, _ := listsServer(t)
+	eventType, payload := registrationEvent(testLists, registrationRow, "", "", "registration")
+	deliverEvent(t, server, eventType, payload)
+	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
+	if err != nil || record.Kind != followup.KindReady || record.Subject != madeUpRegistrar {
+		t.Errorf("the ready record: %+v, %v", record, err)
+	}
+}
+
+// The pull request open and unmerged a week on: the owners are reminded,
+// with a fresh record; less than a week, nothing.
+func TestTheSweepRemindsTheOwnersOfAWaitingPullRequest(t *testing.T) {
+	server, org, lists := sweepingLists(t, 8*day, "")
+	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+	lists.pending, lists.pendingSince = 12, time.Now().Add(-4*day)
+	before := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != before {
+		t.Errorf("reminded about a pull request four days old:\n%s", lists.last())
+	}
+
+	server, org, lists = sweepingLists(t, 8*day, "")
+	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+	lists.pending, lists.pendingSince = 12, time.Now().Add(-15*day)
+	server.nudge(context.Background())
+	// Its own age, not the record's.
+	says(t, lists.last(), "@an-owner and @another-owner, #12 has waited 15 days to be reviewed and merged")
+	// A fresh record, so that the next reminder is a week from this one.
+	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
+	if err != nil || record.Older(day, time.Now()) {
+		t.Errorf("the reminder's record: %+v, %v", record, err)
+	}
+	said := lists.count()
+	server.nudge(context.Background())
+	if lists.count() != said {
+		t.Errorf("reminded twice in a night:\n%s", lists.last())
+	}
+}
+
+// Checking again after the editors were told leaves a record that says they
+// were: a re-check does not tell them a second time.
+func TestARecheckKeepsTheEditorsTold(t *testing.T) {
+	server, _, _, _ := listsServer(t)
+	lists := &listsThread{}
+	server.Lists = lists
+	told, err := followup.Render(followup.Record{Kind: followup.KindReady, Check: testLists + "#7",
+		Subject: madeUpRegistrar, Told: true, Settled: true, Asked: time.Now().UTC().Format(time.RFC3339)}, server.signer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lists.thread = []github.Comment{{ID: 1, Author: "chekhovbot", Body: told + "told"}}
+	eventType, payload := registrationEvent(testLists, registrationRow, "@chekhovbot include check", madeUpRegistrar, "registration")
+	deliverEvent(t, server, eventType, payload)
+	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
+	if err != nil || !record.Told || !record.Settled {
+		t.Errorf("the re-check's record forgot the editors were told: %+v, %v", record, err)
+	}
 }

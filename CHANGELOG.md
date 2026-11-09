@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-11-09
+
+### Added
+
+- The sweep tells the editors, once, about a registration that has had
+  everything the list needs for two days with nobody having included it and
+  no pull request adding its row - where the queue nudge is switched on - and
+  reminds the owners of the pull request adding a row when it has waited a
+  week to be reviewed and merged, weekly by its own age and for as many weeks
+  as any ask is repeated (#49).
+
 ## [0.34.0] - 2026-11-09
 
 ### Added

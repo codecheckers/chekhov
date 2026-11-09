@@ -86,7 +86,7 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 	if unread != "" {
 		return said(unread)
 	}
-	return said(command.RegistrationReply(report, event.Comment == 0, inComment))
+	return answered{body: command.RegistrationReply(report, event.Comment == 0, inComment), follow: s.ready(ctx, event, report)}
 }
 
 // registrationWorld is what a registration is checked against: ORCID, the

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/httpretry"
 )
@@ -97,9 +98,12 @@ type RowProposal struct {
 
 // A RowPullRequest is what ProposeRow left behind.
 type RowPullRequest struct {
-	Number int    `json:"number"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
+	Number int `json:"number"`
+	// Created is when the pull request was opened, as GitHub says: how long
+	// it has waited, whatever reminded whom since.
+	Created time.Time `json:"created_at"`
+	Title   string    `json:"title"`
+	Body    string    `json:"body"`
 	// Updated says the pull request was there already and has been brought
 	// up to date, rather than opened; Unchanged that it already proposed
 	// exactly this, and nothing was written.

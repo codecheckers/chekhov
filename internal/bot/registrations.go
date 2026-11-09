@@ -234,7 +234,7 @@ func (s *Server) followRegistration(ctx context.Context, event mention, record f
 		// A row posted without the command line under it: answered here,
 		// once - the answer is a comment of the bot's after it.
 		report := registration.Check(ctx, row, s.registrationWorld(record.Subject))
-		return said(command.RegistrationReply(report, false, true)), false, nil
+		return answered{body: command.RegistrationReply(report, false, true), follow: s.ready(ctx, event, report)}, false, nil
 	}
 	return s.tellOnce(event, record, rowAskedAfter, command.RowAsked()), true, nil
 }
@@ -270,4 +270,75 @@ func (s *Server) tellOnce(event mention, record followup.Record, after time.Dura
 		told.Told = true
 	}
 	return answered{body: body, follow: told}
+}
+
+// readyAfter is how long a complete registration waits for an editor's
+// `include` before the editors are told it is ready.
+const readyAfter = 2 * 24 * time.Hour
+
+// ready is the record a complete registration's reply leaves, so that the
+// sweep can tell the editors when nobody has run `include` on it; nil for an
+// incomplete one, or where nothing would come back for it. One that was said
+// already stays said: a registrant checking again does not tell the editors
+// again.
+func (s *Server) ready(ctx context.Context, event mention, report registration.Report) *followup.Record {
+	if !report.Complete() {
+		return nil
+	}
+	record := s.followUp(event, followup.Record{Kind: followup.KindReady, Subject: strings.ToLower(report.Row.Login())})
+	if record == nil {
+		return nil
+	}
+	if reader, err := s.listsReader(); err == nil {
+		if said, ok := s.threadOf(ctx, reader, event).newestAbout(*record); ok && said.Told {
+			record.Told, record.Settled = true, true
+		}
+	}
+	return record
+}
+
+// followReady tells the editors, once, about a registration nobody has
+// included, by looking: it is still complete, no `include` has left its
+// record, no pull request adds the row, and the row is not on the list. Off
+// where the queue nudge is off, since it tells the editors as that does. Said
+// is settled: nothing is left waiting on the bot.
+func (s *Server) followReady(ctx context.Context, event mention, record followup.Record) (answered, bool, error) {
+	if s.Settings.QueueAfter() == 0 || !record.Older(readyAfter, time.Now()) {
+		return answered{}, true, nil
+	}
+	reader, err := s.listsReader()
+	if err != nil {
+		return answered{}, false, err
+	}
+	thread := s.threadOf(ctx, reader, event)
+	if len(thread.unread) > 0 {
+		// Already reported by the walk; nothing to decide on until it reads.
+		return answered{}, true, nil
+	}
+	for _, other := range thread.newest {
+		if other.Kind == followup.KindInclusion {
+			return answered{}, false, nil
+		}
+	}
+	issue, err := reader.Issue(ctx, event.Repository, event.Issue)
+	if err != nil {
+		return answered{}, true, err
+	}
+	event.IssueAuthor, event.IssueBody = issue.Author, issue.Body
+	report, _, unread := s.checkRegistration(ctx, event)
+	if unread != "" || !report.Complete() {
+		// Edited since, and incomplete now: its own reply says what it needs.
+		return answered{}, false, nil
+	}
+	if pulls, ok := s.Lists.(RowPullRequests); ok {
+		if pull, err := pulls.OpenRowPullRequest(ctx, event.Repository, record.Subject); err != nil || pull.Number != 0 {
+			return answered{}, err == nil, err
+		}
+	}
+	editors, configured := s.Settings.EditorsToTell()
+	told := s.followUp(event, record)
+	if told != nil {
+		told.Told, told.Settled = true, true
+	}
+	return answered{body: command.ReadyToInclude(editors, configured, record.Subject), follow: told}, false, nil
 }

@@ -73,6 +73,11 @@ const (
 	// is that author. The sweep reminds them once, Told, when no row has come
 	// a week on. See codecheckers/chekhov#49.
 	KindRegistration = "codechecker-registration"
+	// KindReady is a registration found complete, waiting for an editor's
+	// `include`: the subject is the registrant. The sweep tells the editors
+	// once, Told, when no `include` has left its record two days on. See
+	// codecheckers/chekhov#49.
+	KindReady = "registration-ready"
 )
 
 // outlivesTheCheck are the kinds still due after the check's issue is closed:

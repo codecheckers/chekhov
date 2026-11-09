@@ -84,6 +84,7 @@ func (s *Server) followers(services *check.Services) map[string]follower {
 			return s.followArchive(ctx, event, record, services)
 		},
 		followup.KindRegistration: s.followRegistration,
+		followup.KindReady:        s.followReady,
 		followup.KindInclusion: func(ctx context.Context, event mention,
 			record followup.Record) (answered, bool, error) {
 			return s.followInclusion(ctx, event, record, services)

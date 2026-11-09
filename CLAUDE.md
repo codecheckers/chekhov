@@ -129,7 +129,11 @@ owners for them, or an editor typed `include open` - naming the one person
 who has to answer it; in a test, a handle the test chose, so the maintainer's.
 The review `include` requests on its pull request notifies through GitHub
 rather than a mention, and goes to the same owners `OutsideReply` asks - so
-in development to `teams.owners` - and never to the registrant.
+in development to `teams.owners` - and never to the registrant. The seventh
+and eighth are the sweep's on the lists: `command.ReadyToInclude` tells the
+editors - `EditorsToTell`, as the queue nudge - about a complete registration
+nobody has included, once; and `command.PullRequestWaiting` reminds the
+owners, as `OutsideReply` asks them, of the row's pull request open a week.
 `command.notifying` is the only function that writes a
 handle so that it notifies, and it is named to be hard to confuse with
 `command.mentions`, which writes one in backticks so that it does not.

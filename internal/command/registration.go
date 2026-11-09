@@ -429,3 +429,36 @@ func RowAsked() string {
 	return "This registration is still waiting for your row: a comment with " + rowInComment +
 		", as the first post says. I will not ask again.\n"
 }
+
+// ReadyToInclude tells the editors that a registration is complete and that
+// nobody has included it. It notifies them, as the queue nudge does - the
+// editors team, or in development the people the settings name.
+func ReadyToInclude(editors []string, configured bool, login string) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "%s, this registration of %s has had everything the list needs for two days, and nobody "+
+		"has included it: `%s %s` opens the pull request and checks the organisation.\n",
+		notifying(editors), mention(login), Bot, Include)
+	if configured {
+		out.WriteString("\n*This deployment is configured to tell the people above rather than " +
+			"the editors team, so the editors have not been notified.*\n")
+	}
+	return out.String()
+}
+
+// PullRequestWaiting reminds the owners of the pull request adding a row,
+// open and unmerged. It notifies them: merging it is theirs, or an editor's
+// they ask.
+func PullRequestWaiting(owners []string, configured bool, number int, since string) string {
+	var out strings.Builder
+	who := ""
+	if len(owners) > 0 {
+		who = notifying(owners) + ", "
+	}
+	fmt.Fprintf(&out, "%s#%d has waited %s to be reviewed and merged: it adds this registration's row to the "+
+		"list, and I merge nothing.\n", who, number, since)
+	if configured {
+		out.WriteString("\n*This deployment is configured to ask the people above rather than " +
+			"the organisation's owners, so the owners have not been notified.*\n")
+	}
+	return out.String()
+}
