@@ -54,6 +54,42 @@ func RegistrationReply(report registration.Report, first, inComment bool) string
 	return out.String()
 }
 
+// SurveyReminder asks, once, for the template's optional questions left
+// unanswered, naming those and no others: somebody who answered two is not
+// told they answered none. Not a finding: it holds nothing up, and only the
+// answer to the issue being opened says it - a later check does not ask
+// again. Empty when nothing is left unanswered.
+func SurveyReminder(unanswered []registration.SurveyQuestion) string {
+	topics := make([]string, len(unanswered))
+	for i, question := range unanswered {
+		topics[i] = question.Topic
+	}
+	switch len(topics) {
+	case 0:
+		return ""
+	case 1:
+		return "One more thing, entirely optional: the short question at the end of your first post - " +
+			topics[0] + " - is still unanswered. We would love to read your answer! It helps us " + surveyWhy + "it" +
+			surveyWhen
+	}
+	last := len(topics) - 1
+	listed := strings.Join(topics[:last], ", ") + " and " + topics[last]
+	if len(topics) > 2 {
+		listed = strings.Join(topics[:last], ", ") + ", and " + topics[last]
+	}
+	return fmt.Sprintf("One more thing, entirely optional: the %s short questions at the end of your first post - "+
+		"%s - are still unanswered. We would love to read your answers! They help us %sthem%s",
+		[]string{"two", "three"}[len(topics)-2], listed, surveyWhy, surveyWhen)
+}
+
+// surveyWhy and surveyWhen are the reminder's own words, whichever questions
+// it names.
+const (
+	surveyWhy = "grow the initiative, and to understand your background and intentions, so that our " +
+		"collaboration works well for you. You can add "
+	surveyWhen = " to the first post whenever you like.\n"
+)
+
 func writeFindings(out *strings.Builder, findings []registration.Finding) {
 	for _, finding := range findings {
 		fmt.Fprintf(out, "- %s %s\n", finding.Outcome, finding.Text)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-11-13
+
+### Added
+
+- The first answer to a registration asks, once and kindly, for the
+  template's optional questions when any is left unanswered (#49).
+
 ## [0.38.0] - 2026-11-13
 
 ### Changed

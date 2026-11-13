@@ -86,7 +86,16 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 	if unread != "" {
 		return said(unread)
 	}
-	return answered{body: command.RegistrationReply(report, event.Comment == 0, inComment), follow: s.ready(ctx, event, report)}
+	first := event.Comment == 0
+	body := command.RegistrationReply(report, first, inComment)
+	// The survey is asked about in the first answer only, and only on a
+	// registration from the template: one the bot opened asks no questions.
+	if first && !inComment {
+		if reminder := command.SurveyReminder(registration.SurveyUnanswered(event.IssueBody)); reminder != "" {
+			body += "\n" + reminder
+		}
+	}
+	return answered{body: body, follow: s.ready(ctx, event, report)}
 }
 
 // registrationWorld is what a registration is checked against: ORCID, the

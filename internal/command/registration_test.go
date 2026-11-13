@@ -7,6 +7,42 @@ import (
 	"github.com/codecheckers/chekhov/internal/registration"
 )
 
+// The survey reminder names the questions left and no others, and is nothing
+// when none is (codecheckers/chekhov#49).
+func TestTheSurveyReminderNamesOnlyWhatIsLeft(t *testing.T) {
+	asked := func(topics ...string) []registration.SurveyQuestion {
+		var questions []registration.SurveyQuestion
+		for _, topic := range topics {
+			questions = append(questions, registration.SurveyQuestion{Topic: topic})
+		}
+		return questions
+	}
+	for _, c := range []struct {
+		left []registration.SurveyQuestion
+		want []string
+	}{
+		{nil, nil},
+		{asked("a"), []string{"the short question at the end of your first post - a - is still", "your answer! It helps",
+			"You can add it to"}},
+		{asked("a", "b"), []string{"the two short questions at the end of your first post - a and b - are still",
+			"your answers! They help", "You can add them to"}},
+		{asked("a", "b", "c"), []string{"the three short questions", "- a, b, and c - are still"}},
+	} {
+		reminder := SurveyReminder(c.left)
+		if c.want == nil && reminder != "" {
+			t.Errorf("nothing left, and reminded:\n%s", reminder)
+		}
+		for _, want := range c.want {
+			if !strings.Contains(reminder, want) {
+				t.Errorf("%d left: the reminder does not say %q:\n%s", len(c.left), want, reminder)
+			}
+		}
+		if strings.Contains(reminder, "@") {
+			t.Errorf("the reminder names somebody:\n%s", reminder)
+		}
+	}
+}
+
 // A complete registration promises the team only to somebody not in it
 // already (codecheckers/chekhov#49).
 func TestACompleteRegistrationPromisesOnlyWhatIsLeft(t *testing.T) {

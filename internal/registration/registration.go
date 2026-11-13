@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/codecheckers/chekhov/internal/check"
 )
@@ -173,8 +175,89 @@ func rowIn(body string) (string, *Finding) {
 	return "", &problem
 }
 
+// A SurveyQuestion is one of the registration template's optional questions,
+// each written as normalise writes it.
+type SurveyQuestion struct {
+	// Topic is what the question asks about, as the reminder names it.
+	Topic       string
+	question    string // how the question line starts
+	placeholder string // the answer line the template ships with
+}
+
+// surveyQuestions are the template's three, in its order.
+var surveyQuestions = []SurveyQuestion{
+	{"how you heard about CODECHECK", "howdidyouhearaboutcodecheck", "i..."},
+	{"what motivates you", "whatisyourmotivation", "mymotivationis..."},
+	{"how much time you could spend", "howmuchtimewouldyou", "about/atleast/notmorethan..."},
+}
+
+// SurveyUnanswered is the template's optional questions whose answer is
+// still the template's placeholder and nothing else: what is under the
+// question, up to the next one, ignoring blank lines. One such is enough.
+//
+// The placeholder is recognised in whatever markup it was left in or given -
+// emphasis of either kind or none, a quote, an ellipsis character, other
+// spacing or case - and only under its own question, so a line like it
+// elsewhere in the post means nothing. A question deleted is the template's
+// own way of declining ("PLEASE DELETE IF YOU PREFER NOT TO ANSWER"), and an
+// answer written beside a placeholder left in place is an answer.
+func SurveyUnanswered(body string) []SurveyQuestion {
+	// What GitHub does not show is not asked about: a comment, and everything
+	// after one that is never closed.
+	body = unclosed.ReplaceAllString(comments.ReplaceAllString(body, ""), "")
+	var unanswered []SurveyQuestion
+	asked, onlyPlaceholder := -1, false
+	settle := func() {
+		if asked >= 0 && onlyPlaceholder {
+			unanswered = append(unanswered, surveyQuestions[asked])
+		}
+	}
+	for line := range strings.Lines(body) {
+		line = normalise(line)
+		if next := questionOf(line); next >= 0 {
+			settle()
+			asked, onlyPlaceholder = next, false
+			continue
+		}
+		switch {
+		case asked < 0 || line == "":
+		case line == surveyQuestions[asked].placeholder:
+			onlyPlaceholder = true
+		default:
+			// An answer, or the post going on after the survey: either way
+			// the question is not left with only its placeholder.
+			asked = -1
+		}
+	}
+	settle()
+	return unanswered
+}
+
+// questionOf is which of the template's questions a normalised line is, -1
+// for none.
+func questionOf(line string) int {
+	return slices.IndexFunc(surveyQuestions, func(q SurveyQuestion) bool { return strings.HasPrefix(line, q.question) })
+}
+
+// normalise is a line without its markup, spacing and case, every ellipsis
+// written as three dots, to be compared with surveyQuestions.
+func normalise(line string) string {
+	line = strings.Map(func(r rune) rune {
+		switch {
+		case strings.ContainsRune("_*~`>", r), unicode.IsSpace(r):
+			return -1
+		case r == '…':
+			return '.'
+		}
+		return unicode.ToLower(r)
+	}, line)
+	return dots.ReplaceAllString(line, "...")
+}
+
 var (
 	comments = regexp.MustCompile(`(?s)<!--.*?-->`)
+	unclosed = regexp.MustCompile(`(?s)<!--.*`)
+	dots     = regexp.MustCompile(`\.+`)
 	fences   = regexp.MustCompile("(?s)```[a-zA-Z]*[ \t]*\r?\n(.*?)```")
 	// template matches the line the registration template ships with.
 	template = regexp.MustCompile(`@GitHub-handle|ORCID ID \(not url\)`)

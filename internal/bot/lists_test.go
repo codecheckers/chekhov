@@ -119,6 +119,35 @@ func TestIncludeCheckLooksAgain(t *testing.T) {
 	}
 }
 
+// The survey left as the template has it is asked about in the answer to the
+// issue being opened, and never again: a later check does not repeat it, and
+// a survey answered is not asked about.
+func TestTheSurveyIsAskedAboutOnlyInTheFirstAnswer(t *testing.T) {
+	for _, c := range []struct {
+		name, answer, comment string
+		want                  bool
+	}{
+		{"opened, unanswered", "_I ..._", "", true},
+		{"opened, answered", "I heard of it from a colleague.", "", false},
+		{"checked again, unanswered", "_I ..._", "@chekhovbot include check", false},
+	} {
+		server, _, lists, _ := listsServer(t)
+		eventType, payload := registrationEvent(testLists, registrationRow, c.comment, madeUpRegistrar, "registration")
+		issue := payload["issue"].(map[string]any)
+		issue["body"] = issue["body"].(string) + "\n" + c.answer + "\n"
+		if code := deliverEvent(t, server, eventType, payload); code != http.StatusAccepted {
+			t.Fatalf("%s: status = %d, want 202", c.name, code)
+		}
+		reply := lists.last()
+		if !strings.Contains(reply, "Before you can be listed") && !strings.Contains(reply, "has everything the list needs") {
+			t.Errorf("%s: not an answer to the registration:\n%s", c.name, reply)
+		}
+		if got := strings.Contains(reply, "how you heard about CODECHECK - is still unanswered"); got != c.want {
+			t.Errorf("%s: reminded = %v, want %v:\n%s", c.name, got, c.want, reply)
+		}
+	}
+}
+
 // Offline nothing can be checked, and a registration that could not be
 // checked is not complete.
 func TestARegistrationThatCannotBeCheckedIsNotComplete(t *testing.T) {

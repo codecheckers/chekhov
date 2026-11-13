@@ -331,3 +331,46 @@ func TestOtherGroupsAreWarnedAboutNotRefused(t *testing.T) {
 		t.Errorf("want two warnings and a complete registration: %+v", report.Findings)
 	}
 }
+
+func TestTheSurveyIsUnansweredWhilePlaceholdersAreLeft(t *testing.T) {
+	shipped := filed(t, validRow)
+	const heard, motivation, time = "_I ..._", "_My motivation is ..._", "_About/at least/not more than ..._"
+	// edited is the template with placeholders written as the pairs say.
+	edited := func(pairs ...string) string { return strings.NewReplacer(pairs...).Replace(shipped) }
+	answered := edited(heard, "From a colleague.", motivation, "Open science.", time, "One check a year.")
+	deleted, _, _ := strings.Cut(shipped, "------")
+	for _, c := range []struct {
+		name string
+		body string
+		want []string // a word of each unanswered topic, in order
+	}{
+		{"the template as it ships", shipped, []string{"heard", "motivates", "time"}},
+		{"all three answered", answered, nil},
+		{"the survey deleted", deleted, nil},
+		{"one question deleted, two answered", strings.Replace(edited(motivation, "x", time, "y"),
+			"How did you hear about CODECHECK?", "", 1), nil},
+		{"two answered, one left", edited(heard, "From a colleague.", motivation, "Open science."), []string{"time"}},
+		{"one in bold", edited(heard, "x", motivation, "**My motivation is ...**", time, "y"), []string{"motivates"}},
+		{"one without emphasis", edited(heard, "I ...", motivation, "x", time, "y"), []string{"heard"}},
+		{"one quoted, with an ellipsis", edited(heard, ">  *i …*  ", motivation, "x", time, "y"), []string{"heard"}},
+		{"one with its dots closed up", edited(heard, "x", motivation, "_My motivation is...._", time, "y"),
+			[]string{"motivates"}},
+		{"a placeholder started on", edited(heard, "_I ... read the paper_", motivation, "x", time, "y"), nil},
+		{"an answer under a placeholder kept", edited(heard, "_I ..._\n\nFrom a colleague.", motivation, "x", time, "y"), nil},
+		{"a placeholder only in a comment", edited(heard, "<!-- _I ..._ -->", motivation, "x", time, "y"), nil},
+		{"the survey hidden by an unclosed comment", strings.Replace(shipped, "------", "<!-- ------", 1), nil},
+		{"a placeholder away from its question", answered + "\nI ...\n", nil},
+	} {
+		var got []string
+		for _, question := range SurveyUnanswered(c.body) {
+			got = append(got, question.Topic)
+		}
+		matches := len(got) == len(c.want)
+		for i := 0; matches && i < len(got); i++ {
+			matches = strings.Contains(got[i], c.want[i])
+		}
+		if !matches {
+			t.Errorf("%s: unanswered %q, want those about %q", c.name, got, c.want)
+		}
+	}
+}
