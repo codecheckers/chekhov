@@ -105,7 +105,7 @@ func (s *Server) reminder(event mention, record followup.Record, ask, rerun stri
 	}
 	next := s.followUp(event, record)
 	if next != nil {
-		// Asking the owners again means there is no invitation to accept: a
+		// Asking again means there is no invitation to accept: a
 		// registrant told about an earlier one is told about the next.
 		next.Reminders, next.Told = record.Reminders+1, false
 	}

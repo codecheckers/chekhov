@@ -254,20 +254,70 @@ func IncludeUnknown(handle, organisation, why string) string {
 	return Item(NotDone(fmt.Sprintf("read whether %s is in `%s`", mention(handle), organisation), why))
 }
 
-// IncludeOutsideReply asks the owners to invite somebody the organisation
-// shows neither as a member nor as invited. One of the few replies that
-// notifies anybody, for the reason OutsideReply does: only an owner can do
-// this, so asking them is the point.
-func IncludeOutsideReply(request OutsideRequest) string {
+// IncludeOutsideReply says somebody the organisation shows neither as a
+// member nor as invited needs an invitation, and asks the editor who ran
+// `include` - an owner, or `include` would have been refused - to send it.
+//
+// The editor is the one person notified, not the other owners: `include` is
+// the editor's errand. An empty editor is a record from before the record
+// said who ran it: nobody is notified, and the owners are named in
+// backticks.
+func IncludeOutsideReply(request OutsideRequest, editor string) string {
 	var out strings.Builder
 	out.WriteString(Item(fmt.Sprintf("✖ %s is not in the `%s` organisation, and I see no invitation for them.",
 		mention(request.Handle), request.Organisation)))
 	// An invitation out would have been seen: GitHub shows the bot a pending
 	// one (#49), so this asks only when there is none.
-	request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation, as a member. "+
-		"I look every night, and put them in `%s/%s` once they have accepted.",
-		request.Handle, request.Organisation, request.Team))
+	invite := fmt.Sprintf("invite `@%s` to the organisation, as a member", request.Handle)
+	if editor != "" {
+		fmt.Fprintf(&out, "\n%s — please %s.", notifying([]string{editor}), invite)
+	} else {
+		fmt.Fprintf(&out, "\nAn owner has to %s%s.", invite, request.named())
+	}
+	fmt.Fprintf(&out, " I look every night, and put them in `%s/%s` once they have accepted.\n",
+		request.Organisation, request.Team)
+	if editor == "" && request.Configured && len(request.Owners) > 0 {
+		// Said only under a list it describes: a reader must not take the
+		// people named for the organisation's owners when, in a test, they
+		// are not.
+		out.WriteString("\n*This deployment is configured to name the people above rather than " +
+			"the organisation's owners.*\n")
+	}
 	return out.String()
+}
+
+// named is the owners, in backticks so that nobody is notified, or why they
+// cannot be named.
+func (request OutsideRequest) named() string {
+	switch {
+	case request.Unreadable != "":
+		return fmt.Sprintf("; I could not read who the owners are: %s", oneLine(request.Unreadable))
+	case len(request.Owners) == 0:
+		return "; I could not find one"
+	}
+	owners := make([]string, len(request.Owners))
+	for i, owner := range request.Owners {
+		owners[i] = "@" + owner
+	}
+	return ": " + codeListUpTo(owners, mostOwnersMentioned)
+}
+
+// IncludeNotAnOwner refuses `include` from an editor who is not an owner,
+// for somebody outside the organisation with no invitation: the command
+// would end in an invitation only an owner can send, so it is an owner's to
+// run, and nothing is done - no pull request, no record - rather than half
+// of it. Nobody is notified; the editor asked, and is answered. why is set
+// when the editor's role could not be read, so that whether they are an
+// owner could not be told - and asking again may.
+func IncludeNotAnOwner(handle, organisation, why string) string {
+	reply := fmt.Sprintf("`%s %s` is for an owner of `%s` while %s is not in the organisation and has no "+
+		"invitation: only an owner can invite them. I have done nothing.\n",
+		Bot, Include, organisation, mention(handle))
+	if why != "" {
+		reply += fmt.Sprintf("\nI could not read whether you are an owner: %s. `%s %s` asks again.\n",
+			strings.TrimSuffix(oneLine(why), "."), Bot, Include)
+	}
+	return reply
 }
 
 // The sweep's side of `include` (#49): what it says while the inclusion is

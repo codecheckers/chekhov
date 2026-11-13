@@ -100,16 +100,19 @@ were notified by test comments before this was written down.
 | `@nuest` | the maintainer, who is running the test |
 | `@chekhovbot` | the bot itself, which the command is addressed to |
 
-<!-- Source: own rule; ArchiveReminder exception added 2026-11-02 (#27), IncludeOutsideReply 2026-11-08 (#49). -->
+<!-- Source: own rule; ArchiveReminder exception added 2026-11-02 (#27), IncludeOutsideReply 2026-11-08 (#49), narrowed to the editor 2026-11-13. -->
 The one exception is `command.OutsideReply`, which asks the organisation's
-owners to invite somebody - and `command.IncludeOutsideReply`, the same ask for
-a registered codechecker, through the same `OutsideRequest.ask` (#49): notifying them is the whole point of that reply, and
+owners to invite somebody: notifying them is the whole point of that reply, and
 the handles are the organisation's current owners read from the organisation,
-never written down. **A development deployment must not ask them**, because a
-test may not notify people who did not ask to be in it - `teams.owners` in the
-settings names who to ask instead, the shipped development and live-test files
-name the maintainer, and the reply says when it used that list rather than the
-organisation's. The second is `command.ArchiveReminder` (#27), which the
+never written down. **A development deployment must not ask the owners**,
+because a test may not notify people who did not ask to be in it -
+`teams.owners` in the settings names who to ask instead, the shipped
+development and live-test files name the maintainer, and the reply says when
+it used that list rather than the organisation's.
+`command.IncludeOutsideReply`, the same need for a registered codechecker
+(#49), notifies only the editor who ran `include` - the command's author, and
+an owner of the organisation, or the command is refused - so in a test
+whoever posted it. The second is `command.ArchiveReminder` (#27), which the
 nightly sweep posts to the handling editor recorded on the check - somebody an
 editor named for that check, so in a test it is whoever the test assigned.
 The third is `command.ReminderDue` (#25), which notifies the person a

@@ -201,16 +201,23 @@ var handleInText = regexp.MustCompile(`@[A-Za-z0-9-]+`)
 
 func assertNobodyIsMentioned(t *testing.T, reply string) {
 	t.Helper()
+	for _, found := range notified(reply) {
+		t.Errorf("the reply mentions %q, which notifies its owner:\n%s", found, reply)
+	}
+}
+
+// notified are the handles a reply notifies, at sign and all, in order.
+func notified(reply string) []string {
+	var found []string
 	for _, line := range strings.Split(reply, "\n") {
 		// Odd pieces are inside a code span, even pieces outside one.
 		for i, piece := range strings.Split(line, "`") {
 			if i%2 == 0 {
-				if found := handleInText.FindString(piece); found != "" {
-					t.Errorf("the reply mentions %q, which notifies its owner: %s", found, line)
-				}
+				found = append(found, handleInText.FindAllString(piece, -1)...)
 			}
 		}
 	}
+	return found
 }
 
 // issueReader is a reply path that can also read the register's issues.

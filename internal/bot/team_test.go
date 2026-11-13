@@ -22,7 +22,9 @@ type organisation struct {
 	inTeam                map[string]bool
 	owners                []string
 	ownersErr, membersErr error
-	teamErr               error
+	// membershipErr fails the organisation membership of one handle only.
+	membershipErr map[string]error
+	teamErr       error
 	// pending is somebody an owner invited through the team who has not
 	// accepted: GitHub answers 200 for them, and they are not in it.
 	pending map[string]bool
@@ -61,6 +63,9 @@ type organisation struct {
 func (o *organisation) OrganisationMembership(_ context.Context, _, handle string) (github.Invitation, error) {
 	if o.membersErr != nil {
 		return github.Invitation{}, o.membersErr
+	}
+	if err := o.membershipErr[handle]; err != nil {
+		return github.Invitation{}, err
 	}
 	if invitation, found := o.invitations[handle]; found {
 		return invitation, nil

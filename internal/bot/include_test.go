@@ -72,7 +72,9 @@ func including(t *testing.T) (*Server, *organisation, *listWriter) {
 		pending:     map[string]bool{},
 		maintains:   map[string]bool{},
 		owners:      []string{"an-owner", "another-owner"},
-		invitations: map[string]github.Invitation{},
+		// The editor running `include` is an owner, as an editor asking for
+		// an invitation has to be.
+		invitations: map[string]github.Invitation{"nuest": {State: "active", Role: "admin"}},
 	}
 	server.Replies = org
 	// As in organised: the real list of owners is read, not the override.
@@ -110,16 +112,19 @@ func saysNot(t *testing.T, reply string, unwanted ...string) {
 	}
 }
 
-// Somebody with no invitation: the row is proposed and the owners are asked,
-// mentioned because only they can do it. Nobody is put in a team, because the
-// write that would do it invites them.
-func TestIncludeProposesTheRowAndAsksTheOwners(t *testing.T) {
+// Somebody with no invitation: the row is proposed and the editor who ran
+// `include` is asked to see to the invitation - the one person notified. The
+// owners, who alone can invite, are named without being notified. Nobody is
+// put in a team, because the write that would do it invites them.
+func TestIncludeProposesTheRowAndAsksTheEditor(t *testing.T) {
 	server, org, lists := including(t)
 
 	reply := includeBy(t, server, lists, "nuest")
 	says(t, reply, "Including `@a-made-up-registrant` as a codechecker",
 		"Opened the pull request adding the row to `codecheckers.csv`: #12",
-		"I see no invitation for them", "@an-owner", "@another-owner", "as a member")
+		"I see no invitation for them", "\n@nuest — please invite", "as a member")
+	saysNot(t, reply, "an-owner")
+	notifies(t, reply, "nuest")
 	if len(org.added) != 0 {
 		t.Errorf("put somebody outside the organisation in a team: %q", org.added)
 	}
@@ -341,7 +346,7 @@ func (l *listsThread) CloseIssue(_ context.Context, _ string, issue int) error {
 
 // sweepingLists is a bot whose lists hold one registration, #7, with an
 // `include` left on it however long ago, and the list as given.
-func sweepingLists(t *testing.T, ago time.Duration, list string) (*Server, *organisation, *listsThread) {
+func sweepingLists(t *testing.T, ago time.Duration, list string, by ...string) (*Server, *organisation, *listsThread) {
 	t.Helper()
 	server, org, _ := including(t)
 	lists := &listsThread{}
@@ -354,6 +359,7 @@ func sweepingLists(t *testing.T, ago time.Duration, list string) (*Server, *orga
 	block, err := followup.Render(followup.Record{
 		Kind: followup.KindInclusion, Check: testLists + "#7", Subject: madeUpRegistrar,
 		Team: "codecheckers", Asked: time.Now().UTC().Add(-ago).Format(time.RFC3339),
+		By: strings.Join(by, ""),
 	}, server.signer())
 	if err != nil {
 		t.Fatal(err)
@@ -370,22 +376,97 @@ func TestIncludeLeavesARecordForTheSweep(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no record: %v\n%s", err, reply)
 	}
-	if record.Kind != followup.KindInclusion || record.Subject != madeUpRegistrar || record.Team != "codecheckers" {
+	if record.Kind != followup.KindInclusion || record.Subject != madeUpRegistrar || record.Team != "codecheckers" ||
+		record.By != "nuest" {
 		t.Errorf("the record is %+v", record)
 	}
 }
 
-// No invitation three days on: the owners are reminded, with a fresh record.
-func TestTheSweepRemindsTheOwnersOfAnInclusion(t *testing.T) {
-	server, _, lists := sweepingLists(t, 4*day, "")
+// An editor who is not an owner may not run `include` for somebody with no
+// invitation, since only an owner can send one: refused, with nothing done -
+// no pull request, no record - and nobody notified.
+func TestIncludeByAnEditorWhoIsNotAnOwnerIsRefused(t *testing.T) {
+	server, org, lists := including(t)
+	org.invitations["nuest"] = github.Invitation{State: "active", Role: "member"}
+	// Named in teams.owners is not being an owner: that list says only whom
+	// a development deployment notifies.
+	server.Settings.Chekhov.Teams.Owners = []string{"nuest"}
+
+	reply := includeBy(t, server, lists, "nuest")
+	says(t, reply, "`@chekhovbot include` is for an owner of `codecheckers` while `@a-made-up-registrant` "+
+		"is not in the organisation and has no invitation", "I have done nothing")
+	notifies(t, reply)
+	if len(lists.proposed) != 0 || len(lists.reviewers) != 0 {
+		t.Errorf("did half of it: %+v %q", lists.proposed, lists.reviewers)
+	}
+	if _, err := followup.Parse(reply, testLists+"#7", server.signer()); err == nil {
+		t.Errorf("left a record:\n%s", reply)
+	}
+}
+
+// An editor whose role cannot be read is refused as well, and told that
+// asking again may do: whether they are an owner cannot be told.
+func TestIncludeIsRefusedWhenTheEditorsRoleCannotBeRead(t *testing.T) {
+	server, org, lists := including(t)
+	org.membershipErr = map[string]error{"nuest": errors.New("GitHub answered 403")}
+
+	reply := includeBy(t, server, lists, "nuest")
+	says(t, reply, "I have done nothing", "I could not read whether you are an owner",
+		"`@chekhovbot include` asks again")
+	if len(lists.proposed) != 0 {
+		t.Errorf("proposed a row: %+v", lists.proposed)
+	}
+}
+
+// Somebody invited already needs no owner: any editor may go on.
+func TestIncludeByAnEditorWhoIsNotAnOwnerForSomebodyInvited(t *testing.T) {
+	server, org, lists := including(t)
+	org.invitations["nuest"] = github.Invitation{State: "active", Role: "member"}
+	org.invitations[madeUpRegistrar] = github.Invitation{State: "pending", Role: "member"}
+
+	reply := includeBy(t, server, lists, "nuest")
+	says(t, reply, "Opened the pull request adding the row", "has been invited to `codecheckers`")
+	notifies(t, reply)
+}
+
+// No invitation three days on: the editor who ran `include` is reminded, and
+// the record they are reminded from keeps who they are.
+func TestTheSweepRemindsTheEditorOfAnInclusion(t *testing.T) {
+	server, _, lists := sweepingLists(t, 4*day, "", "nuest")
 	swept := server.nudge(context.Background())
 	if swept.Acted != 1 || swept.Outstanding != 1 {
 		t.Fatalf("swept %+v", swept)
 	}
-	says(t, lists.last(), "Still waiting, 4 days on", "@an-owner", "I see no invitation")
+	says(t, lists.last(), "Still waiting, 4 days on", "@nuest — please invite", "I see no invitation")
+	notifies(t, lists.last(), "nuest")
 	record, err := followup.Parse(lists.last(), testLists+"#7", server.signer())
-	if err != nil || record.Reminders != 1 {
+	if err != nil || record.Reminders != 1 || record.By != "nuest" {
 		t.Errorf("the reminder's record: %+v, %v", record, err)
+	}
+}
+
+// A record from before it said who ran `include` notifies nobody: the owners
+// are named, not mentioned.
+func TestTheSweepRemindsNobodyFromAnOldInclusionRecord(t *testing.T) {
+	server, _, lists := sweepingLists(t, 4*day, "")
+	server.nudge(context.Background())
+	says(t, lists.last(), "Still waiting, 4 days on",
+		"An owner has to invite `@a-made-up-registrant` to the organisation, as a member: "+
+			"`@an-owner`, `@another-owner`.")
+	notifies(t, lists.last())
+}
+
+// notifies fails unless the handles a reply notifies are exactly these.
+func notifies(t *testing.T, reply string, want ...string) {
+	t.Helper()
+	got := strings.Join(notified(reply), " ")
+	if wanted := strings.Join(want, " "); wanted != "" {
+		wanted = "@" + strings.ReplaceAll(wanted, " ", " @")
+		if got != wanted {
+			t.Errorf("the reply notifies %q, want %q:\n%s", got, wanted, reply)
+		}
+	} else if got != "" {
+		t.Errorf("the reply notifies %q, want nobody:\n%s", got, reply)
 	}
 }
 

@@ -122,7 +122,8 @@ type Record struct {
 	Subject string `json:"subject"`
 	// By is who asked, for a kind that may have to fall back on them: an
 	// archive reminder goes to the handling editor, and to whoever finished
-	// the check when there is none.
+	// the check when there is none. An inclusion's reminder goes to the
+	// editor who ran `include`, and to nobody when a record has no By.
 	By string `json:"by,omitempty"`
 	// Role and Team are what was being asked for, empty when the kind needs
 	// neither.

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-11-13
+
+### Changed
+
+- `include` for somebody outside the organisation with no invitation is for
+  an organisation owner: another editor is told so and nothing is done (#49).
+- `include` and its nightly reminder ask the editor who ran it to send the
+  organisation invitation, rather than notifying all the owners (#49).
+
 ## [0.37.0] - 2026-11-09
 
 ### Added

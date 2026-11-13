@@ -22,3 +22,22 @@ func TestACompleteRegistrationPromisesOnlyWhatIsLeft(t *testing.T) {
 		t.Errorf("somebody in the team is promised the team:\n%s", inside)
 	}
 }
+
+// The editor who ran `include` is asked alone, and the owners are not named:
+// the editor is one of them. A record with no editor names them instead, and
+// the development note is said only under that list.
+func TestIncludeOutsideReplyAsksTheEditorAlone(t *testing.T) {
+	request := OutsideRequest{Handle: "a-made-up-registrant", Organisation: "codecheckers",
+		Team: "codecheckers", Owners: []string{"nuest", "an-owner"}, Configured: true}
+	reply := IncludeOutsideReply(request, "nuest")
+	if !strings.Contains(reply, "\n@nuest — please invite `@a-made-up-registrant`") ||
+		strings.Contains(reply, "an-owner") || strings.Contains(reply, "configured") {
+		t.Errorf("the editor's reply:\n%s", reply)
+	}
+	reply = IncludeOutsideReply(request, "")
+	for _, want := range []string{"An owner has to invite", ": `@nuest`, `@an-owner`.", "configured"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not say %q:\n%s", want, reply)
+		}
+	}
+}

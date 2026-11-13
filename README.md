@@ -66,7 +66,8 @@ again on `@chekhovbot include check`, it says what the row still needs - the
 columns, the ORCID, a way to reach the person besides GitHub, and whether they
 are listed already. `@chekhovbot include`, for editors, then opens the pull
 request adding the row to `codecheckers.csv` and checks the organisation's side:
-it asks the owners to invite somebody it sees no invitation for, says when one
+for somebody it sees no invitation for it is an owner's to run, and asks that
+owner to send one; it says when one
 is waiting to be accepted, and puts a member in the codecheckers team. The
 nightly sweep follows it up from there - and opens a registration by itself for a
 codechecker who joins after an `assign` asked the owners for them, as

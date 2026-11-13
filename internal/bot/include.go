@@ -24,7 +24,9 @@ import (
 // rather than assumed - the owners' part is a thing a person does by hand,
 // and the ways it goes wrong are an invitation never sent, sent to a mistyped
 // handle, or in the wrong role - so the reply says where it stands each time
-// it is asked, and asks the owners only when there is no invitation to see.
+// it is asked, and only when there is no invitation to see asks the editor
+// who ran it to send one - which only an owner can, so then `include` is
+// refused to any other editor before anything is done.
 
 // include is the reply to `include` on a registration issue, and the record
 // the nightly sweep follows it up from: until they are in the organisation,
@@ -37,7 +39,10 @@ func (s *Server) include(ctx context.Context, event mention) answered {
 	if !report.Includable() {
 		return said(command.IncludeIncomplete(report, inComment))
 	}
-	login := report.Row.Login()
+	login, editor := report.Row.Login(), command.Handle(event.Author)
+	if refusal := s.mayInclude(ctx, login, editor); refusal != "" {
+		return said(refusal)
+	}
 
 	var out strings.Builder
 	out.WriteString(command.IncludeHeading(login))
@@ -51,9 +56,12 @@ func (s *Server) include(ctx context.Context, event mention) answered {
 	} else {
 		out.WriteString(s.proposeListing(ctx, event, report.Row))
 	}
-	step, inTeam := s.organisationStep(ctx, login)
+	step, inTeam := s.organisationStep(ctx, login, editor)
 	out.WriteString(step)
-	record := followup.Record{Kind: followup.KindInclusion, Subject: strings.ToLower(login), Team: s.Settings.CodecheckersTeam()}
+	// By is the editor, whom the sweep's reminder asks again rather than the
+	// owners.
+	record := followup.Record{Kind: followup.KindInclusion, Subject: strings.ToLower(login),
+		By: editor, Team: s.Settings.CodecheckersTeam()}
 	if report.Listed() && inTeam {
 		// On the list and in the team: nothing is left to follow up, so the
 		// welcome comes now, as the sweep would post it - asking `include`
@@ -202,8 +210,9 @@ func (s *Server) reviewers(ctx context.Context, asker string) (handles []string,
 // last `include` is seen, and asking again changes nothing that is done.
 //
 // inTeam says they are in the organisation and in the team now, which with
-// the row on the list is the whole of an inclusion.
-func (s *Server) organisationStep(ctx context.Context, login string) (step string, inTeam bool) {
+// the row on the list is the whole of an inclusion. editor ran `include`, and
+// is the one asked to send an invitation, an owner as mayInclude saw to.
+func (s *Server) organisationStep(ctx context.Context, login, editor string) (step string, inTeam bool) {
 	organisation, team := s.Settings.TeamOrganisation(), s.Settings.CodecheckersTeam()
 	reader, ok := s.Replies.(Organisation)
 	if !ok || organisation == "" {
@@ -223,11 +232,8 @@ func (s *Server) organisationStep(ctx context.Context, login string) (step strin
 	case invitation.Invited():
 		return command.IncludeInvited(login, organisation, team), false
 	case !invitation.Joined():
-		// Able to read the organisation is able to read its owners: the one
-		// interface covers both.
-		request, _ := s.ownersRequest(ctx, command.OutsideRequest{
-			Handle: login, Organisation: organisation, Team: team})
-		return command.IncludeOutsideReply(request), false
+		return command.IncludeOutsideReply(command.OutsideRequest{
+			Handle: login, Organisation: organisation, Team: team}, editor), false
 	}
 
 	var out strings.Builder
@@ -241,6 +247,38 @@ func (s *Server) organisationStep(ctx context.Context, login string) (step strin
 		out.WriteString(command.IncludeOwner(login, organisation))
 	}
 	return out.String(), in
+}
+
+// mayInclude refuses `include` from an editor who is not an owner of the
+// organisation, when the registrant is neither in it nor invited: the
+// command would end in asking the editor for an invitation, which only an
+// owner can send. Decided before anything is done, so that a refusal leaves
+// no pull request and no record behind.
+//
+// The editor's own role in the organisation, read from GitHub - not
+// `teams.owners`, which only says whom a development deployment notifies.
+// Anything that cannot be read lets the command go on, where
+// organisationStep says so in its own words; only the editor's role that
+// cannot be read refuses, because whether they may cannot be told.
+func (s *Server) mayInclude(ctx context.Context, login, editor string) string {
+	organisation := s.Settings.TeamOrganisation()
+	reader, ok := s.Replies.(Organisation)
+	if !ok || organisation == "" {
+		return ""
+	}
+	if registrant, known := s.whereStands(ctx, login); !known || registrant.Invited() || registrant.Joined() {
+		return ""
+	}
+	role, err := reader.OrganisationMembership(ctx, organisation, editor)
+	switch {
+	case err != nil:
+		s.Logger.Warn("could not read whether an editor is an owner",
+			"handle", editor, "organisation", organisation, "error", err)
+		return command.IncludeNotAnOwner(login, organisation, whyNot(err))
+	case !role.Joined() || !role.Owner():
+		return command.IncludeNotAnOwner(login, organisation, "")
+	}
+	return ""
 }
 
 // Closer is the part of the lists' reply path that closes a registration
@@ -259,8 +297,9 @@ const invitationWaitingAfter = 2 * 24 * time.Hour
 
 // followInclusion resumes an `include`, by looking: where the registrant
 // stands with the organisation, the team and the list. The owners' half is
-// checked as the editor's command checked it - no invitation is reminded,
-// as `assign`'s ask is; a pending one is the registrant's to accept, and they
+// checked as the editor's command checked it - no invitation is reminded to
+// the editor in the record's By, as `assign`'s ask is to the owners; a
+// pending one is the registrant's to accept, and they
 // are told once - and the bot's half is done as soon as it can be. When all
 // three hold, the welcome, settled so that it is said once, and the issue is
 // closed.
@@ -280,9 +319,13 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 		if !record.Older(remindAfter, time.Now()) || record.Reminders > mostReminders {
 			return answered{}, true, nil
 		}
-		request, _ := s.ownersRequest(ctx, command.OutsideRequest{
-			Handle: record.Subject, Organisation: organisation, Team: record.Team})
-		return s.reminder(event, record, command.IncludeOutsideReply(request),
+		request := command.OutsideRequest{Handle: record.Subject, Organisation: organisation, Team: record.Team}
+		if record.By == "" {
+			// A record from before it named the editor: the owners are named
+			// instead, and only then read.
+			request, _ = s.ownersRequest(ctx, request)
+		}
+		return s.reminder(event, record, command.IncludeOutsideReply(request, record.By),
 			fmt.Sprintf("%s %s", command.Bot, command.Include)), true, nil
 	}
 
