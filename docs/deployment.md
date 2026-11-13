@@ -36,8 +36,12 @@ uptime and TLS for a bot that is still an experiment.
 ```sh
 bash <(curl -s https://www.runway.horse/install.sh)   # installs ~/.local/bin/runway
 runway login
-runway local key setup                                # the deploy key for this machine
+runway key add ~/.ssh/id_ed25519.pub <you>-<machine>-ed25519 -y
+runway local key unset                                # sign through the ssh agent
 ```
+
+The deploy key is your own SSH key, protected by a passphrase and held by an
+SSH agent - never a key without a passphrase. See "SSH keys" below.
 
 ## Creating the app
 
@@ -200,29 +204,41 @@ binary it describes - and it is still a step that can be skipped, which is why
 it is not done here yet. See
 [chekhov#4](https://github.com/codecheckers/chekhov/issues/4).
 
-### SSH keys, and the snap
+### SSH keys
 
 `runway app deploy source` is a `git push` to the remote the CLI adds, so the
 platform builds a **commit**: anything uncommitted is not deployed.
 
-The CLI is a snap and cannot read hidden directories, which makes two things
-fail confusingly. `runway local key setup` and `runway key add ~/.ssh/...` say
-"couldn't discover a key to use" - pass it a copy of the public key from a
-non-hidden path. And the ssh-agent socket under `/run/user/.../keyring/ssh` is
-unreachable, so authentication fails before the push; the way round is a
-passphrase-less key the CLI is pointed at directly (runway supports no other
-kind):
+**Deploy only with a passphrase-protected key, signed by an SSH agent.** A
+key without a passphrase is a file anybody who can read it deploys with -
+to production as well, because Runway's keys belong to the account, not to
+an app. The CLI asks for no passphrase when it reads a key file with `-y`
+("bcrypt_pbkdf: empty password"), so the key is not pointed at with
+`runway local key set`: `runway local key unset` makes it sign through the
+agent in `SSH_AUTH_SOCK`, which holds the unlocked key.
 
-```sh
-ssh-keygen -t ed25519 -N '' -C 'chekhov deploy key' -f ~/runway-keys/chekhov_deploy
-cp ~/runway-keys/chekhov_deploy.pub ./deploy-key.pub
-runway key add ./deploy-key.pub chekhov-deploy -y && rm deploy-key.pub
-runway local key set ~/runway-keys/chekhov_deploy
-```
+- One key per person and machine, named for both
+  (`<you>-<machine>-ed25519`), so that `runway key ls` says who can deploy
+  from where, and a lost machine is one `runway key rm`.
+- Load it with a lifetime, `ssh-add -t 4h ~/.ssh/id_ed25519`, so that the
+  agent forgets it when you are done; `ssh-add -c` asks before every
+  signature.
+- `runway key ls` lists only keys that are still in use. Remove one the day
+  it is not, and never register a key Runway is not meant to keep.
 
-The snap has a private `/tmp`, so a checkout under `/tmp` is not a git
-repository as far as the CLI is concerned - it answers "Deployments are only
-possible from a git repo". Deploy from somewhere in the home directory.
+**A deploy that hangs at `using ssh agent`** is the agent not signing: the
+server accepted a key the agent offered, and the agent never answered -
+GNOME's `gcr-ssh-agent` does this with a key it will not unlock. Check with
+`ssh-add -T ~/.ssh/id_ed25519.pub`, which returns at once when the agent can
+sign; a key Runway does not know is rejected before the agent is asked, so
+removing a stale key from `runway key ls` also stops the agent being asked
+to sign with it.
+
+The CLI is installed by `install.sh` into `~/.local/bin`. The snap it used
+to be could neither read hidden directories nor reach the agent, and had a
+private `/tmp`, so a checkout under `/tmp` was not a git repository as far
+as the CLI was concerned ("Deployments are only possible from a git repo").
+Deploy from somewhere in the home directory all the same.
 
 ### `object not found`, with nothing deployed
 
@@ -303,9 +319,7 @@ It pulls from the local checkout, so what it deploys is what is committed
 there, pushed or not - the same as deploying from the working checkout, which
 the platform builds from a commit rather than a working tree either way.
 
-Keep it under your home directory, not `/tmp`: the CLI is a snap, a snap has a
-`/tmp` of its own, and a clone there answers "Deployments are only possible
-from a git repo".
+Keep it under your home directory, not `/tmp`: see "SSH keys" above.
 
 ## The webhook
 
