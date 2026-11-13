@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-11-13
+
+### Added
+
+- A registration's contact is checked for an email address or a link that
+  cannot be read as one - a missing part, a second `@`, a domain or host
+  without a dot - while a contact spelt out in words is taken as written (#49).
+- A registration pointing to an ORCID record whose public addresses ORCID has
+  not verified is warned, without being held up (#49).
+
+### Fixed
+
+- A registration whose contact points to ORCID in other words than
+  `see ORCID page` - `see ORCID`, the iD, a link to the record - is held up
+  when the record shows no email, as `see ORCID page` always was; a contact
+  naming another ORCID record than the row's is refused (#49).
+
 ## [0.39.0] - 2026-11-13
 
 ### Added

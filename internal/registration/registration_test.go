@@ -177,18 +177,41 @@ func TestTheContactMustReachSomebody(t *testing.T) {
 		return check.ORCIDProfile{}, &check.StatusError{Status: 404}
 	}
 
-	for _, c := range []struct {
+	type contactCase struct {
 		name  string
 		row   string
 		world World
 		want  []string
-	}{
+	}
+	cases := []contactCase{
 		{"no public email on ORCID", validRow, noEmail, []string{"didn't find an email", "links a page"}},
 		{"ORCID not answering", validRow, down, []string{"could not ask ORCID", "503"}},
 		{"an ORCID nobody has", validRow, unknown, []string{"ORCID has no record"}},
 		{"no contact at all", strings.Replace(validRow, "see ORCID page", "", 1), world(), []string{"`contact` column says nothing"}},
 		{"NA as the contact", strings.Replace(validRow, "see ORCID page", "NA", 1), world(), []string{"`contact` column says nothing"}},
-	} {
+	}
+	// Pointing to ORCID in other words is pointing to ORCID
+	// (codecheckers/codecheckers#98 wrote `see ORCID`, and was let through).
+	for _, contact := range []string{"see ORCID", "See orcid.", "ORCID", "see my ORCID profile",
+		"https://orcid.org/0000-0002-1825-0097", "see orcid.org/0000-0002-1825-0097"} {
+		cases = append(cases, contactCase{"contact " + contact, strings.Replace(validRow, "see ORCID page", contact, 1),
+			noEmail, []string{"didn't find an email", "instead of pointing to ORCID"}})
+	}
+	// So is an iD beside the word ORCID, and a link in angle brackets.
+	for _, contact := range []string{"ORCID: 0000-0002-1825-0097", "my ORCID 0000-0002-1825-0097",
+		"<https://orcid.org/0000-0002-1825-0097>"} {
+		cases = append(cases, contactCase{"contact " + contact, strings.Replace(validRow, "see ORCID page", contact, 1),
+			noEmail, []string{"didn't find an email"}})
+	}
+	// Somebody else's record is not checked as though it were theirs - linked,
+	// bare, or second of two - and nothing else is said about the contact
+	// until it points to their own.
+	for _, contact := range []string{"https://orcid.org/0000-0001-5109-3700", "ORCID 0000-0001-5109-3700",
+		"orcid.org/0000-0001-5109-3700 orcid.org/0000-0002-1825-0097"} {
+		cases = append(cases, contactCase{"contact " + contact, strings.Replace(validRow, "see ORCID page", contact, 1),
+			noEmail, []string{"names the ORCID record `0000-0001-5109-3700`, and the row's iD is `0000-0002-1825-0097`"}})
+	}
+	for _, c := range cases {
 		report := Check(context.Background(), filed(t, c.row), c.world)
 		if report.Complete() {
 			t.Errorf("%s: the registration is complete", c.name)
@@ -202,17 +225,98 @@ func TestTheContactMustReachSomebody(t *testing.T) {
 		if strings.Contains(said, "example.invalid") {
 			t.Errorf("%s: a contact or a page was quoted: %q", c.name, said)
 		}
+		if strings.Contains(said, "names the ORCID record") && strings.Contains(said, "didn't find an email") {
+			t.Errorf("%s: two fixes for one cell: %q", c.name, said)
+		}
 	}
 
 	// An address or a page in the contact is the registrant's choice, and
 	// ORCID is not asked about it.
-	for _, contact := range []string{"made-up at example dot invalid", "https://example.invalid/contact"} {
+	// So is one that names ORCID beside an address or a page of its own, and a
+	// word that only contains the letters.
+	for _, contact := range []string{"made-up at example dot invalid", "https://example.invalid/contact",
+		"made-up@example.invalid or see ORCID", "https://example.invalid/contact (also on ORCID)",
+		"made-up at example dot invalid or see ORCID", "example.invalid/contact (also on ORCID)",
+		"https://example.invalid/me?from=orcid.org (ORCID)", "https://orcid.org.example.invalid/contact",
+		"orcidfan at example dot invalid"} {
 		report := Check(context.Background(), filed(t, strings.Replace(validRow, "see ORCID page", contact, 1)), noEmail)
 		if !report.Complete() {
 			t.Errorf("contact %q: %+v", contact, report.Findings)
 		}
 		if report.Row.Contact != contact {
 			t.Errorf("contact %q was rewritten as %q", contact, report.Row.Contact)
+		}
+	}
+}
+
+// What in a contact is written as an address or a link has to be readable as
+// one; what is spelt out in words, or is a handle, is taken as written. The
+// reply says what is wrong without quoting it.
+func TestAnAddressOrALinkInTheContactIsReadable(t *testing.T) {
+	for _, c := range []struct {
+		contact string
+		want    string // what the reply says is wrong, empty for nothing
+	}{
+		{"made-up@example.invalid", ""},
+		{"Made Up <made-up@example.invalid>", ""},
+		{"mailto:made-up@example.invalid", ""},
+		{"MAILTO:made-up@example.invalid.", ""},
+		{"made-up at example dot invalid", ""},
+		{"https://example.invalid/contact", ""},
+		{"www.example.invalid", ""},
+		{"see https://fediscience.org/@made-up", ""},
+		{"fediscience.org/@made-up", ""},
+		{"@made-up@fediscience.org", ""},
+		{"email:made-up@example.invalid", ""},
+		{"E-Mail:made-up@example.invalid", ""},
+		{"mailto:made-up@example.invalid?subject=CODECHECK", ""},
+		{"https://example.invalid/contact and/or made-up at example dot invalid", ""},
+		{"localhost/@made-up", "A link in the `contact` column"},
+		{"made-up@example", "An email address in the `contact` column"},
+		{"made-up@@example.invalid", "An email address in the `contact` column"},
+		{"@example.invalid or made-up@", "An email address in the `contact` column"},
+		{"made-up@example..invalid", "An email address in the `contact` column"},
+		{"made-up@.example.invalid", "An email address in the `contact` column"},
+		{"https://", "A link in the `contact` column"},
+		{"https://localhost/contact", "A link in the `contact` column"},
+		{"www.", "A link in the `contact` column"},
+	} {
+		report := Check(context.Background(), filed(t, strings.Replace(validRow, "see ORCID page", c.contact, 1)), world())
+		said := texts(report.Findings)
+		if c.want == "" {
+			if !report.Complete() {
+				t.Errorf("contact %q: %q, want it taken as written", c.contact, said)
+			}
+			continue
+		}
+		if report.Complete() || !strings.Contains(said, c.want) {
+			t.Errorf("contact %q: %q, want it to say %q", c.contact, said, c.want)
+		}
+		if strings.Contains(said, "example") || strings.Contains(said, "localhost") {
+			t.Errorf("contact %q was quoted: %q", c.contact, said)
+		}
+	}
+}
+
+// An address ORCID has not verified is a warning, which holds nothing up;
+// one verified address among them is enough to say nothing.
+func TestAnUnverifiedORCIDEmailIsAWarning(t *testing.T) {
+	answering := func(unverified int) World {
+		w := world()
+		w.ORCID = func(context.Context, string) (check.ORCIDProfile, error) {
+			return check.ORCIDProfile{Emails: []string{"made-up@example.invalid", "made-up-too@example.invalid"},
+				Unverified: unverified}, nil
+		}
+		return w
+	}
+	for unverified, want := range map[int]bool{0: false, 1: false, 2: true} {
+		report := Check(context.Background(), filed(t, validRow), answering(unverified))
+		said := texts(report.Findings)
+		if !report.Complete() {
+			t.Errorf("%d unverified: held up: %q", unverified, said)
+		}
+		if got := strings.Contains(said, "ORCID has not verified it"); got != want {
+			t.Errorf("%d unverified: warned = %v, want %v: %q", unverified, got, want, said)
 		}
 	}
 }

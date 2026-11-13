@@ -147,7 +147,7 @@ func Check(ctx context.Context, body string, world World) Report {
 // record: an ORCID that cannot be read cannot say whether it shows an address.
 func orcid(ctx context.Context, row Row, world World) []Finding {
 	contact := strings.TrimSpace(row.Contact)
-	seeORCID := strings.EqualFold(contact, SeeORCID)
+	seeORCID, linked := pointsToORCID(contact)
 	var findings []Finding
 	if noContact[strings.ToLower(contact)] {
 		findings = append(findings, failed("The `contact` column says nothing. We want another way to "+
@@ -157,6 +157,17 @@ func orcid(ctx context.Context, row Row, world World) []Finding {
 	if !check.ORCIDWellFormed(row.ORCID) || world.ORCID == nil {
 		// Parse has said what is wrong with the ORCID.
 		return findings
+	}
+	// The record asked about is the row's, so a contact naming another one
+	// would be answered for the wrong person. That is the one thing said
+	// about the contact then: whether the row's record shows an email is
+	// asked once the contact points to it.
+	for _, id := range linked {
+		if id != row.ORCID {
+			return append(findings, failed("The `contact` column names the ORCID record %s, and the row's "+
+				"iD is %s. Please point to your own record in both, or write `"+SeeORCID+"`.",
+				code(id), code(row.ORCID)))
+		}
 	}
 
 	profile, err := world.ORCID(ctx, row.ORCID)
@@ -173,12 +184,18 @@ func orcid(ctx context.Context, row Row, world World) []Finding {
 		text := "Unfortunately I didn't find an email on your ORCID record - can you please check? " +
 			"We simply want another way to reach you besides GitHub. Please make your email " +
 			"visible to everyone on ORCID, or put an address, or a page that carries one, in " +
-			"the `contact` column instead of `" + SeeORCID + "`."
+			"the `contact` column instead of pointing to ORCID."
 		if len(profile.Pages) > 0 {
 			text += " Your record links a page of your own, and I cannot read an address off a " +
 				"page: if that is where yours is, please name the page in `contact`."
 		}
 		findings = append(findings, failed("%s", text))
+	case seeORCID && profile.Unverified == len(profile.Emails):
+		// A warning, not a failure: an address ORCID has not verified usually
+		// works, and the registrant can do something about it in a minute.
+		findings = append(findings, warning("Your ORCID record shows your email, but ORCID has not "+
+			"verified it. This does not hold up your registration; please verify it on ORCID, so "+
+			"that we can rely on it to reach you."))
 	}
 	return findings
 }

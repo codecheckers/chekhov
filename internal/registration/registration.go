@@ -19,6 +19,7 @@ package registration
 import (
 	"encoding/csv"
 	"fmt"
+	"net/mail"
 	"net/url"
 	"regexp"
 	"slices"
@@ -34,6 +35,85 @@ var columns = []string{"name", "handle", "ORCID", "contact", "fields", "language
 
 // SeeORCID is what `contact` says when the address is on the ORCID record.
 const SeeORCID = "see ORCID page"
+
+// pointsToORCID reports whether a contact sends the reader to the ORCID
+// record and nowhere else, however it is put: `see ORCID page`, `see ORCID`,
+// `ORCID profile`, a link to orcid.org. Such a contact reaches somebody only
+// when the record shows an address, so it is checked as `see ORCID page` is
+// (codecheckers/codecheckers#98 wrote `see ORCID`, and was let through).
+// linked are the iDs it names, in a link or bare, each once.
+//
+// It is decided word by word, and a single word that is neither ORCID, an
+// iD, a link to orcid.org, nor one of the words people point with makes the
+// contact the registrant's own, taken as written: an address, spelt out or
+// not, or a page elsewhere, even when ORCID is named beside it.
+func pointsToORCID(contact string) (points bool, linked []string) {
+	for _, word := range contactWords(contact) {
+		word = strings.ToLower(bare(word))
+		switch {
+		case word == "orcid" || word == "orcid's":
+			points = true
+		case pointingWords[word]:
+		case word != "" && strings.EqualFold(check.ORCIDDigits(word), word):
+			points, linked = true, appendNew(linked, strings.ToUpper(word))
+		case slices.Contains([]string{"orcid.org", "www.orcid.org"}, hostOf(word)):
+			points = true
+			if id := check.ORCIDDigits(word); id != "" {
+				linked = appendNew(linked, id)
+			}
+		default:
+			return false, nil
+		}
+	}
+	return points, linked
+}
+
+func appendNew(list []string, item string) []string {
+	if slices.Contains(list, item) {
+		return list
+	}
+	return append(list, item)
+}
+
+// contactWords are the words of a contact, split where a sentence or a list
+// would split them - and around the angle brackets of `Name <address>` - with
+// whatever punctuation ends them still on: what a word is, is decided as
+// written, and bare takes the punctuation off where that matters.
+func contactWords(contact string) []string {
+	return strings.FieldsFunc(contact, func(r rune) bool {
+		return unicode.IsSpace(r) || strings.ContainsRune(",;<>()[]\"'", r)
+	})
+}
+
+// bare is a word without the punctuation a sentence ends it with.
+func bare(word string) string { return strings.TrimRight(word, ".:!?") }
+
+// hostOf is the host a word names as a link, with or without its scheme, in
+// lower case; empty for a word that is not one.
+func hostOf(word string) string {
+	if !strings.Contains(word, "://") {
+		word = "https://" + word
+	}
+	link, err := url.Parse(word)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(link.Hostname())
+}
+
+// dotted reports whether a domain or a host is one on the internet: a dot in
+// it, and none at either end or doubled.
+func dotted(domain string) bool {
+	return strings.Contains(domain, ".") && !strings.HasPrefix(domain, ".") && !strings.HasSuffix(domain, ".") &&
+		!strings.Contains(domain, "..")
+}
+
+// pointingWords are the words a contact points to ORCID with, around the
+// word ORCID itself.
+var pointingWords = map[string]bool{
+	"see": true, "my": true, "the": true, "on": true, "at": true, "in": true, "via": true, "please": true,
+	"page": true, "profile": true, "record": true, "id": true, "email": true, "is": true, "listed": true,
+}
 
 // Row is one registration, one value per column, normalised to the list's
 // conventions.
@@ -296,7 +376,58 @@ func form(row Row, cells []string) []Finding {
 		findings = append(findings, failed("The `fediverse` column, %s, is not an account as "+
 			"`@user@instance`. Please write it that way, or leave it empty.", code(cells[8])))
 	}
+	return append(findings, contactForm(row.Contact)...)
+}
+
+// contactForm checks what in a contact is written as an address or a link,
+// and leaves everything else as written: an address spelt out in words, kept
+// from the spammers on purpose, has no form to check, and a handle - a word
+// that starts with its @ - is somebody's account, not an address.
+//
+// What is wrong is said without quoting it: a contact is the registrant's to
+// publish, and a reply on the issue is public.
+func contactForm(contact string) []Finding {
+	var badAddress, badLink bool
+	for _, word := range contactWords(contact) {
+		// Classified as written, read bare: `www.` is a link with nothing
+		// after it, not the word www.
+		lower, at := strings.ToLower(word), strings.Index(word, "@")
+		switch {
+		case strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") ||
+			strings.HasPrefix(lower, "www.") || at > 0 && strings.Contains(word[:at], "/"):
+			// A page with an @ in its path - `fediscience.org/@name` - is a
+			// link written without its scheme, not an address.
+			badLink = badLink || !dotted(hostOf(bare(word)))
+		case at == 0:
+		case at > 0:
+			badAddress = badAddress || !addressReadable(bare(word))
+		}
+	}
+	var findings []Finding
+	if badAddress {
+		findings = append(findings, failed("An email address in the `contact` column is not written as one "+
+			"I can read: a part missing on either side of the @, a second @, or a domain without a dot. "+
+			"Please check it."))
+	}
+	if badLink {
+		findings = append(findings, failed("A link in the `contact` column has no web address I can read. "+
+			"Please check it."))
+	}
 	return findings
+}
+
+// addressReadable reports whether a word is one email address, with a domain
+// on the internet - net/mail alone lets `name@localhost` go - once a label
+// stuck to its front (`mailto:`, `email:`) and a query on its end
+// (`?subject=…`) are off.
+func addressReadable(word string) bool {
+	at := strings.Index(word, "@")
+	if label := strings.LastIndex(word[:at], ":"); label >= 0 {
+		word = word[label+1:]
+	}
+	word, _, _ = strings.Cut(word, "?")
+	address, err := mail.ParseAddress(word)
+	return err == nil && address.Address == word && dotted(word[strings.LastIndex(word, "@")+1:])
 }
 
 var (

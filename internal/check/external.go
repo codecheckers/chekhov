@@ -164,7 +164,8 @@ type orcidPerson struct {
 	// way to reach this person besides GitHub (codecheckers/chekhov#49).
 	Emails struct {
 		Email []struct {
-			Email string `json:"email"`
+			Email    string `json:"email"`
+			Verified bool   `json:"verified"`
 		} `json:"email"`
 	} `json:"emails"`
 	ResearcherURLs struct {
@@ -184,6 +185,9 @@ type ORCIDProfile struct {
 	// person who has none and for one who keeps it private, and either way
 	// there is none to reach them by.
 	Emails []string
+	// Unverified counts those of Emails ORCID has not verified: an address
+	// nobody has confirmed belongs to the person, or works.
+	Unverified int
 	// Pages are the researcher's own links, where an address may be.
 	Pages []string
 }
@@ -203,6 +207,9 @@ func (s *Services) ORCIDProfile(ctx context.Context, orcid string) (ORCIDProfile
 	for _, email := range person.Emails.Email {
 		if address := strings.TrimSpace(email.Email); address != "" {
 			profile.Emails = append(profile.Emails, address)
+			if !email.Verified {
+				profile.Unverified++
+			}
 		}
 	}
 	for _, page := range person.ResearcherURLs.ResearcherURL {
