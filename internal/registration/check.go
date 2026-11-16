@@ -6,6 +6,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/codecheckers/chekhov/internal/check"
 )
@@ -144,7 +145,11 @@ func Check(ctx context.Context, body string, world World) Report {
 		return report
 	}
 
-	report.Findings = append(report.Findings, orcid(ctx, report.Row, world)...)
+	contact, profile := orcid(ctx, report.Row, world)
+	report.Findings = append(report.Findings, contact...)
+	if profile != nil {
+		report.Findings = append(report.Findings, nameOnRecord(report.Row, *profile)...)
+	}
 	if world.Lists != nil {
 		report.Findings = append(report.Findings, listed(report.Row, world.Lists())...)
 	}
@@ -161,11 +166,12 @@ func Check(ctx context.Context, body string, world World) Report {
 	return report
 }
 
-// orcid checks that the ORCID exists, and that the contact reaches somebody.
+// orcid checks that the ORCID exists, and that the contact reaches somebody,
+// and gives the record it read, or nil when it read none.
 //
 // One function for both, because `see ORCID page` is answered by the same
 // record: an ORCID that cannot be read cannot say whether it shows an address.
-func orcid(ctx context.Context, row Row, world World) []Finding {
+func orcid(ctx context.Context, row Row, world World) ([]Finding, *check.ORCIDProfile) {
 	contact := strings.TrimSpace(row.Contact)
 	seeORCID, linked := pointsToORCID(contact)
 	var findings []Finding
@@ -176,7 +182,7 @@ func orcid(ctx context.Context, row Row, world World) []Finding {
 	}
 	if !check.ORCIDWellFormed(row.ORCID) || world.ORCID == nil {
 		// Parse has said what is wrong with the ORCID.
-		return findings
+		return findings, nil
 	}
 	// The record asked about is the row's, so a contact naming another one
 	// would be answered for the wrong person. That is the one thing said
@@ -186,7 +192,7 @@ func orcid(ctx context.Context, row Row, world World) []Finding {
 		if id != row.ORCID {
 			return append(findings, failed("The `contact` column names the ORCID record %s, and the row's "+
 				"iD is %s. Please point to your own record in both, or write `"+SeeORCID+"`.",
-				code(id), code(row.ORCID)))
+				code(id), code(row.ORCID))), nil
 		}
 	}
 
@@ -217,8 +223,59 @@ func orcid(ctx context.Context, row Row, world World) []Finding {
 			"verified it. This does not hold up your registration; please verify it on ORCID, so "+
 			"that we can rely on it to reach you."))
 	}
-	return findings
+	if err != nil {
+		return findings, nil
+	}
+	return findings, &profile
 }
+
+// nameOnRecord warns when the row's name has no word in common with the names
+// on its ORCID record. A warning: names are written in many ways, and a row's
+// may be the one a person goes by. What it catches is an iD copied wrongly
+// that still is somebody's.
+func nameOnRecord(row Row, profile check.ORCIDProfile) []Finding {
+	if sameName(row.Name, profile.Name, profile.PublishedName) {
+		return nil
+	}
+	return []Finding{warning("The name in the row, %s, has no word in common with the name on the "+
+		"ORCID record %s. This does not hold up your registration; please check that the iD is yours.",
+		code(row.Name), code(row.ORCID))}
+}
+
+// sameName reports whether a name shares a word with the names on a record,
+// ignoring case and accents - `Nestor` is `Néstor` - or whether either has no
+// word to compare.
+func sameName(name string, onRecord ...string) bool {
+	words, record := nameWords(name), nameWords(strings.Join(onRecord, " "))
+	if len(words) == 0 || len(record) == 0 {
+		return true
+	}
+	for word := range record {
+		if words[word] {
+			return true
+		}
+	}
+	return false
+}
+
+// nameWords are the words of a name of two letters or more - an initial
+// says too little - as check.Normalise writes them, without accents. A word
+// with an umlaut is there twice, folded and spelt out, because `Müller` is
+// typed `Muller` and `Mueller` both.
+func nameWords(name string) map[string]bool {
+	words := map[string]bool{}
+	lower := strings.ToLower(name)
+	for _, spelt := range []string{lower, umlauts.Replace(lower)} {
+		for _, word := range strings.Fields(check.Normalise(check.FoldAccents(spelt))) {
+			if utf8.RuneCountInString(word) > 1 {
+				words[word] = true
+			}
+		}
+	}
+	return words
+}
+
+var umlauts = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue")
 
 // noContact are the ways of writing that there is none. Anything else is
 // taken as written: an address, a page, or an address spelt out in words -

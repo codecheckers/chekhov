@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-11-16
+
+### Added
+
+- A registration is warned, without being held up, when its name has no word
+  in common with the name on its ORCID record, when `ecr_until` and
+  `ecr_checked` disagree, when a field is capitalised, and when its contact
+  has two email addresses or is only a social-media profile (#49).
+- A registration with an ECR date and `ecr_checked` left `NA` is told that an
+  editor fills in `ecr_checked` (#49).
+
 ## [0.41.0] - 2026-11-16
 
 ### Added

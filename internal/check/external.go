@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // Checks that need the outside world. Each one skips with what it would have
@@ -159,6 +160,9 @@ type orcidPerson struct {
 		FamilyName struct {
 			Value string `json:"value"`
 		} `json:"family-name"`
+		CreditName struct {
+			Value string `json:"value"`
+		} `json:"credit-name"`
 	} `json:"name"`
 	// Emails and ResearcherURLs are read for a registration only: is there a
 	// way to reach this person besides GitHub (codecheckers/chekhov#49).
@@ -180,7 +184,10 @@ type orcidPerson struct {
 // ORCIDProfile is what a codechecker's registration needs from an ORCID
 // record: does it exist, and does it give a way to reach the person.
 type ORCIDProfile struct {
-	Name string
+	// Name is the given and family names; PublishedName the one the person
+	// publishes under, when they set one. Either is empty when the record
+	// keeps it private.
+	Name, PublishedName string
 	// Emails are the public addresses. ORCID answers no address both for a
 	// person who has none and for one who keeps it private, and either way
 	// there is none to reach them by.
@@ -203,7 +210,8 @@ func (s *Services) ORCIDProfile(ctx context.Context, orcid string) (ORCIDProfile
 	if err != nil {
 		return ORCIDProfile{}, err
 	}
-	profile := ORCIDProfile{Name: strings.TrimSpace(person.Name.GivenNames.Value + " " + person.Name.FamilyName.Value)}
+	profile := ORCIDProfile{Name: strings.TrimSpace(person.Name.GivenNames.Value + " " + person.Name.FamilyName.Value),
+		PublishedName: strings.TrimSpace(person.Name.CreditName.Value)}
 	for _, email := range person.Emails.Email {
 		if address := strings.TrimSpace(email.Email); address != "" {
 			profile.Emails = append(profile.Emails, address)
@@ -623,6 +631,33 @@ func Normalise(text string) string {
 	text = notLetters.ReplaceAllString(text, " ")
 	return strings.TrimSpace(spaces.ReplaceAllString(text, " "))
 }
+
+// FoldAccents takes the marks off the Latin letters names are written with,
+// so that a name typed without them - `Nestor` for `Néstor` - still matches.
+// A mark written as a character of its own, as decomposed text has it, is
+// dropped; a letter with its mark built in is looked up in a table, because
+// decomposing it would need golang.org/x/text. A letter not in the table is
+// compared as written. The table is lower case: fold after lowering.
+func FoldAccents(text string) string {
+	return accents.Replace(strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Mn, r) {
+			return -1
+		}
+		return r
+	}, text))
+}
+
+var accents = strings.NewReplacer(
+	"á", "a", "à", "a", "â", "a", "ä", "a", "ã", "a", "å", "a", "ą", "a",
+	"ç", "c", "ć", "c", "č", "c",
+	"é", "e", "è", "e", "ê", "e", "ë", "e", "ę", "e", "ě", "e",
+	"í", "i", "ì", "i", "î", "i", "ï", "i",
+	"ł", "l", "ñ", "n", "ń", "n", "ň", "n",
+	"ó", "o", "ò", "o", "ô", "o", "ö", "o", "õ", "o", "ø", "o", "ő", "o",
+	"ř", "r", "ś", "s", "š", "s", "ş", "s", "ß", "ss",
+	"ú", "u", "ù", "u", "û", "u", "ü", "u", "ů", "u", "ű", "u",
+	"ý", "y", "ÿ", "y", "ź", "z", "ż", "z", "ž", "z",
+)
 
 func normaliseAll(people []Person) []string {
 	names := make([]string, 0, len(people))

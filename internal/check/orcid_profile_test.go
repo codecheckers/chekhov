@@ -12,7 +12,8 @@ import (
 func TestORCIDProfileReadsEmailsAndPages(t *testing.T) {
 	s := newStub(t)
 	s.JSON("/orcid/0000-0002-1825-0097/person", `{
-	  "name": {"given-names": {"value": "Josiah"}, "family-name": {"value": "Carberry"}},
+	  "name": {"given-names": {"value": "Josiah"}, "family-name": {"value": "Carberry"},
+	    "credit-name": {"value": "J. S. Carberry"}},
 	  "emails": {"email": [{"email": "made-up@example.invalid", "verified": true},
 	    {"email": "made-up-too@example.invalid", "verified": false}, {"email": " "}]},
 	  "researcher-urls": {"researcher-url": [{"url-name": "Home", "url": {"value": "https://example.invalid/carberry"}}]}
@@ -25,7 +26,7 @@ func TestORCIDProfileReadsEmailsAndPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if profile.Name != "Josiah Carberry" || len(profile.Emails) != 2 || profile.Unverified != 1 || len(profile.Pages) != 1 {
+	if profile.Name != "Josiah Carberry" || profile.PublishedName != "J. S. Carberry" || len(profile.Emails) != 2 || profile.Unverified != 1 || len(profile.Pages) != 1 {
 		t.Errorf("profile = %+v, want the name, the two addresses - one unverified - and the one page", profile)
 	}
 

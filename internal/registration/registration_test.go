@@ -321,6 +321,107 @@ func TestAnUnverifiedORCIDEmailIsAWarning(t *testing.T) {
 	}
 }
 
+// The warnings about a row's form: each holds nothing up, and each is said
+// only of the row it is about. The cases are those the production list had.
+func TestTheFormWarningsHoldNothingUp(t *testing.T) {
+	const (
+		ecrNA       = "Josiah Carberry,@a-made-up-registrant,0000-0002-1825-0097,see ORCID page,psychoceramics,R,"
+		fromORCID   = ";https://orcid.org/0000-0002-1825-0097,"
+		profileOnly = "Josiah Carberry,@a-made-up-registrant,0000-0002-1825-0097,%s,psychoceramics,R,NA,NA,"
+	)
+	for _, c := range []struct {
+		name, row string
+		want      string // what the reply says, empty for nothing
+		outcome   Outcome
+	}{
+		{"both ECR columns NA", ecrNA + "NA,NA,", "", ""},
+		{"a source for no date", ecrNA + "NA,2026-10" + fromORCID, "`ecr_until` is `NA`", Warning},
+		{"a date with its source", ecrNA + "2030-01,2026-10" + fromORCID, "", ""},
+		{"a date eight years on", ecrNA + "2034-10,2026-10" + fromORCID, "", ""},
+		{"a PhD still to come", ecrNA + "2034-11,2026-10" + fromORCID, "more than eight years after", Warning},
+		{"a date the editor will source", ecrNA + "open,NA,", "an editor will fill it in", Note},
+		{"fields as names", strings.Replace(validRow, "psychoceramics, cracked pots", "Psychoceramics, cracked pots", 1),
+			"`Psychoceramics` written with capitals", Warning},
+		{"acronyms and capitals inside", strings.Replace(validRow, "psychoceramics, cracked pots", "HPC, GIScience, IoT, scRNAseq", 1),
+			"", ""},
+		{"a name among lower-case words", strings.Replace(validRow, "psychoceramics, cracked pots",
+			"Bayesian statistics, Earth observation, NGS sequencing", 1), "", ""},
+		{"a title", strings.Replace(validRow, "psychoceramics, cracked pots", "Replication and Reproducible Research, cracked pots", 1),
+			"`Replication and Reproducible Research` written with capitals", Warning},
+		{"one address written twice", strings.Replace(profileOnly, "%s", "[made-up@example.invalid](mailto:Made-Up@example.invalid)", 1),
+			"", ""},
+		{"a LinkedIn profile without its scheme", strings.Replace(profileOnly, "%s", "linkedin.com/in/made-up", 1),
+			"only a profile on LinkedIn", Warning},
+		{"a labelled LinkedIn profile", strings.Replace(profileOnly, "%s", "LinkedIn: https://www.linkedin.com/in/made-up/", 1),
+			"only a profile on LinkedIn", Warning},
+		{"two addresses", strings.Replace(profileOnly, "%s", "made-up@example.invalid & made-up-too@example.invalid", 1),
+			"has 2 email addresses", Warning},
+		{"a LinkedIn profile only", strings.Replace(profileOnly, "%s", "https://de.linkedin.com/in/made-up/", 1),
+			"only a profile on LinkedIn", Warning},
+		{"a LinkedIn profile and an address", strings.Replace(profileOnly, "%s",
+			"https://www.linkedin.com/in/made-up/ or made-up at example dot invalid", 1), "", ""},
+		{"a page that only looks social", strings.Replace(profileOnly, "%s", "https://notlinkedin.com/made-up", 1), "", ""},
+	} {
+		report := Check(context.Background(), filed(t, c.row), world())
+		if !report.Complete() {
+			t.Errorf("%s: held up: %q", c.name, texts(report.Findings))
+			continue
+		}
+		if c.want == "" {
+			if len(report.Findings) != 0 {
+				t.Errorf("%s: %q, want nothing said", c.name, texts(report.Findings))
+			}
+			continue
+		}
+		if len(report.Findings) != 1 || report.Findings[0].Outcome != c.outcome ||
+			!strings.Contains(report.Findings[0].Text, c.want) {
+			t.Errorf("%s: %+v, want one %s saying %q", c.name, report.Findings, c.outcome, c.want)
+		}
+		if strings.Contains(texts(report.Findings), "example") || strings.Contains(texts(report.Findings), "made-up") {
+			t.Errorf("%s: the contact was quoted: %q", c.name, texts(report.Findings))
+		}
+	}
+}
+
+// A row whose name has no word in common with the ORCID record's is warned
+// of: an iD copied wrongly that still is somebody's. Names are written in
+// many ways, so one word in common, without accents, is enough, and a record
+// that shows no name says nothing.
+func TestANameTheORCIDRecordDoesNotShareIsAWarning(t *testing.T) {
+	answering := func(name, published string) World {
+		w := world()
+		w.ORCID = func(context.Context, string) (check.ORCIDProfile, error) {
+			return check.ORCIDProfile{Name: name, PublishedName: published, Emails: []string{"made-up@example.invalid"}}, nil
+		}
+		return w
+	}
+	for _, c := range []struct {
+		row, name, published string
+		warned               bool
+	}{
+		{"Josiah Carberry", "Josiah Carberry", "", false},
+		{"J. S. Carberry", "Josiah Stinkney Carberry", "", false},
+		{"Nestor De la Paz Ruiz", "Néstor De la Paz Ruíz", "", false},
+		{"Nestor Paz", "Néstor Ruiz", "", false}, // decomposed, as macOS types it
+		{"Joerg Mueller", "Jörg Müller", "", false},
+		{"Jorg Muller", "Jörg Müller", "", false},
+		{"Josiah Carberry", "", "", false},
+		{"Jo Carberry", "Josiah Stinkney", "Jo Carberry", false},
+		{"Made Up", "Josiah Carberry", "", true},
+		{"J. Made", "Josiah Carberry", "J. Carberry", true},
+	} {
+		row := strings.Replace(validRow, "Josiah Carberry", c.row, 1)
+		report := Check(context.Background(), filed(t, row), answering(c.name, c.published))
+		said := texts(report.Findings)
+		if !report.Complete() {
+			t.Errorf("%q against %q: held up: %q", c.row, c.name, said)
+		}
+		if got := strings.Contains(said, "no word in common"); got != c.warned {
+			t.Errorf("%q against %q / %q: warned = %v, want %v: %q", c.row, c.name, c.published, got, c.warned, said)
+		}
+	}
+}
+
 func TestTheRowIsTheAuthorsOwn(t *testing.T) {
 	someoneElse := world()
 	someoneElse.Author = "a-made-up-other-person"

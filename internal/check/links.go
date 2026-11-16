@@ -261,15 +261,15 @@ func worthAsking(url string) bool {
 	if isPlaceholder(url) || !strings.Contains(host, ".") && net.ParseIP(host) == nil {
 		return false
 	}
-	return !slices.ContainsFunc(reservedHosts, func(reserved string) bool { return onHost(host, reserved) })
+	return !slices.ContainsFunc(reservedHosts, func(reserved string) bool { return OnHost(host, reserved) })
 }
 
 // reservedHosts are the names set aside for examples and tests, RFC 2606.
 var reservedHosts = []string{"example.com", "example.org", "example.net", "example", "invalid", "test"}
 
-// onHost reports whether a host is the one named or under it: `linkedin.com`
+// OnHost reports whether a host is the one named or under it: `linkedin.com`
 // covers `www.linkedin.com`, and `test` covers every `.test` name.
-func onHost(host, named string) bool {
+func OnHost(host, named string) bool {
 	return host == named || strings.HasSuffix(host, "."+named)
 }
 
@@ -663,7 +663,7 @@ func (s *Services) skipped(url string) (string, bool) {
 	host := hostOf(url)
 	for _, listed := range s.LinkSkipHosts {
 		listed = strings.ToLower(strings.TrimSpace(listed))
-		if listed != "" && onHost(host, listed) {
+		if listed != "" && OnHost(host, listed) {
 			return listed, true
 		}
 	}

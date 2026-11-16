@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/codecheckers/chekhov/internal/check"
@@ -395,11 +396,12 @@ func form(row Row, cells []string) []Finding {
 		findings = append(findings, warning("The `languages` column is empty, so nobody looking for a "+
 			"codechecker for a workflow in your languages will find you."))
 	}
-	if !ecrUntil.MatchString(row.ECRUntil) {
+	untilFormed, checkedFormed := ecrUntil.MatchString(row.ECRUntil), ecrChecked.MatchString(row.ECRChecked)
+	if !untilFormed {
 		findings = append(findings, failed("The `ecr_until` column, %s, is none of a month as "+
 			"`YYYY-MM`, `open`, `expired` or `NA`.", code(row.ECRUntil)))
 	}
-	if !ecrChecked.MatchString(row.ECRChecked) {
+	if !checkedFormed {
 		findings = append(findings, failed("The `ecr_checked` column, %s, is neither "+
 			"`<YYYY-MM>;<link>` nor `NA`.", code(row.ECRChecked)))
 	}
@@ -407,8 +409,70 @@ func form(row Row, cells []string) []Finding {
 		findings = append(findings, failed("The `fediverse` column, %s, is not an account as "+
 			"`@user@instance`. Please write it that way, or leave it empty.", code(cells[8])))
 	}
+	if untilFormed && checkedFormed {
+		findings = append(findings, ecrForm(row)...)
+	}
+	findings = append(findings, fieldsForm(row.Fields)...)
 	return append(findings, contactForm(row.Contact)...)
 }
+
+// ecrForm checks that the two ECR columns agree, each already well formed.
+// Neither holds a registration up: the date is the registrant's to give, and
+// an editor reads it before it goes on the list.
+func ecrForm(row Row) []Finding {
+	switch {
+	case row.ECRChecked == "NA" && row.ECRUntil == "NA":
+		return nil
+	case row.ECRChecked == "NA":
+		// What the template asks for when the date is not on ORCID: the editor
+		// fills in the link to the issue, so this is for the editor, not a
+		// warning to the registrant who did as asked.
+		return []Finding{finding(Note, "`ecr_checked` is `NA`, so an editor will fill it in with the "+
+			"month of listing you and a link to this issue, which is where your `ecr_until` comes from.")}
+	case row.ECRUntil == "NA":
+		return []Finding{warning("`ecr_checked` says where your early-career date comes from, and " +
+			"`ecr_until` is `NA`. If you would rather not say, please write `NA` in both; otherwise " +
+			"put the month, `open` or `expired` in `ecr_until`.")}
+	}
+	// A month more than eight years after the check is a PhD still to come,
+	// which the template writes as `open`. `open` and `expired` are no month.
+	checked, _ := time.Parse("2006-01", row.ECRChecked[:len("2006-01")])
+	if until, err := time.Parse("2006-01", row.ECRUntil); err == nil && until.After(checked.AddDate(8, 0, 0)) {
+		return []Finding{warning("`ecr_until`, %s, is more than eight years after the month in "+
+			"`ecr_checked`, which would mean a PhD still to come. If it is, please write `open`; "+
+			"if not, please check the month.", code(row.ECRUntil))}
+	}
+	return nil
+}
+
+// fieldsForm warns of fields written as titles, which the template asks to be
+// lower case so that the list reads alike and searches find them. A field is
+// one when every word in it is capitalised - `Statistics`, `Open Science` -
+// besides the small words a title leaves small: a capital word among lower
+// case ones - `Bayesian statistics` - is a name, and an acronym or a word
+// with capitals inside - `HPC`, `GIScience`, `IoT` - is written so on purpose.
+// A field that is one name - `Python` - is warned all the same, which the
+// warning says.
+func fieldsForm(fields string) []Finding {
+	var capitalised []string
+	for _, field := range strings.Split(fields, ",") {
+		words := slices.DeleteFunc(strings.Fields(field), func(word string) bool { return titleSmall[word] })
+		if len(words) > 0 && !slices.ContainsFunc(words, func(word string) bool { return !titleCase.MatchString(word) }) {
+			capitalised = append(capitalised, strings.TrimSpace(field))
+		}
+	}
+	if len(capitalised) == 0 {
+		return nil
+	}
+	return []Finding{warning("The `fields` column has %s written with capitals. The list writes fields "+
+		"in lower case, as the template asks; a name, such as `Python`, stays as it is.",
+		code(strings.Join(capitalised, ", ")))}
+}
+
+var (
+	titleCase  = regexp.MustCompile(`^\p{Lu}\p{Ll}+$`)
+	titleSmall = map[string]bool{"and": true, "of": true, "in": true, "the": true, "for": true, "on": true, "&": true}
+)
 
 // contactForm checks what in a contact is written as an address or a link,
 // and leaves everything else as written: an address spelt out in words, kept
@@ -417,8 +481,15 @@ func form(row Row, cells []string) []Finding {
 //
 // What is wrong is said without quoting it: a contact is the registrant's to
 // publish, and a reply on the issue is public.
+//
+// Two things are warned of, and hold nothing up: more than one address, which
+// the column usually does not keep, and a contact that is nothing but social-
+// media profiles, which may show no address to a stranger.
 func contactForm(contact string) []Finding {
 	var badAddress, badLink bool
+	var addresses []string
+	onlySocial := true
+	var sites []string // the social networks it links to
 	for _, word := range contactWords(contact) {
 		// Classified as written, read bare: `www.` is a link with nothing
 		// after it, not the word www.
@@ -431,9 +502,25 @@ func contactForm(contact string) []Finding {
 			badLink = badLink || !dotted(hostOf(bare(word)))
 		case at == 0:
 		case at > 0:
-			badAddress = badAddress || !addressReadable(bare(word))
+			if address := addressReadable(bare(word)); address != "" {
+				addresses = appendNew(addresses, address)
+			} else {
+				badAddress = true
+			}
+		}
+		// A profile is one with or without its scheme - `linkedin.com/in/…` -
+		// and a word that only says what it is - `LinkedIn:`, `profile` -
+		// leaves the contact a profile.
+		label := strings.Trim(lower, ".:!?")
+		switch site := socialSite(hostOf(bare(word))); {
+		case site != "" && strings.Contains(word, "/"):
+			sites = appendNew(sites, site)
+		case pointingWords[label] || socialName(label):
+		default:
+			onlySocial = false
 		}
 	}
+
 	var findings []Finding
 	if badAddress {
 		findings = append(findings, failed("An email address in the `contact` column is not written as one "+
@@ -444,21 +531,69 @@ func contactForm(contact string) []Finding {
 		findings = append(findings, failed("A link in the `contact` column has no web address I can read. "+
 			"Please check it."))
 	}
+	if len(addresses) > 1 {
+		// A work and a private address may both be meant; an editor asks.
+		findings = append(findings, warning("The `contact` column has %d email addresses, and the list "+
+			"usually keeps one. This does not hold up your registration; an editor will check that "+
+			"all of them are meant.", len(addresses)))
+	}
+	if onlySocial && sites != nil {
+		// Named by the site, not the link: a contact is never quoted.
+		findings = append(findings, warning("The `contact` column is only a profile on %s, which may "+
+			"show no email address to somebody you are not connected with. This does not hold up "+
+			"your registration; please consider adding an address, or a page that carries one.",
+			strings.Join(sites, " and ")))
+	}
 	return findings
+}
+
+// socialSite is the name of the social network a host belongs to, any of its
+// subdomains included - `de.linkedin.com` - or empty. A fediverse instance is
+// not among them: there is no telling one from any other site.
+func socialSite(host string) string {
+	for domain, name := range socialSites {
+		if check.OnHost(host, domain) {
+			return name
+		}
+	}
+	return ""
+}
+
+// socialName reports whether a word is the name of one of the social
+// networks, as a label before its link is.
+func socialName(word string) bool {
+	for _, name := range socialSites {
+		if strings.EqualFold(word, name) {
+			return true
+		}
+	}
+	return word == "twitter"
+}
+
+var socialSites = map[string]string{
+	"linkedin.com": "LinkedIn", "twitter.com": "X", "x.com": "X", "facebook.com": "Facebook",
+	"instagram.com": "Instagram", "bsky.app": "Bluesky", "researchgate.net": "ResearchGate",
 }
 
 // addressReadable reports whether a word is one email address, with a domain
 // on the internet - net/mail alone lets `name@localhost` go - once a label
 // stuck to its front (`mailto:`, `email:`) and a query on its end
 // (`?subject=…`) are off.
-func addressReadable(word string) bool {
+//
+// It gives the address itself, in lower case, to count each address once
+// however often it is written - `[me@uni.edu](mailto:me@uni.edu)` is one -
+// and empty for a word that is none.
+func addressReadable(word string) string {
 	at := strings.Index(word, "@")
 	if label := strings.LastIndex(word[:at], ":"); label >= 0 {
 		word = word[label+1:]
 	}
 	word, _, _ = strings.Cut(word, "?")
 	address, err := mail.ParseAddress(word)
-	return err == nil && address.Address == word && dotted(word[strings.LastIndex(word, "@")+1:])
+	if err != nil || address.Address != word || !dotted(word[strings.LastIndex(word, "@")+1:]) {
+		return ""
+	}
+	return strings.ToLower(word)
 }
 
 var (
