@@ -601,6 +601,17 @@ var stubCases = []stubCase{
 		lines:  []int{13},
 	},
 	{
+		name: "the ORCID record writes the family name with an accent",
+		rule: "CC-MET-003",
+		routes: func(s *stub) {
+			s.serveEverythingWell()
+			s.JSON("/orcid/0000-0001-8607-8025/person", strings.Replace(orcidPersonJSON,
+				"Eglen", "Églen", 1))
+		},
+		want:   OutcomeOK,
+		detail: "2 name(s) match",
+	},
+	{
 		name: "no ORCID record can be read at all",
 		rule: "CC-MET-003",
 		routes: func(s *stub) {

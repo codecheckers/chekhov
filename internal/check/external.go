@@ -308,8 +308,9 @@ func orcidNameMatch(c Context) Result {
 		compared++
 		family := record.Name.FamilyName.Value
 		// The family name is the part that survives initials, transliteration
-		// and the order names are written in, so it is what is compared.
-		if family != "" && !strings.Contains(Normalise(person.Name), Normalise(family)) {
+		// and the order names are written in, so it is what is compared -
+		// with accents folded and umlauts spelt out either way.
+		if family != "" && !containsName(person.Name, family) {
 			mismatched = append(mismatched, fmt.Sprintf("%s is %s %s at ORCID",
 				person.Name, record.Name.GivenNames.Value, family))
 			lines = append(lines, c.Config.Line(person.path+".name"))
@@ -658,6 +659,33 @@ var accents = strings.NewReplacer(
 	"ú", "u", "ù", "u", "û", "u", "ü", "u", "ů", "u", "ű", "u",
 	"ý", "y", "ÿ", "y", "ź", "z", "ż", "z", "ž", "z",
 )
+
+// NameSpellings are the ways a name is compared: as Normalise writes it,
+// without accents, and - when it has an umlaut - once more with the umlaut
+// spelt out, because `Müller` is typed `Muller` and `Mueller` both.
+func NameSpellings(name string) []string {
+	lower := strings.ToLower(name)
+	spellings := []string{Normalise(FoldAccents(lower))}
+	if spelt := umlauts.Replace(lower); spelt != lower {
+		spellings = append(spellings, Normalise(FoldAccents(spelt)))
+	}
+	return spellings
+}
+
+var umlauts = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue")
+
+// containsName says whether part, in any of its spellings, is in name, in
+// any of its: `Nüst` is in `Daniel Nuest`, and `Nuest` in `Daniel Nüst`.
+func containsName(name, part string) bool {
+	for _, whole := range NameSpellings(name) {
+		for _, spelt := range NameSpellings(part) {
+			if strings.Contains(whole, spelt) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 func normaliseAll(people []Person) []string {
 	names := make([]string, 0, len(people))

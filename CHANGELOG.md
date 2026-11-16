@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.2] - 2026-11-16
+
+### Fixed
+
+- CC-MET-003 matches a family name written with or without accents, and with
+  an umlaut folded or spelt out, as the registration's name check does (#49).
+
 ## [0.42.1] - 2026-11-16
 
 ### Fixed

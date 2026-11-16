@@ -259,14 +259,12 @@ func sameName(name string, onRecord ...string) bool {
 }
 
 // nameWords are the words of a name of two letters or more - an initial
-// says too little - as check.Normalise writes them, without accents. A word
-// with an umlaut is there twice, folded and spelt out, because `Müller` is
-// typed `Muller` and `Mueller` both.
+// says too little - in each of check.NameSpellings, so that a word with an
+// umlaut is there folded and spelt out.
 func nameWords(name string) map[string]bool {
 	words := map[string]bool{}
-	lower := strings.ToLower(name)
-	for _, spelt := range []string{lower, umlauts.Replace(lower)} {
-		for _, word := range strings.Fields(check.Normalise(check.FoldAccents(spelt))) {
+	for _, spelt := range check.NameSpellings(name) {
+		for _, word := range strings.Fields(spelt) {
 			if utf8.RuneCountInString(word) > 1 {
 				words[word] = true
 			}
@@ -274,8 +272,6 @@ func nameWords(name string) map[string]bool {
 	}
 	return words
 }
-
-var umlauts = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue")
 
 // noContact are the ways of writing that there is none. Anything else is
 // taken as written: an address, a page, or an address spelt out in words -
