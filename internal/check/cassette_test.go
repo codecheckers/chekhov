@@ -208,10 +208,7 @@ func TestCassetteRegisterEntryOutcomes(t *testing.T) {
 		"CC-REG-005": OutcomeOK,
 		"CC-REG-006": OutcomeOK,
 		"CC-REG-007": OutcomeOK,
-		// Recorded when issue #187 carried `id assigned` alone; it has carried
-		// `institution` and `TU Delft DCC` since codecheckers/register#232, so
-		// a fresh recording turns this into a pass.
-		"CC-REG-008": OutcomeWarning,
+		"CC-REG-008": OutcomeOK,
 		"CC-REP-007": OutcomeOK,
 		"CC-REP-010": OutcomeOK,
 		// The deposit holds the certificate as CODECHECK_certificate_2026-001.pdf
