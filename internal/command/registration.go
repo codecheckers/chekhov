@@ -49,6 +49,12 @@ func RegistrationReply(report registration.Report, first, inComment bool) string
 	}
 	if len(rest) > 0 {
 		out.WriteString("\n")
+		// Below the request to edit and look again, a list reads as more to
+		// fix, so it says it is not; a complete row has nothing above it to
+		// be mistaken for.
+		if !report.Complete() {
+			out.WriteString("Nothing below holds you up:\n\n")
+		}
 		writeFindings(&out, rest)
 	}
 	return out.String()

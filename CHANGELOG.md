@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-11-16
+
+### Fixed
+
+- A registration's reply says that the notes and warnings below the request to
+  edit the row hold nothing up (#49).
+
 ## [0.42.0] - 2026-11-16
 
 ### Added

@@ -77,3 +77,31 @@ func TestIncludeOutsideReplyAsksTheEditorAlone(t *testing.T) {
 		}
 	}
 }
+
+// The notes below the request to edit the row say they hold nothing up, since
+// a list there reads as more to fix; a complete row's notes need no such
+// lead-in (codecheckers/codecheckers#98).
+func TestNotesBelowTheRequestSayTheyHoldNothingUp(t *testing.T) {
+	row := registration.Row{Name: "Josiah Carberry", Handle: "@a-made-up-registrant"}
+	note := registration.Finding{Outcome: registration.Note, Text: "a note"}
+	missing := registration.Finding{Outcome: registration.Failed, Text: "something missing"}
+	const lead = "Nothing below holds you up:"
+
+	incomplete := RegistrationReply(registration.Report{Row: row,
+		Findings: []registration.Finding{missing, note}}, false, false)
+	ask, said, noted := strings.Index(incomplete, "for me to look again."),
+		strings.Index(incomplete, lead), strings.Index(incomplete, "a note")
+	if ask < 0 || said < ask || noted < said {
+		t.Errorf("the note is not introduced after the request to look again:\n%s", incomplete)
+	}
+
+	complete := RegistrationReply(registration.Report{Row: row,
+		Findings: []registration.Finding{note}}, false, false)
+	if strings.Contains(complete, lead) || !strings.Contains(complete, "a note") {
+		t.Errorf("a complete row's note:\n%s", complete)
+	}
+	if only := RegistrationReply(registration.Report{Row: row,
+		Findings: []registration.Finding{missing}}, false, false); strings.Contains(only, lead) {
+		t.Errorf("a lead-in with nothing below it:\n%s", only)
+	}
+}
