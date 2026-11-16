@@ -89,6 +89,9 @@ only; the production register is not configured anywhere. See
 go run ./cmd/chekhov serve                          # the bot: /dispatch, /healthz, /nudges
 echo '@chekhovbot commands' | go run ./cmd/chekhov comment -   # the same answer, offline
 echo '@chekhovbot announce 1970-001' | go run ./cmd/chekhov comment --as nuest --online -  # an editor's preview
+go run ./cmd/chekhov include check https://github.com/codecheckers/codecheckers/issues/98  # a registration, as `include check` answers it
+go run ./cmd/chekhov include check --online codecheckers.csv   # every row of a list
+go run ./cmd/chekhov include check --online 'Name,@handle,0000-…,see ORCID page,…'  # one row
 ```
 
 ```bash

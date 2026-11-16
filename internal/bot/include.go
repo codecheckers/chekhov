@@ -474,7 +474,7 @@ func (s *Server) onTheList(login string, services *check.Services) (bool, error)
 		if path.Base(file) != registration.RegistrationList {
 			continue
 		}
-		list := s.readLists(services, file)[0]
+		list := registration.ReadLists(services, file)[0]
 		if list.Err != nil {
 			return false, fmt.Errorf("could not read %s: %w", registration.RegistrationList, list.Err)
 		}

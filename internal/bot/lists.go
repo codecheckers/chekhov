@@ -2,9 +2,7 @@ package bot
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/registration"
 )
@@ -108,7 +106,7 @@ func (s *Server) registrationWorld(author string) registration.World {
 		ORCID:  services.ORCIDProfile,
 		Team:   s.Settings.TeamOrganisation() + "/" + team,
 		InTeam: func(ctx context.Context, login string) bool { return s.Teams.Has(ctx, team, login) },
-		Lists:  func() []registration.List { return s.readLists(services, s.Settings.ListFiles()...) },
+		Lists:  func() []registration.List { return registration.ReadLists(services, s.Settings.ListFiles()...) },
 	}
 	if institutional != "" {
 		world.Institutional = s.Settings.TeamOrganisation() + "/" + institutional
@@ -117,21 +115,4 @@ func (s *Server) registrationWorld(author string) registration.World {
 		}
 	}
 	return world
-}
-
-// readLists reads the codechecker lists as they are now, each with why it
-// could not be read. Offline there is no client to read them with, and a nil
-// Services must not be asked.
-func (s *Server) readLists(services *check.Services, files ...string) []registration.List {
-	lists := make([]registration.List, len(files))
-	for i, file := range files {
-		lists[i].URL = file
-		lists[i].Err = fmt.Errorf("external services not enabled")
-	}
-	if services.Enabled() {
-		for i, table := range services.CSVs(files...) {
-			lists[i].Table = table
-		}
-	}
-	return lists
 }

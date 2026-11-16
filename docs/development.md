@@ -106,3 +106,14 @@ through the same code path:
 ```sh
 echo '@chekhovbot commands' | go run ./cmd/chekhov comment -
 ```
+
+A registration is checked the same way with `chekhov include check`, from an
+issue URL, a CSV file of rows (every row, the header skipped, none compared
+with the lists), one CSV line, or `-` for stdin. An issue implies `--online`;
+otherwise ORCID and the lists are reported as not checked until `--online`
+is given. It exits non-zero when a registration needs something:
+
+```sh
+go run ./cmd/chekhov include check https://github.com/codecheckers/codecheckers/issues/98
+go run ./cmd/chekhov include check --online codecheckers.csv
+```

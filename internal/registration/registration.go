@@ -219,6 +219,37 @@ func Parse(body string) (Row, []Finding) {
 	return row, form(row, cells)
 }
 
+// Rows are the data rows of CSV text - a list file, or rows pasted together -
+// each written back as one line, without the list's header. For checking
+// rows outside an issue: Body puts each where Parse looks for it.
+func Rows(text string) ([]string, error) {
+	// A byte-order mark, which a spreadsheet saving the list may put first,
+	// would otherwise hide the header.
+	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(text, "\ufeff")))
+	reader.LazyQuotes, reader.TrimLeadingSpace, reader.FieldsPerRecord = true, true, -1
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(records) > 0 && strings.EqualFold(strings.TrimSpace(records[0][0]), "name") {
+		records = records[1:]
+	}
+	rows := make([]string, 0, len(records))
+	for _, record := range records {
+		var line strings.Builder
+		writer := csv.NewWriter(&line)
+		if err := writer.Write(record); err != nil {
+			return nil, err
+		}
+		writer.Flush()
+		rows = append(rows, strings.TrimRight(line.String(), "\r\n"))
+	}
+	return rows, nil
+}
+
+// Body is a row as a registration issue carries it.
+func Body(row string) string { return "Your data:\n\n```csv\n" + row + "\n```\n" }
+
 // rowIn finds the one line of data in the issue: the first non-empty line of
 // a fenced block, once the template's own comments are gone - its example row
 // lives in one, and would otherwise be read as the registrant's.

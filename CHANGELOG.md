@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-11-16
+
+### Added
+
+- `chekhov include check` checks a registration from the command line, as
+  `@chekhovbot include check` does: from an issue URL, every row of a CSV
+  file, one CSV line, or stdin (#49).
+
 ## [0.40.0] - 2026-11-13
 
 ### Added

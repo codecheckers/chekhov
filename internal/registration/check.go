@@ -2,6 +2,7 @@ package registration
 
 import (
 	"context"
+	"errors"
 	"path"
 	"slices"
 	"strings"
@@ -14,6 +15,25 @@ import (
 // conference, and somebody on one of them may well register as a volunteer
 // too; the codecheckers repository says so in its own CLAUDE.md.
 const RegistrationList = "codecheckers.csv"
+
+// ReadLists reads the codechecker lists as they are now, each with why it
+// could not be read. Offline there is no client to read them with, and a nil
+// Services must not be asked. Shared by the bot and `chekhov include check`.
+func ReadLists(services *check.Services, files ...string) []List {
+	lists := make([]List, len(files))
+	for i, file := range files {
+		lists[i].URL = file
+		lists[i].Err = errors.New("external services not enabled")
+	}
+	if services.Enabled() {
+		for i, table := range services.CSVs(files...) {
+			// The whole Table, its Err with it: a list that could not be
+			// read says why.
+			lists[i].Table = table
+		}
+	}
+	return lists
+}
 
 // World is what a registration is checked against. Functions rather than
 // clients, so that a test says what each answers without a server.

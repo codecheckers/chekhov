@@ -27,6 +27,7 @@ Usage:
   chekhov check [options] <path to codecheck.yml, a repository, or a certificate>
   chekhov check [options] [<part>|repository|links] <target>
   chekhov comment [--as <handle>] [--online] <path to a comment file, or - for stdin>
+  chekhov include check [--online] [--as <handle>] <issue URL, CSV file, CSV line, or ->
   chekhov serve [--addr :8080]
   chekhov rules [--spec <version>]
   chekhov rules --check [--markdown]
@@ -81,6 +82,8 @@ func run(args []string, out io.Writer) error {
 		return runCheck(args[1:], out)
 	case "comment":
 		return runComment(args[1:], out)
+	case "include":
+		return runInclude(args[1:], out)
 	case "serve":
 		return runServe(args[1:], out)
 	case "rules":
