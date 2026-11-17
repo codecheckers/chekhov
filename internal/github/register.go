@@ -115,6 +115,9 @@ type RowPullRequest struct {
 	// By is who opened a pull request somebody else opened, found by
 	// OpenRowPullRequest; empty for the bot's own.
 	By string `json:"-"`
+	// Draft says it is a draft, which GitHub will not merge: the bot's own
+	// while the registration it came from needs something (#49).
+	Draft bool `json:"draft"`
 }
 
 // ErrRowExists is a key - a certificate, a handle - the default branch's file
@@ -403,13 +406,24 @@ func (c *Client) onlyOurs(ctx context.Context, api, defaultBranch, branch string
 // the branch into somewhere else is not the one adding the row.
 func (c *Client) openPull(ctx context.Context, api, repository, defaultBranch, branch string) (RowPullRequest, error) {
 	owner, _, _ := strings.Cut(repository, "/")
-	var pulls []RowPullRequest
+	var pulls []struct {
+		RowPullRequest
+		User struct {
+			Login string `json:"login"`
+		} `json:"user"`
+	}
 	err := c.read(ctx, api+"/pulls?state=open&head="+url.QueryEscape(owner+":"+branch)+
 		"&base="+url.QueryEscape(defaultBranch), &pulls)
 	if err != nil || len(pulls) == 0 {
 		return RowPullRequest{}, err
 	}
-	return pulls[0], nil
+	pull := pulls[0].RowPullRequest
+	// Somebody with write access can open a pull request from the bot's
+	// branch too; theirs is never the bot's to change.
+	if by := pulls[0].User.Login; by != "" && c.Account != "" && !strings.EqualFold(by, c.Account) {
+		pull.By = by
+	}
+	return pull, nil
 }
 
 // OpenRowPullRequest is the pull request open to add the row with this key -
@@ -494,6 +508,32 @@ func (c *Client) OpenRowPullRequest(ctx context.Context, repository, key string)
 		}
 	}
 	return RowPullRequest{}, nil
+}
+
+// OwnRowPullRequest is the pull request open from the bot's own branch for
+// the row with this key, the zero one for none: two reads, where
+// OpenRowPullRequest goes on to read every open pull request for one opened
+// by hand. What the sweep and a check look at each time, to keep the bot's
+// own in step with its registration (#49).
+func (c *Client) OwnRowPullRequest(ctx context.Context, repository, key string) (RowPullRequest, error) {
+	if err := c.mine(repository, "read the pull requests"); err != nil {
+		return RowPullRequest{}, err
+	}
+	file := c.Rows
+	if !file.writes() {
+		return RowPullRequest{}, errors.New("this client adds rows to no file")
+	}
+	api := strings.TrimSuffix(c.BaseURL, "/") + "/repos/" + repository
+	var about struct {
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := c.read(ctx, api, &about); err != nil {
+		return RowPullRequest{}, err
+	}
+	branch := file.branchFor(map[string]string{file.key: key})
+	pull, err := c.openPull(ctx, api, repository, about.DefaultBranch, branch)
+	pull.Branch = branch
+	return pull, err
 }
 
 // keyColumn is where the key is in the file's header.
@@ -616,4 +656,73 @@ func (c *Client) Reviewed(ctx context.Context, repository string, number int) (b
 		return false, err
 	}
 	return len(reviews) > 0, nil
+}
+
+// The two GraphQL mutations SetRowPullRequestDraft sends, written out once:
+// the guard lets a POST to /graphql through only when its query is one of
+// these word for word, so that the one endpoint that could change anything
+// changes nothing else.
+const (
+	toDraft = `mutation($id: ID!) { convertPullRequestToDraft(input: {pullRequestId: $id}) { pullRequest { isDraft } } }`
+	toReady = `mutation($id: ID!) { markPullRequestReadyForReview(input: {pullRequestId: $id}) { pullRequest { isDraft } } }`
+)
+
+// SetRowPullRequestDraft turns the bot's own pull request adding a row into
+// a draft, which GitHub will not merge, while the registration it came from
+// needs something - or back into one ready for review once it does not
+// (#49). Only an open pull request the bot opened, from a branch of its own
+// kind in the same repository: an editor's, or one opened by hand from the
+// bot's branch, is never touched. REST cannot do this, so it is GraphQL's two
+// mutations and nothing else GraphQL could do - see graphQLWrite.
+func (c *Client) SetRowPullRequestDraft(ctx context.Context, repository string, number int, draft bool) error {
+	if err := c.mine(repository, "change a pull request"); err != nil {
+		return err
+	}
+	file := c.Rows
+	if !file.writes() || c.Account == "" {
+		return refused("this client adds rows to no file, or has no account of its own, so it changes no pull request")
+	}
+	var pull struct {
+		NodeID string `json:"node_id"`
+		State  string `json:"state"`
+		Draft  bool   `json:"draft"`
+		User   struct {
+			Login string `json:"login"`
+		} `json:"user"`
+		Head struct {
+			Ref  string `json:"ref"`
+			Repo struct {
+				FullName string `json:"full_name"`
+			} `json:"repo"`
+		} `json:"head"`
+	}
+	api := strings.TrimSuffix(c.BaseURL, "/") + "/repos/" + repository
+	if err := c.read(ctx, fmt.Sprintf("%s/pulls/%d", api, number), &pull); err != nil {
+		return err
+	}
+	if pull.State != "open" || pull.NodeID == "" || !strings.EqualFold(pull.User.Login, c.Account) ||
+		!file.branch.MatchString(pull.Head.Ref) || !strings.EqualFold(pull.Head.Repo.FullName, repository) {
+		return refused("#%d is not an open pull request of mine adding a row, so I leave it as it is", number)
+	}
+	if pull.Draft == draft {
+		return nil
+	}
+	mutation := toReady
+	if draft {
+		mutation = toDraft
+	}
+	var answer struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	err := c.write(ctx, http.MethodPost, strings.TrimSuffix(c.BaseURL, "/")+"/graphql",
+		map[string]any{"query": mutation, "variables": map[string]string{"id": pull.NodeID}}, &answer)
+	if err != nil {
+		return err
+	}
+	if len(answer.Errors) > 0 {
+		return fmt.Errorf("GitHub did not change #%d: %s", number, answer.Errors[0].Message)
+	}
+	return nil
 }

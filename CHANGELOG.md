@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-11-17
+
+### Added
+
+- The pull request adding a registration's row is kept in step with the
+  registration: the bot's own becomes a draft while the registration needs
+  something, and once it does not, its row is brought up to date and it is
+  ready for review again - on `include check`, `include` and the nightly
+  sweep. A pull request somebody else opened is left as it is (#49).
+
+### Changed
+
+- The owners are not reminded of a draft pull request adding a row, which
+  waits for the registrant (#49).
+
 ## [0.42.2] - 2026-11-16
 
 ### Fixed

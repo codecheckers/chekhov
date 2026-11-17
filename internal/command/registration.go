@@ -22,7 +22,10 @@ import (
 //
 // inComment says the row is read from the registrant's comment, on a
 // registration the bot opened, rather than from the first post.
-func RegistrationReply(report registration.Report, first, inComment bool) string {
+//
+// pull is what became of the pull request adding the row, if one is open: a
+// line of its own under the verdict, empty for nothing to say.
+func RegistrationReply(report registration.Report, first, inComment bool, pull string) string {
 	var out strings.Builder
 	if first {
 		out.WriteString("Thanks for your interest in becoming a codechecker! :heart:\n\n")
@@ -46,6 +49,9 @@ func RegistrationReply(report registration.Report, first, inComment bool) string
 		out.WriteString("**Before you can be listed, your registration needs this:**\n\n")
 		writeFindings(&out, report.Blocking())
 		fmt.Fprintf(&out, "\n%s\n", askAgain(inComment))
+	}
+	if pull != "" {
+		fmt.Fprintf(&out, "\n%s\n", pull)
 	}
 	if len(rest) > 0 {
 		out.WriteString("\n")
@@ -392,6 +398,50 @@ func NoRowPullRequest(handle, file string) string {
 	return fmt.Sprintf("%s is in the team, and not on `%s`: no pull request is open to add the row - it "+
 		"could not be opened, or was closed without being merged. `%s %s` opens it again.\n",
 		mention(handle), file, Bot, Include)
+}
+
+// RowPullRequestWaits says the bot's own pull request adding the row is a
+// draft, which GitHub will not merge, until the registration has what the
+// list needs (#49).
+func RowPullRequestWaits(number int) string {
+	return fmt.Sprintf("#%d, the pull request adding your row, is a draft until this is fixed, so that it "+
+		"is not merged as it is.", number)
+}
+
+// RowPullRequestBySomebodyWaits says the pull request adding the row, opened
+// by somebody else, waits too - and is left as it is, because it is theirs.
+func RowPullRequestBySomebodyWaits(number int, by string) string {
+	return fmt.Sprintf("#%d, the pull request adding your row, waits until this is fixed; %s opened it, so "+
+		"I have left it as it is.", number, mention(by))
+}
+
+// RowPullRequestReadyAgain says the bot's own pull request has the row as
+// the registration has it now, and is no longer a draft.
+func RowPullRequestReadyAgain(number int) string {
+	return fmt.Sprintf("#%d, the pull request adding your row, has it as your registration has it now, and "+
+		"is ready for an editor's review again.", number)
+}
+
+// RowPullRequestUpdated says the bot's own pull request was brought up to
+// date with an edit to the row.
+func RowPullRequestUpdated(number int) string {
+	return fmt.Sprintf("#%d, the pull request adding your row, now has it as your registration has it.", number)
+}
+
+// RowPullRequestDrafted is said on the pull request when the bot makes it a
+// draft: why, and when it stops being one. It names nobody and quotes no
+// row: the registration's own answer says what is missing.
+func RowPullRequestDrafted(issue int) string {
+	return fmt.Sprintf("I have made this a draft: the registration in #%d needs something before the row can "+
+		"be listed, and my latest answer there says what. Once a check of the registration finds nothing "+
+		"holding it up, I bring the row here up to date and make this ready for review again.", issue)
+}
+
+// RowPullRequestReady is said on the pull request when the bot makes it ready
+// for review again.
+func RowPullRequestReady(issue int) string {
+	return fmt.Sprintf("Ready for review again: the registration in #%d has what the list needs now, and the "+
+		"row here is as the registration has it.", issue)
 }
 
 // IncludeTeamNote is what putting a joined registrant in the team said, while

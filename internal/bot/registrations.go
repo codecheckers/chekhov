@@ -234,7 +234,7 @@ func (s *Server) followRegistration(ctx context.Context, event mention, record f
 		// A row posted without the command line under it: answered here,
 		// once - the answer is a comment of the bot's after it.
 		report := registration.Check(ctx, row, s.registrationWorld(record.Subject))
-		return answered{body: command.RegistrationReply(report, false, true), follow: s.ready(ctx, event, report)}, false, nil
+		return answered{body: command.RegistrationReply(report, false, true, ""), follow: s.ready(ctx, event, report)}, false, nil
 	}
 	return s.tellOnce(event, record, rowAskedAfter, command.RowAsked()), true, nil
 }
@@ -320,12 +320,10 @@ func (s *Server) followReady(ctx context.Context, event mention, record followup
 			return answered{}, false, nil
 		}
 	}
-	issue, err := reader.Issue(ctx, event.Repository, event.Issue)
+	report, _, unread, err := s.recheckRegistration(ctx, event)
 	if err != nil {
 		return answered{}, true, err
 	}
-	event.IssueAuthor, event.IssueBody = issue.Author, issue.Body
-	report, _, unread := s.checkRegistration(ctx, event)
 	if unread != "" || !report.Complete() {
 		// Edited since, and incomplete now: its own reply says what it needs.
 		return answered{}, false, nil

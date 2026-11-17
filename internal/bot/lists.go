@@ -85,7 +85,13 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 		return said(unread)
 	}
 	first := event.Comment == 0
-	body := command.RegistrationReply(report, first, inComment)
+	// A registration being opened has no pull request adding its row yet;
+	// every later check keeps the one there is in step (#49).
+	var step rowStep
+	if !first {
+		step = s.keepRowInStep(ctx, event, report)
+	}
+	body := command.RegistrationReply(report, first, inComment, step.line)
 	// The survey is asked about in the first answer only, and only on a
 	// registration from the template: one the bot opened asks no questions.
 	if first && !inComment {

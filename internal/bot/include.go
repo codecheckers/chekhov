@@ -37,7 +37,11 @@ func (s *Server) include(ctx context.Context, event mention) answered {
 		return said(unread)
 	}
 	if !report.Includable() {
-		return said(command.IncludeIncomplete(report, inComment))
+		reply := command.IncludeIncomplete(report, inComment)
+		if step := s.keepRowInStep(ctx, event, report); step.line != "" {
+			reply += "\n" + step.line + "\n"
+		}
+		return said(reply)
 	}
 	login, editor := report.Row.Login(), command.Handle(event.Author)
 	if refusal := s.mayInclude(ctx, login, editor); refusal != "" {
@@ -96,13 +100,8 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 	case open.Number != 0 && open.By != "":
 		return command.ListPullRequestBySomebody(file, open.Number, open.By)
 	}
-	pull, err := writer.ProposeRow(ctx, event.Repository, github.RowProposal{
-		Row: row.Cells(),
-		// Defused as the body is: the name is the registrant's own text.
-		Title:   command.Defuse(command.ListPullRequestTitle(row.Name, file)),
-		Message: command.ListCommitMessage(row.Login(), file, event.Issue),
-		Body:    command.Defuse(command.ListPullRequestBody(row.Login(), file, event.Issue, event.Author)),
-	})
+	pull, err := writer.ProposeRow(ctx, event.Repository, rowProposal(row, event.Issue,
+		command.Defuse(command.ListPullRequestBody(row.Login(), file, event.Issue, event.Author))))
 	switch {
 	case errors.Is(err, github.ErrRowExists):
 		return command.AlreadyListed(row.Login(), file)
@@ -116,8 +115,18 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 		s.Logger.Warn("the list pull request could not be opened", "issue", event.Issue, "error", err)
 		return command.ListPullRequestFailed(failure(err))
 	}
-	return command.ListPullRequestOpened(file, pull.Number, pull.Updated, pull.Unchanged) +
-		s.requestReview(ctx, event.Repository, pull.Number, row.Login(), event.Author)
+	opened := command.ListPullRequestOpened(file, pull.Number, pull.Updated, pull.Unchanged)
+	// A draft from while the registration needed something: it has what the
+	// list needs now, or `include` would not have come this far (#49).
+	if open.Number == pull.Number && open.Draft {
+		line, ready := s.turnRowPullRequest(ctx, event, pull.Number, false)
+		opened += command.Item(line)
+		if !ready {
+			// Nobody is asked to review a draft nobody can merge.
+			return opened
+		}
+	}
+	return opened + s.requestReview(ctx, event.Repository, pull.Number, row.Login(), event.Author)
 }
 
 // Reviewing is the part of the lists' reply path that asks for a review of
@@ -305,6 +314,11 @@ const invitationWaitingAfter = 2 * 24 * time.Hour
 // closed.
 func (s *Server) followInclusion(ctx context.Context, event mention, record followup.Record,
 	services *check.Services) (answered, bool, error) {
+	// The bot's own pull request adding the row is kept in step with the
+	// registration every night, whatever else is still to come (#49).
+	if turned, ok := s.followRowPullRequest(ctx, event, record); ok {
+		return turned, true, nil
+	}
 	organisation := s.Settings.TeamOrganisation()
 	invitation, known := s.whereStands(ctx, record.Subject)
 	if !known {
@@ -448,7 +462,8 @@ func (s *Server) noRowPullRequest(ctx context.Context, event mention, record fol
 func (s *Server) pullRequestWaiting(ctx context.Context, event mention, record followup.Record,
 	pull github.RowPullRequest) answered {
 	age := time.Since(pull.Created)
-	if pull.Created.IsZero() || age < pullRequestWaitingAfter ||
+	// A draft waits for the registrant, not for an editor.
+	if pull.Draft || pull.Created.IsZero() || age < pullRequestWaitingAfter ||
 		age > pullRequestWaitingAfter*(mostReminders+1) || !record.Older(pullRequestWaitingAfter, time.Now()) {
 		return answered{}
 	}

@@ -48,12 +48,12 @@ func TestTheSurveyReminderNamesOnlyWhatIsLeft(t *testing.T) {
 func TestACompleteRegistrationPromisesOnlyWhatIsLeft(t *testing.T) {
 	row := registration.Row{Name: "Josiah Carberry", Handle: "@a-made-up-registrant"}
 
-	outside := RegistrationReply(registration.Report{Row: row}, false, false)
+	outside := RegistrationReply(registration.Report{Row: row}, false, false, "")
 	if !strings.Contains(outside, "add you to the list and to the team.") {
 		t.Errorf("somebody outside the team is not told about the team:\n%s", outside)
 	}
 
-	inside := RegistrationReply(registration.Report{Row: row, InTeam: true}, false, false)
+	inside := RegistrationReply(registration.Report{Row: row, InTeam: true}, false, false, "")
 	if strings.Contains(inside, "to the team") || !strings.Contains(inside, "add you to the list.") {
 		t.Errorf("somebody in the team is promised the team:\n%s", inside)
 	}
@@ -88,7 +88,7 @@ func TestNotesBelowTheRequestSayTheyHoldNothingUp(t *testing.T) {
 	const lead = "Nothing below holds you up:"
 
 	incomplete := RegistrationReply(registration.Report{Row: row,
-		Findings: []registration.Finding{missing, note}}, false, false)
+		Findings: []registration.Finding{missing, note}}, false, false, "")
 	ask, said, noted := strings.Index(incomplete, "for me to look again."),
 		strings.Index(incomplete, lead), strings.Index(incomplete, "a note")
 	if ask < 0 || said < ask || noted < said {
@@ -96,12 +96,12 @@ func TestNotesBelowTheRequestSayTheyHoldNothingUp(t *testing.T) {
 	}
 
 	complete := RegistrationReply(registration.Report{Row: row,
-		Findings: []registration.Finding{note}}, false, false)
+		Findings: []registration.Finding{note}}, false, false, "")
 	if strings.Contains(complete, lead) || !strings.Contains(complete, "a note") {
 		t.Errorf("a complete row's note:\n%s", complete)
 	}
 	if only := RegistrationReply(registration.Report{Row: row,
-		Findings: []registration.Finding{missing}}, false, false); strings.Contains(only, lead) {
+		Findings: []registration.Finding{missing}}, false, false, ""); strings.Contains(only, lead) {
 		t.Errorf("a lead-in with nothing below it:\n%s", only)
 	}
 }

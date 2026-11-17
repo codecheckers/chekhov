@@ -18,7 +18,8 @@ import (
 // the request, a write leaves only for the few places the bot writes to: an
 // issue of the configured repository, the membership of a managed team in the
 // configured organisation, and the pull request adding a row to the register -
-// see registerWrite for exactly how far that reaches. A method added later
+// see registerWrite for exactly how far that reaches - and, on the lists, its
+// two GraphQL mutations making it a draft and ready again, see graphQLWrite. A method added later
 // that builds its own URL and forgets mine is stopped here rather than only by
 // the token.
 //
@@ -50,7 +51,7 @@ func (c *Client) guard(method string, target *url.URL, payload []byte) error {
 		return refused("refusing to %s %s: not a path this bot writes to", method, path)
 	}
 	if c.issueWrite(method, segments) || method == http.MethodPut && c.membershipWrite(segments) ||
-		c.registerWrite(method, segments, payload) {
+		c.registerWrite(method, segments, payload) || method == http.MethodPost && c.graphQLWrite(segments, payload) {
 		return nil
 	}
 	return refused("refusing to %s %s: this bot writes to the issues of %s, to the "+
@@ -134,6 +135,28 @@ func (c *Client) registerWrite(method string, segments []string, payload []byte)
 		return true
 	}
 	return false
+}
+
+// graphQLWrite is SetRowPullRequestDraft's: a POST to /graphql whose query
+// is one of its two mutations word for word, with the pull request's id as
+// its one variable, and only on a client that adds rows. Which pull request
+// the id names is not in the request, as with a PATCH of a pull request's
+// title; the method reads the pull request first and sends only the bot's
+// own.
+func (c *Client) graphQLWrite(segments []string, payload []byte) bool {
+	if len(segments) != 1 || segments[0] != "graphql" || !c.Rows.writes() || payload == nil {
+		return false
+	}
+	var keys map[string]json.RawMessage
+	var request struct {
+		Query     string                     `json:"query"`
+		Variables map[string]json.RawMessage `json:"variables"`
+	}
+	if json.Unmarshal(payload, &keys) != nil || len(keys) != 2 || json.Unmarshal(payload, &request) != nil {
+		return false
+	}
+	_, id := request.Variables["id"]
+	return (request.Query == toDraft || request.Query == toReady) && id && len(request.Variables) == 1
 }
 
 // pullNumber is the path of one pull request: digits, no sign; reviewRequest

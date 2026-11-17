@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -35,6 +36,8 @@ type fakeRegister struct {
 	// byHand are pull requests somebody opened from a branch of their own,
 	// with the patch each makes to the file.
 	byHand []handMade
+	// drafts are the pull requests that are drafts, by number.
+	drafts map[int]bool
 }
 
 type handMade struct {
@@ -59,6 +62,7 @@ func newFakeRegister() *fakeRegister {
 		pulls:   map[string]int{},
 		texts:   map[int]string{},
 		file:    "register.csv",
+		drafts:  map[int]bool{},
 	}
 }
 
@@ -166,8 +170,8 @@ func (f *fakeRegister) handler(w http.ResponseWriter, r *http.Request) {
 		head := strings.TrimPrefix(r.URL.Query().Get("head"), "codecheckers:")
 		if number, found := f.pulls[head]; found && r.URL.Query().Get("base") == "main" {
 			title, text, _ := strings.Cut(f.texts[number], "\n")
-			fmt.Fprintf(w, `[{"number": %d, "html_url": "https://github.example/pull/%d", "title": %q, "body": %q}]`,
-				number, number, title, text)
+			fmt.Fprintf(w, `[{"number": %d, "html_url": "https://github.example/pull/%d", "title": %q, "body": %q, "draft": %t}]`,
+				number, number, title, text, f.drafts[number])
 			return
 		}
 		fmt.Fprint(w, `[]`)
@@ -181,6 +185,32 @@ func (f *fakeRegister) handler(w http.ResponseWriter, r *http.Request) {
 		fmt.Sscanf(strings.TrimPrefix(path, "/pulls/"), "%d", &number)
 		f.texts[number] = body["title"].(string) + "\n" + body["body"].(string)
 		fmt.Fprint(w, `{}`)
+	case onePull.MatchString(path) && r.Method == http.MethodGet:
+		var number int
+		fmt.Sscanf(strings.TrimPrefix(path, "/pulls/"), "%d", &number)
+		head, user := "", "chekhovbot"
+		for branch, n := range f.pulls {
+			if n == number {
+				head = branch
+			}
+		}
+		for _, pull := range f.byHand {
+			if pull.number == number {
+				head, user = pull.head, pull.user
+			}
+		}
+		if head == "" {
+			http.Error(w, `{"message": "Not Found"}`, http.StatusNotFound)
+			return
+		}
+		fmt.Fprintf(w, `{"node_id": "PR_%d", "state": "open", "draft": %t, "user": {"login": %q}, `+
+			`"head": {"ref": %q, "repo": {"full_name": "codecheckers/testing-dev-register"}}}`,
+			number, f.drafts[number], user, head)
+	case r.URL.Path == "/graphql" && r.Method == http.MethodPost:
+		var number int
+		fmt.Sscanf(body["variables"].(map[string]any)["id"].(string), "PR_%d", &number)
+		f.drafts[number] = strings.Contains(body["query"].(string), "convertPullRequestToDraft")
+		fmt.Fprint(w, `{"data": {}}`)
 	default:
 		http.Error(w, `{"message": "not in the fake"}`, http.StatusTeapot)
 	}
@@ -537,5 +567,92 @@ func TestReviewedReadsRequestsAndReviews(t *testing.T) {
 	}
 	if writes := fake.writes(); len(writes) != 0 {
 		t.Errorf("a read wrote: %q", writes)
+	}
+}
+
+// onePull is the path of one pull request in the fake.
+var onePull = regexp.MustCompile(`^/pulls/[0-9]+$`)
+
+// The bot's own pull request adding a row becomes a draft while its
+// registration needs something, and ready again after: one GraphQL write
+// each way, none when it already is what was asked, and the open pull
+// request says which it is (#49).
+func TestTheBotsOwnRowPullRequestBecomesADraftAndReadyAgain(t *testing.T) {
+	fake, client := listing(t)
+	ctx := context.Background()
+	const repository = "codecheckers/testing-dev-register"
+	row := map[string]string{"name": "Josiah Carberry", "handle": "@a-made-up-registrant"}
+	if _, err := propose(t, client, RowProposal{Row: row, Title: "add", Body: "for #1", Message: "add"}); err != nil {
+		t.Fatal(err)
+	}
+	before := len(fake.writes())
+	if err := client.SetRowPullRequestDraft(ctx, repository, 300, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.SetRowPullRequestDraft(ctx, repository, 300, true); err != nil {
+		t.Fatal(err)
+	}
+	if writes := fake.writes()[before:]; strings.Join(writes, ";") != "POST /graphql" {
+		t.Errorf("drafting wrote %q", writes)
+	}
+	if open, err := client.OpenRowPullRequest(ctx, repository, "a-made-up-registrant"); err != nil || !open.Draft {
+		t.Errorf("open = %+v, %v", open, err)
+	}
+	if own, err := client.OwnRowPullRequest(ctx, repository, "@A-Made-Up-Registrant"); err != nil || own.Number != 300 ||
+		!own.Draft || own.By != "" {
+		t.Errorf("own = %+v, %v", own, err)
+	}
+	if none, err := client.OwnRowPullRequest(ctx, repository, "a-made-up-other-person"); err != nil || none.Number != 0 {
+		t.Errorf("none = %+v, %v", none, err)
+	}
+	if err := client.SetRowPullRequestDraft(ctx, repository, 300, false); err != nil || fake.drafts[300] {
+		t.Errorf("not ready again: %v, %v", fake.drafts[300], err)
+	}
+}
+
+// A pull request somebody else opened is never made a draft, nor one on
+// another repository; nothing is written for either.
+func TestAPullRequestNotTheBotsIsNeverDrafted(t *testing.T) {
+	fake, client := listing(t)
+	fake.byHand = []handMade{{number: 403, head: "add-josiah", user: "a-made-up-other-person"},
+		{number: 405, head: "codechecker-a-made-up-registrant", user: "a-made-up-other-person"}}
+	ctx := context.Background()
+	for _, number := range []int{403, 405} {
+		if err := client.SetRowPullRequestDraft(ctx, "codecheckers/testing-dev-register", number, true); err == nil {
+			t.Errorf("drafted #%d, somebody else's", number)
+		}
+	}
+	if err := client.SetRowPullRequestDraft(ctx, "codecheckers/register", 300, true); err == nil {
+		t.Error("drafted a pull request on another repository")
+	}
+	if writes := fake.writes(); len(writes) != 0 {
+		t.Errorf("wrote %q", writes)
+	}
+}
+
+// GraphQL can change anything, so the guard lets through only the two
+// mutations, word for word, with one id - and only on a client that adds
+// rows.
+func TestTheGuardLetsThroughOnlyTheDraftMutations(t *testing.T) {
+	fake, client := listing(t)
+	graphql := strings.TrimSuffix(client.BaseURL, "/") + "/graphql"
+	ctx := context.Background()
+	for _, payload := range []map[string]any{
+		{"query": "mutation { deleteRepository }", "variables": map[string]string{"id": "R_1"}},
+		{"query": toDraft, "variables": map[string]string{"id": "PR_300", "other": "x"}},
+		{"query": toDraft, "variables": map[string]string{"id": "PR_300"}, "operationName": "x"},
+		{"query": toDraft},
+	} {
+		if err := client.write(ctx, http.MethodPost, graphql, payload, nil); err == nil {
+			t.Errorf("let through %v", payload)
+		}
+	}
+	client.Rows = RowFile{}
+	if err := client.write(ctx, http.MethodPost, graphql,
+		map[string]any{"query": toDraft, "variables": map[string]string{"id": "PR_300"}}, nil); err == nil {
+		t.Error("a client that adds no rows sent a mutation")
+	}
+	if writes := fake.writes(); len(writes) != 0 {
+		t.Errorf("reached the server: %q", writes)
 	}
 }

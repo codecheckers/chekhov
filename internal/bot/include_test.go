@@ -29,6 +29,23 @@ type listWriter struct {
 	// refusing one.
 	reviewers []string
 	reviewErr error
+	// drafted are the turns of a pull request, as "#N draft" or "#N ready",
+	// draftErr GitHub refusing one, and unchanged a proposal that found its
+	// branch holding the row already.
+	drafted   []string
+	draftErr  error
+	unchanged bool
+}
+
+// SetRowPullRequestDraft records a turn, and the open pull request is then
+// what it was turned into.
+func (l *listWriter) SetRowPullRequestDraft(_ context.Context, _ string, number int, draft bool) error {
+	if l.draftErr != nil {
+		return l.draftErr
+	}
+	l.drafted = append(l.drafted, fmt.Sprintf("#%d %s", number, map[bool]string{true: "draft", false: "ready"}[draft]))
+	l.open.Draft = draft
+	return nil
 }
 
 // Reviewed says a review was asked of somebody already.
@@ -49,6 +66,15 @@ func (l *listWriter) OpenRowPullRequest(_ context.Context, _, _ string) (github.
 	return l.open, l.openErr
 }
 
+// OwnRowPullRequest is the open one when it is the bot's own: on its branch,
+// opened by nobody else.
+func (l *listWriter) OwnRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
+	if !strings.HasPrefix(l.open.Branch, "codechecker-") {
+		return github.RowPullRequest{}, l.openErr
+	}
+	return l.open, l.openErr
+}
+
 func (l *listWriter) ProposeRow(_ context.Context, repository string, proposal github.RowProposal) (github.RowPullRequest, error) {
 	if repository != testLists {
 		return github.RowPullRequest{}, errors.New("proposed on " + repository)
@@ -57,7 +83,8 @@ func (l *listWriter) ProposeRow(_ context.Context, repository string, proposal g
 		return github.RowPullRequest{Branch: "codechecker-a-made-up-registrant"}, l.refuse
 	}
 	l.proposed = append(l.proposed, proposal)
-	return github.RowPullRequest{Number: 12, Updated: len(l.proposed) > 1}, nil
+	return github.RowPullRequest{Number: 12, Updated: len(l.proposed) > 1 || l.open.Number == 12,
+		Unchanged: l.unchanged}, nil
 }
 
 // including is a bot on the lists whose register client reads and changes
@@ -318,7 +345,12 @@ func (l *listsThread) CreateIssue(_ context.Context, _, title, body string, labe
 }
 
 func (l *listsThread) OpenRowPullRequest(_ context.Context, _, _ string) (github.RowPullRequest, error) {
-	return github.RowPullRequest{Number: l.pending, Created: l.pendingSince}, nil
+	return github.RowPullRequest{Number: l.pending, Created: l.pendingSince, Draft: l.open.Draft,
+		Body: l.open.Body}, nil
+}
+
+func (l *listsThread) OwnRowPullRequest(ctx context.Context, repository, key string) (github.RowPullRequest, error) {
+	return l.OpenRowPullRequest(ctx, repository, key)
 }
 
 func (l *listsThread) Comment(ctx context.Context, repository string, issue int, body string) (int64, error) {
