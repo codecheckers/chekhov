@@ -600,6 +600,7 @@ func TestTheSweepSaysATeamProblemEveryThreeDaysAtMost(t *testing.T) {
 func TestTheSweepSaysWhenNoPullRequestWillAddTheRow(t *testing.T) {
 	server, org, lists := sweepingLists(t, 4*day, "")
 	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+	lists.body = "Your data:\n\n```csv\n" + registrationRow + "\n```\n"
 	lists.pending = 12
 	before := lists.count()
 	server.nudge(context.Background())

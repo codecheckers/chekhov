@@ -450,8 +450,15 @@ func (s *Server) noRowPullRequest(ctx context.Context, event mention, record fol
 	if next != nil {
 		next.Reminders = record.Reminders + 1
 	}
-	return answered{body: command.NoRowPullRequest(record.Subject, registration.RegistrationList),
-		follow: next}, true, nil
+	// A registration that needs something is told what, not pointed at an
+	// `include` that would refuse it. Checked only when the note is due:
+	// every three days at most, five times.
+	body := command.NoRowPullRequest(record.Subject, registration.RegistrationList)
+	if report, inComment, unread, err := s.recheckRegistration(ctx, event); err == nil && unread == "" &&
+		!report.Includable() {
+		body = command.NoRowPullRequestBlocked(report, inComment, record.Subject, registration.RegistrationList)
+	}
+	return answered{body: body, follow: next}, true, nil
 }
 
 // pullRequestWaiting reminds the owners of the row's pull request, open and

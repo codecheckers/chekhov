@@ -444,6 +444,20 @@ func RowPullRequestReady(issue int) string {
 		"row here is as the registration has it.", issue)
 }
 
+// NoRowPullRequestBlocked is NoRowPullRequest for a registration that needs
+// something first: `include` would refuse it, so the note says what is
+// missing and how to have it looked at again, rather than pointing at a
+// command that would not work (codecheckers/codecheckers#98).
+func NoRowPullRequestBlocked(report registration.Report, inComment bool, handle, file string) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "%s is in the team, and not on `%s`: no pull request is open to add the row, and the "+
+		"registration needs this first:\n\n", mention(handle), file)
+	writeFindings(&out, report.Blocking())
+	fmt.Fprintf(&out, "\n%s Then an editor's `%s %s` opens the pull request again.\n", askAgain(inComment), Bot,
+		Include)
+	return out.String()
+}
+
 // IncludeTeamNote is what putting a joined registrant in the team said, while
 // the row is still to be merged.
 func IncludeTeamNote(note string) string {

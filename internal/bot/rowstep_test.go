@@ -214,3 +214,16 @@ func TestADraftWithSomebodysCommitsStaysADraft(t *testing.T) {
 		t.Errorf("turned: %q", lists.drafted)
 	}
 }
+
+// No pull request open and a registration that needs something: the note
+// says what, and does not point at an `include` that would refuse it
+// (codecheckers/codecheckers#98).
+func TestTheNoteOnAMissingPullRequestSaysWhatIsNeeded(t *testing.T) {
+	server, org, lists := sweepingLists(t, 4*day, "")
+	org.members[madeUpRegistrar], org.inTeam[madeUpRegistrar] = true, true
+	lists.body = "Your data:\n\n```csv\n" + blockedRow + "\n```\n"
+	server.nudge(context.Background())
+	says(t, lists.last(), "no pull request is open to add the row, and the registration needs this first:", "✖",
+		"Please edit the row in the first post of this issue", "Then an editor's `@chekhovbot include` opens the pull request again.")
+	saysNot(t, lists.last(), "closed without being merged. `@chekhovbot include` opens it again.")
+}

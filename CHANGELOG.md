@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.1] - 2026-11-17
+
+### Fixed
+
+- The sweep's note that no pull request adds an included registrant's row
+  says what the registration still needs when it needs something, rather
+  than pointing at an `include` that would refuse it (#49).
+
 ## [0.43.0] - 2026-11-17
 
 ### Added
