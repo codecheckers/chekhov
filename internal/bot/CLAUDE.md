@@ -50,7 +50,12 @@ usage - which the platform reads as a crash loop.
 - `internal/github` is the only code that writes to GitHub, and it refuses any
   repository but the configured one before making a request - in each method,
   and again in `do`; a new write endpoint has to be added to `guard.go` too,
-  on purpose.
+  on purpose. The one GraphQL write, turning the row's pull request into a
+  draft and back (#49), is let through by its query and a single `id`, and
+  the guard cannot tell which repository a node id belongs to:
+  `SetRowPullRequestDraft` reads the pull request by number from the lists
+  repository first and takes the id from it, so never pass it an id from
+  anywhere else.
 - `chekhov comment` renders its answer through the same `bot.Preview` the
   listener uses, so what you read on the command line is what would be posted.
 
