@@ -100,7 +100,7 @@ var shareLink = regexp.MustCompile(`(?i)zenodo\.org/\S*[?&]token=`)
 // everybody who can read it. Why a deletion failed goes to the log, not to
 // the issue.
 func (s *Server) deleteShareLink(ctx context.Context, event mention, parsed command.Command) command.ShareLink {
-	if !shareLink.MatchString(event.Body + " " + strings.Join(parsed.Args, " ")) {
+	if !shareLink.MatchString(event.CommentBody + " " + event.Body + " " + strings.Join(parsed.Args, " ")) {
 		return command.ShareLink{}
 	}
 	link := command.ShareLink{Held: true, InDescription: event.Comment == 0}

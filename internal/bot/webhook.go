@@ -47,7 +47,13 @@ type mention struct {
 	Repository string
 	Issue      int
 	Author     string
-	Body       string
+	// Body is the command's own lines: its line and those under it, up to the
+	// next command (command.Split).
+	Body string
+	// CommentBody is the whole comment the command is in, for what is about
+	// the comment rather than the command: a share link anywhere in it is a
+	// reason to delete all of it. Empty when the command is not from a comment.
+	CommentBody string
 	// Comment is the comment the command is in, 0 for an issue's description.
 	Comment int64
 	// IssueAuthor, IssueBody and Labels are the issue's own, as GitHub sent

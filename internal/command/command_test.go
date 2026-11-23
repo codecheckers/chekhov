@@ -1,6 +1,7 @@
 package command
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -175,5 +176,113 @@ func TestASubcommandIsMatchedBeforeItsCommand(t *testing.T) {
 		if strings.Join(parsed.Args, " ") != strings.Join(want.args, " ") {
 			t.Errorf("%q args = %q, want %q", want.comment, parsed.Args, want.args)
 		}
+	}
+}
+
+// The last word of a command is the end of a sentence to whoever wrote it,
+// and its full stop is not part of the role (register#244).
+func TestTheSentencesPunctuationIsNotAnArgument(t *testing.T) {
+	cases := map[string][]string{
+		"@chekhovbot assign @a-codechecker as assigned codechecker.": {"@a-codechecker", "as", "assigned", "codechecker"},
+		"@chekhovbot assign @a-codechecker as codechecker!":          {"@a-codechecker", "as", "codechecker"},
+		"@chekhovbot remind me in 2 weeks .":                         {"me", "in", "2", "weeks"},
+		"@chekhovbot certificate set 2024-001;":                      {"2024-001"},
+		// A venue's full stop is its own.
+		"@chekhovbot venue set journal J. Stat. Softw.": {"journal", "J.", "Stat.", "Softw."},
+		"@chekhovbot register journal J. Stat. Softw.":  {"journal", "J.", "Stat.", "Softw."},
+	}
+	for comment, want := range cases {
+		parsed, addressed := Parse(comment)
+		if !addressed {
+			t.Errorf("%q is not addressed", comment)
+			continue
+		}
+		if strings.Join(parsed.Args, "|") != strings.Join(want, "|") {
+			t.Errorf("%q: args %q, want %q", comment, parsed.Args, want)
+		}
+	}
+	role, err := AssignableRole("assigned codechecker")
+	if err != nil || role != RoleAssignedCodechecker {
+		t.Errorf("the role after the full stop is gone: %q (%v)", role, err)
+	}
+}
+
+// Every line that begins with the mention is a command of its own, with the
+// lines under it (register#244).
+func TestSplit(t *testing.T) {
+	cases := []struct {
+		name    string
+		comment string
+		want    []string
+	}{
+		{
+			name:    "one command, with a note under it",
+			comment: "@chekhovbot remind me in 2 weeks\nthe bundle is late",
+			want:    []string{"@chekhovbot remind me in 2 weeks\nthe bundle is late"},
+		},
+		{
+			name: "two commands, the second with a note",
+			comment: "@chekhovbot assign @a-codechecker as codechecker.\n\n" +
+				"@ChekhovBot remind me in 2 weeks\nthe bundle is late",
+			want: []string{"@chekhovbot assign @a-codechecker as codechecker.\n",
+				"@ChekhovBot remind me in 2 weeks\nthe bundle is late"},
+		},
+		{
+			name:    "the blank lines before the first command are its own",
+			comment: "\r\n@chekhovbot hello\r\n@chekhovbot version",
+			want:    []string{"\r\n@chekhovbot hello\r", "@chekhovbot version"},
+		},
+		{
+			name:    "a longer fence quotes a shorter one",
+			comment: "@chekhovbot commands\n````\n```\n@chekhovbot certificate next\n```\n````",
+			want:    []string{"@chekhovbot commands\n````\n```\n@chekhovbot certificate next\n```\n````"},
+		},
+		{
+			name:    "and an indented line is code",
+			comment: "@chekhovbot commands\n    @chekhovbot remove @a-made-up-author as author",
+			want:    []string{"@chekhovbot commands\n    @chekhovbot remove @a-made-up-author as author"},
+		},
+		{
+			name:    "a comment that does not begin with one has none",
+			comment: "thanks!\n@chekhovbot check",
+		},
+		{
+			name:    "a command in a code fence is an example",
+			comment: "@chekhovbot commands\n```\n@chekhovbot check\n```",
+			want:    []string{"@chekhovbot commands\n```\n@chekhovbot check\n```"},
+		},
+		{
+			name:    "and a mention inside a line is conversation",
+			comment: "@chekhovbot hello\nthis is what @chekhovbot does",
+			want:    []string{"@chekhovbot hello\nthis is what @chekhovbot does"},
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			var got []string
+			for _, parsed := range Split(testCase.comment) {
+				got = append(got, parsed.Body)
+			}
+			if !slices.Equal(got, testCase.want) {
+				t.Errorf("Split = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+// A comment may give at most MostCommands, and the note names the rest.
+func TestCapped(t *testing.T) {
+	comment := strings.Repeat("@chekhovbot hello\n", MostCommands) + "@chekhovbot version\n@chekhovbot roles"
+	run, note := Capped(Split(comment))
+	if len(run) != MostCommands {
+		t.Errorf("%d run, want %d", len(run), MostCommands)
+	}
+	for _, want := range []string{"`@chekhovbot version`", "`@chekhovbot roles`"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("the note does not name %s: %s", want, note)
+		}
+	}
+	if _, note := Capped(Split("@chekhovbot hello")); note != "" {
+		t.Errorf("a note for one command: %s", note)
 	}
 }

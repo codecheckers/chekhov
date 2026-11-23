@@ -3,12 +3,13 @@
 //
 // The convention is the one the Open Journals bots established, and it is
 // deliberate rather than incidental: the command is on the first line of the
-// comment, and only the first command in a comment is acted on. A comment that
-// mentions the bot halfway through a sentence is conversation, not an
-// instruction, and is ignored.
+// comment, and every later line that begins with the mention is another (see
+// Split). A comment that mentions the bot halfway through a sentence is
+// conversation, not an instruction, and is ignored.
 package command
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -125,6 +126,11 @@ type Command struct {
 	Raw string
 	// Args are the words after the command name.
 	Args []string
+	// Body is the part of the comment the command was given in: its own line
+	// and the lines under it, up to the next command. What a command reads
+	// below itself - a reminder's note, a pasted abstract - is read from
+	// here. See Split.
+	Body string
 }
 
 // Bot is the account the commands are addressed to.
@@ -140,10 +146,10 @@ func Parse(comment string) (Command, bool) {
 		return Command{}, false
 	}
 
-	fields := strings.Fields(first)
-	if len(fields) == 0 || !strings.EqualFold(fields[0], Bot) {
+	if !addressed(first) {
 		return Command{}, false
 	}
+	fields := strings.Fields(first)
 
 	rest := fields[1:]
 	raw := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(first), fields[0]))
@@ -164,13 +170,138 @@ func Parse(comment string) (Command, bool) {
 	// command used to accept has stopped being accepted.
 	if len(rest) > 1 {
 		if definition, found := Lookup(rest[0] + " " + rest[1]); found {
-			return Command{Name: definition.Name, Raw: raw, Args: rest[2:]}, true
+			return Command{Name: definition.Name, Raw: raw, Args: arguments(definition, rest[2:])}, true
 		}
 	}
 	if definition, found := Lookup(rest[0]); found {
-		return Command{Name: definition.Name, Raw: raw, Args: rest[1:]}, true
+		return Command{Name: definition.Name, Raw: raw, Args: arguments(definition, rest[1:])}, true
 	}
 	return Command{Name: Unknown, Raw: raw, Args: rest[1:]}, true
+}
+
+// arguments are the words after the command, with the punctuation of the
+// sentence the command was written in taken off the last of them:
+// `assign @a-codechecker as codechecker.` names the role "codechecker"
+// (register#244). The command word already loses it in Lookup; this is the
+// same for whatever comes last, a role, a handle, a number of weeks.
+//
+// Not for a command whose last argument is a name written out in full -
+// `venue set`, `register` - where the full stop may be the venue's own.
+func arguments(definition Definition, args []string) []string {
+	if len(args) == 0 || definition.NamesInFull {
+		return args
+	}
+	last := len(args) - 1
+	args[last] = strings.TrimRight(args[last], sentencePunctuation)
+	if args[last] == "" {
+		// A full stop on its own after a space: nothing to keep.
+		return args[:last]
+	}
+	return args
+}
+
+// Split reads the commands in a comment: each line that begins with
+// the bot's mention starts one, and the lines under it, up to the next, are
+// its own - the note of a `remind`, the text pasted under a `suggest`. So
+//
+//	@chekhovbot assign @a-codechecker as codechecker
+//	@chekhovbot assign @a-handling-editor as handling editor
+//
+// is two commands, answered in order (register#244).
+//
+// The comment still has to begin with a command, as Parse has always asked:
+// a mention further down a comment that opened with something else is
+// conversation. A line inside a code fence is never a command, so that a
+// command quoted as an example under another is not run.
+func Split(comment string) []Command {
+	if !addressed(firstNonEmptyLine(comment)) {
+		return nil
+	}
+	var sections []string
+	var current []string
+	// A fence is closed by a run of its own marker at least as long as the
+	// one that opened it, as Markdown reads one: a ```` fence may quote a
+	// ``` one, and the command inside both is still an example.
+	fence := ""
+	started := false
+	for _, line := range strings.Split(comment, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case fence == "" && fenceMarker(trimmed) != "":
+			fence = fenceMarker(trimmed)
+		case fence != "" && strings.HasPrefix(trimmed, fence):
+			fence = ""
+		case fence == "" && addressed(line) && !indentedCode(line):
+			// The blank lines before the first command are its own, not a
+			// command of their own.
+			if started {
+				sections = append(sections, strings.Join(current, "\n"))
+				current = nil
+			}
+			started = true
+		}
+		current = append(current, line)
+	}
+	sections = append(sections, strings.Join(current, "\n"))
+
+	commands := make([]Command, 0, len(sections))
+	for _, section := range sections {
+		parsed, _ := Parse(section)
+		parsed.Body = section
+		commands = append(commands, parsed)
+	}
+	return commands
+}
+
+// fenceMarker is the run of backticks or tildes that opens a code fence on
+// this line, or nothing.
+func fenceMarker(trimmed string) string {
+	for _, mark := range []string{"`", "~"} {
+		run := len(trimmed) - len(strings.TrimLeft(trimmed, mark))
+		if run >= 3 {
+			return strings.Repeat(mark, run)
+		}
+	}
+	return ""
+}
+
+// indentedCode says a line is indented as Markdown's code blocks are, four
+// spaces or a tab: a command written there is shown, not given.
+func indentedCode(line string) bool {
+	return strings.HasPrefix(line, "    ") || strings.HasPrefix(line, "\t")
+}
+
+// MostCommands is how many commands one comment may give. Each is a reply,
+// and replies are writes on the one queue every editor shares: a comment of
+// two hundred lines would hold everybody else up for ten minutes, and a burst
+// of comments is what GitHub's spam detection hid the bot for once.
+const MostCommands = 5
+
+// Capped is the commands of a comment that are run, and the note naming those
+// that are not when there are more than MostCommands - empty when all are.
+func Capped(commands []Command) ([]Command, string) {
+	if len(commands) <= MostCommands {
+		return commands, ""
+	}
+	return commands[:MostCommands], tooManyCommands(commands[MostCommands:])
+}
+
+func tooManyCommands(skipped []Command) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "⚠ This comment gives %d commands, and I run at most %d from one comment. "+
+		"I am running the first %d; these I have not run:\n\n", MostCommands+len(skipped), MostCommands, MostCommands)
+	for _, parsed := range skipped {
+		fmt.Fprintf(&out, "- %s\n", Code(strings.TrimSpace(firstNonEmptyLine(parsed.Body))))
+	}
+	out.WriteString("\nPut them in a comment of their own to have them run.\n")
+	return out.String()
+}
+
+// addressed says a line is a command: it begins with the bot's mention. One
+// test for Parse and Split, so that they cannot disagree on what starts one.
+func addressed(line string) bool {
+	fields := strings.Fields(line)
+	return len(fields) > 0 && strings.EqualFold(fields[0], Bot)
 }
 
 // firstNonEmptyLine returns the first line with anything on it, so that a

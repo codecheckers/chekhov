@@ -67,6 +67,10 @@ type Definition struct {
 	// no check, so each listing shows only its own, and a command asked in
 	// the wrong place is told where it belongs.
 	Lists bool
+	// NamesInFull says the command's last argument is a name written out -
+	// a venue, "J. Stat. Softw." - whose full stop is its own rather than
+	// the sentence's, so Parse leaves it on. See arguments in command.go.
+	NamesInFull bool
 }
 
 // registry is every command the bot answers to.
@@ -292,12 +296,13 @@ var registry = []Definition{
 		Roles:   Roles{RoleEditor},
 	},
 	{
-		Name:    VenueSet,
-		Aliases: []string{"set venue"},
-		Summary: "Record the Type and Venue of this check's register row, where its labels do not say",
-		Usage:   "venue set [<type>] <venue>",
-		Group:   GroupRegister,
-		Roles:   Roles{RoleEditor},
+		Name:        VenueSet,
+		Aliases:     []string{"set venue"},
+		Summary:     "Record the Type and Venue of this check's register row, where its labels do not say",
+		Usage:       "venue set [<type>] <venue>",
+		Group:       GroupRegister,
+		Roles:       Roles{RoleEditor},
+		NamesInFull: true,
 	},
 	{
 		Name:          CheckRegister,
@@ -306,6 +311,7 @@ var registry = []Definition{
 		Group:         GroupRegister,
 		Roles:         Roles{RoleAnyone},
 		AboutTheCheck: true,
+		NamesInFull:   true,
 	},
 	{
 		Name:          Register,
@@ -314,6 +320,7 @@ var registry = []Definition{
 		Group:         GroupRegister,
 		Roles:         Roles{RoleEditor},
 		AboutTheCheck: true,
+		NamesInFull:   true,
 	},
 	{
 		Name:    Announce,
@@ -359,8 +366,12 @@ func Lookup(word string) (Definition, bool) {
 // the comment they were written in. Lookup and Suggest both go through it, so
 // that a typo is measured against the same word a match would have been.
 func normalize(word string) string {
-	return strings.TrimRight(strings.ToLower(strings.TrimSpace(word)), "!.,;:?")
+	return strings.TrimRight(strings.ToLower(strings.TrimSpace(word)), sentencePunctuation)
 }
+
+// sentencePunctuation is what a sentence ends a command with: taken off the
+// command word, and off its last argument (see arguments in command.go).
+const sentencePunctuation = "!.,;:?"
 
 // Permits reports whether somebody's roles let them run the command: any one
 // of the roles the command names is enough.

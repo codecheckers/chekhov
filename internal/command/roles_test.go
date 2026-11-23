@@ -242,3 +242,15 @@ func TestTheTypedWordForARoleParses(t *testing.T) {
 		t.Errorf("the assigned codechecker is typed %q", got)
 	}
 }
+
+// "editor" in an assignment can only mean the handling editor: the standing
+// role is a team's, and nothing assigns it (register#244). "editors" is still
+// answered with the difference, because nobody means a plural of one.
+func TestEditorIsTheHandlingEditor(t *testing.T) {
+	if role, err := AssignableRole("editor"); err != nil || role != RoleHandlingEditor {
+		t.Errorf("editor read as %q (%v), want the handling editor", role, err)
+	}
+	if _, err := AssignableRole("editors"); err == nil {
+		t.Error("editors was assigned as a role")
+	}
+}

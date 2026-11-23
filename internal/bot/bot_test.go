@@ -537,15 +537,21 @@ func (f *failOnIssue) Comment(_ context.Context, _ string, issue int, _ string) 
 	return 1, nil
 }
 
-// Being thanked is answered once, with a quote from the bot's namesake. A
-// comment carries one command however many times it mentions the bot: the
-// convention is the first line, and a second line is conversation.
-func TestThanksIsAnsweredOnceWithAQuote(t *testing.T) {
+// Being thanked is answered with a quote from the bot's namesake. A line
+// that begins with the mention is a command of its own (register#244), so
+// "thanks!" and "thanks again" on two lines are thanked twice.
+func TestThanksIsAnsweredWithAQuote(t *testing.T) {
 	server, replies := testServer(t)
+	server.done = make(chan struct{}, 2)
 
 	deliver(t, server, "issue_comment", "issue-comment-thanks.json")
-	if replies.count() != 1 {
-		t.Fatalf("%d replies, want 1", replies.count())
+	select {
+	case <-server.done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the second command did not finish")
+	}
+	if replies.count() != 2 {
+		t.Fatalf("%d replies, want one for each line", replies.count())
 	}
 	reply := replies.last()
 	if !strings.Contains(reply, "Anton Chekhov") || !strings.Contains(reply, "wikiquote.org") {
@@ -1027,5 +1033,50 @@ func TestHealthReportsTheBuildAndOnlyWhatItCanProve(t *testing.T) {
 	server.Deployment.Environment = "production"
 	if _, reported := health()["commit"]; reported {
 		t.Error("production health names the build's commit")
+	}
+}
+
+// Two commands in one comment are two commands, run in order, each with its
+// own reply - and the second sees what the first recorded, rather than
+// writing over it. The comment is register#244's, as it was written: a
+// sentence's full stop after each, and "editor" for the handling editor.
+func TestEachCommandInACommentIsRun(t *testing.T) {
+	server, replies := testServer(t)
+	server.done = make(chan struct{}, 2)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest"}
+
+	server.actEach(event, command.Split("@chekhovbot assign @a-codechecker as assigned codechecker.\n\n"+
+		"@chekhovbot assign @nuest as editor."))
+	for range 2 {
+		select {
+		case <-server.done:
+		case <-time.After(10 * time.Second):
+			t.Fatal("a command did not finish")
+		}
+	}
+
+	if replies.count() != 2 {
+		t.Fatalf("%d replies, want one for each command", replies.count())
+	}
+	roles := server.answer(context.Background(), event, command.Command{Name: command.ListRoles}).body
+	for _, want := range []string{"`@a-codechecker`", "`@nuest`"} {
+		if !strings.Contains(roles, want) {
+			t.Errorf("the roles do not name %s after both commands: %s", want, roles)
+		}
+	}
+}
+
+// A share link is a secret wherever it is in the comment, so the comment goes
+// even when the link is under another command than `check zenodo`.
+func TestAShareLinkUnderAnotherCommandStillDeletesTheComment(t *testing.T) {
+	server, replies := testServer(t)
+	server.Replies = &deleting{Poster: replies}
+	comment := "@chekhovbot check zenodo\n@chekhovbot hello\nhttps://zenodo.org/records/1?token=made-up"
+	commands := command.Split(comment)
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 1, Author: "nuest",
+		Comment: 42, Body: commands[0].Body, CommentBody: comment}
+
+	if link := server.deleteShareLink(context.Background(), event, commands[0]); !link.Deleted {
+		t.Errorf("the comment with the share link was not deleted: %+v", link)
 	}
 }

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-11-23
+
+### Added
+
+- A comment may hold several commands, one on each line that begins with
+  `@chekhovbot`; up to five are run, in order, each with its own reply
+  (register#244).
+- `assign` and `remove` take `editor` for the handling editor (register#244).
+
+### Fixed
+
+- The punctuation ending the sentence a command was written in is no longer
+  read as part of its last argument: `as codechecker.` names the role
+  (register#244). A venue keeps its full stop.
+
 ## [0.43.1] - 2026-11-17
 
 ### Fixed

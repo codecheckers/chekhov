@@ -4,8 +4,8 @@
 
 Chekhov is the CODECHECK register bot, a fresh implementation in Go. It is
 controlled by mentions in the checks issue: the command goes on the **first
-line** of a comment, one command per comment, following the convention of the
-Open Journals bots. See `README.md` for the commands and `docs/features.md` for
+line** of a comment, following the convention of the Open Journals bots, and
+every later line beginning with the mention is another command, run in order. See `README.md` for the commands and `docs/features.md` for
 the full feature list with priorities.
 
 ## Committing and publishing

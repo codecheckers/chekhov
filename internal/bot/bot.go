@@ -206,12 +206,12 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsed, addressed := command.Parse(event.Body)
-	if !addressed && s.registrationOpened(event) {
+	commands := command.Split(event.Body)
+	if len(commands) == 0 && s.registrationOpened(event) {
 		// A registration is answered unasked, as the first reply to it.
-		parsed, addressed = command.Command{Name: command.IncludeCheck}, true
+		commands = []command.Command{{Name: command.IncludeCheck, Body: event.Body}}
 	}
-	if !addressed {
+	if len(commands) == 0 {
 		// The common case on a busy issue, and it has to stay cheap and silent.
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -219,7 +219,31 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 
 	// Answer now, work afterwards.
 	w.WriteHeader(http.StatusAccepted)
-	go s.act(event, parsed)
+	go s.actEach(event, commands)
+}
+
+// actEach runs the commands of one comment, each with the lines under it as
+// its body, and each answered in its own reply.
+//
+// One after another, never side by side: two `assign`s in one comment both
+// rewrite the record of the check, and run at once the second would write
+// over what the first had just written (register#244). A panic in one is
+// caught by act, and the next still runs. At most command.MostCommands, and
+// the rest are named in a reply posted before the first is run.
+func (s *Server) actEach(event mention, commands []command.Command) {
+	commands, notRun := command.Capped(commands)
+	if notRun != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+		if _, err := s.post(ctx, event, said(notRun)); err != nil {
+			s.Logger.Error("the note on commands not run could not be posted", "issue", event.Issue, "error", err)
+		}
+		cancel()
+	}
+	for _, parsed := range commands {
+		one := event
+		one.Body, one.CommentBody = parsed.Body, event.Body
+		s.act(one, parsed)
+	}
 }
 
 // refuse says why a delivery is not acted on, or returns an empty string.
@@ -1587,9 +1611,12 @@ func writeJSON(w http.ResponseWriter, state map[string]any) {
 // It exists so that `chekhov comment` and the deployed bot answer through the
 // same code: a reply that can be read on the command line is only worth
 // reading if it is the reply that would be posted.
+//
+// A comment with several commands is answered with each reply in turn, as a
+// deployment would post them, divided by a rule.
 func Preview(settings *config.Settings, services *check.Services, author, body string) (string, bool) {
-	parsed, addressed := command.Parse(body)
-	if !addressed {
+	commands := command.Split(body)
+	if len(commands) == 0 {
 		return "", false
 	}
 
@@ -1609,13 +1636,22 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 		// that no command writes to GitHub from a preview.
 		server.Replies = readOnly{client}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(parsed))
-	defer cancel()
-	// The body travels with the mention: a command may be followed by prose -
-	// an abstract, an availability statement - and the preview has to read the
-	// same comment a deployment would. A preview posts nothing, so whatever
+	// Each command's own lines travel with its mention: a command may be
+	// followed by prose - an abstract, an availability statement - and the
+	// preview has to read the same lines a deployment would. A preview posts nothing, so whatever
 	// the answer left outstanding is not written here either.
-	return server.answer(ctx, mention{Author: author, Body: body}, parsed).body, true
+	commands, notRun := command.Capped(commands)
+	var replies []string
+	if notRun != "" {
+		replies = append(replies, notRun)
+	}
+	for _, parsed := range commands {
+		ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(parsed))
+		replies = append(replies, server.answer(ctx,
+			mention{Author: author, Body: parsed.Body, CommentBody: body}, parsed).body)
+		cancel()
+	}
+	return strings.Join(replies, "\n\n---\n\n"), true
 }
 
 // readOnly is the reply path of a preview: the reads it embeds and nothing

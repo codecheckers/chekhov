@@ -101,7 +101,8 @@ func Listing(roles Roles) string {
 		}
 	}
 
-	out.WriteString("\nWrite the command on the **first line** of a comment, one command per comment.\n")
+	fmt.Fprintf(&out, "\nWrite the command on the **first line** of a comment. More may follow, "+
+		"each on a line of its own beginning with `%s`, up to %d in one comment.\n", Bot, MostCommands)
 	return out.String()
 }
 

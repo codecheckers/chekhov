@@ -66,8 +66,11 @@ For local development the deployment URL has to be a public tunnel — smee.io o
 ## Command convention
 
 Following the Open Journals bots: the command is on the **first line** of the
-comment, and only the first command in a comment is interpreted. Free text may
-follow on later lines.
+comment. Every later line that begins with the mention is another command,
+run after the one before it, and the lines under a command, up to the next,
+are its free text (`command.Split`). A line in a code fence, or indented as
+code, is never a command. At most `command.MostCommands` (five) are run from
+one comment, and a reply names the rest. A comment that does not begin with a command has none.
 
 ## Engine
 

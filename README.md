@@ -9,7 +9,9 @@ codecheckers, assigning them, validating `codecheck.yml` early, and opening the
 pull request against `register.csv`. It is controlled by mentions in the checks
 issue in [`codecheckers/register`](https://github.com/codecheckers/register),
 following the convention established by the Open Journals bots: **the command
-goes on the first line of the comment, one command per comment.**
+goes on the first line of the comment.** More commands may follow, each on a
+line of its own that begins with `@chekhovbot`, up to five; they are answered
+in order.
 
 ```bash
 @chekhovbot commands

@@ -172,7 +172,8 @@ func (r Roles) Conflict(role Role) (Role, string, bool) {
 //
 // Only the per-check roles can be assigned. Editor and codechecker come from
 // the organisation's teams, and a command that appeared to hand them out would
-// be lying about what it had done.
+// be lying about what it had done - which is also why "editor" can be read as
+// the handling editor without being mistaken for the team's role.
 func AssignableRole(words string) (Role, error) {
 	switch strings.Join(strings.Fields(strings.ToLower(words)), " ") {
 	case "":
@@ -181,9 +182,11 @@ func AssignableRole(words string) (Role, error) {
 		return RoleAssignedCodechecker, nil
 	case "author", "authors":
 		return RoleAuthor, nil
-	case "handling editor", "handling-editor", "handling":
+	case "handling editor", "handling-editor", "handling", "editor":
+		// "editor" can only mean the handling editor here: the standing role
+		// comes from a team, and no command hands it out (register#244).
 		return RoleHandlingEditor, nil
-	case "editor", "editors":
+	case "editors":
 		return "", fmt.Errorf("editors come from a team on GitHub, not from a command; " +
 			"did you mean `handling editor`, the editor looking after this check?")
 	default:
