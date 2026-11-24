@@ -740,8 +740,9 @@ func RolesReply(holders Holders, teams Teams, asker Roles, told Provenance) stri
 // there. It matters most when the record is gone: a comment somebody deleted
 // leaves these behind, and a check can be reconstructed from them.
 //
-// assignee is what AssigneeNote said about the issue's assignee, empty when
-// there was nothing to say.
+// assignee is the reply's lines about the issue rather than the record - what
+// AssigneeNote said about its assignee, and what LabelChanges said about the
+// queue label - empty when there was nothing to say.
 func AssignedReply(role Role, handle, replaced, assignee, by string, when time.Time) string {
 	var reply strings.Builder
 	fmt.Fprintf(&reply, "✔ %s is now the %s of this check.\n", mention(handle), role)
@@ -1229,8 +1230,9 @@ type Joined struct {
 	// overrule it.
 	Taken string
 	// Granted says the role was recorded now rather than by somebody who got
-	// there first, and Assignee what AssigneeNote said about the issue's
-	// assignee.
+	// there first, and Assignee the reply's lines about the issue: what
+	// AssigneeNote said about its assignee, and what LabelChanges said about
+	// the queue label.
 	Granted  bool
 	Assignee string
 	// TeamNote is what the team change came to, empty when there was nothing

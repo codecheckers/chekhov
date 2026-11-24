@@ -33,7 +33,7 @@ import (
 // See commentsOnce.
 //
 // The issue is memoised, and the memo is kept honest: the bot does now change
-// labels - `check start` takes `needs codechecker` off - so moveLabels tells
+// labels - `assign` and `check start` take `needs codechecker` off - so moveLabels tells
 // the memo what it moved. Without that the note is built on the labels as they
 // were before the write, and the same comment reports a label removed and
 // then warns that the check still carries it.

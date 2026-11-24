@@ -27,7 +27,12 @@ import (
 //   - It never changes a label. A label nobody can justify from the issue is
 //     still one somebody may have put there for a reason. A command that
 //     changes one does it as its own act, and only for a label the settings
-//     list under labels.managed - `certificate set` adding `id assigned`.
+//     list under labels.managed - `certificate set` adding `id assigned`, or
+//     `assign … as codechecker` taking `needs codechecker` off, because
+//     recording a codechecker is what ends the wait the label stands for
+//     (codecheckers/register#242). What is left for this table to say about
+//     the queue is what no command just did: a label put back by hand, a
+//     codechecker who could not be recorded, a write GitHub refused.
 //   - Agreement is silence. A reply that ends "and the labels are fine" on
 //     every command is noise, and noise is how the useful line gets skipped.
 

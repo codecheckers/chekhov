@@ -35,7 +35,7 @@ for completeness of the conversational set.
 
 | Command | Effect | Prio |
 |---|---|---|
-| `@chekhovbot assign @user as codechecker` | Set the codechecker, assign the issue, record it | MVP |
+| `@chekhovbot assign @user as codechecker` | Set the codechecker, assign the issue, record it, take `needs codechecker` off | MVP |
 | `@chekhovbot remove @user as codechecker` | Unassign and clear the recorded codechecker | MVP |
 | `@chekhovbot assign @user as editor` | Set the editor handling this check | high |
 | `@chekhovbot codecheckers` | Link the lists of registered codecheckers, rather than copy them | high |

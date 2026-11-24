@@ -2,8 +2,11 @@ package bot
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
@@ -261,5 +264,131 @@ func TestAClosedCheckIsNotToldItNeedsACodechecker(t *testing.T) {
 	if reply := answer(t, server, command.ListRoles, nil, ""); strings.Contains(reply,
 		"Nobody is the assigned codechecker") {
 		t.Errorf("a closed check was told it needs a codechecker:\n%s", reply)
+	}
+}
+
+// Recording a codechecker is what ends the wait `needs codechecker` stands
+// for, so `assign` takes it off and says so, and the note has nothing left to
+// warn about (codecheckers/register#242).
+func TestAssigningACodecheckerTakesTheCheckOutOfTheQueue(t *testing.T) {
+	server, path := checking(t, "", "needs codechecker")
+
+	reply := assigned(t, server, "a-codechecker")
+	if !slices.Equal(path.moved, []string{"-needs codechecker"}) {
+		t.Errorf("moved %v, want only `needs codechecker` off", path.moved)
+	}
+	if !strings.Contains(reply, "✔ Labels: removed `needs codechecker`.") {
+		t.Errorf("the reply does not say the label was removed:\n%s", reply)
+	}
+	if strings.Contains(reply, "The labels may not describe this check") {
+		t.Errorf("the reply warns about the label it has just removed:\n%s", reply)
+	}
+
+	// `check start` after it has only its own label left to move.
+	path.moved = nil
+	answer(t, server, command.CheckStart, nil, "")
+	if !slices.Equal(path.moved, []string{"+work in progress"}) {
+		t.Errorf("check start moved %v, want only `work in progress` on", path.moved)
+	}
+}
+
+// Nothing to take off is no request and no line in the reply.
+func TestAssigningOutsideTheQueueMovesNoLabel(t *testing.T) {
+	server, path := checking(t, "")
+	if reply := assigned(t, server, "a-codechecker"); strings.Contains(reply, "Labels") {
+		t.Errorf("a check outside the queue got a line about labels:\n%s", reply)
+	}
+	if len(path.moved) != 0 {
+		t.Errorf("moved %v, want nothing", path.moved)
+	}
+}
+
+// A role that is not the codechecker's leaves the queue alone.
+func TestAssigningAnotherRoleLeavesTheQueue(t *testing.T) {
+	server, path := checking(t, "", "needs codechecker")
+	answer(t, server, command.Assign, []string{"@nuest", "as", "handling", "editor"}, "")
+	if len(path.moved) != 0 {
+		t.Errorf("moved %v, want nothing", path.moved)
+	}
+}
+
+// A write GitHub refused is said, and the note still says the label is wrong:
+// the role stands, and the label is somebody's to take off by hand.
+func TestAQueueLabelThatCouldNotBeRemovedIsStillNoticed(t *testing.T) {
+	server, path := checking(t, "", "needs codechecker")
+	path.refuse = errors.New("not today")
+
+	reply := assigned(t, server, "a-codechecker")
+	for _, want := range []string{"is now the assigned codechecker",
+		"✖ I could not remove `needs codechecker`",
+		"still carries the `needs codechecker` label"} {
+		if !strings.Contains(reply, want) {
+			t.Errorf("the reply does not say %q:\n%s", want, reply)
+		}
+	}
+}
+
+// labellingOrganisation is the organisation's reply path with label writes,
+// for the sweep that finishes an assignment.
+type labellingOrganisation struct {
+	*organisation
+	moved []string
+}
+
+func (o *labellingOrganisation) AddLabel(_ context.Context, _ string, _ int, label string) error {
+	o.moved = append(o.moved, "+"+label)
+	return nil
+}
+
+func (o *labellingOrganisation) RemoveLabel(_ context.Context, _ string, _ int, label string) error {
+	o.moved = append(o.moved, "-"+label)
+	return nil
+}
+
+// An assignment that waited for somebody to join ends the wait when the sweep
+// records it, as the `assign` it finishes would have.
+func TestFinishingAnAssignmentTakesTheCheckOutOfTheQueue(t *testing.T) {
+	server, replies := organised(t)
+	replies.labelled("needs codechecker")
+	path := &labellingOrganisation{organisation: replies}
+	server.Replies = path
+	asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+	replies.members["a-made-up-newcomer"] = true
+
+	server.nudge(context.Background())
+
+	if !slices.Equal(path.moved, []string{"-needs codechecker"}) {
+		t.Errorf("moved %v, want only `needs codechecker` off", path.moved)
+	}
+	if said := replies.last(); !strings.Contains(said, "✔ Labels: removed `needs codechecker`.") {
+		t.Errorf("the sweep's reply does not say the label was removed:\n%s", said)
+	}
+}
+
+// A path that can read the labels but not change them says nothing about the
+// label it could not move, and the note still says the check is in the queue.
+func TestAssigningWhereNoLabelCanBeMovedLeavesTheWarning(t *testing.T) {
+	server, replies := watching(t)
+	replies.labelled("needs codechecker")
+
+	reply := assigned(t, server, "a-codechecker")
+	if strings.Contains(reply, "I cannot change a label from here") {
+		t.Errorf("the reply reports a label it was never going to move:\n%s", reply)
+	}
+	if !strings.Contains(reply, "still carries the `needs codechecker` label") {
+		t.Errorf("the reply does not warn about the label:\n%s", reply)
+	}
+}
+
+// A closed check is out of the queue whatever its labels say.
+func TestAssigningOnAClosedCheckMovesNoLabel(t *testing.T) {
+	server, path := checking(t, "", "needs codechecker")
+	path.issues[0].Closed = true
+
+	if reply := assigned(t, server, "a-codechecker"); strings.Contains(reply, "Labels") {
+		t.Errorf("a closed check got a line about labels:\n%s", reply)
+	}
+	if len(path.moved) != 0 {
+		t.Errorf("moved %v, want nothing", path.moved)
 	}
 }

@@ -839,11 +839,11 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 
 	// The assigned codechecker is also the issue's assignee, so that the role
 	// is visible where people look for it rather than only in a comment.
-	assignee := ""
+	onTheIssue := ""
 	if role == command.RoleAssignedCodechecker {
-		assignee = s.assignee(ctx, event, handle, replaced)
+		onTheIssue = s.codecheckerRecorded(ctx, event, handle, replaced)
 	}
-	return said(withNote(command.AssignedReply(role, handle, replaced, assignee, event.Author, time.Now()),
+	return said(withNote(command.AssignedReply(role, handle, replaced, onTheIssue, event.Author, time.Now()),
 		s.teamNote(ctx, event, handle, role, team, inside)))
 }
 
@@ -974,6 +974,20 @@ func (s *Server) team(role command.Role) string {
 	default:
 		return ""
 	}
+}
+
+// codecheckerRecorded is what the issue owes a codechecker the record has just
+// gained: they become its assignee, and the check leaves the queue. One place,
+// for both ways a codechecker is recorded - `assign`, and the sweep finishing
+// an `assign` that waited for them to join - so that neither half is forgotten.
+// What comes back is the reply's lines about the issue, either of which may be
+// missing.
+func (s *Server) codecheckerRecorded(ctx context.Context, event mention, handle, replaced string) string {
+	assignee, label := s.assignee(ctx, event, handle, replaced), s.dequeue(ctx, event)
+	if assignee == "" || label == "" {
+		return assignee + label
+	}
+	return assignee + "\n\n" + label
 }
 
 // assignee keeps the issue's assignee in step with the assigned codechecker,

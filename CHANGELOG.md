@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-11-24
+
+### Changed
+
+- `assign … as codechecker` takes `needs codechecker` off an open check and
+  says so, rather than only warning that the check still carries it; so does
+  the sweep finishing an assignment that waited for somebody to join (#67).
+
 ## [0.44.0] - 2026-11-23
 
 ### Added

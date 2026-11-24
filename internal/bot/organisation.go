@@ -153,12 +153,12 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	}
 
 	note := s.teamNote(ctx, event, record.Subject, role, record.Team, true)
-	assignee := ""
+	onTheIssue := ""
 	if role == command.RoleAssignedCodechecker && granted {
 		// Nobody to unassign: the role is granted here only when it was
 		// nobody's, because one that has since gone to somebody else is left
 		// with them.
-		assignee = s.assignee(ctx, event, record.Subject, "")
+		onTheIssue = s.codecheckerRecorded(ctx, event, record.Subject, "")
 	}
 	if !granted && note == "" {
 		// The role was already recorded and the team already right: somebody
@@ -174,7 +174,7 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	}
 	return answered{body: command.JoinedReply(command.Joined{
 		Handle: record.Subject, Role: role, Granted: granted, Taken: taken,
-		Assignee: assignee, TeamNote: note, Lists: s.codecheckerListPages(),
+		Assignee: onTheIssue, TeamNote: note, Lists: s.codecheckerListPages(),
 		Organisation: s.Settings.TeamOrganisation(), Registration: registered, Registered: opened,
 	})}, nil
 }
