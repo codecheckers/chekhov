@@ -330,7 +330,7 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 		return s.tellOnce(event, record, invitationWaitingAfter, command.InvitationWaiting(organisation)), true, nil
 	case !invitation.Joined():
 		// The owners are read only when there is a reminder left to post.
-		if !record.Older(remindAfter, time.Now()) || record.Reminders > mostReminders {
+		if !record.Older(remindAfter, time.Now()) || askedOut(record) {
 			return answered{}, true, nil
 		}
 		request := command.OutsideRequest{Handle: record.Subject, Organisation: organisation, Team: record.Team}
@@ -443,7 +443,7 @@ func (s *Server) noRowPullRequest(ctx context.Context, event mention, record fol
 	if pull.Number != 0 {
 		return s.pullRequestWaiting(ctx, event, record, pull), true, nil
 	}
-	if record.Reminders > mostReminders {
+	if askedOut(record) {
 		return answered{}, true, nil
 	}
 	next := s.followUp(event, record)

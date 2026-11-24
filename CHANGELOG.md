@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `include open` opens a registration for somebody outside the organisation
   too, when they have taken part in the issue, and tells them an invitation is
   to come (#68).
-
 - `assign … as codechecker` takes `needs codechecker` off an open check and
   says so, rather than only warning that the check still carries it; so does
   the sweep finishing an assignment that waited for somebody to join (#67).

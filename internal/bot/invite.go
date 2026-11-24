@@ -74,21 +74,23 @@ func (s *Server) invite(ctx context.Context, event mention, parsed command.Comma
 		return said(note)
 	}
 	reply := command.InviteHeading(login) + note
+	if !outside {
+		return said(reply)
+	}
 	// The ordinary team whatever the check: a registration is for the list
 	// registrations go on, and the institutional one is kept by hand.
 	team := s.Settings.CodecheckersTeam()
-	asked := outside && s.askedFor(ctx, event, login)
-	switch {
-	case !outside:
-		return said(reply)
-	case invitation.Invited() && asked:
-		return said(reply + command.InviteInvited(login, organisation))
-	case invitation.Invited():
+	asked := s.askedFor(ctx, event, login)
+	if invitation.Invited() {
+		reply += command.InviteInvited(login, organisation)
+		if asked {
+			return said(reply)
+		}
 		// Nobody needs asking, and the sweep still has to put them in the
 		// team once they accept: the record is what it finds.
-		return answered{body: reply + command.InviteInvited(login, organisation),
-			follow: s.outstanding(event, login, "", team)}
-	case asked:
+		return answered{body: reply, follow: s.outstanding(event, login, "", team)}
+	}
+	if asked {
 		return said(reply + command.InviteAskedAlready(login))
 	}
 	ask := s.outsideReply(ctx, login, "", team)
@@ -161,5 +163,5 @@ func (s *Server) askedFor(ctx context.Context, event mention, login string) bool
 	}
 	record, asked := s.threadOf(ctx, reader, event).newestAbout(
 		followup.Record{Kind: followup.KindOrganisation, Subject: login})
-	return asked && !record.Settled && record.Reminders <= mostReminders
+	return asked && !record.Settled && !askedOut(record)
 }

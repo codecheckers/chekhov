@@ -80,7 +80,7 @@ func (s *Server) whereStands(ctx context.Context, handle string) (github.Invitat
 // reminder is three days from now rather than three days from the first ask.
 func (s *Server) remindTheOwners(ctx context.Context, event mention,
 	record followup.Record) (answered, error) {
-	if record.Reminders > mostReminders {
+	if askedOut(record) {
 		// Asked often enough, and said so already: the owners are not read
 		// for a reminder that will not be posted.
 		return answered{}, nil
@@ -93,13 +93,17 @@ func (s *Server) remindTheOwners(ctx context.Context, event mention,
 	return s.reminder(event, record, ask, command.AskAgain(record.Subject, role)), nil
 }
 
+// askedOut is an ask that has been repeated as often as it will be, and said
+// so: the sweep posts nothing more for it, and `invite` may start it over.
+func askedOut(record followup.Record) bool { return record.Reminders > mostReminders }
+
 // reminder is the rhythm every ask to the owners keeps, `assign`'s and
 // `include`'s alike: asked again with a fresh record, so that the next time is
 // measured from now; the last time said to be the last, with the command that
 // asks once more; and after that, nothing, while the record stays so that the
 // sweep still notices when they join.
 func (s *Server) reminder(event mention, record followup.Record, ask, rerun string) answered {
-	if record.Reminders > mostReminders {
+	if askedOut(record) {
 		return answered{}
 	}
 	next := s.followUp(event, record)
@@ -158,7 +162,7 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	}
 	return answered{body: command.JoinedReply(command.Joined{
 		Handle: record.Subject, Role: role, Granted: granted, Taken: taken,
-		Assignee: onTheIssue, TeamNote: note, Lists: s.codecheckerListPages(),
+		OnTheIssue: onTheIssue, TeamNote: note, Lists: s.codecheckerListPages(),
 		Organisation: s.Settings.TeamOrganisation(), Registration: registered, Registered: opened,
 	})}, nil
 }

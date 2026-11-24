@@ -27,7 +27,7 @@ func TestOnlyAFailureThatPassesSaysAskAgain(t *testing.T) {
 // does.
 func TestJoinedSaysWhyTheAssigneeWasNotSet(t *testing.T) {
 	reply := JoinedReply(Joined{Handle: "a-codechecker", Role: RoleAssignedCodechecker, Granted: true,
-		Assignee: AssigneeNote("a-codechecker", false, FailureLimited.Why()), Organisation: "codecheckers"})
+		OnTheIssue: AssigneeNote("a-codechecker", false, FailureLimited.Why()), Organisation: "codecheckers"})
 	if !strings.Contains(reply, "I could not make `@a-codechecker` the assignee of this issue") ||
 		!strings.Contains(reply, "Ask me again in a few minutes") {
 		t.Errorf("the reply does not say why the assignee was not set:\n%s", reply)

@@ -630,7 +630,7 @@ func (s *Server) dequeue(ctx context.Context, event mention) string {
 	if _, canWrite := s.Replies.(Labelling); !known || !canWrite || issue.Closed {
 		return ""
 	}
-	return strings.TrimSpace(s.moveLabels(ctx, event, issue, known, off(s.Settings.NeedsCodecheckerLabel())))
+	return strings.TrimSpace(s.moveLabels(ctx, event, issue, true, off(s.Settings.NeedsCodecheckerLabel())))
 }
 
 // fixed is a stage with nothing to read: words the command already has. It has
