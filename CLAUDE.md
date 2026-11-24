@@ -18,18 +18,21 @@ confirmation covers the commit it was given for, not the next one. Pushing is
 the same, and separate: "commit it" is not "push it", and each push waits for
 its own go-ahead.
 
-**A commit message is one line.** What changed, and the issue it closes:
+<!-- Source: own rule; Co-Authored-By trailer allowed in the body 2026-11-23. -->
+**A commit message is one subject line.** What changed, and the issue it closes:
 `count a bundle in one request instead of one per directory, closes #46`. No
-body, no paragraphs, no bullet list of what the reviewers said. The history is
+paragraphs in the body, no bullet list of what the reviewers said. The history is
 read as a list, and a list of essays is not one - `git log --oneline` is how
 somebody finds the commit that broke something, and a subject line that has to
 compete with forty lines underneath it is a worse subject line. The reasoning
 belongs in the code comments, next to the code it is about, which is where the
 next person will actually be looking when they need it.
 
-One line means one line: no trailers either, including `Co-Authored-By` and
-`Claude-Session`. A harness that asks for them is asking about its own
-bookkeeping, and this repository's history is not the place to keep it.
+The body holds one thing only: a `Co-Authored-By:` trailer naming the model,
+after a blank line, for transparency (global rule G6.4). No other trailers,
+and never `Claude-Session`: that is the harness's bookkeeping, not this
+repository's history. When proposing a message for the user to copy, give the
+trailer too.
 
 **When the background is crucial, offer to post it to the issue.** Some of it
 is worth keeping and belongs nowhere in the source: a measurement that decided

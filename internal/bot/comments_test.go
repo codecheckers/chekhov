@@ -35,11 +35,11 @@ func (t *thread) Edit(ctx context.Context, repository string, comment int64, bod
 	return t.record.Edit(ctx, repository, comment, body)
 }
 
-// threaded is a check with a codechecker assigned, wired as a deployment is.
+// threaded is a check ready to start, wired as a deployment is.
 func threaded(t *testing.T, labels ...string) (*Server, *thread) {
 	t.Helper()
 	server, path := checking(t, "valid-2.0", labels...)
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 	replies := &thread{workflow: path, record: server.Checks.Comments.(*issueComments)}
 	server.Replies, server.Checks.Comments = replies, replies
 	return server, replies
@@ -81,7 +81,7 @@ func TestACommandThatWritesTheRecordListsOnce(t *testing.T) {
 		name command.Name
 		args []string
 	}{
-		{command.Assign, []string{"@a-handling-editor", "as", "author"}},
+		{command.Assign, []string{"@a-made-up-author", "as", "author"}},
 		{command.Remove, []string{"@a-codechecker", "as", "codechecker"}},
 	} {
 		t.Run(string(run.name), func(t *testing.T) {

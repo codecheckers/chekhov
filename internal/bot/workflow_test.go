@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -141,24 +142,89 @@ func assignCodechecker(t *testing.T, server *Server, handle string) {
 	}
 }
 
-// A check is started by the person doing it. Starting one with nobody assigned
-// would take it out of the queue that exists to find somebody.
-func TestCheckStartRefusesWithNobodyAssigned(t *testing.T) {
-	server, path := checking(t, "", "needs codechecker")
+// startable records what `check start` needs before it moves anything: an
+// assigned codechecker, a handling editor and a certificate identifier.
+func startable(t *testing.T, server *Server) {
+	t.Helper()
+	assignCodechecker(t, server, "a-codechecker")
+	assignHandlingEditor(t, server, "a-handling-editor")
+	reserve(t, server, "1970-001")
+}
 
-	reply := answer(t, server, command.CheckStart, nil, "")
-	if !strings.Contains(reply, "assign @user as codechecker") {
-		t.Errorf("the refusal does not say how to fix it:\n%s", reply)
+// assignHandlingEditor records one, the way `assign` does.
+func assignHandlingEditor(t *testing.T, server *Server, handle string) {
+	t.Helper()
+	_, err := server.Checks.Update(context.Background(), server.Settings.TargetRepository(), 1,
+		func(record people.Record) (people.Record, error) {
+			record.HandlingEditor = handle
+			return record, nil
+		})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(path.moved) != 0 {
-		t.Errorf("labels were moved on a check nobody is doing: %q", path.moved)
+}
+
+// A check is not started while it lacks the person doing it, the editor
+// answerable for it, or the identifier its files carry: nothing moves, and the
+// reply names the command for each thing missing and for nothing else
+// (codecheckers/register#244).
+func TestCheckStartRefusesWhatItNeeds(t *testing.T) {
+	asks := map[string]string{
+		"codechecker": "`@chekhovbot assign @user as codechecker`",
+		"editor":      "`@chekhovbot assign @user as handling editor`",
+		"certificate": "`@chekhovbot certificate set`",
+	}
+	for _, tc := range []struct {
+		name    string
+		record  func(*people.Record)
+		missing []string
+	}{
+		{"nothing recorded", func(*people.Record) {}, []string{"codechecker", "editor", "certificate"}},
+		{"no codechecker", func(r *people.Record) {
+			r.HandlingEditor, r.Certificate = "a-handling-editor", "1970-001"
+		}, []string{"codechecker"}},
+		{"no handling editor", func(r *people.Record) {
+			r.AssignedCodechecker, r.Certificate = "a-codechecker", "1970-001"
+		}, []string{"editor"}},
+		{"no certificate", func(r *people.Record) {
+			r.AssignedCodechecker, r.HandlingEditor = "a-codechecker", "a-handling-editor"
+		}, []string{"certificate"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server, path := checking(t, "", "needs codechecker")
+			_, err := server.Checks.Update(context.Background(), server.Settings.TargetRepository(), 1,
+				func(record people.Record) (people.Record, error) {
+					tc.record(&record)
+					return record, nil
+				})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// A named repository is no way round it.
+			reply := answer(t, server, command.CheckStart, []string{"github::codecheckers/demo"}, "")
+			if !strings.Contains(reply, "I have not started it") {
+				t.Errorf("the refusal does not say the check was not started:\n%s", reply)
+			}
+			for what, ask := range asks {
+				if want := slices.Contains(tc.missing, what); strings.Contains(reply, ask) != want {
+					t.Errorf("naming %s: got %v, want %v:\n%s", ask, !want, want, reply)
+				}
+			}
+			if strings.Contains(reply, "Your checklist") || strings.Contains(reply, "Labels:") {
+				t.Errorf("the refused start went on anyway:\n%s", reply)
+			}
+			if len(path.moved) != 0 {
+				t.Errorf("labels were moved on a check not ready to start: %q", path.moved)
+			}
+		})
 	}
 }
 
 // The labels are what the command is for: out of the queue, into work.
 func TestCheckStartMovesTheLabels(t *testing.T) {
 	server, path := checking(t, "", "needs codechecker", "journal")
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 
 	reply := answer(t, server, command.CheckStart, nil, "")
 	want := []string{"-needs codechecker", "+work in progress"}
@@ -182,7 +248,7 @@ func TestCheckStartMovesTheLabels(t *testing.T) {
 // how the useful lines get skipped.
 func TestCheckStartAsksForNothingAlreadyTrue(t *testing.T) {
 	server, path := checking(t, "", "work in progress")
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 
 	reply := answer(t, server, command.CheckStart, nil, "")
 	if len(path.moved) != 0 {
@@ -253,7 +319,7 @@ func TestARefusedLabelIsExplainedNotPassedOn(t *testing.T) {
 	server, path := checking(t, "", "needs codechecker")
 	path.refuse = fmt.Errorf("refusing to remove the label %q: %w",
 		"needs codechecker", github.ErrLabelNotAllowed)
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 
 	reply := answer(t, server, command.CheckStart, nil, "")
 	if !strings.Contains(reply, "The settings do not list it under `labels.managed`.") {
@@ -268,7 +334,7 @@ func TestARefusedLabelIsExplainedNotPassedOn(t *testing.T) {
 // than reporting a change it did not make.
 func TestAPathThatCannotLabelSaysSo(t *testing.T) {
 	server, _ := testServer(t)
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 
 	reply := answer(t, server, command.CheckStart, nil, "")
 	if !strings.Contains(reply, "ask me on the checks issue") {
@@ -282,7 +348,7 @@ func TestAPathThatCannotLabelSaysSo(t *testing.T) {
 func TestAFailedLabelWriteIsReportedNotUndone(t *testing.T) {
 	server, path := checking(t, "", "needs codechecker")
 	path.refuse = fmt.Errorf("502 Bad Gateway\n<html>the proxy's own page</html>")
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 
 	reply := answer(t, server, command.CheckStart, nil, "")
 	if !strings.Contains(reply, "could not remove `needs codechecker`") {
@@ -347,7 +413,7 @@ func equal(got, want []string) bool {
 // reported removing.
 func TestTheLabelNoteSeesTheLabelsTheCommandJustChanged(t *testing.T) {
 	server, path := checking(t, "", "needs codechecker")
-	assignCodechecker(t, server, "a-codechecker")
+	startable(t, server)
 
 	reply := answer(t, server, command.CheckStart, nil, "")
 	if !strings.Contains(reply, "removed `needs codechecker`") {

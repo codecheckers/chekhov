@@ -96,7 +96,7 @@ for the whole group, before writing #7.
 
 | Command | Effect | Prio |
 |---|---|---|
-| `@chekhovbot check start` | Move the issue into the checking state, apply labels, describe the repository, post the checklist (#22) | done |
+| `@chekhovbot check start` | Move the issue into the checking state, apply labels, describe the repository, post the checklist (#22); refused without an assigned codechecker, a handling editor or a certificate identifier (register#244) | done |
 | `@chekhovbot checklist` | Post/refresh the codechecker's checklist comment | high |
 | `@chekhovbot status` | Summarise this check: roles, certificate, labels, the configuration, what is still open (#22) | done |
 | `@chekhovbot check finish` | Run the rules, move the labels, prompt for the register PR (#22) | done |

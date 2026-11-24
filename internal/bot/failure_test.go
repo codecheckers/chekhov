@@ -77,7 +77,7 @@ func TestALabelThatCouldNotBeMovedSaysWhy(t *testing.T) {
 	for _, tc := range failureCases {
 		server, path := checking(t, "", "needs codechecker")
 		path.refuse = tc.err
-		assignCodechecker(t, server, "a-codechecker")
+		startable(t, server)
 
 		reply := answer(t, server, command.CheckStart, nil, "")
 		if !strings.Contains(reply, "✖ I could not remove `needs codechecker`") ||

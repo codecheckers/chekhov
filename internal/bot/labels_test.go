@@ -286,6 +286,8 @@ func TestAssigningACodecheckerTakesTheCheckOutOfTheQueue(t *testing.T) {
 
 	// `check start` after it has only its own label left to move.
 	path.moved = nil
+	assignHandlingEditor(t, server, "a-handling-editor")
+	reserve(t, server, "1970-001")
 	answer(t, server, command.CheckStart, nil, "")
 	if !slices.Equal(path.moved, []string{"+work in progress"}) {
 		t.Errorf("check start moved %v, want only `work in progress` on", path.moved)

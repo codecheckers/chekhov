@@ -150,15 +150,55 @@ func StartedBy(what, who string, when time.Time) string {
 	return strings.TrimSpace(entry(what, who, when)) + "\n"
 }
 
-// NoAssignedCodechecker refuses `check start` on a check nobody is doing.
+// StartNeeds is what a check lacks before `check start` may move anything.
 //
-// A check is started by the person doing it. Starting one with nobody assigned
-// would take it out of the queue that exists to find somebody, which is the
-// one way for a check to be lost quietly.
-func NoAssignedCodechecker() string {
-	return fmt.Sprintf("Nobody is the assigned codechecker of this check, so there is nothing to "+
-		"start: taking it out of the queue now would hide it from the people looking for work.\n\n"+
-		"```\n%s assign @user as codechecker\n```\n", Bot)
+// Each is refused for its own reason (codecheckers/register#244):
+//
+//   - The assigned codechecker: a check is started by the person doing it.
+//     Starting one with nobody assigned would take it out of the queue that
+//     exists to find somebody, which is the one way for a check to be lost
+//     quietly.
+//   - The handling editor: somebody has to be answerable for the check while
+//     it runs - the reminders and nudges go to them - and a check started
+//     without one has nobody to ask when it stalls.
+//   - The certificate identifier: it is what the codechecker writes into
+//     `codecheck.yml` and onto the certificate, so a check started without one
+//     has its codechecker begin on files that will have to be changed.
+//
+// All of them are named at once, so that an editor fixes the check in one go
+// rather than finding the next thing missing on each attempt.
+type StartNeeds struct {
+	Codechecker    bool
+	HandlingEditor bool
+	Certificate    bool
+}
+
+// Any says something is missing.
+func (n StartNeeds) Any() bool { return n.Codechecker || n.HandlingEditor || n.Certificate }
+
+// NotStartable refuses `check start`, before anything has moved, and names the
+// command that supplies each thing missing.
+func NotStartable(n StartNeeds) string {
+	var needs []string
+	if n.Codechecker {
+		needs = append(needs, "an assigned codechecker: `"+Bot+" assign @user as codechecker`")
+	}
+	if n.HandlingEditor {
+		needs = append(needs, "a handling editor: `"+Bot+" assign @user as handling editor`")
+	}
+	if n.Certificate {
+		needs = append(needs, "a certificate identifier: `"+Bot+" certificate set` reserves the next one, "+
+			"`"+Bot+" certificate next` says which that would be, and "+
+			"`"+Bot+" certificate set YYYY-NNN` reserves a given one")
+	}
+	var out strings.Builder
+	out.WriteString("⚠ This check is not ready to start, so I have not started it " +
+		"and have changed nothing. It still needs\n\n")
+	for _, need := range needs {
+		fmt.Fprintf(&out, "- %s\n", need)
+	}
+	out.WriteString("\nThen start the check again.\n")
+	return out.String()
 }
 
 // NoTarget says a command has nothing to read a `codecheck.yml` from.

@@ -49,8 +49,13 @@ func (s *Server) checkStart(ctx context.Context, event mention, parsed command.C
 	if refusal != "" {
 		return said(refusal)
 	}
-	if about.reading.Record.AssignedCodechecker == "" {
-		return said(command.NoAssignedCodechecker())
+	record := about.reading.Record
+	if needs := (command.StartNeeds{
+		Codechecker:    record.AssignedCodechecker == "",
+		HandlingEditor: record.HandlingEditor == "",
+		Certificate:    record.Certificate == "",
+	}); needs.Any() {
+		return said(command.NotStartable(needs))
 	}
 	issue, known, target := about.issue, about.labelsRead, about.target
 

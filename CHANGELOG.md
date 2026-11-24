@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says so, rather than only warning that the check still carries it; so does
   the sweep finishing an assignment that waited for somebody to join (#67).
 
+### Fixed
+
+- `check start` refuses a check without an assigned codechecker, a handling
+  editor or a certificate identifier, moves no label, and names the command for
+  each one missing (register#244).
+
 ## [0.44.0] - 2026-11-23
 
 ### Added

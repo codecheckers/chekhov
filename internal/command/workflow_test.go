@@ -199,7 +199,7 @@ func TestRepliesNameOnlyCommandsThatExist(t *testing.T) {
 	bodies := []string{
 		FinishedBody(true, "CC-CFG-023"), FinishedBody(false, ""),
 		RegisterFindings(nil), RegisterFindings([]string{"CC-REG-001"}),
-		Checklist(), ReadingReply("github::codecheckers/demo"),
+		Checklist(), ReadingReply("github::codecheckers/demo"), NotStartable(StartNeeds{Codechecker: true, HandlingEditor: true, Certificate: true}),
 		RowIncomplete(Row{}), CertificateMismatch("1970-001", "1970-002"),
 		RowSet(Holders{Venue: "codecheck"}, "nuest"),
 		NoPullRequest(), AlreadyRegistered("1970-001"), BranchNotOurs("register-1970-001"),
