@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   codechecker lists before they have joined, and asks the owners to invite
   somebody outside the organisation; the sweep puts them in the team once they
   join (#68).
+- The ask to the owners to invite somebody, from `assign` or `invite`, links
+  the organisation's people page, where *Invite member* sends the invitation
+  (#68).
 
 ### Changed
 

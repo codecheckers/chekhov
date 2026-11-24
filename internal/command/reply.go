@@ -1090,6 +1090,8 @@ func OutsideReply(request OutsideRequest) string {
 		"I will handle the rest: once they accept, %s", request.Handle, request.rest())) {
 		return out.String()
 	}
+	// Where to do it, so that nobody has to look for the page (#68).
+	fmt.Fprintf(&out, "\nThat is *Invite member* at https://github.com/orgs/%s/people.\n", request.Organisation)
 	// What to do next, said once and honestly: the nightly sweep picks this
 	// up (codecheckers/chekhov#48), so nobody has to come back to the thread,
 	// and the command is offered only as a way of not waiting for it.

@@ -58,3 +58,19 @@ func TestARegistrationFromOutsideNotifiesOnlyTheRegistrant(t *testing.T) {
 		}
 	}
 }
+
+// The ask to the owners says where the invitation is sent from.
+func TestTheAskToTheOwnersLinksWhereToInvite(t *testing.T) {
+	for _, role := range []Role{"", RoleAssignedCodechecker} {
+		reply := OutsideReply(OutsideRequest{Handle: "a-made-up-newcomer", Role: role, Organisation: "codecheckers",
+			Team: "codecheckers", Owners: []string{"nuest"}})
+		if !strings.Contains(reply, "*Invite member* at https://github.com/orgs/codecheckers/people") {
+			t.Errorf("no link to the people page for role %q:\n%s", role, reply)
+		}
+	}
+	unread := OutsideReply(OutsideRequest{Handle: "a-made-up-newcomer", Organisation: "codecheckers",
+		Unreadable: "GitHub answered 403"})
+	if strings.Contains(unread, "/people") {
+		t.Errorf("a link with nobody asked:\n%s", unread)
+	}
+}
