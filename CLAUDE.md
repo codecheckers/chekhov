@@ -130,9 +130,13 @@ reason; and a development deployment nudges only the issues
 `nudges.only_issues` names, because the testing register is full of old
 test issues whose records name people. The sixth is
 `command.RegistrationInvite` (#49), the first post of a registration the bot
-opens on the lists for somebody who has joined - when an `assign` asked the
-owners for them, or an editor typed `include open` - naming the one person
-who has to answer it; in a test, a handle the test chose, so the maintainer's.
+opens on the lists for somebody - when an `assign` asked the
+owners for them and they joined, or an editor typed `include open` or
+`invite` - naming the one person who has to answer it; for somebody outside
+the organisation only when they have taken part in the issue already, so that
+it notifies nobody the thread has not; in a test, a handle the test chose, so
+the maintainer's. `invite` asks the owners as `assign` does, through
+`command.OutsideReply` with no role (#68).
 The review `include` requests on its pull request notifies through GitHub
 rather than a mention, and goes to whom `lists.reviewers` names - the editor
 who ran it by default, the owners or the editors (in development

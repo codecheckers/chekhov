@@ -1073,11 +1073,18 @@ type OutsideRequest struct {
 // Only an organisation owner can invite somebody from outside into a team -
 // GitHub's rule, not this bot's - so the division of labour is the point of
 // the wording: the owners invite, the bot does the rest.
+//
+// Without a role it is `invite`'s ask (#68): somebody wanted on the
+// codechecker list, for whom nothing on the check is waiting.
 func OutsideReply(request OutsideRequest) string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "`@%s` is not in the `%s` organisation yet, so I have not made them "+
-		"the %s of this check: somebody outside the organisation cannot hold a role on one.\n",
-		request.Handle, request.Organisation, request.Role)
+	if request.Role == "" {
+		fmt.Fprintf(&out, "`@%s` is not in the `%s` organisation yet.\n", request.Handle, request.Organisation)
+	} else {
+		fmt.Fprintf(&out, "`@%s` is not in the `%s` organisation yet, so I have not made them "+
+			"the %s of this check: somebody outside the organisation cannot hold a role on one.\n",
+			request.Handle, request.Organisation, request.Role)
+	}
 
 	if !request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation. "+
 		"I will handle the rest: once they accept, %s", request.Handle, request.rest())) {
@@ -1088,8 +1095,8 @@ func OutsideReply(request OutsideRequest) string {
 	// and the command is offered only as a way of not waiting for it.
 	fmt.Fprintf(&out, "\nOnly an owner can invite somebody from outside the organisation, "+
 		"which is why this is not something I can do. I will check every night and finish "+
-		"this once they have joined; `%s assign @%s as %s` does it sooner, and asks the "+
-		"owners again if they still have not.\n", Bot, request.Handle, request.Role.Typed())
+		"this once they have joined; `%s` does it sooner, and asks the "+
+		"owners again if they still have not.\n", AskAgain(request.Handle, request.Role))
 	return out.String()
 }
 
@@ -1130,20 +1137,33 @@ func UnmanagedTeamReply(team string, managed []string) string {
 // what is actually true of this role: a team only for somebody who checks, and
 // the issue's assignee only for the one role the issue shows.
 func (request OutsideRequest) rest() string {
-	promised := []string{"I record the role"}
+	var promised []string
 	if request.Team != "" {
-		promised = []string{fmt.Sprintf("I put them in `%s/%s`", request.Organisation, request.Team),
-			"record the role"}
+		promised = append(promised, fmt.Sprintf("put them in `%s/%s`", request.Organisation, request.Team))
+	}
+	if request.Role != "" {
+		promised = append(promised, "record the role")
 	}
 	if request.Role == RoleAssignedCodechecker {
 		promised = append(promised, "assign this issue to them")
 	}
 	switch len(promised) {
+	case 0:
+		return "I let you know here."
 	case 1:
-		return promised[0] + "."
+		return "I " + promised[0] + "."
 	default:
-		return strings.Join(promised[:len(promised)-1], ", ") + " and " + promised[len(promised)-1] + "."
+		return "I " + strings.Join(promised[:len(promised)-1], ", ") + " and " + promised[len(promised)-1] + "."
 	}
+}
+
+// AskAgain is the command that asks the owners again for somebody: the
+// `assign` that wanted a role for them, or the `invite` that wanted none.
+func AskAgain(handle string, role Role) string {
+	if role == "" {
+		return fmt.Sprintf("%s %s @%s", Bot, Invite, handle)
+	}
+	return fmt.Sprintf("%s %s @%s as %s", Bot, Assign, handle, role.Typed())
 }
 
 // A Swept is what one walk of the register came to, as the reply says it.
@@ -1280,7 +1300,7 @@ func JoinedReply(joined Joined) string {
 	if joined.Registered {
 		return out.String()
 	}
-	if joined.Role.Checks() && len(joined.Lists) > 0 {
+	if (joined.Role == "" || joined.Role.Checks()) && len(joined.Lists) > 0 {
 		out.WriteString("\nThe row in the codechecker list is still a person's job - " +
 			"it carries their name, ORCID, fields and languages, which I have no way to know:\n\n")
 		for _, list := range joined.Lists {

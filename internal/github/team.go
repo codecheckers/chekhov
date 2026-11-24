@@ -109,12 +109,15 @@ func IsHandle(handle string) bool { return handleShape.MatchString(handle) }
 // of by trusting whoever edits the file.
 var slugShape = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,98}$`)
 
-// resolveUser reports that a handle is a person's account on GitHub.
+// PersonAccount reports that a handle is a person's account on GitHub, and
+// returns the login as GitHub capitalises it; the error wraps ErrNotAUser when
+// the handle names no person. `invite` asks it before opening a registration
+// that would mention them (#68).
 //
 // Asked before anything is written, as the registration runbook does by hand:
 // a handle that does not resolve cannot be invited, and cannot be an assignee
 // either, so the mistake is worth catching before a team is touched.
-func (c *Client) resolveUser(ctx context.Context, handle string) (string, error) {
+func (c *Client) PersonAccount(ctx context.Context, handle string) (string, error) {
 	if !IsHandle(handle) {
 		return "", fmt.Errorf("%q is not a GitHub handle", handle)
 	}
@@ -169,7 +172,7 @@ func (c *Client) AddToTeam(ctx context.Context, organisation, team, handle strin
 	}
 	// Resolved first: the handle is checked against GitHub, and its shape
 	// against handleShape, before any path is built from it.
-	login, err := c.resolveUser(ctx, handle)
+	login, err := c.PersonAccount(ctx, handle)
 	if err != nil {
 		return Place{}, err
 	}

@@ -74,7 +74,7 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 	case !definition.Permits(nil) && !definition.Permits(s.standingRoles(ctx, event)):
 		return said(definition.Refusal())
 	case parsed.Name == command.IncludeOpen:
-		return said(s.includeOpen(ctx, parsed))
+		return s.invite(ctx, event, parsed, true)
 	case parsed.Name == command.Include && len(parsed.Args) > 0:
 		return said(command.IncludeTakesNoArguments())
 	case parsed.Name == command.Include:

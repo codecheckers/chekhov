@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/codecheckers/chekhov/internal/registration"
@@ -513,22 +514,34 @@ func RegistrationTitle(login string) string {
 }
 
 // RegistrationInvite is the first post of a registration the bot opens for
-// somebody who has joined: what the list needs and what each column is for,
-// in the registration template's own words. It names them so that they are
+// somebody: what the list needs and what each column is for, in the
+// registration template's own words. It names them so that they are
 // notified - the one person who has to act on it, and whom an editor or an
-// owner just brought in.
-func RegistrationInvite(login, file string) string {
-	return fmt.Sprintf("%s, welcome to CODECHECK! :heart: To be listed in `%s`, please answer here with a "+
+// owner just brought in. outsideOf is the organisation they have not joined
+// yet, empty for a member: an invitation is still to come, and to accept,
+// which GitHub sends by email (#68).
+func RegistrationInvite(login, file, outsideOf string) string {
+	body := fmt.Sprintf("%s, welcome to CODECHECK! :heart: To be listed in `%s`, please answer here with a "+
 		"comment, %s:\n\n```csv\n%s\n```\n\n"+
 		"What each column is for:\n\n%s\n"+
 		"I check the row and say what it still needs, and an editor then includes you. If something in it "+
 		"changes, comment again the same way.\n",
 		notifying([]string{login}), file, rowInComment, templateRow, columnHelp)
+	if outsideOf != "" {
+		body += fmt.Sprintf("\nYou are not in the `%s` organisation yet: an owner invites you, and GitHub sends "+
+			"the invitation by email. Please accept it at https://github.com/orgs/%s/invitation when it comes; "+
+			"I put you in the team once you have joined.\n", outsideOf, outsideOf)
+	}
+	return body
 }
 
 // templateRow and columnHelp are the registration template's, from
 // codecheckers/codecheckers, so that a registration asks the same whichever
-// way it was opened.
+// way it was opened. The template keeps the help in an HTML comment, where a
+// handle renders as nothing; here it is prose, so its example handles are in
+// backticks - `@user` and `@christina` are real accounts, and were notified by
+// every registration the bot opened before - and the example account is
+// CODECHECK's own rather than a made-up person's.
 const templateRow = `name,@GitHub-handle,ORCID ID (not url),contact (or "see ORCID page" - ONLY IF your profile has a public email),"fields","languages",ecr_until (YYYY-MM, or open/expired/NA),ecr_checked (<current month>;<source URL>, or NA),fediverse (@user@instance, optional)`
 
 const columnHelp = `- ORCID is needed for the checks anyway, and we hope this will have updated contact information in the future
@@ -537,7 +550,7 @@ const columnHelp = `- ORCID is needed for the checks anyway, and we hope this wi
 - Programming language(s) and experience levels, e.g., "R (intermediate)", "nomic data analysis with MatLab", "spatial data analysis with Python (basic)"; don't worry about experience level too much, anyone should be able to check any workflow given proper documentation; we acknowledge that a CODECHECK can be conducted more efficiently if there is some familiarity with the used tools
 - ecr_until records until when you are an early career researcher (ECR), i.e., within 8 years of the award of your PhD and not yet transitioned to an independent researcher. Please put the month 8 years after your PhD was awarded as YYYY-MM, e.g. "2029-04" if you got your PhD in April 2021. Write "open" if you do not have a PhD yet, "expired" if you have one but are not sure when the 8 years ran out, and "NA" if you'd rather not say. Career breaks such as parental leave extend the window - just say so below and we will adjust the date.
 - ecr_checked is where that information comes from, as "<current month>;<URL>". If the PhD date is on your ORCID profile, use that, e.g. "2026-08;https://orcid.org/0000-0001-0002-0003". Otherwise just write "NA" and we will fill in the link to this issue.
-- fediverse is optional: your Mastodon or other fediverse account as @user@instance, e.g. "@christina@fediscience.org". We use it to mention you when we announce a CODECHECK you worked on. Leave it empty if you prefer.
+- fediverse is optional: your Mastodon or other fediverse account as ` + "`@user@instance`" + `, e.g. ` + "`@codecheck@fediscience.org`" + `, the CODECHECK account. We use it to mention you when we announce a CODECHECK you worked on. Leave it empty if you prefer.
 `
 
 // RegistrationFor is the bot's first comment on a registration it opened,
@@ -565,17 +578,112 @@ func RegistrationNotNeeded(login, file string) string {
 	return Item(fmt.Sprintf("✔ %s is on `%s` already, so there is no registration to open.", mention(login), file))
 }
 
-// IncludeOpenNotAMember refuses to open a registration for somebody outside
-// the organisation: it would notify them, and a mistyped handle is a stranger.
-func IncludeOpenNotAMember(login, organisation string) string {
-	return fmt.Sprintf("%s is not a member of `%s`, so I have opened no registration: `%s %s` is for "+
-		"somebody who has joined, and the registration notifies them.\n", mention(login), organisation, Bot, IncludeOpen)
+// InviteNotInThread refuses to open a registration for somebody outside the
+// organisation who has not taken part in the issue: the registration
+// notifies them, and a mistyped handle is a stranger. Somebody named here
+// before - an `assign` that asked the owners, a comment - has been notified
+// once already, so asking for their row reaches nobody new (#68).
+func InviteNotInThread(login, organisation string) string {
+	return fmt.Sprintf("%s is not in the `%s` organisation and has not taken part in this issue, so I have "+
+		"opened no registration: it notifies them, and a mistyped handle would notify a stranger. Mention them "+
+		"here first, or check the spelling.\n", mention(login), organisation)
 }
 
-// IncludeOpenUsage is `include open` without one handle after it.
-func IncludeOpenUsage() string {
-	return fmt.Sprintf("`%s %s @handle` opens a registration for one person who has joined the organisation.\n",
-		Bot, IncludeOpen)
+// InviteNoAccount refuses a handle GitHub has no person's account for.
+func InviteNoAccount(why string) string {
+	return Item(NotDone("open a registration", why))
+}
+
+// InviteUsage is `invite` or `include open` without one handle after it.
+func InviteUsage(name Name) string {
+	return fmt.Sprintf("`%s %s @handle` opens a registration on the codechecker list for one person.\n", Bot, name)
+}
+
+// InviteHeading starts the reply to `invite`.
+func InviteHeading(login string) string {
+	return fmt.Sprintf("Registering %s as a codechecker:\n\n", mention(login))
+}
+
+// InviteInvited says an invitation to the organisation is out already.
+func InviteInvited(login, organisation string) string {
+	return Item(fmt.Sprintf("✔ %s has been invited to `%s` already, and has not accepted yet. I put them in "+
+		"the team once they have.", mention(login), organisation))
+}
+
+// InviteAskedAlready says an earlier ask on this check is still waiting for
+// the owners, who are not notified a second time for it.
+func InviteAskedAlready(login string) string {
+	return Item(fmt.Sprintf("… The owners were asked on this check already to invite %s, and I remind them "+
+		"while they have not.", mention(login)))
+}
+
+// InviteLater says, on the lists, that the invitation is `include`'s: it
+// asks for it once the row is complete.
+func InviteLater(login, organisation string) string {
+	return Item(fmt.Sprintf("… %s is not in `%s` yet: `%s %s` asks for the invitation once their row is "+
+		"complete.", mention(login), organisation, Bot, Include))
+}
+
+// Mentions reports whether a comment mentions a handle so that GitHub
+// notified them: written with its @, outside code, where backticks keep it
+// quiet. Case does not matter, as it does not to GitHub.
+func Mentions(body, handle string) bool {
+	handle = Handle(handle)
+	if handle == "" {
+		return false
+	}
+	for _, found := range mentioned(withoutCode(body)) {
+		if strings.EqualFold(found, handle) {
+			return true
+		}
+	}
+	return false
+}
+
+// mentioned is every handle a text mentions. What follows a handle is looked
+// at rather than matched, so that it can start the next mention: in
+// "@aa @bb" the space ends one and begins the other. Nothing a handle could
+// go on with may follow, and no slash, which makes it a team.
+func mentioned(text string) []string {
+	var handles []string
+	for _, at := range mentionShape.FindAllStringSubmatchIndex(text, -1) {
+		end := at[3]
+		if end < len(text) && strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-/", rune(text[end])) {
+			continue
+		}
+		handles = append(handles, text[at[2]:at[3]])
+	}
+	return handles
+}
+
+// mentionShape is an @handle as GitHub links it: not inside a word or an
+// address. What may follow it is mentioned's to judge.
+var mentionShape = regexp.MustCompile("(?:^|[^A-Za-z0-9_.@/`-])@(" + handlePattern + ")")
+
+// htmlComment is a part of a comment that renders as nothing, and notifies
+// nobody.
+var htmlComment = regexp.MustCompile("(?s)<!--.*?-->")
+
+// codeSpan is inline code, where a handle notifies nobody.
+var codeSpan = regexp.MustCompile("`[^`\n]*`")
+
+// withoutCode is a comment's prose: code blocks, fenced or indented, by the
+// rules Split reads them with, code spans and HTML comments left out.
+func withoutCode(body string) string {
+	var prose []string
+	fence := ""
+	for _, line := range strings.Split(htmlComment.ReplaceAllString(body, " "), "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case fence == "" && fenceMarker(trimmed) != "":
+			fence = fenceMarker(trimmed)
+		case fence != "" && strings.HasPrefix(trimmed, fence):
+			fence = ""
+		case fence == "" && !indentedCode(line):
+			prose = append(prose, codeSpan.ReplaceAllString(line, " "))
+		}
+	}
+	return strings.Join(prose, "\n")
 }
 
 // RowAsked reminds somebody, once, that their registration waits for their

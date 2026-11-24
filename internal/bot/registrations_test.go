@@ -34,7 +34,7 @@ func commentOnLists(t *testing.T, server *Server, body, by string, botOpened boo
 	if botOpened {
 		issue := payload["issue"].(map[string]any)
 		issue["user"] = map[string]string{"login": "chekhovbot"}
-		issue["body"] = command.RegistrationInvite(madeUpRegistrar, "codecheckers.csv")
+		issue["body"] = command.RegistrationInvite(madeUpRegistrar, "codecheckers.csv", "")
 	}
 	if code := deliverEvent(t, server, eventType, payload); code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202", code)
@@ -161,13 +161,33 @@ func TestJoiningAsACodecheckerOpensTheirRegistration(t *testing.T) {
 	}
 }
 
-// Only for somebody who has joined: a mistyped handle must not notify a
-// stranger. And without a key to sign whom it is for, none is opened.
-func TestIncludeOpenIsForMembersAndNeedsAKey(t *testing.T) {
+// Somebody outside the organisation only when they have taken part in the
+// issue: a mistyped handle must not notify a stranger (#68). The registrant
+// of this issue opened it, so a registration opens, saying an invitation is
+// to come; on an issue they have no part in, nothing opens. And without a key
+// to sign whom it is for, none is opened.
+func TestIncludeOpenIsForSomebodyInTheThreadAndNeedsAKey(t *testing.T) {
 	server, org, lists := opening(t, "")
 	org.members[madeUpRegistrar] = false
 	commentOnLists(t, server, "@chekhovbot include open @"+madeUpRegistrar, "nuest", false)
-	says(t, lists.last(), "is not a member of `codecheckers`, so I have opened no registration")
+	says(t, lists.last(), "I have opened "+testLists+"#21", "`@chekhovbot include` asks for the invitation")
+	if len(lists.opened) != 1 || !strings.Contains(lists.opened[0], "https://github.com/orgs/codecheckers/invitation") {
+		t.Errorf("opened %q", lists.opened)
+	}
+
+	server, org, lists = opening(t, "")
+	org.members[madeUpRegistrar] = false
+	eventType, payload := registrationEvent(testLists, "", "@chekhovbot include open @"+madeUpRegistrar, "nuest",
+		"registration")
+	issue := payload["issue"].(map[string]any)
+	issue["user"], issue["body"] = map[string]string{"login": "a-made-up-issue-opener"}, "Please help."
+	if code := deliverEvent(t, server, eventType, payload); code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202", code)
+	}
+	says(t, lists.last(), "has not taken part in this issue, so I have opened no registration")
+	if len(lists.opened) != 0 {
+		t.Errorf("opened %q", lists.opened)
+	}
 
 	server, _, lists = opening(t, "")
 	server.Checks.Signer = nil

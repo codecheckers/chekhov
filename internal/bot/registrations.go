@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -116,33 +115,13 @@ func latestRow(comments []github.Comment, subject string) string {
 	return ""
 }
 
-// includeOpen is `include open @handle`.
-func (s *Server) includeOpen(ctx context.Context, parsed command.Command) string {
-	if len(parsed.Args) != 1 || !github.IsHandle(command.Handle(parsed.Args[0])) {
-		return command.IncludeOpenUsage()
-	}
-	login := command.Handle(parsed.Args[0])
-	// Only for somebody in the organisation: the registration names them so
-	// that they are notified, and a mistyped handle must not notify a
-	// stranger.
-	invitation, known := s.whereStands(ctx, login)
-	switch {
-	case !known:
-		return command.Item(command.NotDone(fmt.Sprintf("read whether `@%s` is in the organisation, so I have "+
-			"opened nothing", login), "asking again later may help"))
-	case !invitation.Joined():
-		return command.IncludeOpenNotAMember(login, s.Settings.TeamOrganisation())
-	}
-	note, _ := s.openRegistration(ctx, login)
-	return note
-}
-
 // openRegistration opens a registration for somebody, unless they are on the
 // list already or have one - theirs, or one the bot opened for them, open or
 // closed: never two for one person. What came of it is an item of the reply
 // that asked, and whether there is a registration for them now, or no need
-// for one.
-func (s *Server) openRegistration(ctx context.Context, login string) (string, bool) {
+// for one. outside says they are not in the organisation yet, which the
+// registration tells them (#68).
+func (s *Server) openRegistration(ctx context.Context, login string, outside bool) (string, bool) {
 	lists, file, label := s.Settings.ListsRepository(), registration.RegistrationList, s.Settings.RegistrationLabel()
 	opener, ok := s.Lists.(Opener)
 	reader, readable := s.Lists.(Reader)
@@ -190,8 +169,12 @@ func (s *Server) openRegistration(ctx context.Context, login string) (string, bo
 		}
 	}
 
-	number, err := opener.CreateIssue(ctx, lists, title, command.Defuse(command.RegistrationInvite(login, file)),
-		[]string{label})
+	outsideOf := ""
+	if outside {
+		outsideOf = s.Settings.TeamOrganisation()
+	}
+	number, err := opener.CreateIssue(ctx, lists, title,
+		command.Defuse(command.RegistrationInvite(login, file, outsideOf)), []string{label})
 	if err != nil {
 		s.Logger.Warn("could not open a registration", "handle", login, "error", err)
 		return command.RegistrationNotOpened(login, whyNot(err)), false

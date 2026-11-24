@@ -41,6 +41,7 @@ for completeness of the conversational set.
 | `@chekhovbot codecheckers` | Link the lists of registered codecheckers, rather than copy them | high |
 | `@chekhovbot codecheckers suggest` | Propose candidates by declared expertise vs. the repository, the DOI, or a pasted abstract | high |
 | `@chekhovbot assign @user as codechecker` | Ask the owners to invite a non-member, and put a member in the right team | done |
+| `@chekhovbot invite @user` | Open the registration on the codechecker lists from a check, before the person has joined, and ask the owners to invite a non-member the check has mentioned; the sweep puts them in the team once they join (editors, #68) | implemented |
 | `@chekhovbot teams list <name>` | List members of a codecheckers team | medium |
 | `@chekhovbot add/remove assignee @user` | Manage GitHub assignees without role semantics | medium |
 | `@chekhovbot availability @user` | Show whether a codechecker is currently accepting work | low |
@@ -121,7 +122,7 @@ for the whole group, before writing #7.
 | (automatic) registration report | On an opened registration issue on the codechecker lists, say what the row still needs: the columns, the ORCID, a way to reach the person besides GitHub, whether they are listed already (#49) | implemented |
 | `@chekhovbot include check` | The same report again, after the registrant edited the row (#49) | implemented |
 | `@chekhovbot include` | Open the pull request adding the row, and ask for its review - the editor who ran it by default, or whom `lists.reviewers` names, never the registrant; check the invitation to the organisation (none: ask the editor who ran it to send one - which is why, then, it is for an owner, and refuses another editor having done nothing - pending: say so, joined: put them in the team) (editors, #49) | implemented |
-| `@chekhovbot include open @handle` | Open a registration for somebody who has joined, asking for their row; done by itself when an `assign` asked the owners and they accept (editors, #49) | implemented |
+| `@chekhovbot include open @handle` | Open a registration for somebody, asking for their row - for somebody outside the organisation only when they have taken part in the issue; done by itself when an `assign` asked the owners and they accept (editors, #49, #68) | implemented |
 | welcome on merge | Tell the editors once about a complete registration nobody included; remind the owners weekly of the row's pull request waiting; follow up an `include` nightly: remind the editor who ran it of an invitation not sent, tell the registrant once about one waiting, put them in the team, and welcome them and close the issue once the row is merged (#49) | implemented |
 | `@chekhovbot buddy exchange` | Open/track a buddy-exchange request (see testing register template) | low |
 | `@chekhovbot docs <topic>` | Link the relevant part of the CODECHECK guide | low |

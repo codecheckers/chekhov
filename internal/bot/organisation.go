@@ -90,8 +90,7 @@ func (s *Server) remindTheOwners(ctx context.Context, event mention,
 	if ask == "" {
 		return answered{}, nil
 	}
-	return s.reminder(event, record, ask, fmt.Sprintf("%s assign @%s as %s",
-		command.Bot, record.Subject, role.Typed())), nil
+	return s.reminder(event, record, ask, command.AskAgain(record.Subject, role)), nil
 }
 
 // reminder is the rhythm every ask to the owners keeps, `assign`'s and
@@ -117,42 +116,26 @@ func (s *Server) reminder(event mention, record followup.Record, ask, rerun stri
 }
 
 // finish does what the ask promised, now that they have joined: the team, the
-// role, the issue's assignee.
+// role, the issue's assignee. An `invite`'s ask wanted no role, so it is the
+// team alone (#68).
 //
 // Nothing to say means nothing was left to do, which is how this stops
 // repeating itself.
 func (s *Server) finish(ctx context.Context, event mention, record followup.Record) (answered, error) {
 	role := command.Role(record.Role)
-	if s.Checks == nil {
-		return answered{}, errors.New("this deployment cannot record the roles of a check")
-	}
-
-	// Who holds the role now decides what is left to do. An editor may have
-	// assigned somebody else in the three days this took, and a record from
-	// before that must not take the role back off them.
-	taken := ""
-	_, err := s.checks(event).Update(ctx, event.Repository, event.Issue, func(held people.Record) (people.Record, error) {
-		if holder := held.Holder(role); holder != "" && !strings.EqualFold(holder, record.Subject) {
-			taken = holder
-			return held, people.ErrUnchanged
+	taken, granted := "", false
+	if role != "" {
+		var err error
+		if taken, granted, err = s.grantOnJoining(ctx, event, record); err != nil {
+			return answered{}, err
 		}
-		updated, _, err := held.Grant(role, record.Subject)
-		return updated, err
-	})
-	granted := false
-	switch {
-	case errors.Is(err, people.ErrUnchanged):
-		// Already theirs, or somebody else's now: either way nothing to
-		// record.
-	case errors.Is(err, people.ErrTampered):
-		return answered{}, fmt.Errorf("the roles of this check were edited, so I did not change them: %w", err)
-	case err != nil:
-		return answered{}, err
-	default:
-		granted = true
 	}
 
 	note := s.teamNote(ctx, event, record.Subject, role, record.Team, true)
+	if role == "" {
+		// No role to work the team out from: the ask named it.
+		note, _ = s.intoTheTeam(ctx, record.Subject, record.Team)
+	}
 	onTheIssue := ""
 	if role == command.RoleAssignedCodechecker && granted {
 		// Nobody to unassign: the role is granted here only when it was
@@ -169,14 +152,46 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	// lists (#49): once, and only for the list registrations go on - the
 	// institutional one has columns of its own and is kept by hand.
 	registered, opened := "", false
-	if role.Checks() && record.Team == s.Settings.CodecheckersTeam() && s.Settings.ListsRepository() != "" {
-		registered, opened = s.openRegistration(ctx, record.Subject)
+	if (role == "" || role.Checks()) && record.Team == s.Settings.CodecheckersTeam() &&
+		s.Settings.ListsRepository() != "" {
+		registered, opened = s.openRegistration(ctx, record.Subject, false)
 	}
 	return answered{body: command.JoinedReply(command.Joined{
 		Handle: record.Subject, Role: role, Granted: granted, Taken: taken,
 		Assignee: onTheIssue, TeamNote: note, Lists: s.codecheckerListPages(),
 		Organisation: s.Settings.TeamOrganisation(), Registration: registered, Registered: opened,
 	})}, nil
+}
+
+// grantOnJoining records the role the ask was for, unless it has gone to
+// somebody else meanwhile - an editor may have assigned somebody else in the
+// three days this took, and a record from before that must not take the role
+// back off them. taken is who holds it then; granted says it was recorded now.
+func (s *Server) grantOnJoining(ctx context.Context, event mention,
+	record followup.Record) (taken string, granted bool, err error) {
+	role := command.Role(record.Role)
+	if s.Checks == nil {
+		return "", false, errors.New("this deployment cannot record the roles of a check")
+	}
+	_, err = s.checks(event).Update(ctx, event.Repository, event.Issue, func(held people.Record) (people.Record, error) {
+		if holder := held.Holder(role); holder != "" && !strings.EqualFold(holder, record.Subject) {
+			taken = holder
+			return held, people.ErrUnchanged
+		}
+		updated, _, err := held.Grant(role, record.Subject)
+		return updated, err
+	})
+	switch {
+	case errors.Is(err, people.ErrUnchanged):
+		// Already theirs, or somebody else's now: either way nothing to
+		// record.
+		return taken, false, nil
+	case errors.Is(err, people.ErrTampered):
+		return "", false, fmt.Errorf("the roles of this check were edited, so I did not change them: %w", err)
+	case err != nil:
+		return "", false, err
+	}
+	return "", true, nil
 }
 
 // since is how long ago the ask was, in the words a reminder uses.

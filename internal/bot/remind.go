@@ -72,19 +72,8 @@ func (s *Server) mayRemindOthers(ctx context.Context, event mention, roles comma
 // a check has already brought in. An issue that could not be read answers
 // from the comments and the record alone.
 func (s *Server) onTheCheck(ctx context.Context, event mention, issue github.Issue, handle string) bool {
-	if command.Handle(issue.Author) == handle {
+	if s.holdsOnTheCheck(ctx, event, issue, handle) {
 		return true
-	}
-	for _, assignee := range issue.Assignees {
-		if command.Handle(assignee) == handle {
-			return true
-		}
-	}
-	if s.Checks != nil {
-		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
-		if err == nil && reading.Tampered == nil && len(reading.Record.RolesOf(handle)) > 0 {
-			return true
-		}
 	}
 	reader, ok := s.Replies.(Reader)
 	if !ok {
@@ -96,6 +85,26 @@ func (s *Server) onTheCheck(ctx context.Context, event mention, issue github.Iss
 	}
 	for _, comment := range written {
 		if command.Handle(comment.Author) == handle {
+			return true
+		}
+	}
+	return false
+}
+
+// holdsOnTheCheck is the part of onTheCheck that is not a comment: opened
+// the issue, is assigned to it, or holds a role in its record.
+func (s *Server) holdsOnTheCheck(ctx context.Context, event mention, issue github.Issue, handle string) bool {
+	if command.Handle(issue.Author) == handle {
+		return true
+	}
+	for _, assignee := range issue.Assignees {
+		if command.Handle(assignee) == handle {
+			return true
+		}
+	}
+	if s.Checks != nil {
+		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
+		if err == nil && reading.Tampered == nil && len(reading.Record.RolesOf(handle)) > 0 {
 			return true
 		}
 	}

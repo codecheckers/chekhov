@@ -249,7 +249,10 @@ func parseHandle(written string) (string, error) {
 // or a dot segment moves the request to a different endpoint; this one guards
 // a comment. Each has to fail closed on its own, and this package has no
 // business importing the thing that writes to GitHub.
-var gitHubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}$`)
+var gitHubHandle = regexp.MustCompile("^" + handlePattern + "$")
+
+// handlePattern is a GitHub handle, unanchored, shared with Mentions.
+const handlePattern = `[A-Za-z0-9](?:-?[A-Za-z0-9]){0,38}`
 
 // ParseAssignment reads `@user as <role>` and `@user as <role> in <team>`,
 // the arguments of assign and remove.

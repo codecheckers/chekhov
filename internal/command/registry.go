@@ -133,6 +133,13 @@ var registry = []Definition{
 		AboutTheCheck: true,
 	},
 	{
+		Name:    Invite,
+		Summary: "Open a registration on the codechecker list for somebody, and ask the owners to invite them if they are not in the organisation yet",
+		Usage:   "invite @user",
+		Group:   GroupPeople,
+		Roles:   Roles{RoleEditor},
+	},
+	{
 		Name:          Remove,
 		Summary:       "Take a role away again",
 		Usage:         "remove @user as codechecker|author|handling editor",
@@ -182,7 +189,7 @@ var registry = []Definition{
 	},
 	{
 		Name:    IncludeOpen,
-		Summary: "Open a registration for somebody who has joined the organisation, asking for their row",
+		Summary: "Open a registration for somebody, asking for their row",
 		Usage:   "include open @handle",
 		Group:   GroupPeople,
 		Roles:   Roles{RoleEditor},

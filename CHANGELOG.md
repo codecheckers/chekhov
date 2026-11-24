@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.45.0] - 2026-11-24
 
+### Added
+
+- `invite @user` on a check opens the person's registration on the
+  codechecker lists before they have joined, and asks the owners to invite
+  somebody outside the organisation; the sweep puts them in the team once they
+  join (#68).
+
 ### Changed
+
+- `include open` opens a registration for somebody outside the organisation
+  too, when they have taken part in the issue, and tells them an invitation is
+  to come (#68).
 
 - `assign … as codechecker` takes `needs codechecker` off an open check and
   says so, rather than only warning that the check still carries it; so does
@@ -17,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A registration the bot opens no longer mentions two GitHub accounts in the
+  column help's fediverse example; it writes `@user@instance` and CODECHECK's
+  own account in backticks (#68).
 - `check start` refuses a check without an assigned codechecker, a handling
   editor or a certificate identifier, moves no label, and names the command for
   each one missing (register#244).

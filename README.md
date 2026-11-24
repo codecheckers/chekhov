@@ -78,6 +78,14 @@ codechecker who joins after an `assign` asked the owners for them, as
 `@chekhovbot include open @handle` does for an editor - and once they are in the team and
 their row is merged, posts the welcome and closes the registration. It
 answers nothing else there.
+On a check, `@chekhovbot invite @handle` starts that from the register, for an
+editor: it opens the registration on the lists even before the person has
+joined, and for somebody outside the organisation asks the owners to invite
+them, unless an `assign` asked already or an invitation is out. Somebody
+outside is asked only when they have taken part in the issue - commented, or
+been mentioned, as `assign` mentions them - because the registration notifies
+them, and a mistyped handle would notify a stranger; `include open` on the
+lists keeps the same rule.
 `@chekhovbot check register` builds the row the check would get in
 `register.csv` - from the issue's Repository line and labels, or what an editor
 set with `repository set` and `venue set` - and runs the rules on it before

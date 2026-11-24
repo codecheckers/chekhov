@@ -628,6 +628,8 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.refresh(ctx, parsed))
 	case command.Assign:
 		return s.assign(ctx, event, parsed)
+	case command.Invite:
+		return s.invite(ctx, event, parsed, false)
 	case command.Remove:
 		return said(s.remove(ctx, event, parsed))
 	case command.ListRoles:
