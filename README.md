@@ -48,6 +48,7 @@ holds, `@chekhovbot certificate next` which one comes next, and
 subject first and then what to do with it, so the commands about one thing sit
 together; the forms written the other way round before 0.22 -
 `set certificate`, `suggest codecheckers` and the rest - still work.
+`codecheck` works wherever `check` does, as in `@chekhovbot codecheck start`.
 `@chekhovbot check ready` says whether a check can start - a README, a
 `codecheck.yml` with a manifest, a licence and a paper - for the author as much
 as the editor. `@chekhovbot check zenodo` audits the certificate's Zenodo

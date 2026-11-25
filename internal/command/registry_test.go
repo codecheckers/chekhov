@@ -516,6 +516,56 @@ func TestTheVerbFirstFormsStillWork(t *testing.T) {
 	}
 }
 
+// No two commands claim one spelling: the index would keep the later one and
+// say nothing.
+func TestNoSpellingNamesTwoCommands(t *testing.T) {
+	claimed := map[string]Name{}
+	for _, definition := range Definitions() {
+		for _, spelling := range definition.spellings() {
+			if other, found := claimed[spelling]; found {
+				t.Errorf("%q is both %q and %q", spelling, other, definition.Name)
+			}
+			claimed[spelling] = definition.Name
+		}
+	}
+}
+
+// `codecheck` is `check`, for the command and everything under it
+// (register#242). Read from the registry, so a new subcommand is covered.
+func TestCodecheckIsCheck(t *testing.T) {
+	covered := 0
+	for _, definition := range Definitions() {
+		written := string(definition.Name)
+		if written != string(Check) && !strings.HasPrefix(written, string(Check)+" ") {
+			continue
+		}
+		covered++
+		for _, alias := range []string{"code" + written, "Code" + written + "."} {
+			if parsed, _ := Parse(Bot + " " + alias); parsed.Name != definition.Name {
+				t.Errorf("%q parsed as %q, want %q", alias, parsed.Name, definition.Name)
+			}
+		}
+		want, _ := Parse(Bot + " " + written + " owner/repo")
+		got, _ := Parse(Bot + " code" + written + " owner/repo")
+		if got.Name != want.Name || !slices.Equal(got.Args, want.Args) {
+			t.Errorf("code%s: %q with %v, against %q with %v", written, got.Name, got.Args, want.Name, want.Args)
+		}
+	}
+	if covered < 2 {
+		t.Fatalf("only %d commands under check", covered)
+	}
+	if listing := Listing(Roles{RoleEditor}); strings.Contains(listing, Bot+" codecheck ") {
+		t.Errorf("the listing shows the alias:\n%s", listing)
+	}
+	// The alias is no typo candidate: it is one letter from these slips of
+	// `codecheckers`, and would take them from it.
+	for _, slip := range []string{"codechecks", "codecheckr", "codechecke"} {
+		if meant, found := Suggest(slip); !found || meant != ListCodecheckers {
+			t.Errorf("Suggest(%s) = %q, %v; want codecheckers", slip, meant, found)
+		}
+	}
+}
+
 // The old forms are aliases and say so nowhere: the listing shows each
 // command once, as it is written now, and the commands about one subject sit
 // together.

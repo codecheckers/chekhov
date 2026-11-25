@@ -346,14 +346,19 @@ var registry = []Definition{
 	},
 }
 
-// index maps every name and alias to its definition. A phrase name is keyed
+// groupAliases are other words for a command and everything under it:
+// `codecheck start` is `check start`, as people write it on a CODECHECK issue
+// (codecheckers/register#242). Here rather than in each entry's Aliases, so
+// that the next `check` subcommand has it too.
+var groupAliases = map[Name]string{Check: "codecheck"}
+
+// index maps every spelling of a command to its definition. A phrase is keyed
 // whole, so that looking one up is the same operation as looking up a word.
 var index = func() map[string]Definition {
 	byWord := make(map[string]Definition, len(registry)*2)
 	for _, definition := range registry {
-		byWord[string(definition.Name)] = definition
-		for _, alias := range definition.Aliases {
-			byWord[alias] = definition
+		for _, spelling := range definition.spellings() {
+			byWord[spelling] = definition
 		}
 	}
 	return byWord
@@ -586,9 +591,18 @@ func ChildrenNeedCheckRoles(name Name) bool {
 	return slices.ContainsFunc(families[string(name)], Definition.NeedsCheckRoles)
 }
 
-// spellings are every way a command is written: its name, then its aliases.
+// spellings are every way a command is written: its name, then its aliases,
+// then its name under its group's alias.
 func (d Definition) spellings() []string {
-	return append([]string{string(d.Name)}, d.Aliases...)
+	spellings := append([]string{string(d.Name)}, d.Aliases...)
+	group, rest, phrase := strings.Cut(string(d.Name), " ")
+	if alias, found := groupAliases[Name(group)]; found {
+		if phrase {
+			alias += " " + rest
+		}
+		spellings = append(spellings, alias)
+	}
+	return spellings
 }
 
 // candidates are the words Suggest compares against, in a fixed order.

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-11-25
+
+### Added
+
+- `codecheck` is understood wherever `check` is, e.g. `codecheck start`
+  (codecheckers/register#242).
+
 ## [0.45.2] - 2026-11-25
 
 ### Fixed
