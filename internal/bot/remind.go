@@ -36,7 +36,10 @@ func (s *Server) remind(ctx context.Context, event mention, parsed command.Comma
 		if !s.mayRemindOthers(ctx, event, roles) {
 			return said(command.RemindOthersRefused())
 		}
-		if !s.onTheCheck(ctx, event, issue, reminder.Handle) {
+		switch taken, err := s.inThread(ctx, event, reminder.Handle, false); {
+		case err != nil:
+			return said(command.TakenPartUnread("check", "set no reminder", whyNot(err)))
+		case !taken:
 			return said(command.ReminderNotOnTheCheck(reminder.Handle))
 		}
 	}
@@ -66,33 +69,8 @@ func (s *Server) mayRemindOthers(ctx context.Context, event mention, roles comma
 		command.RemindOthers.Permits(s.checkRoles(ctx, event, roles))
 }
 
-// onTheCheck is whether somebody has anything to do with this check: opened
-// it, is assigned to it, holds a role in its record, or has commented on it.
-// A reminder notifies the person it names, and the bot notifies only people
-// a check has already brought in. An issue that could not be read answers
-// from the comments and the record alone.
-func (s *Server) onTheCheck(ctx context.Context, event mention, issue github.Issue, handle string) bool {
-	if s.holdsOnTheCheck(ctx, event, issue, handle) {
-		return true
-	}
-	reader, ok := s.Replies.(Reader)
-	if !ok {
-		return false
-	}
-	written, err := comments(event, reader).Comments(ctx, event.Repository, event.Issue)
-	if err != nil {
-		return false
-	}
-	for _, comment := range written {
-		if command.Handle(comment.Author) == handle {
-			return true
-		}
-	}
-	return false
-}
-
-// holdsOnTheCheck is the part of onTheCheck that is not a comment: opened
-// the issue, is assigned to it, or holds a role in its record.
+// holdsOnTheCheck is the part of inThread that is not a comment: opened the
+// issue, is assigned to it, or holds a role in its record.
 func (s *Server) holdsOnTheCheck(ctx context.Context, event mention, issue github.Issue, handle string) bool {
 	if command.Handle(issue.Author) == handle {
 		return true

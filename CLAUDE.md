@@ -136,7 +136,8 @@ owners for them and they joined, or an editor typed `include open` or
 the organisation only when they have taken part in the issue already, so that
 it notifies nobody the thread has not; in a test, a handle the test chose, so
 the maintainer's. `invite` asks the owners as `assign` does, through
-`command.OutsideReply` with no role (#68).
+`command.OutsideReply` with no role, unless it starts over an `assign`'s ask
+whose role it keeps (#68).
 The review `include` requests on its pull request notifies through GitHub
 rather than a mention, and goes to whom `lists.reviewers` names - the editor
 who ran it by default, the owners or the editors (in development

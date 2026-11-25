@@ -25,7 +25,10 @@ import (
 // On a check, `invite` also asks the owners for the invitation, as `assign`
 // does, unless an ask for them is waiting on the check already or an
 // invitation is out. The record it leaves has no role: once they join, the
-// sweep puts them in the team and asks nothing else of the check.
+// sweep puts them in the team and asks nothing else of the check - unless it
+// starts over an `assign`'s ask that has run out, whose role it keeps. Somebody in
+// the organisation already is put in the team at once, on a check or on the
+// lists, so that everybody invited is in the team from the day they join.
 
 // Accounts is the part of a reply path that can tell a person's account from
 // a handle nobody owns. A reply path without it skips the question.
@@ -59,14 +62,25 @@ func (s *Server) invite(ctx context.Context, event mention, parsed command.Comma
 		}
 		switch taken, err := s.inThread(ctx, event, login, onLists); {
 		case err != nil:
-			return said(command.Item(command.NotDone("read who has taken part in this issue, so I have opened "+
-				"nothing", whyNot(err))))
+			return said(command.TakenPartUnread("issue", "opened nothing", whyNot(err)))
 		case !taken:
 			return said(command.InviteNotInThread(login, organisation))
 		}
 	}
 
 	note, _ := s.openRegistration(ctx, login, outside)
+	// The ordinary team, unless an earlier ask named one: a registration is
+	// for the list registrations go on, and the institutional one is kept by
+	// hand.
+	team := s.Settings.CodecheckersTeam()
+	if !outside {
+		// In the organisation already, so into the team now: what somebody
+		// outside gets from the sweep the night they join, so that where the
+		// person stood when they were invited makes no difference (#68).
+		if joined, _ := s.intoTheTeam(ctx, login, team); joined != "" {
+			note += command.Item(joined)
+		}
+	}
 	if onLists {
 		if outside && !invitation.Invited() {
 			note += command.InviteLater(login, organisation)
@@ -77,10 +91,14 @@ func (s *Server) invite(ctx context.Context, event mention, parsed command.Comma
 	if !outside {
 		return said(reply)
 	}
-	// The ordinary team whatever the check: a registration is for the list
-	// registrations go on, and the institutional one is kept by hand.
-	team := s.Settings.CodecheckersTeam()
-	asked := s.askedFor(ctx, event, login)
+	prior, asked := s.newestAsk(ctx, event, login)
+	// An `assign`'s ask that has run out still promised them a role: a new
+	// ask keeps it and its team, or the sweep would put them in the team and
+	// forget the check they were assigned to.
+	role := command.Role(prior.Role)
+	if role != "" {
+		team = prior.Team
+	}
 	if invitation.Invited() {
 		reply += command.InviteInvited(login, organisation)
 		if asked {
@@ -88,23 +106,31 @@ func (s *Server) invite(ctx context.Context, event mention, parsed command.Comma
 		}
 		// Nobody needs asking, and the sweep still has to put them in the
 		// team once they accept: the record is what it finds.
-		return answered{body: reply, follow: s.outstanding(event, login, "", team)}
+		return answered{body: reply, follow: s.outstanding(event, login, role, team)}
 	}
 	if asked {
 		return said(reply + command.InviteAskedAlready(login))
 	}
-	ask := s.outsideReply(ctx, login, "", team)
+	ask := s.outsideReply(ctx, login, role, team)
 	if ask == "" {
 		return said(reply)
 	}
-	return answered{body: reply + "\n" + ask, follow: s.outstanding(event, login, "", team)}
+	return answered{body: reply + "\n" + ask, follow: s.outstanding(event, login, role, team)}
 }
 
 // inThread is whether somebody has taken part in the issue a command is on:
 // opened it, commented, or been mentioned so that GitHub notified them - and
-// on a check, assigned to it or holding a role in its record. The comment
-// asking is left out, since it mentions them by asking, and so is the issue's
-// first post when it is that comment.
+// on a check, assigned to it or holding a role in its record. The one answer
+// to "may the bot notify them here", for `invite`, `include open` and
+// `remind` alike: each notifies the person it names, and the bot notifies only
+// people the issue has brought in already.
+//
+// A mention in one of the commands this decides for - `invite`, `include
+// open`, `remind`, each of which notifies whom it names - is left out: the one
+// asking, the issue's first post when it is that comment, and any earlier one,
+// or a command refused for a mistyped handle would let itself through when
+// posted again. Any other command's mention counts, as any comment's: an
+// `assign` naming somebody brings them in, which it means to.
 //
 // An error is a thread that could not be read, which is not the same as
 // nobody in it: the reply says so rather than doubting the spelling.
@@ -121,7 +147,7 @@ func (s *Server) inThread(ctx context.Context, event mention, login string, onLi
 		reader = lists
 	} else {
 		// An issue that could not be read answers from the record and the
-		// comments, as onTheCheck does for `remind`.
+		// comments alone.
 		issue, _ := s.issue(ctx, event)
 		if s.holdsOnTheCheck(ctx, event, issue, login) {
 			return true, nil
@@ -132,7 +158,7 @@ func (s *Server) inThread(ctx context.Context, event mention, login string, onLi
 		}
 		reader = replies
 	}
-	if event.Comment != 0 && command.Mentions(event.IssueBody, login) {
+	if mentionedOutsideAsking(event.IssueBody, login) {
 		return true, nil
 	}
 	written, err := comments(event, reader).Comments(ctx, event.Repository, event.Issue)
@@ -143,25 +169,40 @@ func (s *Server) inThread(ctx context.Context, event mention, login string, onLi
 		if comment.ID == event.Comment {
 			continue
 		}
-		if command.Handle(comment.Author) == login || command.Mentions(comment.Body, login) {
+		if command.Handle(comment.Author) == login || mentionedOutsideAsking(comment.Body, login) {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-// askedFor is whether an ask to the owners for somebody is still running on
-// this check, `assign`'s or `invite`'s: the sweep reminds the owners of it,
-// and a second would notify them twice for one person. One that has asked as
-// often as it will is not running - its last reminder offers `invite` to
-// start it over - and nor is a settled one. Only this check is looked at: an
-// ask for them on another check, or `include`'s on the lists, is not seen.
-func (s *Server) askedFor(ctx context.Context, event mention, login string) bool {
+// mentionedOutsideAsking is whether a post mentions somebody so that GitHub
+// notified them, other than by asking one of the commands inThread decides
+// for, whose mention is the asking rather than anybody's taking part.
+func mentionedOutsideAsking(body, login string) bool {
+	if !command.Mentions(body, login) {
+		return false
+	}
+	parsed, addressed := command.Parse(body)
+	return !addressed || (parsed.Name != command.Invite && parsed.Name != command.IncludeOpen &&
+		parsed.Name != command.Remind)
+}
+
+// newestAsk is the newest ask to the owners for somebody on this check,
+// `assign`'s or `invite`'s, the zero record for none or a settled one; and
+// whether it is still running - not yet asked as often as it will be, so that
+// the sweep reminds the owners of it, and a second would notify them twice
+// for one person. Only this check is looked at: an ask for them on another
+// check, or `include`'s on the lists, is not seen.
+func (s *Server) newestAsk(ctx context.Context, event mention, login string) (record followup.Record, running bool) {
 	reader, ok := s.Replies.(Reader)
 	if !ok {
-		return false
+		return followup.Record{}, false
 	}
 	record, asked := s.threadOf(ctx, reader, event).newestAbout(
 		followup.Record{Kind: followup.KindOrganisation, Subject: login})
-	return asked && !record.Settled && !askedOut(record)
+	if !asked || record.Settled {
+		return followup.Record{}, false
+	}
+	return record, !askedOut(record)
 }

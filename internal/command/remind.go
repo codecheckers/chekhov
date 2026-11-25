@@ -120,12 +120,19 @@ func ReminderOnAClosedCheck() string {
 		"Reopen it first if there is still something to do.\n"
 }
 
+// TakenPartUnread is the answer of a command that notifies somebody when who
+// has taken part in the issue could not be read: not knowing is no reason to
+// notify a stranger, and not the same as their not being there.
+func TakenPartUnread(issue, undone, why string) string {
+	return Item(NotDone(fmt.Sprintf("read who has taken part in this %s, so I have %s", issue, undone), why))
+}
+
 // ReminderNotOnTheCheck is the answer to a reminder for somebody who has
 // nothing to do with this check: the reminder notifies them, and the bot does
 // not notify strangers on anybody's behalf.
 func ReminderNotOnTheCheck(handle string) string {
-	return fmt.Sprintf("%s has not opened, commented on, been assigned to or been given a role on "+
-		"this check, so I will not remind them here.\n", mention(handle))
+	return fmt.Sprintf("%s has not opened, commented on, been mentioned on, been assigned to or been "+
+		"given a role on this check, so I will not remind them here.\n", mention(handle))
 }
 
 // TooManyReminders is the answer when the issue already holds as many

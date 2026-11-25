@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The quiet nudge also asks the codechecker of a check that has one and has
   not been started, which carries no workflow label since `assign` takes it
   out of the queue (#67).
+- `remind` may name somebody mentioned on the check, as `invite` counts them,
+  and says so when it could not read who has taken part (#68).
+- `invite` and `include open` put somebody already in the organisation in the
+  `codecheckers` team at once, as the sweep does for somebody who joins (#68).
 
 ### Fixed
 
@@ -43,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `check start` refuses a check without an assigned codechecker, a handling
   editor or a certificate identifier, moves no label, and names the command for
   each one missing (register#244).
+- `invite` starting over an `assign`'s ask that has run out keeps the role it
+  promised, and `assign` after an `invite` does not ask the owners a second
+  time for the same person (#68).
+- An earlier `invite`, `include open` or `remind` naming a handle no longer
+  counts as their having taken part in the issue, so posting a refused command
+  again does not get it through (#68).
 
 ## [0.44.0] - 2026-11-23
 

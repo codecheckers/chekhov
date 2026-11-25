@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +81,13 @@ func TestInviteRefusesSomebodyNotInTheThread(t *testing.T) {
 	// Backticks notify nobody, so a handle written in them is no part in it.
 	replies.thread = []github.Comment{{ID: 50, Author: "nuest", Body: "is `@a-made-up-newcomer` right?"}}
 	says(t, acted(t, server, "@chekhovbot invite @a-made-up-newcomer"), "has not taken part in this issue")
+	// Nor is the same command, refused before: posting it again changes
+	// nothing about who the issue has brought in.
+	replies.thread = []github.Comment{{ID: 51, Author: "nuest", Body: "@chekhovbot invite @a-made-up-newcomer"}}
+	says(t, acted(t, server, "@chekhovbot invite @a-made-up-newcomer"), "has not taken part in this issue")
+	if len(lists.opened) != 0 {
+		t.Errorf("opened %q", lists.opened)
+	}
 }
 
 // The owners are asked once for one person: an ask on the check already,
@@ -105,6 +113,12 @@ func TestInviteAsksTheOwnersOnlyWhenNobodyHas(t *testing.T) {
 	saysNot(t, reply, "@an-owner", "not in the `codecheckers` organisation")
 	if len(lists.opened) != 1 || strings.Contains(lists.opened[0], "/invitation") {
 		t.Errorf("opened %q", lists.opened)
+	}
+	// In the organisation already, so in the team now, as somebody outside
+	// is put there the night they join.
+	if !slices.Equal(replies.added, []string{"a-made-up-newcomer"}) ||
+		!slices.Equal(replies.addedTo, []string{"codecheckers"}) {
+		t.Errorf("added %v to %v, want the newcomer to codecheckers", replies.added, replies.addedTo)
 	}
 }
 
@@ -179,5 +193,50 @@ func TestInviteSaysWhenTheThreadCouldNotBeRead(t *testing.T) {
 	saysNot(t, reply, "check the spelling")
 	if len(lists.opened) != 0 {
 		t.Errorf("opened %q", lists.opened)
+	}
+}
+
+// An `assign`'s ask that has run out promised a role: `invite` starting it
+// over keeps it, or the sweep would add them to the team and forget the check
+// they were assigned to.
+func TestInviteStartingAnAssignsAskOverKeepsTheRole(t *testing.T) {
+	server, replies, _ := inviting(t)
+	block, err := followup.Render(followup.Record{Kind: followup.KindOrganisation,
+		Check: "codecheckers/testing-dev-register#1", Subject: "a-made-up-newcomer", Team: "codecheckers",
+		Role: string(command.RoleAssignedCodechecker), Reminders: mostReminders + 1,
+		Asked: time.Now().UTC().Format(time.RFC3339)}, server.signer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	replies.onTheIssue(block + "I will not ask again")
+
+	says(t, acted(t, server, "@chekhovbot invite @a-made-up-newcomer"), "@an-owner", "please invite")
+	if record, ok := recordOn(t, server, replies, followup.KindOrganisation); !ok ||
+		record.Role != string(command.RoleAssignedCodechecker) || record.Reminders != 0 {
+		t.Errorf("the new ask: %+v, %v", record, ok)
+	}
+}
+
+// `invite` asked the owners already, so `assign` after it does not notify
+// them a second time for one person; its record carries the role, which the
+// sweep gives once they join.
+func TestAssignAfterInviteDoesNotAskTheOwnersAgain(t *testing.T) {
+	server, replies, _ := inviting(t)
+	// The invite's ask has reminded the owners twice: the assign takes it
+	// over, and the count with it.
+	block, err := followup.Render(followup.Record{Kind: followup.KindOrganisation,
+		Check: "codecheckers/testing-dev-register#1", Subject: "a-made-up-newcomer", Team: "codecheckers",
+		Reminders: 2, Asked: time.Now().UTC().Format(time.RFC3339)}, server.signer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	replies.onTheIssue(block + "asked twice already")
+
+	reply := acted(t, server, "@chekhovbot assign @a-made-up-newcomer as codechecker")
+	says(t, reply, "The owners were asked on this check already", "Once they have joined, I make them the")
+	saysNot(t, reply, "@an-owner", "@another-owner")
+	if record, ok := recordOn(t, server, replies, followup.KindOrganisation); !ok ||
+		record.Role != string(command.RoleAssignedCodechecker) || record.Reminders != 2 {
+		t.Errorf("the record for the sweep: %+v, %v", record, ok)
 	}
 }

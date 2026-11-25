@@ -58,7 +58,7 @@ than a `switch`.
   never be an owner. `assign` asks the organisation's current owners - read
   from the organisation, and **mentioned** so they are notified - and puts the
   person in the team itself once they have joined. See #47. `invite` (#68)
-  asks the same, with no role, and opens the registration on the lists at
+  asks the same, with no role unless it starts over an `assign`'s, and opens the registration on the lists at
   once; for somebody outside, only when the issue has mentioned them already,
   because the registration notifies them.
 - **Team membership is fenced in code.** `internal/github/team.go` is the only

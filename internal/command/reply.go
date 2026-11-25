@@ -1079,13 +1079,7 @@ type OutsideRequest struct {
 // codechecker list, for whom nothing on the check is waiting.
 func OutsideReply(request OutsideRequest) string {
 	var out strings.Builder
-	if request.Role == "" {
-		fmt.Fprintf(&out, "`@%s` is not in the `%s` organisation yet.\n", request.Handle, request.Organisation)
-	} else {
-		fmt.Fprintf(&out, "`@%s` is not in the `%s` organisation yet, so I have not made them "+
-			"the %s of this check: somebody outside the organisation cannot hold a role on one.\n",
-			request.Handle, request.Organisation, request.Role)
-	}
+	out.WriteString(notInTheOrganisation(request.Handle, request.Organisation, request.Role))
 
 	if !request.ask(&out, fmt.Sprintf("please invite `@%s` to the organisation. "+
 		"I will handle the rest: once they accept, %s", request.Handle, request.rest())) {
@@ -1101,6 +1095,26 @@ func OutsideReply(request OutsideRequest) string {
 		"this once they have joined; `%s` does it sooner, and asks the "+
 		"owners again if they still have not.\n", AskAgain(request.Handle, request.Role))
 	return out.String()
+}
+
+// AssignAskedAlready is `assign`'s answer for somebody outside the
+// organisation whom an `invite` on this check asked the owners for already:
+// the role waits for them to join, and the owners are not notified again.
+func AssignAskedAlready(handle string, role Role, organisation string) string {
+	return notInTheOrganisation(handle, organisation, role) + "\n" + InviteAskedAlready(handle) +
+		fmt.Sprintf("\nOnce they have joined, I make them the %s.\n", role)
+}
+
+// notInTheOrganisation is the first line of every answer about somebody the
+// organisation does not have yet, and why a role, when one was asked for, is
+// not theirs.
+func notInTheOrganisation(handle, organisation string, role Role) string {
+	if role == "" {
+		return fmt.Sprintf("`@%s` is not in the `%s` organisation yet.\n", handle, organisation)
+	}
+	return fmt.Sprintf("`@%s` is not in the `%s` organisation yet, so I have not made them "+
+		"the %s of this check: somebody outside the organisation cannot hold a role on one.\n",
+		handle, organisation, role)
 }
 
 // ask writes the request to the owners - the one paragraph that notifies them

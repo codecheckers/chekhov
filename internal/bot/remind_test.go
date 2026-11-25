@@ -205,6 +205,24 @@ func TestNoReminderForSomebodyNotOnTheCheck(t *testing.T) {
 		t.Errorf("a stranger was to be reminded:\n%s", reply)
 	}
 
+	// A `remind` naming them, refused, is no part they took: posted again,
+	// it is refused again.
+	replies.thread = append(replies.thread, github.Comment{ID: 59, Author: "nuest",
+		Body: "@chekhovbot remind @a-made-up-mentioned in 2 days"})
+	reply = remindAs(t, server, replies, "nuest", "", "@a-made-up-mentioned", "in", "2", "days")
+	if !strings.Contains(reply, "I will not remind them here") {
+		t.Errorf("an earlier remind let the same one through:\n%s", reply)
+	}
+
+	// Mentioned on the check is brought in, as `invite` counts it: GitHub
+	// notified them then.
+	replies.thread = append(replies.thread, github.Comment{ID: 60, Author: "nuest",
+		Body: "@a-made-up-mentioned, could you look at this?"})
+	reply = remindAs(t, server, replies, "nuest", "", "@a-made-up-mentioned", "in", "2", "days")
+	if !strings.Contains(reply, "I will remind `@a-made-up-mentioned`") {
+		t.Errorf("somebody mentioned on the check could not be reminded:\n%s", reply)
+	}
+
 	replies.issues = []github.Issue{{Number: 1, Author: "nobody-on-this-check"}}
 	reply = remindAs(t, server, replies, "nuest", "", "@nobody-on-this-check", "in", "2", "days")
 	if !strings.Contains(reply, "I will remind `@nobody-on-this-check`") {

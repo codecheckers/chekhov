@@ -813,10 +813,20 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 		// the record carries it. The ask carries that record, so that the
 		// nightly sweep can finish the job once they have joined.
 		destination := s.destination(ctx, event, role, team)
-		return answered{
-			body:   s.outsideReply(ctx, handle, role, destination),
-			follow: s.outstanding(event, handle, role, destination),
+		follow := s.outstanding(event, handle, role, destination)
+		if prior, running := s.newestAsk(ctx, event, handle); running && prior.Role == "" {
+			// An `invite` asked the owners for them already: they are not
+			// notified twice for one person, and the record now carries the
+			// role, so that the sweep gives it once they join (#68). It
+			// takes over the ask's reminders as well, so the owners are
+			// reminded as often as one ask reminds them, not afresh.
+			if follow != nil {
+				follow.Reminders, follow.Asked = prior.Reminders, prior.Asked
+			}
+			return answered{body: command.AssignAskedAlready(handle, role, s.Settings.TeamOrganisation()),
+				follow: follow}
 		}
+		return answered{body: s.outsideReply(ctx, handle, role, destination), follow: follow}
 	}
 
 	replaced := ""
