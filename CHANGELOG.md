@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.2] - 2026-11-25
+
+### Fixed
+
+- The sweep says once that somebody asked for has joined, when the team
+  could not be done, and from then on the team alone, every three days at
+  most, until it is; it no longer repeats the whole reply every night (#69).
+
 ## [0.45.1] - 2026-11-25
 
 ### Fixed

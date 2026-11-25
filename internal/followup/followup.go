@@ -35,7 +35,9 @@ const Version = 1
 const (
 	// KindOrganisation is somebody an editor tried to give a role to who is
 	// not in the organisation yet, and the owners have been asked to invite
-	// them. See codecheckers/chekhov#47.
+	// them. See codecheckers/chekhov#47. Told says they have joined and that
+	// was said while the team could not be done, so that the sweep says the
+	// team alone from then on, every three days at most (#69).
 	KindOrganisation = "organisation-invitation"
 	// KindArchive is a copy of a checked repository in the CODECHECK
 	// organisation that was not archived when the check finished; the
@@ -151,8 +153,9 @@ type Record struct {
 	// forged to silence a reminder.
 	Settled bool `json:"settled,omitempty"`
 	// Told says the person the follow-up is about has been told what is
-	// theirs to do - an inclusion's invitation, waiting to be accepted - so
-	// that it is said once. State the bot keeps, as Settled is, never words
+	// theirs to do - an inclusion's invitation, waiting to be accepted - or,
+	// for an ask to the owners, that their joining was said, so that it is
+	// said once. State the bot keeps, as Settled is, never words
 	// anybody wrote; signed like the rest.
 	Told bool `json:"told,omitempty"`
 	// Asked is when this was raised, RFC 3339. What "three days old" is

@@ -28,3 +28,13 @@ func TeamMaintainer(handle, organisation, team string) string {
 func TeamFailed(organisation, team, why string) string {
 	return NotDone(fmt.Sprintf("put them in `%s/%s`", organisation, team), why)
 }
+
+// JoinedTeamStill says, again, that somebody who joined the organisation is
+// not in the team yet: the note is what the team came to tonight. Said every
+// three days at most, so it names who it is about rather than leaning on the
+// reply it follows (#69). It promises no retry: a pending membership is the
+// person's to accept, and only a refused add is tried again.
+func JoinedTeamStill(handle, note string) string {
+	return fmt.Sprintf("%s is in the organisation, and not in the team yet.\n\n%s\n\n"+
+		"I put them in it as soon as I can, and say so here when it is done.\n", mention(handle), note)
+}

@@ -17,9 +17,18 @@ import (
 // asked puts an ask to the owners on the issue, raised however long ago.
 func asked(t *testing.T, server *Server, replies *organisation, handle string, ago time.Duration) {
 	t.Helper()
+	askedFor(t, server, replies, handle, "assigned codechecker", ago, false)
+}
+
+// askedFor is asked with a choice of role - none for `invite`'s - and of
+// Told: a join said while the team could not be done, which the sweep follows
+// for the team alone (#69).
+func askedFor(t *testing.T, server *Server, replies *organisation, handle, role string, ago time.Duration,
+	told bool) {
+	t.Helper()
 	block, err := followup.Render(followup.Record{
 		Kind: followup.KindOrganisation, Check: "codecheckers/testing-dev-register#1",
-		Subject: handle, Role: "assigned codechecker", Team: "codecheckers",
+		Subject: handle, Role: role, Team: "codecheckers", Told: told,
 		Asked: time.Now().UTC().Add(-ago).Format(time.RFC3339),
 	}, server.signer())
 	if err != nil {
@@ -114,6 +123,82 @@ func TestASweepSaysNothingTheSecondTime(t *testing.T) {
 	}
 	if replies.count() != before {
 		t.Errorf("the second sweep posted %q", replies.last())
+	}
+}
+
+// A team that cannot be done - the add refused, or a membership pending - is
+// still not done the next night. The join is said once, with a record that
+// says so, and the next sweep says nothing (#69).
+func TestASweepSaysAJoinOnceWhileTheTeamCannotBeDone(t *testing.T) {
+	for name, undone := range map[string]func(*organisation){
+		"refused": func(o *organisation) { o.addErr = errors.New("GitHub answered 403") },
+		"pending": func(o *organisation) { o.pending["a-made-up-newcomer"] = true },
+	} {
+		t.Run(name, func(t *testing.T) {
+			server, replies := organised(t)
+			asked(t, server, replies, "a-made-up-newcomer", 24*time.Hour)
+			replies.members["a-made-up-newcomer"] = true
+			undone(replies)
+
+			server.nudge(context.Background())
+			says(t, replies.last(), "has joined", "They are now the assigned codechecker")
+			if record, ok := recordOn(t, server, replies, followup.KindOrganisation); !ok || !record.Told ||
+				record.Settled {
+				t.Errorf("the join leaves %+v, %v; want a record that it was said", record, ok)
+			}
+
+			before := replies.count()
+			swept := server.nudge(context.Background())
+			if replies.count() != before {
+				t.Errorf("the next sweep posted %q", replies.last())
+			}
+			if swept.Acted != 0 || swept.Outstanding != 1 {
+				t.Errorf("swept %+v, want the team still waiting and nothing said", swept)
+			}
+		})
+	}
+}
+
+// Three days on, the team is said again, alone: not the join, not the role,
+// with a fresh record to measure the next three days from.
+func TestASweepRepeatsOnlyTheTeamEveryThreeDays(t *testing.T) {
+	server, replies := organised(t)
+	askedFor(t, server, replies, "a-made-up-newcomer", "assigned codechecker", remindAfter+time.Hour, true)
+	replies.members["a-made-up-newcomer"] = true
+	replies.pending["a-made-up-newcomer"] = true
+
+	server.nudge(context.Background())
+	says(t, replies.last(), "`@a-made-up-newcomer` is in the organisation, and not in the team yet",
+		"has not accepted yet")
+	saysNot(t, replies.last(), "has joined", "They are now")
+	record, ok := recordOn(t, server, replies, followup.KindOrganisation)
+	if !ok || !record.Told || record.Older(time.Hour, time.Now()) {
+		t.Errorf("the reminder leaves %+v, %v; want a fresh record, told", record, ok)
+	}
+	if len(replies.assigned) != 0 {
+		t.Errorf("the issue was assigned again: %v", replies.assigned)
+	}
+}
+
+// The team done at last is said once, and the record settled: nothing is
+// left for the sweep, or for `status` to list as waiting.
+func TestASweepSaysTheTeamOnceWhenItIsDoneAtLast(t *testing.T) {
+	server, replies := organised(t)
+	askedFor(t, server, replies, "a-made-up-newcomer", "assigned codechecker", time.Hour, true)
+	replies.members["a-made-up-newcomer"] = true
+
+	server.nudge(context.Background())
+	says(t, replies.last(), "I have put `@a-made-up-newcomer` in `codecheckers/codecheckers`")
+	saysNot(t, replies.last(), "has joined")
+	if record, ok := recordOn(t, server, replies, followup.KindOrganisation); !ok || !record.Settled {
+		t.Errorf("the team done leaves %+v, %v; want it settled", record, ok)
+	}
+
+	replies.inTeam["a-made-up-newcomer"] = true
+	before := replies.count()
+	server.nudge(context.Background())
+	if replies.count() != before {
+		t.Errorf("the next sweep posted %q", replies.last())
 	}
 }
 

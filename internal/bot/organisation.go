@@ -35,8 +35,11 @@ const (
 //
 // It decides by looking rather than by bookkeeping: has the person joined, do
 // they hold the role, are they in the team. So a sweep that runs twice in a
-// day says nothing the second time, and no record has to be marked settled:
-// the finished job is its own announcement.
+// day says nothing the second time, and the finished job is its own
+// announcement. Except when the team could not be done: it still is not the
+// next night, so looking alone would say the whole join again every night.
+// The reply marks the join said, Told, and the team done at last is said
+// once, Settled (#69).
 func (s *Server) followOrganisation(ctx context.Context, event mention,
 	record followup.Record) (answered, bool, error) {
 	invitation, known := s.whereStands(ctx, record.Subject)
@@ -55,8 +58,11 @@ func (s *Server) followOrganisation(ctx context.Context, event mention,
 		// neither does having given up on reminding.
 		return result, true, err
 	}
-	result, err := s.finish(ctx, event, record)
-	return result, false, err
+	if record.Told {
+		result, waiting := s.followTeam(ctx, event, record)
+		return result, waiting, nil
+	}
+	return s.finish(ctx, event, record)
 }
 
 // whereStands is where somebody stands with the organisation - member, invited,
@@ -124,22 +130,20 @@ func (s *Server) reminder(event mention, record followup.Record, ask, rerun stri
 // team alone (#68).
 //
 // Nothing to say means nothing was left to do, which is how this stops
-// repeating itself.
-func (s *Server) finish(ctx context.Context, event mention, record followup.Record) (answered, error) {
+// repeating itself. A team that could not be done is the exception: it is
+// still not done tomorrow, so the reply leaves a fresh record, Told, and
+// followTeam takes it from there (#69). waiting says the team is not done.
+func (s *Server) finish(ctx context.Context, event mention, record followup.Record) (answered, bool, error) {
 	role := command.Role(record.Role)
 	taken, granted := "", false
 	if role != "" {
 		var err error
 		if taken, granted, err = s.grantOnJoining(ctx, event, record); err != nil {
-			return answered{}, err
+			return answered{}, false, err
 		}
 	}
 
-	note := s.teamNote(ctx, event, record.Subject, role, record.Team, true)
-	if role == "" {
-		// No role to work the team out from: the ask named it.
-		note, _ = s.intoTheTeam(ctx, record.Subject, record.Team)
-	}
+	note, inTeam := s.intoTheJoinedTeam(ctx, event, record)
 	onTheIssue := ""
 	if role == command.RoleAssignedCodechecker && granted {
 		// Nobody to unassign: the role is granted here only when it was
@@ -150,7 +154,7 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	if !granted && note == "" {
 		// The role was already recorded and the team already right: somebody
 		// got there first, and saying so every night would be noise.
-		return answered{}, nil
+		return answered{}, false, nil
 	}
 	// A codechecker who joined through the ask is asked for their row on the
 	// lists (#49): once, and only for the list registrations go on - the
@@ -160,11 +164,55 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 		s.Settings.ListsRepository() != "" {
 		registered, opened = s.openRegistration(ctx, record.Subject, false)
 	}
-	return answered{body: command.JoinedReply(command.Joined{
+	reply := answered{body: command.JoinedReply(command.Joined{
 		Handle: record.Subject, Role: role, Granted: granted, Taken: taken,
 		OnTheIssue: onTheIssue, TeamNote: note, Lists: s.codecheckerListPages(),
 		Organisation: s.Settings.TeamOrganisation(), Registration: registered, Registered: opened,
-	})}, nil
+	})}
+	waiting := !inTeam && note != ""
+	if waiting {
+		// Said once: the next sweep finds it Told, and measures from now.
+		if reply.follow = s.followUp(event, record); reply.follow != nil {
+			reply.follow.Told = true
+		}
+	}
+	return reply, waiting, nil
+}
+
+// followTeam resumes a join that was said while the team could not be done:
+// the team alone, tried every night as `include`'s is, and said every three
+// days at most, with a fresh record to measure from. Done at last, it is said
+// once, settled. waiting says the team is still not done.
+func (s *Server) followTeam(ctx context.Context, event mention, record followup.Record) (answered, bool) {
+	note, inTeam := s.intoTheJoinedTeam(ctx, event, record)
+	switch {
+	case inTeam && note != "":
+		done := s.followUp(event, record)
+		if done != nil {
+			done.Settled = true
+		}
+		return answered{body: note + "\n", follow: done}, false
+	case note == "":
+		// In the team by somebody else's hand, or a deployment that cannot
+		// change teams: nothing to do here, and nothing to say.
+		return answered{}, false
+	case !record.Older(remindAfter, time.Now()):
+		return answered{}, true
+	}
+	// The record is Told already: a fresh copy is the next three days.
+	return answered{body: command.JoinedTeamStill(record.Subject, note),
+		follow: s.followUp(event, record)}, true
+}
+
+// intoTheJoinedTeam puts somebody who joined in the team their ask was for:
+// the one the role implies on this check, or the one the ask named when it
+// wanted no role (`invite`, #68).
+func (s *Server) intoTheJoinedTeam(ctx context.Context, event mention, record followup.Record) (note string, in bool) {
+	team := record.Team
+	if role := command.Role(record.Role); role != "" {
+		team = s.destination(ctx, event, role, record.Team)
+	}
+	return s.intoTheTeam(ctx, record.Subject, team)
 }
 
 // grantOnJoining records the role the ask was for, unless it has gone to

@@ -25,6 +25,8 @@ type organisation struct {
 	// membershipErr fails the organisation membership of one handle only.
 	membershipErr map[string]error
 	teamErr       error
+	// addErr is GitHub refusing to put somebody in the team.
+	addErr error
 	// pending is somebody an owner invited through the team who has not
 	// accepted: GitHub answers 200 for them, and they are not in it.
 	pending map[string]bool
@@ -162,6 +164,9 @@ func (o *organisation) TeamMembership(_ context.Context, _, _, handle string) (g
 func (o *organisation) AddToTeam(_ context.Context, _, team, handle string) (github.Place, error) {
 	o.added = append(o.added, handle)
 	o.addedTo = append(o.addedTo, team)
+	if o.addErr != nil {
+		return github.Place{}, o.addErr
+	}
 	if o.maintains[handle] {
 		// What GitHub answers for an owner: in the team, as a maintainer the
 		// PUT did not make them.

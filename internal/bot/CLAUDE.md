@@ -70,8 +70,9 @@ for its kind. A handler decides by **looking at the world**, never by
 bookkeeping: when the thing is done it says nothing, which is what makes the
 sweep safe to run twice. The exceptions are marks of what was **said**,
 signed in the record, never of what was done: `Settled` for an end confirmed
-out loud, and `Told` for something somebody was told once - an inclusion's
-invitation waiting to be accepted (#49). A record is only a record because **the bot wrote
+out loud, and `Told` for the one-off thing a kind says, said - an
+inclusion's invitation waiting to be accepted (#49), a join said while the
+team could not be done, after which only the team is said again (#69). A record is only a record because **the bot wrote
 it** - the sweep reads its own comments and nobody else's, as
 `people.Checks.Read` does, because a deployment with no record key signs
 nothing and anybody can comment on an issue of the register. `GET /nudges` reports the sweeps for the weekly

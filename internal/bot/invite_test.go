@@ -157,6 +157,27 @@ func TestTheSweepFinishesAnInviteWithTheTeamOnly(t *testing.T) {
 	}
 }
 
+// An `invite`'s ask, whose team cannot be done when they join: the join and
+// the registration are said once, as they are for `assign`'s (#69).
+func TestTheSweepSaysAnInviteOnceWhileTheTeamCannotBeDone(t *testing.T) {
+	server, replies, lists := inviting(t)
+	askedFor(t, server, replies, "a-made-up-newcomer", "", 24*time.Hour, false)
+	replies.members["a-made-up-newcomer"] = true
+	replies.pending["a-made-up-newcomer"] = true
+
+	server.nudge(context.Background())
+	says(t, replies.last(), "has joined", "has not accepted yet")
+	saysNot(t, replies.last(), "They are now the")
+	opened, before := len(lists.opened), replies.count()
+	server.nudge(context.Background())
+	if replies.count() != before {
+		t.Errorf("the next sweep posted %q", replies.last())
+	}
+	if len(lists.opened) != opened {
+		t.Errorf("the sweep opened %q, want nothing more opened", lists.opened[opened:])
+	}
+}
+
 // An invitation out and nobody asking on the check: nobody is asked, and the
 // record is left all the same, so that the sweep puts them in the team once
 // they accept - which the reply promises.
