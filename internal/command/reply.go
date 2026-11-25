@@ -808,15 +808,16 @@ func Sentence(why string) string {
 	return why
 }
 
-// RemovedReply says what a removal did, and is the record of it. assignee is
-// what is to be said about the issue's assignee, empty when nothing is.
-func RemovedReply(role Role, handle string, held bool, assignee, by string, when time.Time) string {
+// RemovedReply says what a removal did, and is the record of it. onTheIssue
+// is what is to be said about the issue - its assignee, the queue label -
+// empty when nothing is.
+func RemovedReply(role Role, handle string, held bool, onTheIssue, by string, when time.Time) string {
 	if !held {
 		return fmt.Sprintf("%s was not the %s of this check.\n", mention(handle), role)
 	}
 	reply := fmt.Sprintf("✔ %s is no longer the %s of this check.\n", mention(handle), role)
-	if assignee != "" {
-		reply += "\n" + assignee + "\n"
+	if onTheIssue != "" {
+		reply += "\n" + onTheIssue + "\n"
 	}
 	return reply + entry("removed", by, when)
 }

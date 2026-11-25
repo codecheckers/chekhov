@@ -831,8 +831,13 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 		// nothing to do: an editor re-running the command to move somebody
 		// into another team means the team, and saying "already" and stopping
 		// would silently ignore what they asked for.
-		return said(withNote(fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role),
-			s.teamNote(ctx, event, handle, role, team, inside)))
+		reply := fmt.Sprintf("`@%s` is already the %s of this check.\n", handle, role)
+		if role == command.RoleAssignedCodechecker {
+			// A codechecker recorded before `assign` took the label off, or
+			// a label put back by hand: asking again is how it comes off.
+			reply = withNote(reply, s.queueLabel(ctx, event, handle))
+		}
+		return said(withNote(reply, s.teamNote(ctx, event, handle, role, team, inside)))
 	case errors.Is(err, people.ErrTampered):
 		return said(tamperedReply(err))
 	case err != nil:
@@ -872,13 +877,16 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 		return recordFailure("the removal", err)
 	}
 
-	assignee := ""
+	onTheIssue := ""
 	if role == command.RoleAssignedCodechecker {
+		unassigned := ""
 		if why := s.unassign(ctx, event, handle); why != "" {
-			assignee = command.UnassignFailed(handle, why)
+			unassigned = command.UnassignFailed(handle, why)
 		}
+		// Nobody is doing it now, so it is back in the queue.
+		onTheIssue = paragraphs(unassigned, s.queueLabel(ctx, event, ""))
 	}
-	return command.RemovedReply(role, handle, true, assignee, event.Author, time.Now())
+	return command.RemovedReply(role, handle, true, onTheIssue, event.Author, time.Now())
 }
 
 // roleCommand is the two things every role command needs before it starts:
@@ -985,11 +993,19 @@ func (s *Server) team(role command.Role) string {
 // What comes back is the reply's lines about the issue, either of which may be
 // missing.
 func (s *Server) codecheckerRecorded(ctx context.Context, event mention, handle, replaced string) string {
-	assignee, label := s.assignee(ctx, event, handle, replaced), s.dequeue(ctx, event)
-	if assignee == "" || label == "" {
-		return assignee + label
+	return paragraphs(s.assignee(ctx, event, handle, replaced), s.queueLabel(ctx, event, handle))
+}
+
+// paragraphs are a reply's lines about one thing, each its own paragraph,
+// leaving out the ones with nothing to say.
+func paragraphs(lines ...string) string {
+	var kept []string
+	for _, line := range lines {
+		if line != "" {
+			kept = append(kept, line)
+		}
 	}
-	return assignee + "\n\n" + label
+	return strings.Join(kept, "\n\n")
 }
 
 // assignee keeps the issue's assignee in step with the assigned codechecker,
@@ -1019,7 +1035,7 @@ func (s *Server) assignee(ctx context.Context, event mention, handle, replaced s
 	}
 	if replaced != "" {
 		if why := s.unassign(ctx, event, replaced); why != "" {
-			note += "\n\n" + command.UnassignFailed(replaced, why)
+			note = paragraphs(note, command.UnassignFailed(replaced, why))
 		}
 	}
 	return note

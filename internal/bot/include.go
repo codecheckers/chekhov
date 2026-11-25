@@ -372,9 +372,7 @@ func (s *Server) followInclusion(ctx context.Context, event mention, record foll
 	}
 
 	body, done := s.welcome(ctx, event, record)
-	if note != "" {
-		body = note + "\n\n" + body
-	}
+	body = paragraphs(note, body)
 	return answered{body: body, follow: done}, false, nil
 }
 

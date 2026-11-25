@@ -86,8 +86,12 @@ func (s *Server) quietNudge(ctx context.Context, event mention, issue github.Iss
 	now time.Time) (answered, error) {
 	after := s.Settings.QuietAfter()
 	// Working on it is what the label says: a check that has finished, or
-	// waits on metadata, has nothing to be asked about.
-	if after == 0 || s.Checks == nil || !command.HasLabel(issue.Labels, s.Settings.WorkInProgressLabel()) {
+	// waits on metadata, has nothing to be asked about. So is one that has its
+	// codechecker and has not started - out of the queue since `assign`, and
+	// not started while `check start` waits for a handling editor and a
+	// certificate - or no nudge would reach it at all.
+	if after == 0 || s.Checks == nil ||
+		!(command.HasLabel(issue.Labels, s.Settings.WorkInProgressLabel()) || s.notStarted(issue, read)) {
 		return answered{}, nil
 	}
 	var spoken time.Time
@@ -126,6 +130,26 @@ func (s *Server) quietNudge(ctx context.Context, event mention, issue github.Iss
 	}
 	return answered{body: command.QuietNudge(codechecker, daysSince(spoken, now),
 		about.Reminders == mostQuietNudges), follow: record}, nil
+}
+
+// notStarted is a check out of the queue, not waiting on metadata, that the
+// bot has never started - quietNudge has ruled out `work in progress` already.
+// A check finished without any of the labels says so in a start or finish
+// reply - the labels may have been moved by hand before `check finish`. Whether it has a codechecker is the record's to say,
+// which quietNudge reads next.
+func (s *Server) notStarted(issue github.Issue, read issueThread) bool {
+	if command.HasLabel(issue.Labels, s.Settings.NeedsCodecheckerLabel()) ||
+		command.HasLabel(issue.Labels, s.Settings.MetadataPendingLabel()) {
+		return false
+	}
+	for _, comment := range read.comments {
+		if strings.EqualFold(comment.Author, s.Settings.BotUser()) &&
+			(command.IsStagedReply(comment.Body, command.StartHeading) ||
+				command.IsStagedReply(comment.Body, command.FinishHeading)) {
+			return false
+		}
+	}
+	return true
 }
 
 // queueNudge tells the editors about a check that has carried the queue's

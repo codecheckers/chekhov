@@ -108,7 +108,7 @@ chekhov:
     # What the bot may do to labels itself, by name - as teams.managed is for
     # teams. A label in neither list is only ever read.
     managed:
-      add: [id assigned, work in progress, metadata pending]
+      add: [needs codechecker, id assigned, work in progress, metadata pending]
       remove: [needs codechecker, work in progress, metadata pending]
 
   teams:

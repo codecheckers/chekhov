@@ -36,6 +36,13 @@ type StageResult struct {
 	Body string
 }
 
+// IsStagedReply is whether a comment is a staged reply under the heading
+// given, in whatever state it was left: the one place besides StagedReply that
+// knows how the heading is written.
+func IsStagedReply(body, heading string) bool {
+	return strings.HasPrefix(strings.TrimSpace(body), "**"+heading+"**")
+}
+
 // StagedReply is the comment as it stands: a heading, whatever the stages that
 // have answered had to say, and a line naming the ones still running.
 //

@@ -82,6 +82,32 @@ func TestACheckNotQuietForLongIsLeftAlone(t *testing.T) {
 	}
 }
 
+// A check with its codechecker that has not started carries no workflow label
+// at all - `assign` took it out of the queue, and `check start` waits for a
+// handling editor and a certificate - and its codechecker is asked about it as
+// about one being worked on. Once started, the start reply says so, and a
+// finished check is left alone.
+func TestAQuietCheckNotStartedNudgesItsCodechecker(t *testing.T) {
+	server, replies := stalling(t, 14, 0)
+	withACodechecker(t, server, replies)
+	replies.labelled()
+	quietFor(replies, 20)
+
+	if swept := server.nudge(context.Background()); swept.Nudged != 1 ||
+		!strings.Contains(replies.last(), "@a-codechecker, nothing has been said on this check for 20 days") {
+		t.Fatalf("swept %+v, want the codechecker nudged:\n%s", swept, replies.last())
+	}
+
+	server, replies = stalling(t, 14, 0)
+	withACodechecker(t, server, replies)
+	replies.labelled()
+	replies.onTheIssue("**" + command.StartHeading + "**\n\nstarted")
+	quietFor(replies, 20)
+	if swept := server.nudge(context.Background()); swept.Nudged != 0 {
+		t.Errorf("a started check without labels, finished, was nudged: %+v", swept)
+	}
+}
+
 // Nobody is assigned, so there is nobody to ask: that check is the queue's.
 func TestAQuietCheckWithoutACodecheckerIsNotNudged(t *testing.T) {
 	server, replies := stalling(t, 14, 0)

@@ -606,31 +606,41 @@ func (s *Server) labelsOf(ctx context.Context, event mention) (github.Issue, boo
 	return issue, true
 }
 
-// dequeue takes the check out of the queue once it has an assigned
-// codechecker, and says what happened, for the line of the reply that is
-// about the issue rather than the record.
+// queueLabel keeps `needs codechecker` in step with whether anybody is doing
+// the check, given the assigned codechecker the record now names - empty when
+// nobody - and says what it moved, for the reply's lines about the issue
+// rather than the record.
 //
 // The label is the queue - "nobody is doing this check yet" - and that stops
-// being true when the codechecker is recorded, not when the check starts. An
-// `assign` that only warned about it left the editor a second thing to do by
-// hand on every assignment (codecheckers/register#242). `check start` still
-// takes it off, for a codechecker recorded before this or by hand.
+// being true when a codechecker is recorded, not when the check starts, and is
+// true again when they are taken off it (#67). The decision is the label
+// table's, LeavesTheQueue and JoinsTheQueue, which its note warns from too: a
+// closed check is left as it is, and what the command does and what the note
+// says cannot disagree.
 //
-// Only on a check whose labels were read, which is unlike `check start`: there
-// moving the labels is the command's whole job, and here it is a side effect.
-// A remove sent blind is answered as done whether or not the label was there,
-// and the reply would say it removed a label it never saw; left alone, the
-// label note says nothing either, as it does whenever the labels are unread.
-// A reply path that cannot write them - the command line, a preview - says
-// nothing here, and the label note still warns about a label it can see. A
-// closed check is left as it is: the queue is for work still wanted, as the
-// label note's own rule says.
-func (s *Server) dequeue(ctx context.Context, event mention) string {
+// Only on a check whose labels were read, unlike `check start`, where moving
+// them is the command's whole job: a remove sent blind is answered as done
+// whether or not the label was there, and the reply would claim a change it
+// never saw. A reply path that cannot write them - the command line, a
+// preview - says nothing here, and the note still warns about what it sees.
+func (s *Server) queueLabel(ctx context.Context, event mention, codechecker string) string {
 	issue, known := s.labelsOf(ctx, event)
-	if _, canWrite := s.Replies.(Labelling); !known || !canWrite || issue.Closed {
+	if _, canWrite := s.Replies.(Labelling); !known || !canWrite {
 		return ""
 	}
-	return strings.TrimSpace(s.moveLabels(ctx, event, issue, true, off(s.Settings.NeedsCodecheckerLabel())))
+	label := s.Settings.NeedsCodecheckerLabel()
+	state := s.labelState(issue)
+	state.AssignedCodechecker, state.RolesRead = codechecker, true
+	var move labelMove
+	switch {
+	case state.LeavesTheQueue():
+		move = off(label)
+	case state.JoinsTheQueue():
+		move = on(label)
+	default:
+		return ""
+	}
+	return strings.TrimSpace(s.moveLabels(ctx, event, issue, true, move))
 }
 
 // fixed is a stage with nothing to read: words the command already has. It has

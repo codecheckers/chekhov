@@ -100,7 +100,7 @@ chekhov:
     metadata_pending: metadata pending
     # What the bot may do to labels itself, by name.
     managed:
-      add: [id assigned, work in progress, metadata pending]
+      add: [needs codechecker, id assigned, work in progress, metadata pending]
       remove: [needs codechecker, work in progress, metadata pending]
 
   teams:

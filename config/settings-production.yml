@@ -74,7 +74,7 @@ chekhov:
     work_in_progress: work in progress
     metadata_pending: metadata pending
     managed:
-      add: [id assigned, work in progress, metadata pending]
+      add: [needs codechecker, id assigned, work in progress, metadata pending]
       remove: [needs codechecker, work in progress, metadata pending]
 
   teams:

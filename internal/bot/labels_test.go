@@ -126,8 +126,8 @@ func TestACheckOutsideTheQueueWithNobodyOnItIsNoticed(t *testing.T) {
 	}
 }
 
-// Removing the last codechecker puts the check back in the queue, and the
-// label says otherwise until somebody sets it.
+// Removing the last codechecker puts the check back in the queue, and on a
+// reply path that cannot put the label back, the note says it is missing.
 func TestRemovingTheCodecheckerIsNoticed(t *testing.T) {
 	server, _ := watching(t)
 	if reply := assigned(t, server, "a-codechecker"); !strings.Contains(reply, "is now") {
@@ -392,5 +392,51 @@ func TestAssigningOnAClosedCheckMovesNoLabel(t *testing.T) {
 	}
 	if len(path.moved) != 0 {
 		t.Errorf("moved %v, want nothing", path.moved)
+	}
+}
+
+// Taking the codechecker off puts the check back in the queue: nobody is doing
+// it, and nobody looking for work would find it otherwise (#67).
+func TestRemovingTheCodecheckerPutsTheCheckBackInTheQueue(t *testing.T) {
+	server, path := checking(t, "", "needs codechecker")
+	assigned(t, server, "a-codechecker")
+	path.moved = nil
+
+	reply := answer(t, server, command.Remove, []string{"@a-codechecker", "as", "codechecker"}, "")
+	if !slices.Equal(path.moved, []string{"+needs codechecker"}) {
+		t.Errorf("moved %v, want `needs codechecker` back on", path.moved)
+	}
+	if !strings.Contains(reply, "✔ Labels: added `needs codechecker`.") {
+		t.Errorf("the reply does not say the label was put back:\n%s", reply)
+	}
+	if strings.Contains(reply, "Nobody is the assigned codechecker") {
+		t.Errorf("the reply warns about the label it has just put back:\n%s", reply)
+	}
+}
+
+// A codechecker recorded before `assign` took the label off is taken out of
+// the queue by asking again.
+func TestAssigningTheSameCodecheckerAgainTakesTheCheckOutOfTheQueue(t *testing.T) {
+	server, path := checking(t, "")
+	assigned(t, server, "a-codechecker")
+	path.issues[0].Labels = []string{"needs codechecker"}
+
+	reply := assigned(t, server, "a-codechecker")
+	if !strings.Contains(reply, "is already the assigned codechecker") ||
+		!strings.Contains(reply, "✔ Labels: removed `needs codechecker`.") {
+		t.Errorf("asking again did not take the label off:\n%s", reply)
+	}
+}
+
+// A check finished but for its metadata has nobody left to find, so taking
+// its codechecker off does not put it back in the queue.
+func TestRemovingTheCodecheckerOfAFinishedCheckLeavesTheQueue(t *testing.T) {
+	server, path := checking(t, "", "metadata pending")
+	assigned(t, server, "a-codechecker")
+	path.moved = nil
+
+	reply := answer(t, server, command.Remove, []string{"@a-codechecker", "as", "codechecker"}, "")
+	if len(path.moved) != 0 || strings.Contains(reply, "Nobody is the assigned codechecker") {
+		t.Errorf("moved %v, and the reply:\n%s", path.moved, reply)
 	}
 }

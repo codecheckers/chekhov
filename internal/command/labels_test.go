@@ -73,6 +73,16 @@ func TestLabelDisagreements(t *testing.T) {
 		}(),
 		none: true,
 	}, {
+		// The same for a codechecker on a closed check still carrying the
+		// label: `assign` leaves it alone there, and so does the note.
+		name: "assigned, in the queue, and closed",
+		state: func() CheckState {
+			state := read([]string{"needs codechecker"}, "a-codechecker")
+			state.Closed = true
+			return state
+		}(),
+		none: true,
+	}, {
 		name:  "nobody assigned and in the queue",
 		state: read([]string{"needs codechecker"}, ""),
 		none:  true,

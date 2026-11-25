@@ -28,11 +28,13 @@ import (
 //     still one somebody may have put there for a reason. A command that
 //     changes one does it as its own act, and only for a label the settings
 //     list under labels.managed - `certificate set` adding `id assigned`, or
-//     `assign … as codechecker` taking `needs codechecker` off, because
-//     recording a codechecker is what ends the wait the label stands for
-//     (codecheckers/register#242). What is left for this table to say about
-//     the queue is what no command just did: a label put back by hand, a
-//     codechecker who could not be recorded, a write GitHub refused.
+//     `assign … as codechecker` taking `needs codechecker` off and `remove`
+//     putting it back, because recording a codechecker or taking one away is
+//     what starts and ends the wait the label stands for (#67). Those two
+//     ask LeavesTheQueue and JoinsTheQueue, the same predicates the rules
+//     below warn from, so that what a command does and what the note says
+//     cannot disagree. What is left for the note is what no command just
+//     did: a label changed by hand, a write GitHub refused.
 //   - Agreement is silence. A reply that ends "and the labels are fine" on
 //     every command is noise, and noise is how the useful line gets skipped.
 
@@ -44,6 +46,9 @@ type LabelNames struct {
 	Institution string
 	// NeedsCodechecker is the queue: a check nobody is doing yet.
 	NeedsCodechecker string
+	// MetadataPending is a check finished but for its metadata, which has
+	// nobody left to find, so it does not go back in the queue.
+	MetadataPending string
 }
 
 // CheckState is what the bot could see about one check when a command ran.
@@ -181,15 +186,32 @@ func institutionalCodechecker(s CheckState) (string, bool) {
 	return says, true
 }
 
+// LeavesTheQueue is a check somebody is doing that is still advertised as
+// needing somebody: `assign` takes the label off then, and the note warns of a
+// check where that did not happen. A closed check is out of the queue whatever
+// its labels say, as unqueuedWithout says, so neither acts on one.
+func (s CheckState) LeavesTheQueue() bool {
+	return !s.Closed && s.codechecker() != "" && s.has(s.Names.NeedsCodechecker)
+}
+
+// JoinsTheQueue is the opposite: an open check nobody is doing that does not
+// carry the label, so nobody looking for work will find it. `remove` puts the
+// label back then, and the note warns of a check where that did not happen. A
+// check finished but for its metadata is not work anybody is looking for.
+func (s CheckState) JoinsTheQueue() bool {
+	return !s.Closed && s.RolesRead && s.AssignedCodechecker == "" &&
+		s.named(s.Names.NeedsCodechecker) && !s.has(s.Names.NeedsCodechecker) &&
+		!s.has(s.Names.MetadataPending)
+}
+
 // queuedWithACodechecker is a check somebody is doing that is still advertised
 // as needing somebody.
 func queuedWithACodechecker(s CheckState) (string, bool) {
-	who := s.codechecker()
-	if who == "" || !s.has(s.Names.NeedsCodechecker) {
+	if !s.LeavesTheQueue() {
 		return "", false
 	}
 	return fmt.Sprintf("%s is the assigned codechecker, and this check still carries the `%s` label.",
-		mention(who), s.Names.NeedsCodechecker), true
+		mention(s.codechecker()), s.Names.NeedsCodechecker), true
 }
 
 // unqueuedWithout is the opposite, and the one nobody notices: a check nobody
@@ -208,8 +230,7 @@ func queuedWithACodechecker(s CheckState) (string, bool) {
 // other issue, and inventing one here would be a second idea of what a check
 // is, kept beside the register's own.
 func unqueuedWithout(s CheckState) (string, bool) {
-	if s.Closed || !s.RolesRead || s.AssignedCodechecker != "" ||
-		!s.named(s.Names.NeedsCodechecker) || s.has(s.Names.NeedsCodechecker) {
+	if !s.JoinsTheQueue() {
 		return "", false
 	}
 	return fmt.Sprintf("Nobody is the assigned codechecker, and this check does not carry the `%s` "+

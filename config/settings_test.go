@@ -347,11 +347,12 @@ func eachShipped(t *testing.T, test func(*testing.T, *Settings)) {
 
 // The labels the bot may change are few and named, and the list is the whole
 // of what it can do to a register's labels: `certificate set` adds
-// `id assigned`, and the workflow commands move the other three. Anything not
-// here is only ever read. Both shipped files say so, because live-test is
-// development with one switch flipped.
+// `id assigned`, `assign` and `remove` move `needs codechecker` (#67), and the
+// workflow commands move the other two. Anything not here is only ever read.
+// Every shipped file says so, because live-test is development with one
+// switch flipped.
 func TestShippedSettingsLetTheBotChangeOnlyTheNamedLabels(t *testing.T) {
-	addable := []string{"id assigned", "work in progress", "metadata pending"}
+	addable := []string{"needs codechecker", "id assigned", "work in progress", "metadata pending"}
 	removable := []string{"needs codechecker", "work in progress", "metadata pending"}
 	eachShipped(t, func(t *testing.T, settings *Settings) {
 		if got := settings.AddableLabels(); !slices.Equal(got, addable) {

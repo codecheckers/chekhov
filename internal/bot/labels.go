@@ -17,6 +17,23 @@ import (
 // already run. See codecheckers/chekhov#44, and command/labels.go for the
 // table that decides; what is here is the reading of the world it judges.
 
+// labelNames are the register's labels the table judges, from the settings.
+func (s *Server) labelNames() command.LabelNames {
+	return command.LabelNames{
+		Institution:      s.Settings.InstitutionLabel(),
+		NeedsCodechecker: s.Settings.NeedsCodecheckerLabel(),
+		MetadataPending:  s.Settings.MetadataPendingLabel(),
+	}
+}
+
+// labelState is what the table judges a check by, as far as its issue says:
+// the record's half is the caller's, the note reading it and a command that
+// has just written it knowing it already.
+func (s *Server) labelState(issue github.Issue) command.CheckState {
+	return command.CheckState{Names: s.labelNames(),
+		Labels: issue.Labels, LabelsRead: true, Closed: issue.Closed}
+}
+
 // labelNote is what a command whose subject is the check's state says about
 // the check's labels, empty when there is nothing to say.
 //
@@ -33,10 +50,11 @@ import (
 // See commentsOnce.
 //
 // The issue is memoised, and the memo is kept honest: the bot does now change
-// labels - `assign` and `check start` take `needs codechecker` off - so
-// moveLabels tells the memo what it moved. Without that the note is built on the labels as they
-// were before the write, and the same comment reports a label removed and
-// then warns that the check still carries it.
+// labels - `assign` and `check start` take `needs codechecker` off, `remove`
+// puts it back - so moveLabels tells the memo what it moved. Without that the
+// note is built on the labels as they were before the write, and the same
+// comment reports a label removed and then warns that the check still
+// carries it.
 //
 // Everything here fails quiet, and in the cheap order: no label named means
 // no rule can fire, so nothing is read at all; an issue that will not answer
@@ -44,11 +62,7 @@ import (
 // lists, the one read that leaves the register, are asked for only when the
 // rule that needs them could still say something.
 func (s *Server) labelNote(ctx context.Context, event mention, services *check.Services) string {
-	state := command.CheckState{Names: command.LabelNames{
-		Institution:      s.Settings.InstitutionLabel(),
-		NeedsCodechecker: s.Settings.NeedsCodecheckerLabel(),
-	}}
-	if event.Issue <= 0 || !state.Names.Watching() {
+	if event.Issue <= 0 || !s.labelNames().Watching() {
 		return ""
 	}
 
@@ -58,7 +72,7 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 			"issue", event.Issue, "error", err)
 		return ""
 	}
-	state.Labels, state.LabelsRead, state.Closed = issue.Labels, true, issue.Closed
+	state := s.labelState(issue)
 
 	if s.Checks != nil {
 		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)

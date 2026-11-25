@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `assign … as codechecker` takes `needs codechecker` off an open check and
   says so, rather than only warning that the check still carries it; so does
   the sweep finishing an assignment that waited for somebody to join (#67).
+- `remove … as codechecker` puts `needs codechecker` back on an open check
+  that is not waiting on metadata, and `assign` of the same codechecker again
+  takes it off; neither, nor the note about the label, acts on a closed
+  check (#67).
+- The quiet nudge also asks the codechecker of a check that has one and has
+  not been started, which carries no workflow label since `assign` takes it
+  out of the queue (#67).
 
 ### Fixed
 
