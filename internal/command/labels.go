@@ -68,6 +68,9 @@ type CheckState struct {
 	// Closed says the check is over, which silences every rule about what
 	// still has to happen on it.
 	Closed bool
+	// LabelsMoved says the command the note is part of moved a label itself,
+	// which the note must not then deny.
+	LabelsMoved bool
 
 	// AssignedCodechecker is the handle of the codechecker doing this check,
 	// empty when nobody is, and RolesRead says whether the record could be
@@ -239,7 +242,7 @@ func unqueuedWithout(s CheckState) (string, bool) {
 
 // Note is what a reply says about this check's labels, empty when there is
 // nothing to say. One door, so that a caller cannot half-perform it.
-func (s CheckState) Note() string { return LabelNote(s.Disagreements()) }
+func (s CheckState) Note() string { return labelNote(s.Disagreements(), s.LabelsMoved) }
 
 // LabelNoteSaid is what a reply says instead of the note when the bot's last
 // word on the check already said it (codecheckers/chekhov#61). The bot finds it
@@ -254,7 +257,12 @@ const LabelNoteSaid = "⚠ The labels still disagree with this check, as said ab
 // One note, however many rules had something to say, and never more than one
 // per reply: it is appended centrally, after the command has answered, so a
 // command cannot say it twice and no command has to remember to say it at all.
-func LabelNote(disagreements []string) string {
+func LabelNote(disagreements []string) string { return labelNote(disagreements, false) }
+
+// labelNote is LabelNote for a reply that has or has not moved a label of its
+// own: one that did says so in its own line, and "no labels" under it would
+// be false (seen live on codecheckers/testing-dev-register#252).
+func labelNote(disagreements []string, moved bool) string {
 	if len(disagreements) == 0 {
 		return ""
 	}
@@ -263,6 +271,10 @@ func LabelNote(disagreements []string) string {
 	for _, says := range disagreements {
 		fmt.Fprintf(&note, "- %s\n", says)
 	}
-	note.WriteString("\nI have changed no labels.\n")
+	other := ""
+	if moved {
+		other = " other"
+	}
+	fmt.Fprintf(&note, "\nI have changed no%s labels.\n", other)
 	return note.String()
 }

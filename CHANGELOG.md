@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.1] - 2026-11-25
+
+### Fixed
+
+- The note that the labels may not describe a check says "no other labels"
+  in a reply that moved one itself, rather than that it changed none (#67).
+
 ## [0.45.0] - 2026-11-24
 
 ### Added

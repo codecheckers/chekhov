@@ -189,3 +189,18 @@ func TestOnlyCheckStateCommandsWatchTheLabels(t *testing.T) {
 		}
 	}
 }
+
+// A reply that moved a label of its own says so in its own line, so the note
+// under it may not claim the bot changed none (seen live on
+// codecheckers/testing-dev-register#252).
+func TestTheNoteDoesNotDenyALabelTheReplyMoved(t *testing.T) {
+	state := read([]string{"needs codechecker"}, "a-codechecker")
+	if note := state.Note(); !strings.Contains(note, "I have changed no labels.") {
+		t.Errorf("the note of a reply that moved nothing:\n%s", note)
+	}
+	state.LabelsMoved = true
+	if note := state.Note(); !strings.Contains(note, "I have changed no other labels.") ||
+		strings.Contains(note, "I have changed no labels.") {
+		t.Errorf("the note of a reply that moved a label:\n%s", note)
+	}
+}

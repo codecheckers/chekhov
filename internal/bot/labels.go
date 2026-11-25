@@ -73,6 +73,7 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 		return ""
 	}
 	state := s.labelState(issue)
+	state.LabelsMoved = event.read.movedAny()
 
 	if s.Checks != nil {
 		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
@@ -179,6 +180,16 @@ func (m *issueMemo) get() (github.Issue, error) {
 	}
 	issue.Labels = labels
 	return issue, nil
+}
+
+// movedAny is whether the bot has changed a label in this command.
+func (m *issueMemo) movedAny() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.moved) > 0
 }
 
 // moveLabel records what the bot did, so that everything reading the memo
