@@ -41,7 +41,7 @@ access tokens → Generate new token.
 | Token name | `chekhov-dev` (say what it is for; the name is all future-you sees), `chekhov-production` for the production one |
 | Resource owner | **`codecheckers`** — *not* `chekhovbot`. A user-owned token reaches only that user's own repositories, and the registers belong to the organisation |
 | Expiration | 90 days for development. The maximum is 366 days |
-| Repository access | Only select repositories → **`codecheckers/testing-dev-register`** and **`codecheckers/testing-dev-codecheckers`**, the codechecker lists it answers registrations on (#49); for production a separate token with **`codecheckers/register`** and **`codecheckers/codecheckers`**, never one token for both |
+| Repository access | Only select repositories → **`codecheckers/testing-dev-register`** and **`codecheckers/testing-dev-codecheckers`**, the codechecker lists it answers registrations on (#49); for production a separate token with **`codecheckers/register`** and **`codecheckers/codecheckers`**, never one token for both. **Both** tokens also select **`codecheckers/chekhov-log`**, the private log repository (see below) |
 
 Permissions, under Repository permissions:
 
@@ -228,6 +228,24 @@ when the bot outgrows commenting.
   The bot checks the account's side itself at startup and logs
   `the bot's account cannot write to the register` when its role is below
   `write`; in development `/healthz` reports it as `repository_permission`.
+- **The private log repository, `codecheckers/chekhov-log`**, is the one
+  repository both tokens select. It is not a register: it holds the bot's log
+  excerpts and its reports of errors, which must not be public, and the labels
+  `production` and `development` keep the two deployments apart. `chekhovbot`
+  is a direct collaborator with `write` there, and the repository has to be
+  selected on the token as well - the role and the selection are two separate
+  grants, and with only the role the token gets a `404`, as if the repository
+  did not exist (seen on 2026-11-26, before it was added to the tokens).
+  Check both:
+
+  ```sh
+  gh api repos/codecheckers/chekhov-log/collaborators/chekhovbot/permission --jq .role_name
+  # with the deployment's token, never printed:
+  curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $CHEKHOV_GH_ACCESS_TOKEN" \
+    https://api.github.com/repos/codecheckers/chekhov-log
+  ```
+
+  `write` and `200`. It needs Issues: read and write and nothing else.
 - **Protect the default branch** of a register the bot writes to, so that a
   change reaches it only through a reviewed pull request. The token's Contents
   write would otherwise reach `main` too; the guard refuses it, and branch

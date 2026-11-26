@@ -61,6 +61,24 @@ in general. Reminders and nudges already recorded are sent whoever asked.
 
 Tracking issue: <https://github.com/codecheckers/register/issues/209>
 
+## Reading the bot's log
+
+*Planned ([#73](https://github.com/codecheckers/chekhov/issues/73)).* When something goes wrong, the bot's log is in
+[`codecheckers/chekhov-log`](https://github.com/codecheckers/chekhov-log), a
+private repository that only members with access can open. Nothing from the
+log is ever posted on the register.
+
+- **Editors: watch that repository** (*Watch → All activity*). Errors the bot
+  runs into on its own - a crash, an answer it could not post - are opened
+  there as issues labelled `fatal`, assigned to nobody and mentioning nobody,
+  so watching is how you hear of them.
+- `@chekhovbot log` on a check, by an editor, writes the bot's recent records
+  about that check to an issue there and **assigns it to you**; the reply on
+  the check is only the link. `@chekhovbot log <reference>` asks for one reply,
+  by the reference at its end.
+- The labels `production` and `development` say which deployment wrote an
+  issue.
+
 ## The name
 
 Anton Chekhov (1860-1904): a pun on *check*, and on Chekhov's gun — if the gun

@@ -568,6 +568,36 @@ keeps panicking shows up as well as one that has stopped. The third is a
 command's own, so the person who asked is told that step failed. See
 [chekhov#50](https://github.com/codecheckers/chekhov/issues/50).
 
+### The private log repository (planned)
+
+*Planned, not implemented yet ([#73](https://github.com/codecheckers/chekhov/issues/73)).* The log above is the platform's and only the
+runway account reads it. The bot will also write to
+[`codecheckers/chekhov-log`](https://github.com/codecheckers/chekhov-log), a
+**private** repository of the organisation, so that an editor can see what it
+did without access to the platform and without anything reaching the public
+register:
+
+- `@chekhovbot log` on a check, by an editor, writes the bot's recent records
+  about that issue to a standing issue there, "register#N (production)", and
+  assigns it to the editor who asked. The reply on the check is a link to it
+  and nothing else. Every reply carries a short reference, and
+  `@chekhovbot log <reference>` gives that one delivery's records.
+- Every record at `Error` - a panic, an answer that could not be posted - opens
+  an issue there on its own, labelled `fatal`, with the full stack trace in
+  production too, because the repository is not public. The same error again
+  is a comment on the open issue, not a new one. Nobody is assigned or
+  mentioned: **watch the repository (*Watch → All activity*) to hear of them.**
+- Both deployments write to the one repository. An issue carries `production`
+  or `development`, taken from `CHEKHOV_ENV` (`live-test` counts as
+  `development`), and a deployment reads, writes and answers only the issues
+  that carry its own label.
+- Records are kept in memory, the last ones since the process started, so a
+  deploy empties the buffer as it does `/nudges`. A Go runtime fatal or a kill
+  from the memory limit cannot report itself; those stay in the runway log.
+
+The token needs the repository selected as well, see
+[`github-token.md`](github-token.md).
+
 ## Nudges
 
 The nightly sweep can nudge a check that has stalled, and does not until a

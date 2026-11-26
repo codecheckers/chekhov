@@ -51,6 +51,13 @@ output is impossible to confuse with a real CODECHECK.
    prove `check zenodo` reads a draft by its share link. Never on a
    deployment. See [`zenodo-sandbox-token.md`](zenodo-sandbox-token.md).
 
+7. The private log repository
+   [`codecheckers/chekhov-log`](https://github.com/codecheckers/chekhov-log) is
+   shared with production: a development deployment writes there too, only to
+   issues labelled `development`, and leaves those labelled `production`
+   alone. The token has to select it as well as the testing register. Planned;
+   see "The private log repository" in [`deployment.md`](deployment.md).
+
 ## Webhook on the testing register
 
 Settings → Webhooks → Add webhook on `codecheckers/testing-dev-register`:
