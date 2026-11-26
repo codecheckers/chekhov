@@ -1,6 +1,7 @@
 # Chekhov
 
-The CODECHECK register management bot.
+The CODECHECK register management bot. Its commands, and who may run each, are
+on the [help page](https://chekhov.pqapp.dev/help).
 
 > If the research paper has code, it must run.
 
@@ -222,4 +223,7 @@ Code MIT (see `LICENSE`). Graphics in `logo/` are CC BY 4.0, matching the rest
 of the CODECHECK branding. The Chekhov quotes in
 `internal/command/data/quotes.yml` come from
 [Wikiquote](https://en.wikiquote.org/wiki/Anton_Chekhov) and are CC BY-SA 4.0;
-every reply that uses one links back to the page.
+every reply that uses one links back to the page. The help page's footer,
+`internal/command/helpfooter.html`, is copied from
+[codecheck.org.uk](https://codecheck.org.uk/), which publishes it under CC BY-SA
+4.0.

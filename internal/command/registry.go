@@ -83,7 +83,7 @@ var registry = []Definition{
 	{
 		Name:    Commands,
 		Aliases: []string{"help"},
-		Summary: "List the commands you can use",
+		Summary: "List the commands you can use; `help` does the same",
 		Usage:   "commands",
 		Group:   GroupBasics,
 		Roles:   Roles{RoleAnyone},

@@ -35,6 +35,38 @@ func TestHelpPageShowsEveryCommandThatIsNotHidden(t *testing.T) {
 	}
 }
 
+func TestHelpPageHasTheSiteFooter(t *testing.T) {
+	page, err := HelpPage(Deployment{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<footer id="site-footer">`, "creativecommons.org/licenses/by-sa/4.0/", `src="https://codecheck.org.uk/img/by-sa.svg"`} {
+		if !strings.Contains(string(page), want) {
+			t.Errorf("the page lacks %s", want)
+		}
+	}
+	_, footer, _ := strings.Cut(string(page), `<footer id="site-footer">`)
+	if _, afterFAQs, _ := strings.Cut(footer, "FAQs</a>"); !strings.Contains(afterFAQs, "source and documentation") {
+		t.Error("the version and source are not in the footer, after the FAQs")
+	}
+	// A link left relative would point at the bot rather than at the site.
+	if strings.Contains(string(page), `href="/`) || strings.Contains(string(page), `src="/`) {
+		t.Error("a link of the footer is relative")
+	}
+}
+
+// The commands reply points at the page only where it knows its address.
+func TestCommandsReplyPointsAtTheHelpPage(t *testing.T) {
+	const url = "https://chekhov-dev.pqapp.dev/help"
+	reply := Deployment{HelpURL: url}.CommandsReply(nil)
+	if !strings.HasPrefix(reply, Listing(nil)) || !strings.HasSuffix(reply, "[help page]("+url+").\n") {
+		t.Errorf("the reply does not end with the help page:\n%s", reply)
+	}
+	if got := (Deployment{}).CommandsReply(nil); got != Listing(nil) {
+		t.Errorf("without an address:\n%s", got)
+	}
+}
+
 // A deployment that does not work on the lists says nothing of them.
 func TestHelpPageWithoutLists(t *testing.T) {
 	page, err := HelpPage(Deployment{Register: "codecheckers/testing-dev-register"})

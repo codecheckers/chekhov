@@ -197,9 +197,19 @@ func deploymentFor(settings *config.Settings) command.Deployment {
 		Lists:         settings.ListsRepository(),
 
 		RegistrationLabel: settings.RegistrationLabel(),
+		HelpURL:           helpURL(settings),
 		Bot:               settings.BotUser(),
 		Environment:       config.Environment(),
 	}
+}
+
+// helpURL is the address of this deployment's help page, empty where the
+// settings name no public URL.
+func helpURL(settings *config.Settings) string {
+	if base := settings.PublicURL(); base != "" {
+		return base + command.HelpPath
+	}
+	return ""
 }
 
 // Address is where to listen: the port the platform asks for, or 8080.

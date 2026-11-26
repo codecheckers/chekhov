@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-11-26
+
+### Added
+
+- The `commands` reply ends with a link to the deployment's help page.
+
+### Changed
+
+- The help page has the footer of the CODECHECK website, and the summary of
+  `commands` says that `help` does the same.
+
 ## [0.47.0] - 2026-11-26
 
 ### Added

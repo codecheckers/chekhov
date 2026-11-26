@@ -14,6 +14,8 @@
 chekhov:
   env:
     bot_github_user: ${CHEKHOV_BOT_GH_USER:-chekhovbot}
+    # Where this deployment is reached; `commands` links its /help page there.
+    public_url: ${CHEKHOV_PUBLIC_URL:-https://chekhov-dev.pqapp.dev}
     # Target repository for all development and testing. Do NOT point this at
     # codecheckers/register.
     target_repository: ${CHEKHOV_TARGET_REPO:-codecheckers/testing-dev-register}

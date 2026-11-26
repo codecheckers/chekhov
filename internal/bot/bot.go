@@ -163,7 +163,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /dispatch", s.dispatch)
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /nudges", s.nudgeState)
-	mux.HandleFunc("GET /help", s.help)
+	mux.HandleFunc("GET "+command.HelpPath, s.help)
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://github.com/codecheckers/chekhov", http.StatusFound)
 	})
@@ -606,7 +606,7 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 	roles command.Roles, services *check.Services) answered {
 	switch parsed.Name {
 	case command.Commands:
-		return said(command.Listing(roles))
+		return said(s.Deployment.CommandsReply(roles))
 	case command.Hello:
 		return said(s.Deployment.HelloReply())
 	case command.Thanks:

@@ -2,20 +2,42 @@ package command
 
 import (
 	"bytes"
+	_ "embed"
 	"html"
 	"html/template"
 	"strings"
 )
+
+// helpFooter is the footer of codecheck.org.uk, copied on 2026-11-26: the
+// site publishes it under CC BY-SA 4.0, as the footer itself says, not under
+// this repository's licence. Unchanged but for the drawing program's metadata
+// in its icons, which is gone, its links, which are absolute, and the "build"
+// line after the FAQs, which is this page's own. It is a copy
+// because the site has no file to load it from; take it again when the site's
+// changes.
+//
+//go:embed helpfooter.html
+var helpFooter string
+
+// HelpPath is where the deployment serves the help page: the route, and what a
+// reply links to.
+const HelpPath = "/help"
 
 // helpTemplate is the whole page, without scripts. Its stylesheets, logo and
 // icon are the CODECHECK website's own, loaded from there so that the page
 // follows the site; without them it is plainer and says the same. The style
 // here is only what the site has no word for. One table per place, so that
 // its columns line up from group to group.
-var helpTemplate = template.Must(template.New("help").Funcs(template.FuncMap{
-	"code":  inlineCode,
-	"usage": breakableUsage,
-}).Parse(`<!doctype html>
+var helpTemplate = func() *template.Template {
+	page := template.Must(template.New("help").Funcs(template.FuncMap{
+		"code":  inlineCode,
+		"usage": breakableUsage,
+	}).Parse(helpText))
+	template.Must(page.New("footer").Parse(helpFooter))
+	return page
+}()
+
+const helpText = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -34,6 +56,7 @@ nav.places strong { display: block; color: var(--place); }
 section { border-top: .4rem solid var(--place); margin-top: 3rem; }
 .register { --place: #008033; }
 .lists { --place: #b35c00; }
+#site-footer { margin-top: 3rem; }
 #content section h2 { color: var(--place); margin-top: 1rem; }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-bottom: 1rem; }
 th, td { border-bottom: 1px solid #e9ecef; padding: .4rem .8rem .4rem 0; text-align: left; vertical-align: top; }
@@ -61,7 +84,7 @@ code { color: inherit; overflow-wrap: break-word; }
 <main class="container" id="content">
 <a href="https://codecheck.org.uk/"><img class="logo" src="https://codecheck.org.uk/img/codecheck_logo.svg" alt="CODECHECK logo"></a>
 <h1><code>{{.Mention}}</code> commands</h1>
-<p>The CODECHECK register bot. Write a command on the <strong>first line</strong>
+<p><a href="https://github.com/codecheckers/chekhov">The CODECHECK register bot</a>. Write a command on the <strong>first line</strong>
 of a comment. More may follow, each on a line of its own beginning with
 <code>{{.Mention}}</code>, up to {{.Most}} in one comment.</p>
 <p>Each command works in <strong>one place only</strong>:</p>
@@ -86,12 +109,11 @@ and the bot answers it as soon as it is opened.{{else}}Each CODECHECK has its ow
 {{end}}</table>
 </section>
 {{end}}
-<p><small>Version {{.Deployment.Version}} ·
-<a href="https://github.com/codecheckers/chekhov">source and documentation</a></small></p>
 </main>
-</body>
+{{template "footer" .}}</body>
 </html>
-`))
+{{define "build"}}<p class="text-secondary"><small>{{.Mention}} version {{.Deployment.Version}} ·
+<a href="https://github.com/codecheckers/chekhov">source and documentation</a></small></p>{{end}}`
 
 // A helpPlace is one repository the bot answers on, and what it answers there.
 type helpPlace struct {

@@ -483,7 +483,9 @@ reports only status, version, bot, register and environment, and its comments
 carry no footer naming the build.
 
 `/help` lists the commands as a web page, for anybody who wants to look one up
-without commenting on an issue. Its stylesheets and logo are loaded from
+without commenting on an issue; the `commands` reply links to it, at the
+`public_url` of the settings file. A development or live-test app other than
+`chekhov-dev` sets `CHEKHOV_PUBLIC_URL`, or its replies link to that one's page. Its stylesheets and logo are loaded from
 `codecheck.org.uk`.
 
 ```sh

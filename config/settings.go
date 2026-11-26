@@ -32,7 +32,10 @@ type Settings struct {
 		Env struct {
 			BotGitHubUser    string `yaml:"bot_github_user"`
 			TargetRepository string `yaml:"target_repository"`
-			RegisterFile     string `yaml:"register_file"`
+			// PublicURL is where the deployment is reached, for a reply to
+			// point at its help page. Empty means no reply does.
+			PublicURL    string `yaml:"public_url"`
+			RegisterFile string `yaml:"register_file"`
 			// Certificates is the URL of a published certificate, with {id}
 			// for its identifier.
 			Certificates string `yaml:"certificates"`
@@ -567,6 +570,12 @@ func Current() (*Settings, error) { return Load(Environment()) }
 
 // TargetRepository is the register the bot works on, as owner/repo.
 func (s *Settings) TargetRepository() string { return s.Chekhov.Env.TargetRepository }
+
+// PublicURL is where the deployment is reached, without a closing slash, empty
+// where the settings name none.
+func (s *Settings) PublicURL() string {
+	return strings.TrimRight(strings.TrimSpace(s.Chekhov.Env.PublicURL), "/")
+}
 
 // RegisterFile is the file of the target repository that `register` adds a
 // row to, in a pull request (#21).

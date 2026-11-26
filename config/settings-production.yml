@@ -16,6 +16,8 @@
 chekhov:
   env:
     bot_github_user: ${CHEKHOV_BOT_GH_USER:-chekhovbot}
+    # Where this deployment is reached; `commands` links its /help page there.
+    public_url: https://chekhov.pqapp.dev
     target_repository: codecheckers/register
     # Columns of register.csv in the target repo:
     # Certificate,Repository,Type,Venue,Issue

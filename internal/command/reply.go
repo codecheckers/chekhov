@@ -35,8 +35,11 @@ type Deployment struct {
 	// as a registration. For the help page.
 	Lists             string
 	RegistrationLabel string
-	Bot               string
-	Environment       string
+	// HelpURL is where this deployment serves the help page, empty where
+	// nobody said, and then no reply points at it.
+	HelpURL     string
+	Bot         string
+	Environment string
 }
 
 // Development reports whether this deployment may talk about itself.
@@ -99,6 +102,16 @@ func Listing(roles Roles) string {
 	fmt.Fprintf(&out, "\nWrite the command on the **first line** of a comment. More may follow, "+
 		"each on a line of its own beginning with `%s`, up to %d in one comment.\n", Bot, MostCommands)
 	return out.String()
+}
+
+// CommandsReply is the listing, ending with where the same commands are to be
+// read without commenting.
+func (d Deployment) CommandsReply(roles Roles) string {
+	reply := Listing(roles)
+	if d.HelpURL != "" {
+		reply += fmt.Sprintf("\nAll commands, and who may run each, are on the [help page](%s).\n", d.HelpURL)
+	}
+	return reply
 }
 
 // HelloReply is the answer to the liveness check: short, and specific enough
