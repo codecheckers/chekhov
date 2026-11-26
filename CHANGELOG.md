@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-11-26
+
+### Added
+
+- A registration the bot opens from a check names that check, which links the
+  two issues (#72).
+- A registration opened from a check, or an open one nobody is assigned to, is
+  assigned to the check's handling editor, and the reply says so (#72).
+
 ## [0.51.0] - 2026-11-26
 
 ### Added

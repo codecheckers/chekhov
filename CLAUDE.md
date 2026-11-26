@@ -14,6 +14,8 @@ bot (`internal/bot/gate.go`). See `README.md` for the commands and
 
 ## Committing and publishing
 
+<!-- Source: own rule; registration assignee added to the notifications 2026-11-26. -->
+
 **Commit and push only on explicit, individual confirmation. Stage changes
 with `git add` and propose a commit message; the user commits, or says to
 commit.** An explicit "commit it" for the change at hand is the only go-ahead:
@@ -145,7 +147,11 @@ whose role it keeps (#68).
 The review `include` requests on its pull request notifies through GitHub
 rather than a mention, and goes to whom `lists.reviewers` names - the editor
 who ran it by default, the owners or the editors (in development
-`teams.owners` for either), or named accounts - and never to the registrant. The seventh
+`teams.owners` for either), or named accounts - and never to the registrant.
+A registration the bot opens from a check is assigned to that check's
+handling editor, which GitHub notifies too: somebody an editor named for the
+check, and only from a record that verifies, so in a test whoever the test
+assigned. The seventh
 and eighth are the sweep's on the lists: `command.ReadyToInclude` tells the
 editors - `EditorsToTell`, as the queue nudge - about a complete registration
 nobody has included, once; and `command.PullRequestWaiting` reminds the

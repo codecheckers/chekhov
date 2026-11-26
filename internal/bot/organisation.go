@@ -162,7 +162,7 @@ func (s *Server) finish(ctx context.Context, event mention, record followup.Reco
 	registered, opened := "", false
 	if (role == "" || role.Checks()) && record.Team == s.Settings.CodecheckersTeam() &&
 		s.Settings.ListsRepository() != "" {
-		registered, opened = s.openRegistration(ctx, record.Subject, false)
+		registered, opened = s.openRegistration(ctx, record.Subject, false, event)
 	}
 	reply := answered{body: command.JoinedReply(command.Joined{
 		Handle: record.Subject, Role: role, Granted: granted, Taken: taken,

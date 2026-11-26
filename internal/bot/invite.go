@@ -68,7 +68,7 @@ func (s *Server) invite(ctx context.Context, event mention, parsed command.Comma
 		}
 	}
 
-	note, _ := s.openRegistration(ctx, login, outside)
+	note, _ := s.openRegistration(ctx, login, outside, event)
 	// The ordinary team, unless an earlier ask named one: a registration is
 	// for the list registrations go on, and the institutional one is kept by
 	// hand.

@@ -528,14 +528,20 @@ func RegistrationTitle(login string) string {
 // notified - the one person who has to act on it, and whom an editor or an
 // owner just brought in. outsideOf is the organisation they have not joined
 // yet, empty for a member: an invitation is still to come, and to accept,
-// which GitHub sends by email (#68).
-func RegistrationInvite(login, file, outsideOf string) string {
-	body := fmt.Sprintf("%s, welcome to CODECHECK! :heart: To be listed in `%s`, please answer here with a "+
+// which GitHub sends by email (#68). from is the check it was opened from,
+// as owner/repo#N, empty for one an editor opened on the lists: written out,
+// not in backticks, so that GitHub links the two issues both ways.
+func RegistrationInvite(login, file, outsideOf, from string) string {
+	welcome := "welcome to CODECHECK! :heart:"
+	if from != "" {
+		welcome += fmt.Sprintf(" You were invited on %s, the check this registration comes from.", from)
+	}
+	body := fmt.Sprintf("%s, %s To be listed in `%s`, please answer here with a "+
 		"comment, %s:\n\n```csv\n%s\n```\n\n"+
 		"What each column is for:\n\n%s\n"+
 		"I check the row and say what it still needs, and an editor then includes you. If something in it "+
 		"changes, comment again the same way.\n",
-		notifying([]string{login}), file, rowInComment, templateRow, columnHelp)
+		notifying([]string{login}), welcome, file, rowInComment, templateRow, columnHelp)
 	if outsideOf != "" {
 		body += fmt.Sprintf("\nYou are not in the `%s` organisation yet: an owner invites you, and GitHub sends "+
 			"the invitation by email. Please accept it at https://github.com/orgs/%s/invitation when it comes; "+
@@ -574,6 +580,31 @@ func RegistrationOpened(lists string, number int, login string) string {
 	return Item(fmt.Sprintf("✔ I have opened %s#%d for %s to register on the codechecker list.",
 		lists, number, mention(login)))
 }
+
+// RegistrationAssigned is what became of making the check's handling editor
+// the assignee of the registration opened from it: set, or not set and why.
+// The registration stands either way.
+func RegistrationAssigned(lists string, number int, editor string, set bool, why string) string {
+	if set {
+		return Item(fmt.Sprintf("✔ %s#%d is assigned to %s, the handling editor of this check.",
+			lists, number, mention(editor)))
+	}
+	return Item(NotDone(fmt.Sprintf("assign %s#%d to %s, the handling editor of this check",
+		lists, number, mention(editor)), why))
+}
+
+// RegistrationEditorUnread is a registration nobody was assigned to because
+// the check's handling editor could not be read from a record that verifies:
+// said, so that it does not read as a check with no handling editor.
+func RegistrationEditorUnread(lists string, number int, why string) string {
+	return Item(NotDone(fmt.Sprintf("tell who the handling editor of this check is, so I have assigned "+
+		"nobody to %s#%d", lists, number), why))
+}
+
+// RecordEdited is why the record of a check decides nothing: somebody edited
+// it after the bot wrote it.
+const RecordEdited = "the record of this check was edited after I wrote it; an editor can adopt it with `" + Bot + " " +
+	string(RecordAccept) + "`"
 
 // RegistrationExists is somebody who has a registration already, opened by
 // them or by the bot: never a second one.

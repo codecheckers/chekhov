@@ -332,7 +332,26 @@ type listsThread struct {
 	// the bot opened here, as "title\nbody".
 	issues []github.Issue
 	opened []string
+	// assigned are the registrations assigned, as "#N handle"; assignErr is
+	// GitHub refusing, and ignore GitHub taking the request and leaving them
+	// out.
+	assigned  []string
+	assignErr error
+	ignore    bool
 }
+
+func (l *listsThread) Assign(_ context.Context, _ string, issue int, handle string) ([]string, error) {
+	if l.assignErr != nil {
+		return nil, l.assignErr
+	}
+	if l.ignore {
+		return nil, nil
+	}
+	l.assigned = append(l.assigned, fmt.Sprintf("#%d %s", issue, handle))
+	return []string{handle}, nil
+}
+
+func (l *listsThread) Unassign(_ context.Context, _ string, _ int, _ string) error { return nil }
 
 func (l *listsThread) LabelledIssues(_ context.Context, _, _ string) ([]github.Issue, error) {
 	return l.issues, nil

@@ -120,8 +120,10 @@ func latestRow(comments []github.Comment, subject string) string {
 // closed: never two for one person. What came of it is an item of the reply
 // that asked, and whether there is a registration for them now, or no need
 // for one. outside says they are not in the organisation yet, which the
-// registration tells them (#68).
-func (s *Server) openRegistration(ctx context.Context, login string, outside bool) (string, bool) {
+// registration tells them (#68). event is what asked: a check, which the
+// registration names and whose handling editor it is assigned to, or an
+// issue of the lists, which is no check.
+func (s *Server) openRegistration(ctx context.Context, login string, outside bool, event mention) (string, bool) {
 	lists, file, label := s.Settings.ListsRepository(), registration.RegistrationList, s.Settings.RegistrationLabel()
 	opener, ok := s.Lists.(Opener)
 	reader, readable := s.Lists.(Reader)
@@ -132,6 +134,10 @@ func (s *Server) openRegistration(ctx context.Context, login string, outside boo
 	// whose row nobody can read is worse than none.
 	if !s.signer().Signs() {
 		return command.NotFromHere("sign the record of whom a registration is for, so I open"), false
+	}
+	from := event
+	if s.onLists(event) {
+		from = mention{}
 	}
 	switch listed, err := s.onTheList(login, s.Services.Fresh()); {
 	case err != nil:
@@ -152,38 +158,72 @@ func (s *Server) openRegistration(ctx context.Context, login string, outside boo
 	title := command.RegistrationTitle(login)
 	for _, issue := range issues {
 		if strings.EqualFold(issue.Author, login) {
-			return command.RegistrationExists(lists, issue.Number, login), true
+			return command.RegistrationExists(lists, issue.Number, login) + s.registrationAssignee(ctx, from, issue), true
 		}
 		// By title for the bot's own: what this decides is whether to open
 		// one, never whose comments a row is read from, which is the signed
 		// record's to say. One whose record did not get posted is given it
 		// now, which is how a failed write is mended.
 		if strings.EqualFold(issue.Author, s.Settings.BotUser()) && strings.EqualFold(issue.Title, title) {
+			exists := command.RegistrationExists(lists, issue.Number, login) + s.registrationAssignee(ctx, from, issue)
 			opened := mention{Repository: lists, Issue: issue.Number}
 			if _, err := registrantIn(s.threadOf(ctx, reader, opened)); err != nil {
 				if note := s.recordRegistrant(ctx, opened, login); note != "" {
-					return command.RegistrationExists(lists, issue.Number, login) + note, false
+					return exists + note, false
 				}
 			}
-			return command.RegistrationExists(lists, issue.Number, login), true
+			return exists, true
 		}
 	}
 
-	outsideOf := ""
+	outsideOf, source := "", ""
 	if outside {
 		outsideOf = s.Settings.TeamOrganisation()
 	}
+	if from.Repository != "" {
+		source = from.check()
+	}
 	number, err := opener.CreateIssue(ctx, lists, title,
-		command.Defuse(command.RegistrationInvite(login, file, outsideOf)), []string{label})
+		command.Defuse(command.RegistrationInvite(login, file, outsideOf, source)), []string{label})
 	if err != nil {
 		s.Logger.Warn("could not open a registration", "handle", login, "error", err)
 		return command.RegistrationNotOpened(login, whyNot(err)), false
 	}
+	said := command.RegistrationOpened(lists, number, login) + s.registrationAssignee(ctx, from, github.Issue{Number: number})
 	opened := mention{Repository: lists, Issue: number}
 	if note := s.recordRegistrant(ctx, opened, login); note != "" {
-		return command.RegistrationOpened(lists, number, login) + note, false
+		return said + note, false
 	}
-	return command.RegistrationOpened(lists, number, login), true
+	return said, true
+}
+
+// registrationAssignee makes the handling editor of the check a registration
+// comes from its assignee, so that somebody looks after it, and says what
+// came of it; nothing when there is nothing to do. Only a registration that
+// is open with nobody assigned: one somebody assigned already is looked
+// after, and a closed one is over. The editor is the record's only when it
+// verifies, as for the archive reminders. A failure is said, never a reason
+// to undo the registration: the assignee is a convenience on top of it.
+func (s *Server) registrationAssignee(ctx context.Context, from mention, registration github.Issue) string {
+	assigner, ok := s.Lists.(Assigner)
+	if from.Repository == "" || !ok || s.Checks == nil || registration.Closed || len(registration.Assignees) > 0 {
+		return ""
+	}
+	lists := s.Settings.ListsRepository()
+	reading, err := s.checks(from).Read(ctx, from.Repository, from.Issue)
+	switch {
+	case err != nil:
+		s.Logger.Warn("could not read the handling editor for a registration", "check", from.check(), "error", err)
+		return command.RegistrationEditorUnread(lists, registration.Number, whyNot(err))
+	case reading.Tampered != nil:
+		return command.RegistrationEditorUnread(lists, registration.Number, command.RecordEdited)
+	}
+	editor := reading.Record.HandlingEditor
+	if editor == "" {
+		return ""
+	}
+	why := s.assignOn(ctx, assigner, lists, registration.Number, editor)
+	return command.RegistrationAssigned(lists, registration.Number, editor, why == "", why)
 }
 
 // recordRegistrant posts the record of whom a registration is for, empty

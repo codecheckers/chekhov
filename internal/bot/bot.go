@@ -1098,22 +1098,31 @@ func (s *Server) assignee(ctx context.Context, event mention, handle, replaced s
 	// Assign before unassigning: a failure between the two would otherwise
 	// leave the issue with nobody assigned at all, which is worse than the
 	// state the command started from.
-	assigned, err := assigner.Assign(ctx, event.Repository, event.Issue, handle)
-	if err != nil {
-		s.Logger.Warn("the codechecker could not be made the issue's assignee",
-			"issue", event.Issue, "handle", handle, "error", err)
-		return command.AssigneeNote(handle, false, whyNot(err))
-	}
-	note := command.AssigneeNote(handle, true, "")
-	if !slices.ContainsFunc(assigned, func(who string) bool { return strings.EqualFold(who, handle) }) {
-		note = command.AssigneeNote(handle, false, command.AssigneeIgnored)
-	}
+	why := s.assignOn(ctx, assigner, event.Repository, event.Issue, handle)
+	note := command.AssigneeNote(handle, why == "", why)
 	if replaced != "" {
 		if why := s.unassign(ctx, event, replaced); why != "" {
 			note = paragraphs(note, command.UnassignFailed(replaced, why))
 		}
 	}
 	return note
+}
+
+// assignOn makes somebody an assignee of an issue, and says why not when they
+// are not one afterwards: GitHub's refusal, or its taking the request and
+// leaving them out - which a reply that only looked for an error missed on
+// codecheckers/register#238. Empty when they are assigned.
+func (s *Server) assignOn(ctx context.Context, assigner Assigner, repository string, issue int, handle string) string {
+	assigned, err := assigner.Assign(ctx, repository, issue, handle)
+	if err != nil {
+		s.Logger.Warn("could not assign an issue", "repository", repository, "issue", issue,
+			"handle", handle, "error", err)
+		return whyNot(err)
+	}
+	if !slices.ContainsFunc(assigned, func(who string) bool { return strings.EqualFold(who, handle) }) {
+		return command.AssigneeIgnored
+	}
+	return ""
 }
 
 // unassign takes somebody off the issue's assignees, and says why not when it

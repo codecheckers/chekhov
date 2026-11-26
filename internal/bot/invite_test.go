@@ -261,3 +261,93 @@ func TestAssignAfterInviteDoesNotAskTheOwnersAgain(t *testing.T) {
 		t.Errorf("the record for the sweep: %+v, %v", record, ok)
 	}
 }
+
+// invitedWithEditor is `invite` on a check whose handling editor is nuest.
+func invitedWithEditor(t *testing.T) (*Server, *organisation, *listsThread) {
+	t.Helper()
+	server, replies, lists := inviting(t)
+	says(t, acted(t, server, "@chekhovbot assign @nuest as handling editor"), "handling editor")
+	return server, replies, lists
+}
+
+// A registration opened from a check names the check, and is assigned to its
+// handling editor, so that somebody looks after it; the reply says both.
+func TestInviteAssignsTheRegistrationToTheHandlingEditor(t *testing.T) {
+	server, _, lists := invitedWithEditor(t)
+
+	reply := acted(t, server, "@chekhovbot invite @a-made-up-newcomer")
+
+	if len(lists.opened) != 1 || !strings.Contains(lists.opened[0],
+		"You were invited on codecheckers/testing-dev-register#1, the check") {
+		t.Errorf("opened %q", lists.opened)
+	}
+	if !slices.Equal(lists.assigned, []string{"#21 nuest"}) {
+		t.Errorf("assigned %q, want #21 to nuest", lists.assigned)
+	}
+	says(t, reply, testLists+"#21 is assigned to `@nuest`, the handling editor of this check")
+}
+
+// No handling editor, or a record that does not verify: nobody to assign, and
+// the registration opens all the same, naming the check.
+func TestInviteAssignsNobodyWithoutAHandlingEditor(t *testing.T) {
+	server, _, lists := inviting(t)
+	reply := acted(t, server, "@chekhovbot invite @a-made-up-newcomer")
+	if len(lists.assigned) != 0 || len(lists.opened) != 1 ||
+		!strings.Contains(lists.opened[0], "invited on codecheckers/testing-dev-register#1") {
+		t.Errorf("assigned %q, opened %q", lists.assigned, lists.opened)
+	}
+	saysNot(t, reply, "is assigned to")
+
+	// What a collaborator's edit of the record produces.
+	server, _, lists = invitedWithEditor(t)
+	records := server.Checks.Comments.(*issueComments)
+	if len(records.comments) != 1 || !strings.Contains(records.comments[0].Body, "nuest") {
+		t.Fatalf("found no record of the check naming the handling editor: %+v", records.comments)
+	}
+	records.comments[0].Body = strings.Replace(records.comments[0].Body, "nuest", "a-made-up-editor", 1)
+	reply = acted(t, server, "@chekhovbot invite @a-made-up-newcomer")
+	if len(lists.assigned) != 0 {
+		t.Errorf("assigned %q from a record that does not verify", lists.assigned)
+	}
+	says(t, reply, "I have opened "+testLists+"#21", "so I have assigned nobody to "+testLists+"#21",
+		"edited after I wrote it", "record accept")
+}
+
+// An existing registration is assigned too, when it is open and nobody is
+// assigned; one somebody looks after already, or a closed one, is left alone.
+func TestInviteAssignsAnExistingRegistrationNobodyLooksAfter(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		issue github.Issue
+		want  []string
+	}{
+		{"open, nobody assigned", github.Issue{Number: 4}, []string{"#4 nuest"}},
+		{"assigned already", github.Issue{Number: 4, Assignees: []string{"a-codechecker"}}, nil},
+		{"closed", github.Issue{Number: 4, Closed: true}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server, _, lists := invitedWithEditor(t)
+			tc.issue.Author = "a-made-up-newcomer"
+			lists.issues = []github.Issue{tc.issue}
+			reply := acted(t, server, "@chekhovbot invite @a-made-up-newcomer")
+			says(t, reply, "already has a registration, "+testLists+"#4")
+			if !slices.Equal(lists.assigned, tc.want) || len(lists.opened) != 0 {
+				t.Errorf("assigned %q, want %q; opened %q", lists.assigned, tc.want, lists.opened)
+			}
+		})
+	}
+}
+
+// An assignment GitHub refuses, or takes and leaves out, is said; the
+// registration is open all the same.
+func TestInviteSaysWhenTheRegistrationCouldNotBeAssigned(t *testing.T) {
+	server, _, lists := invitedWithEditor(t)
+	lists.assignErr = errors.New("GitHub answered 422")
+	reply := acted(t, server, "@chekhovbot invite @a-made-up-newcomer")
+	says(t, reply, "I have opened "+testLists+"#21", "I could not assign "+testLists+"#21 to `@nuest`", "422")
+
+	server, _, lists = invitedWithEditor(t)
+	lists.ignore = true
+	reply = acted(t, server, "@chekhovbot invite @a-made-up-newcomer")
+	says(t, reply, "I have opened "+testLists+"#21", "I could not assign", "left them out")
+}

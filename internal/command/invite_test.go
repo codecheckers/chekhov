@@ -47,15 +47,29 @@ func TestInviteIsListedForEditors(t *testing.T) {
 // mentions the registrant and nobody else: the template's example handles
 // are real accounts.
 func TestARegistrationFromOutsideNotifiesOnlyTheRegistrant(t *testing.T) {
-	body := RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "codecheckers")
+	body := RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "codecheckers", "")
 	if !strings.Contains(body, "https://github.com/orgs/codecheckers/invitation") {
 		t.Errorf("no link to the invitation:\n%s", body)
 	}
-	for _, body := range []string{body, RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "")} {
+	for _, body := range []string{body, RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "", ""),
+		RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "", "codecheckers/register#246")} {
 		found := mentioned(withoutCode(body))
 		if len(found) != 1 || found[0] != "a-made-up-newcomer" {
 			t.Errorf("mentions %q, want only the registrant:\n%s", found, body)
 		}
+	}
+}
+
+// A registration opened from a check names it, written out so that GitHub
+// links the two; one opened on the lists names none.
+func TestARegistrationNamesTheCheckItComesFrom(t *testing.T) {
+	from := RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "", "codecheckers/register#246")
+	if !strings.Contains(from, "You were invited on codecheckers/register#246, the check") ||
+		strings.Contains(from, "`codecheckers/register#246`") {
+		t.Errorf("does not name the check as a link:\n%s", from)
+	}
+	if none := RegistrationInvite("a-made-up-newcomer", "codecheckers.csv", "", ""); strings.Contains(none, "invited on") {
+		t.Errorf("names a check it does not come from:\n%s", none)
 	}
 }
 

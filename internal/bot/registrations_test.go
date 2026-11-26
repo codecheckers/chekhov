@@ -34,7 +34,7 @@ func commentOnLists(t *testing.T, server *Server, body, by string, botOpened boo
 	if botOpened {
 		issue := payload["issue"].(map[string]any)
 		issue["user"] = map[string]string{"login": "chekhovbot"}
-		issue["body"] = command.RegistrationInvite(madeUpRegistrar, "codecheckers.csv", "")
+		issue["body"] = command.RegistrationInvite(madeUpRegistrar, "codecheckers.csv", "", "")
 	}
 	if code := deliverEvent(t, server, eventType, payload); code != http.StatusAccepted {
 		t.Fatalf("status = %d, want 202", code)
@@ -63,6 +63,10 @@ func TestIncludeOpenOpensARegistration(t *testing.T) {
 		t.Errorf("the record of whom it is for: %+v, %v", record, err)
 	}
 	says(t, lists.last(), "I have opened "+testLists+"#21 for `@"+madeUpRegistrar+"`")
+	// On the lists there is no check it comes from: none named, nobody assigned.
+	if strings.Contains(opened, "invited on") || len(lists.assigned) != 0 {
+		t.Errorf("assigned %q, and the issue:\n%s", lists.assigned, opened)
+	}
 }
 
 // Never two for one person: one the bot opened, or theirs, open or closed -
@@ -156,7 +160,8 @@ func TestJoiningAsACodecheckerOpensTheirRegistration(t *testing.T) {
 
 	server.nudge(context.Background())
 	says(t, replies.last(), "has joined", "I have opened "+testLists+"#21 for `@a-made-up-newcomer`")
-	if len(lists.opened) != 1 || !strings.Contains(lists.opened[0], "@a-made-up-newcomer, welcome") {
+	if len(lists.opened) != 1 || !strings.Contains(lists.opened[0], "@a-made-up-newcomer, welcome") ||
+		!strings.Contains(lists.opened[0], "invited on codecheckers/testing-dev-register#1") {
 		t.Errorf("opened %q", lists.opened)
 	}
 }
