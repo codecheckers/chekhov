@@ -126,14 +126,14 @@ func AuditReply(a Audit) string {
 // which anyone who can read the issue can use for as long as it is there.
 type ShareLink struct {
 	// Held says the command held a link that had to be protected; Deleted says
-	// something only then, and InDescription then or with NoRecord.
+	// something only then, and InDescription then or with OpensNothing.
 	Held bool
 	// Deleted says the bot deleted the comment, and InDescription that the
 	// link is in the issue's description, which it cannot delete.
 	Deleted, InDescription bool
-	// NoRecord says the comment held a link, and Zenodo has nothing of the
-	// number it names, so it was left alone. Held is false then.
-	NoRecord bool
+	// OpensNothing says the comment held a link, and Zenodo shows nothing to
+	// whoever holds it, so it was left alone. Held is false then.
+	OpensNothing bool
 }
 
 // revoke ends every note on a link that was held, and is how a reply that
@@ -159,13 +159,14 @@ func ExplainsDeletion(body string) bool { return strings.Contains(body, deleted)
 // issue: only deleting the link on Zenodo does.
 func ShareLinkNote(l ShareLink) string {
 	switch {
-	case l.NoRecord:
+	case l.OpensNothing:
 		left, remove := "the comment", "delete the comment"
 		if l.InDescription {
 			left, remove = "the issue's description", "edit it out of the description, which keeps its earlier version"
 		}
-		return fmt.Sprintf("\nZenodo has no record or draft with the number in that link, so I have left %s as it is. "+
-			"If the link is real and the number mistyped, %s, and delete the link under Share on the record.\n",
+		return fmt.Sprintf("\nZenodo shows me nothing with that link: there is no such record, or its token does not "+
+			"open it. So I have left %s as it is. If the link should work, %s, and delete the link under Share on "+
+			"the record.\n",
 			left, remove)
 	case !l.Held:
 		return ""

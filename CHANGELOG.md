@@ -11,18 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `refusals.share_link_replies` (`CHEKHOV_SHARE_LINK_REPLIES`, 3 by default):
-  how many deleted share links are explained to somebody the bot takes no
-  commands from, per issue (#70).
+- `refusals.share_link_replies` (3 by default): how many deleted share links
+  are explained to somebody the bot takes no commands from, per issue (#70).
 
 ### Changed
 
-- Somebody the bot takes no commands from no longer gets a reply for every
-  share link: past the limit their comments are deleted without one. A link
-  that could not be deleted is warned of apart from that, at least once (#70).
-- Before deleting a comment for a Zenodo share link the bot asks Zenodo, and
-  leaves a comment whose links all name neither a record nor a draft, saying so
-  to somebody who may ask (#70).
+- Past that limit their share-link comments are deleted without a reply; a
+  failed deletion is still warned of (#70).
+- A comment whose share links Zenodo shows nothing for is left alone (#70).
+
+### Fixed
+
+- A share link past the five-command limit is deleted (#70).
+- A share link on the codechecker lists is deleted (#70).
+- Replies and records on GitHub no longer carry a share link's token (#70).
 
 ## [0.50.0] - 2026-11-26
 

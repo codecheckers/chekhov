@@ -3,6 +3,7 @@ package command
 import (
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -528,6 +529,23 @@ func humanBytes(n int) string {
 	}
 }
 
+// shareLinkStart is a Zenodo share link up to its secret: what the bot knows a
+// share link by, to delete the comment holding one and to cut the secret out of
+// what it writes itself.
+const shareLinkStart = `(?i)zenodo\.org/\S*?[?&](?:amp;)?token=`
+
+var (
+	shareLink  = regexp.MustCompile(shareLinkStart)
+	shareToken = regexp.MustCompile("(" + shareLinkStart + `)[^\s&"'\x60<>()\[\]|…]+`)
+)
+
+// HoldsShareLink says text holds a Zenodo share link.
+func HoldsShareLink(text string) bool { return shareLink.MatchString(text) }
+
+// WithoutShareTokens is text with the secret of every share link cut out, for
+// what the bot posts and for what it keeps in a comment of its own.
+func WithoutShareTokens(text string) string { return shareToken.ReplaceAllString(text, "${1}…") }
+
 // Defuse is how anything somebody else wrote goes into a reply.
 //
 // The bot quotes people - an unknown command is echoed back, a check report
@@ -536,7 +554,11 @@ func humanBytes(n int) string {
 // text would let a stranger write what looks like a record into a comment
 // authored by the bot, so the opening sequence never survives the journey.
 // internal/people/record.go has the other half of that defence.
+//
+// Nor does the secret of a Zenodo share link: a link quoted back would be a
+// second copy to use, and one nobody deletes.
 func Defuse(text string) string {
+	text = WithoutShareTokens(text)
 	// The opener only: "-->" on its own starts nothing, and escaping it would
 	// show up as literal "--&gt;" inside the code blocks of a check report,
 	// where entities are not decoded.

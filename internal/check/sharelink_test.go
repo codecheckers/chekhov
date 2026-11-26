@@ -9,8 +9,8 @@ import (
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
 
-// A share link points at nothing only when Zenodo says so of the record and of
-// its draft. Every other answer, and none, leaves it possibly real.
+// A share link opens nothing only when Zenodo says "not there" of the record
+// and of its draft. Every other answer, and none, leaves it possibly real.
 func TestOnlyNoRecordAndNoDraftIsNothing(t *testing.T) {
 	for name, answer := range map[string]struct {
 		record, draft int
@@ -36,7 +36,7 @@ func TestOnlyNoRecordAndNoDraftIsNothing(t *testing.T) {
 			})
 		}
 
-		got := stubbed.services.NoZenodoRecord(context.Background(), ZenodoTarget{ID: "7", Token: "a b&c"})
+		got := stubbed.services.ShareLinkOpensNothing(context.Background(), ZenodoTarget{ID: "7", Token: "a b&c"})
 
 		if got != answer.nothing {
 			t.Errorf("%s: %v, want %v", name, got, answer.nothing)
@@ -53,11 +53,11 @@ func TestOnlyNoRecordAndNoDraftIsNothing(t *testing.T) {
 
 	stub := testserver.New(t)
 	outside := &Services{Access: Access{HTTP: stub.Client(), Zenodo: "https://zenodo.example.invalid/api"}}
-	if outside.NoZenodoRecord(context.Background(), ZenodoTarget{ID: "7", Token: "t"}) {
+	if outside.ShareLinkOpensNothing(context.Background(), ZenodoTarget{ID: "7", Token: "t"}) {
 		t.Error("Zenodo out of reach was taken to have said there is nothing")
 	}
 	for name, services := range map[string]*Services{"none": nil, "off": {}} {
-		if services.NoZenodoRecord(context.Background(), ZenodoTarget{ID: "7", Token: "t"}) {
+		if services.ShareLinkOpensNothing(context.Background(), ZenodoTarget{ID: "7", Token: "t"}) {
 			t.Errorf("services %s: nothing asked, and nothing found", name)
 		}
 	}

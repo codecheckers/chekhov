@@ -266,17 +266,23 @@ func (s *Services) zenodoRecordURLs(target ZenodoTarget) (published, draft, quer
 	return published, published + "/draft", query
 }
 
-// NoZenodoRecord reports that a share link points at nothing: Zenodo says
-// there is neither a record nor a draft of that number, so there is nothing
-// its token could open. It is two HEAD requests and reads nothing.
+// ShareLinkOpensNothing reports that Zenodo shows neither a record nor a
+// draft to whoever holds a share link: there is no such number, or the token
+// does not open it. It is two HEAD requests and reads nothing.
 //
-// That is all anonymous requests can tell. Zenodo answers for a published
-// record whatever token comes with it - tried with a made-up one, 2026-11 -
-// and a link that grants editing it looks no different. So any other answer,
-// and no answer, is false: a caller that skips a link must be sure of it.
+// For a draft that is a test of the token. Zenodo does not say a draft is
+// there unless the token opens it: 404, not 403, for a made-up token and for
+// none, where the real one got 200 (the sandbox, 2026-11, a link made to
+// preview a draft). Not tried: a link that only lets its holder view, made for
+// a draft, which may open files once it is published.
+//
+// For a published record it tests nothing. Zenodo answers 200 whatever token
+// comes with it, and a link that grants editing looks no different. So any
+// answer but "not there", and no answer, is false: a caller that skips a link
+// must be as sure as this can be.
 //
 // The status is all that leaves here: an error would quote the token.
-func (s *Services) NoZenodoRecord(ctx context.Context, target ZenodoTarget) bool {
+func (s *Services) ShareLinkOpensNothing(ctx context.Context, target ZenodoTarget) bool {
 	if !s.Enabled() || target.ID == "" || target.Token == "" {
 		return false
 	}

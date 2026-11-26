@@ -162,10 +162,15 @@ func TestIntegrationSandboxDraftByShareLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A real share link must never be taken for one that points at nothing:
+	// A real share link must never be taken for one that opens nothing:
 	// the bot would leave it on the issue.
-	if services.NoZenodoRecord(context.Background(), target) {
-		t.Error("a real share link of a draft was taken to point at nothing")
+	if services.ShareLinkOpensNothing(context.Background(), target) {
+		t.Error("a real share link of a draft was taken to open nothing")
+	}
+	madeUp := target
+	madeUp.Token = "made-up"
+	if !services.ShareLinkOpensNothing(context.Background(), madeUp) {
+		t.Error("Zenodo no longer hides a draft from a made-up token, which is what tells one from a real link")
 	}
 	audit := AuditZenodo(context.Background(), target, Context{}, services)
 	if audit.Problem != "" {

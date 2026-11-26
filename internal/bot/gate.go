@@ -24,7 +24,7 @@ import (
 // admit says whether the author of a comment may task the bot, and answers
 // them when not. A panic in deciding admits nobody and posts nothing: it is
 // reported, and there is nobody here to apologise to yet.
-func (s *Server) admit(event mention, commands []command.Command) (admitted bool) {
+func (s *Server) admit(event mention) (admitted bool) {
 	defer s.recoverBackground("Deciding who may ask me panicked on " + event.check() + ".")
 
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
@@ -32,7 +32,7 @@ func (s *Server) admit(event mention, commands []command.Command) (admitted bool
 
 	may, refused := s.mayTask(ctx, event)
 	if !may {
-		s.turnAway(ctx, event, commands, refused)
+		s.turnAway(ctx, event, refused)
 	}
 	return may
 }
@@ -109,7 +109,7 @@ func (s *Server) partOfTheIssue(ctx context.Context, event mention, handle strin
 // that once: two at most.
 //
 // A comment asking `check zenodo` with a share link is deleted all the same,
-// and every one of them, unless its link surely points at nothing. The person
+// and every one of them, unless Zenodo shows nothing for its link. The person
 // has to revoke a link, so a deletion is explained even to somebody told
 // already - as often as refusals.share_link_replies says on one issue, and
 // then no more, or the deletions would be a way to make the bot post for ever.
@@ -117,17 +117,13 @@ func (s *Server) partOfTheIssue(ctx context.Context, event mention, handle strin
 // A deletion that failed leaves the link up, so its warning is counted apart
 // from those: given at least once whatever the setting says, and even where
 // the comments cannot be listed to count them.
-func (s *Server) turnAway(ctx context.Context, event mention, commands []command.Command, refused command.Refused) {
+func (s *Server) turnAway(ctx context.Context, event mention, refused command.Refused) {
 	s.Logger.Info("no commands are taken from this account", "repository", event.Repository,
 		"issue", event.Issue, "author", event.Author, "unread", refused.Unread, "record_edited", refused.Edited)
 
-	// event.Body is still the whole comment here, so one look covers every
-	// command in it, those past the most that are run included.
 	var link command.ShareLink
-	if i := slices.IndexFunc(commands, func(parsed command.Command) bool {
-		return parsed.Name == command.CheckZenodo
-	}); i >= 0 {
-		link = s.deleteShareLink(ctx, event, commands[i])
+	if event.linkDealt != nil {
+		link = *event.linkDealt
 	}
 
 	// explain is whether this reply tells of the link; link stays what became
@@ -199,7 +195,9 @@ func refusalClaim(event mention, kind string) string {
 // refusalsTo are the refusals the bot has posted to this person on this issue.
 // Comments that cannot be listed are not readable, and then nothing is posted:
 // staying silent costs somebody an explanation, and the other way round lets a
-// stranger draw a post each time. A reply path that cannot list at all - a
+// stranger draw a post each time. The one exception is turnAway's, and
+// deliberate: while a link cannot be deleted either, each is warned of, with no
+// count to go by, because a link left up in silence is the worse failure. A reply path that cannot list at all - a
 // test's recorder - has told nobody.
 func (s *Server) refusalsTo(ctx context.Context, event mention) (told []string, readable bool) {
 	reader, ok := s.posterFor(event.Repository).(Reader)

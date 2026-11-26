@@ -69,6 +69,11 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 		if definition.Name == command.Commands {
 			reply += s.Deployment.HelpPointer()
 		}
+		// `check zenodo` is not answered here, but its link was dealt with,
+		// and whoever posted it has to hear what became of it.
+		if event.linkDealt != nil && parsed.Name == command.CheckZenodo {
+			reply += command.ShareLinkNote(*event.linkDealt)
+		}
 		return said(reply)
 	case !definition.AnyListsIssue && !s.isRegistration(event):
 		return said(command.NotARegistrationReply(s.Settings.RegistrationLabel()))

@@ -248,9 +248,14 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 // caught by act, and the next still runs. At most command.MostCommands, and
 // the rest are named in a reply posted before the first is run.
 func (s *Server) actEach(event mention, commands []command.Command) {
-	// Once for the comment, before anything it asks is looked at: one answer
-	// to somebody turned away, however many commands they gave.
-	if !s.admit(event, commands) {
+	// A share link first, once for the whole comment: whoever asks, it is
+	// deleted, and it is usable until the comment is gone - so not after the
+	// questions of who may ask, nor after commands that take minutes, and also
+	// when its `check zenodo` is past the most that are run.
+	event.linkDealt = s.dealWithShareLink(event, commands)
+	// Then once for the comment, before anything it asks is looked at: one
+	// answer to somebody turned away, however many commands they gave.
+	if !s.admit(event) {
 		if s.done != nil {
 			s.done <- struct{}{}
 		}
@@ -258,6 +263,10 @@ func (s *Server) actEach(event mention, commands []command.Command) {
 	}
 	commands, notRun := command.Capped(commands)
 	if notRun != "" {
+		if event.linkDealt != nil && zenodoAmong(commands) < 0 {
+			// No reply of its own is coming to say what became of the link.
+			notRun += command.ShareLinkNote(*event.linkDealt)
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 		if _, err := s.post(ctx, event, said(notRun)); err != nil {
 			s.Logger.Error("the note on commands not run could not be posted", "issue", event.Issue, "error", err)
@@ -366,7 +375,11 @@ func (s *Server) bodyOf(result answered) (string, error) {
 		return "", nil
 	}
 	if result.follow != nil {
-		block, err := followup.Render(*result.follow, s.signer())
+		// The record goes on after the reply was defused, and may keep what
+		// somebody wrote: no share link's secret in there either.
+		record := *result.follow
+		record.Note = command.WithoutShareTokens(record.Note)
+		block, err := followup.Render(record, s.signer())
 		if err != nil {
 			return "", fmt.Errorf("the follow-up could not be written, so nothing would chase it: %w", err)
 		}

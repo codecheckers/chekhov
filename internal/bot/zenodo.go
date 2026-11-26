@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -24,7 +25,13 @@ func (s *Server) checkZenodo(ctx context.Context, event mention, parsed command.
 	// First, before the audit takes its time: for as long as the comment is
 	// there, anyone who can read the issue can use the link. Whatever is
 	// wrong with the rest of the command, a link that may open something goes.
-	link := s.deleteShareLink(ctx, event, parsed)
+	// In a deployment actEach has dealt with it, for the whole comment.
+	var link command.ShareLink
+	if event.linkDealt != nil {
+		link = *event.linkDealt
+	} else {
+		link = s.deleteShareLink(ctx, event, parsed)
+	}
 	refuse := func(refusal string) answered { return said(refusal + command.ShareLinkNote(link)) }
 
 	// The record the command names, read before anything else: a word that
@@ -84,6 +91,30 @@ func (s *Server) checkZenodo(ctx context.Context, event mention, parsed command.
 	return said(command.AuditReply(audit))
 }
 
+// zenodoAmong is where the first `check zenodo` is among a comment's
+// commands, -1 for none.
+func zenodoAmong(commands []command.Command) int {
+	return slices.IndexFunc(commands, func(parsed command.Command) bool {
+		return parsed.Name == command.CheckZenodo
+	})
+}
+
+// dealWithShareLink deletes the comment that asks `check zenodo` with a share
+// link, and says what became of it; nil when the comment asks no such thing.
+// event.Body is still the whole comment here. A panic is reported and costs
+// this, not the commands; a `check zenodo` among those run then tries again.
+func (s *Server) dealWithShareLink(event mention, commands []command.Command) (dealt *command.ShareLink) {
+	i := zenodoAmong(commands)
+	if i < 0 {
+		return nil
+	}
+	defer s.recoverBackground("Dealing with a share link panicked on " + event.check() + ".")
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+	link := s.deleteShareLink(ctx, event, commands[i])
+	return &link
+}
+
 // Deleting is the part of the reply path that deletes a comment. A Poster
 // that cannot - a preview - leaves the comment, and the reply asks the person
 // to delete it.
@@ -93,10 +124,6 @@ type Deleting interface {
 
 var _ Deleting = (*github.Client)(nil)
 
-// shareLink is a Zenodo link carrying a token, wherever it is in the comment:
-// the argument, a second one, or the lines below the command.
-var shareLink = regexp.MustCompile(`(?i)zenodo\.org/\S*[?&]token=`)
-
 // shareLinkCheck bounds the asking whether a link points at anything, since
 // the comment stays up until it is answered; mostLinksChecked bounds how many
 // of one comment are asked about.
@@ -105,11 +132,20 @@ const (
 	mostLinksChecked = 3
 )
 
-// pointsAtNothing says every share link in a comment is surely one to no
-// record, so that there is nothing to protect. Anything it cannot be sure of -
-// a link it cannot read, more than it asks about, a token outside a link it
-// read, Zenodo not answering, services off - is false.
-func (s *Server) pointsAtNothing(ctx context.Context, text string) bool {
+// wholeToken is a share link's token that is plainly all there is of it: the
+// characters a token is made of, a letter or digit at each end, and then the
+// end of the link or its next part. What GitHub leaves out of a link - the
+// marks of bold or struck-through text, a closing quote - would otherwise be
+// asked about as part of the token, Zenodo would say that opens nothing, and
+// the link would stay up.
+var wholeToken = regexp.MustCompile(`(?i)[?&]token=[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?(?:[&#]|$)`)
+
+// opensNothing says every share link in a comment is one Zenodo shows nothing
+// for, so that there is nothing to protect; see check.ShareLinkOpensNothing
+// for how far that goes. Anything it cannot be sure of - a link it cannot
+// read or a token that may not be whole, more links than it asks about, a
+// token outside a link it read, Zenodo not answering, services off - is false.
+func (s *Server) opensNothing(ctx context.Context, text string) bool {
 	services := s.Services.Fresh()
 	if !services.Enabled() {
 		return false
@@ -126,12 +162,13 @@ func (s *Server) pointsAtNothing(ctx context.Context, text string) bool {
 		if !strings.Contains(lower, "token=") {
 			continue
 		}
-		if strings.Count(lower, "zenodo.org/") != 1 {
-			return false
-		}
 		// As command.arguments does, so that the link in the comment and the
 		// same link as a command's last argument are one.
 		word = strings.TrimRight(word, ".,;:!?")
+		if strings.Count(lower, "zenodo.org/") != 1 || strings.Count(lower, "token=") != 1 ||
+			!wholeToken.MatchString(word) {
+			return false
+		}
 		if !strings.Contains(word, "://") {
 			word = "https://" + word
 		}
@@ -145,7 +182,7 @@ func (s *Server) pointsAtNothing(ctx context.Context, text string) bool {
 		return false
 	}
 	for target := range targets {
-		if !services.NoZenodoRecord(ctx, target) {
+		if !services.ShareLinkOpensNothing(ctx, target) {
 			return false
 		}
 	}
@@ -158,15 +195,19 @@ func (s *Server) pointsAtNothing(ctx context.Context, text string) bool {
 // it. Why a deletion failed goes to the log, not to the issue.
 func (s *Server) deleteShareLink(ctx context.Context, event mention, parsed command.Command) command.ShareLink {
 	text := event.CommentBody + " " + event.Body + " " + strings.Join(parsed.Args, " ")
-	if !shareLink.MatchString(text) {
+	// Wherever it is in the comment: the argument, a second one, or the lines
+	// below the command.
+	if !command.HoldsShareLink(text) {
 		return command.ShareLink{}
 	}
 	inDescription := event.Comment == 0
-	if s.pointsAtNothing(ctx, text) {
-		return command.ShareLink{NoRecord: true, InDescription: inDescription}
+	if s.opensNothing(ctx, text) {
+		return command.ShareLink{OpensNothing: true, InDescription: inDescription}
 	}
 	link := command.ShareLink{Held: true, InDescription: inDescription}
-	deleter, canDelete := s.Replies.(Deleting)
+	// Through the path that writes to where the comment is: the register's
+	// refuses the lists, and theirs the register.
+	deleter, canDelete := s.posterFor(event.Repository).(Deleting)
 	if link.InDescription || !canDelete {
 		return link
 	}

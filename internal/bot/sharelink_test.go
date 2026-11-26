@@ -27,7 +27,7 @@ const (
 
 // Only a comment whose every link surely points at nothing is left alone, and
 // anything the bot cannot be sure of counts against that.
-func TestWhichCommentsPointAtNothing(t *testing.T) {
+func TestWhichCommentsOpenNothing(t *testing.T) {
 	server, _ := testServer(t)
 	zenodoWith(t, server)
 	server.Services.ZenodoSandbox = "https://sandbox.example.invalid/api"
@@ -42,8 +42,8 @@ func TestWhichCommentsPointAtNothing(t *testing.T) {
 		"one ending a sentence, and again without": deadLink + ". " + deadLink + " " + other("404405") +
 			" " + other("404406"),
 	} {
-		if !server.pointsAtNothing(context.Background(), text) {
-			t.Errorf("%s: %q was not seen to point at nothing", name, text)
+		if !server.opensNothing(context.Background(), text) {
+			t.Errorf("%s: %q was not seen to open nothing", name, text)
 		}
 	}
 	for name, text := range map[string]string{
@@ -58,13 +58,13 @@ func TestWhichCommentsPointAtNothing(t *testing.T) {
 		"no token at all":                    "https://zenodo.org/records/404404",
 		"the sandbox, which cannot be asked": "https://sandbox.zenodo.org/records/404404?token=made-up",
 	} {
-		if server.pointsAtNothing(context.Background(), text) {
-			t.Errorf("%s: %q was taken to point at nothing", name, text)
+		if server.opensNothing(context.Background(), text) {
+			t.Errorf("%s: %q was taken to open nothing", name, text)
 		}
 	}
 	server.Services = nil
-	if server.pointsAtNothing(context.Background(), deadLink) {
-		t.Error("without services, a link was taken to point at nothing")
+	if server.opensNothing(context.Background(), deadLink) {
+		t.Error("without services, a link was taken to open nothing")
 	}
 }
 
@@ -168,7 +168,7 @@ func TestCheckZenodoLeavesALinkToNothing(t *testing.T) {
 	if len(deleter.deleted) != 0 {
 		t.Errorf("deleted %v", deleter.deleted)
 	}
-	says(t, reply, "so I have left the comment as it is", "delete the comment")
+	says(t, reply, "So I have left the comment as it is", "delete the comment")
 	if strings.Contains(reply, shareSecret) {
 		t.Errorf("the reply repeats the token:\n%s", reply)
 	}
@@ -244,4 +244,113 @@ func TestALinkToNothingInADescriptionSaysWhereItIs(t *testing.T) {
 	note := command.ShareLinkNote(server.deleteShareLink(context.Background(), event, parsed))
 
 	says(t, note, "left the issue's description as it is", "edit it out of the description")
+}
+
+// A share link is dealt with once for the whole comment, before any command in
+// it is run or quoted: also one past the most that are run, which used to stay
+// up and be repeated, token and all, in the note on what was not run.
+func TestAShareLinkPastTheMostCommandsIsDeletedAndNeverRepeated(t *testing.T) {
+	ask := "@chekhovbot check zenodo " + liveLink + "SECRET"
+	for name, body := range map[string]string{
+		"past the most that are run": strings.Repeat("@chekhovbot hello\n", command.MostCommands) + ask,
+		"quoted by another command":  strings.Repeat("@chekhovbot hello\n", command.MostCommands) + "@chekhovbot hello " + liveLink + "SECRET\n" + ask,
+		"asked twice":                ask + "\n" + ask,
+	} {
+		server, path := gated(t)
+		zenodoWith(t, server)
+		server.done = make(chan struct{}, 10)
+		commands, _ := command.Capped(command.Split(body))
+
+		asking{by: "nuest", body: body}.send(t, server)
+		for range len(commands) - 1 {
+			<-server.done
+		}
+
+		if len(path.deleted) != 1 {
+			t.Errorf("%s: deleted %v, want the comment once", name, path.deleted)
+		}
+		said := false
+		for _, posted := range path.recorder.comments {
+			if strings.Contains(posted.Body, "SECRET") {
+				t.Errorf("%s: a reply repeats the token:\n%s", name, posted.Body)
+			}
+			said = said || command.ExplainsDeletion(posted.Body)
+		}
+		if !said {
+			t.Errorf("%s: nothing says the comment was deleted", name)
+		}
+	}
+}
+
+// listsDeleting is a reply path of the lists that deletes comments.
+type listsDeleting struct {
+	*recorder
+	deleted []string
+}
+
+func (l *listsDeleting) DeleteComment(_ context.Context, repository string, _ int64) error {
+	l.deleted = append(l.deleted, repository)
+	return nil
+}
+
+// A comment on the lists is deleted through the lists' own path: the
+// register's refuses any repository but its own, so it never could.
+func TestAShareLinkOnTheListsIsDeletedThroughTheLists(t *testing.T) {
+	for name, by := range map[string]string{"a stranger": stranger, "a member": "nuest"} {
+		server, register, recorded, _ := listsServer(t)
+		lists := &listsDeleting{recorder: recorded}
+		server.Lists = lists
+		registers := &deleting{Poster: register}
+		server.Replies = registers
+
+		eventType, payload := registrationEvent(testLists, registrationRow,
+			"@chekhovbot check zenodo "+liveLink+"SECRET", by, "registration")
+		payload["comment"].(map[string]any)["id"] = 99
+		deliverEvent(t, server, eventType, payload)
+
+		if len(lists.deleted) != 1 || lists.deleted[0] != testLists || len(registers.deleted) != 0 {
+			t.Errorf("%s: deleted through the lists %v, through the register %v", name, lists.deleted, registers.deleted)
+		}
+		if reply := lists.last(); !command.ExplainsDeletion(reply) || strings.Contains(reply, "SECRET") {
+			t.Errorf("%s: the reply:\n%s", name, reply)
+		}
+	}
+}
+
+// A reminder keeps its note in a hidden record in the bot's own comment, which
+// anyone can read from the API: the token does not go in there either.
+func TestAReminderKeepsNoShareToken(t *testing.T) {
+	server, path := gated(t)
+
+	asking{by: "nuest", body: "@chekhovbot remind me in 3 days\n" + liveLink + "SECRET"}.send(t, server)
+
+	if reply := path.last(); !strings.Contains(reply, "chekhov:") || strings.Contains(reply, "SECRET") {
+		t.Errorf("the reminder, record and all:\n%s", reply)
+	}
+}
+
+// What a link is wrapped in or runs into must not be read as part of its
+// token: Zenodo would say the damaged token opens nothing, and the link, which
+// GitHub may well show without it, would stay up. So a token that is not
+// plainly a whole one is doubt, and every doubt deletes.
+func TestATokenThatMayNotBeWholeIsDoubt(t *testing.T) {
+	server, _ := testServer(t)
+	zenodoWith(t, server)
+
+	for _, text := range []string{
+		"**" + deadLink + "**", "**my draft: " + deadLink + "**", "_draft " + deadLink + "_", "__ " + deadLink + "__",
+		"~~old " + deadLink + "~~", deadLink + `\`, deadLink + "}", deadLink + "|x", deadLink + "”",
+		deadLink + "—thanks", deadLink + "*", deadLink + "-", deadLink + "…", deadLink + "%2A", deadLink + "=",
+		"{" + deadLink + "}", "|" + deadLink + "|",
+	} {
+		if server.opensNothing(context.Background(), text) {
+			t.Errorf("%q was taken to open nothing", text)
+		}
+	}
+	for _, text := range []string{deadLink + ".", deadLink + "&preview=1", deadLink + "#files",
+		"https://zenodo.org/records/404404?preview=1&token=aB3-x_y.eyJ9.Zz0"} {
+		if !server.opensNothing(context.Background(), text) {
+			t.Errorf("%q, a whole token, was not asked about", text)
+		}
+	}
 }

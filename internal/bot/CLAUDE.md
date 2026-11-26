@@ -63,10 +63,16 @@ usage - which the platform reads as a crash loop.
   could not be deleted is still up**: its warning is counted apart, and no
   setting or unreadable listing silences the first. The sweeps do not ask the
   gate.
-- **`deleteShareLink` leaves only a comment whose links surely point at
-  nothing** (`pointsAtNothing`): **every doubt deletes**, because a real link
-  left up costs more than a fake one removed. Zenodo ignores the token on a
-  published record, so no request can show a link genuine.
+- **`deleteShareLink` leaves only a comment whose links Zenodo shows nothing
+  for** (`opensNothing`, which trusts only a token that is plainly
+  whole): **every doubt deletes**, because a real link left
+  up costs more than a fake one removed. Zenodo hides a draft from a token
+  that does not open it, and ignores the token on a published record, so there
+  no request can show a link genuine.
+- **A share link is dealt with once per comment**, in `actEach` before any
+  command is run or quoted, and through the path of the repository the comment
+  is in (`posterFor`). `command.Defuse` cuts the token out of whatever the bot
+  posts, and a record that keeps somebody's text has to cut it too.
 - **A deployment does not read its own disk.** `Server.LocalPaths` is off, so a
   path in a comment is not a target; only a `github::owner/repo` spec is. The
   command line preview turns it on, because there the path is the user's own.

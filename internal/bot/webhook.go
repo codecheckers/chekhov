@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/people"
 )
 
@@ -60,6 +61,9 @@ type mention struct {
 	// the comment rather than the command: a share link anywhere in it is a
 	// reason to delete all of it. Empty when the command is not from a comment.
 	CommentBody string
+	// linkDealt is what became of a share link in the comment, once that was
+	// dealt with for all of its commands; nil when it has not been.
+	linkDealt *command.ShareLink
 	// Comment is the comment the command is in, 0 for an issue's description.
 	Comment int64
 	// IssueAuthor, IssueBody and Labels are the issue's own, as GitHub sent
