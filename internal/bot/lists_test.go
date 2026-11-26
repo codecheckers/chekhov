@@ -206,6 +206,23 @@ func TestEachRepositoryAnswersItsOwnCommands(t *testing.T) {
 	}
 }
 
+// `help` and `commands` on the lists point at the help page, which has the
+// commands of the lists; any other command of the register does not.
+func TestAskingForTheCommandsOnTheListsLinksTheHelpPage(t *testing.T) {
+	server, _, lists, _ := listsServer(t)
+	const url = "https://chekhov-dev.pqapp.dev/help"
+	server.Deployment.HelpURL = url
+
+	for word, linked := range map[string]bool{"help": true, "commands": true, "version": false, "frobnicate": false} {
+		eventType, payload := registrationEvent(testLists, registrationRow, "@chekhovbot "+word, madeUpRegistrar, "registration")
+		deliverEvent(t, server, eventType, payload)
+		reply := lists.last()
+		if !strings.Contains(reply, "I answer `@chekhovbot include check`") || strings.Contains(reply, "[help page]("+url+")") != linked {
+			t.Errorf("%s on the lists, link wanted %v:\n%s", word, linked, reply)
+		}
+	}
+}
+
 // A deployment without a client for the lists does not answer there, as it
 // does not answer on any other repository it was not given.
 func TestListsWithoutAClientAreNotAnswered(t *testing.T) {

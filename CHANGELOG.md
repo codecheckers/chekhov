@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-11-26
+
+### Added
+
+- `help` and `commands` on the codechecker lists link to the help page.
+
 ## [0.48.0] - 2026-11-26
 
 ### Added

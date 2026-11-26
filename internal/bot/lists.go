@@ -63,7 +63,13 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 	definition, found := command.Lookup(string(parsed.Name))
 	switch {
 	case !found || !definition.Lists:
-		return said(command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository()))
+		reply := command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository())
+		// Somebody asking for the commands, under either word, is shown
+		// where they all are.
+		if definition.Name == command.Commands {
+			reply += s.Deployment.HelpPointer()
+		}
+		return said(reply)
 	case !definition.AnyListsIssue && !s.isRegistration(event):
 		return said(command.NotARegistrationReply(s.Settings.RegistrationLabel()))
 	// Only the standing roles, as the lists have no check and so no per-check

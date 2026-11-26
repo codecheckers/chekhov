@@ -107,11 +107,16 @@ func Listing(roles Roles) string {
 // CommandsReply is the listing, ending with where the same commands are to be
 // read without commenting.
 func (d Deployment) CommandsReply(roles Roles) string {
-	reply := Listing(roles)
-	if d.HelpURL != "" {
-		reply += fmt.Sprintf("\nAll commands, and who may run each, are on the [help page](%s).\n", d.HelpURL)
+	return Listing(roles) + d.HelpPointer()
+}
+
+// HelpPointer is what ends a reply to somebody asking for the commands: the
+// paragraph linking the help page, empty where its address is not known.
+func (d Deployment) HelpPointer() string {
+	if d.HelpURL == "" {
+		return ""
 	}
-	return reply
+	return fmt.Sprintf("\nAll commands, and who may run each, are on the [help page](%s).\n", d.HelpURL)
 }
 
 // HelloReply is the answer to the liveness check: short, and specific enough
