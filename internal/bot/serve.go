@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,9 +18,11 @@ import (
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/logbook"
 	"github.com/codecheckers/chekhov/internal/mastodon"
 	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/registration"
+	"github.com/codecheckers/chekhov/internal/safe"
 )
 
 // Serve runs the bot until the process is asked to stop.
@@ -27,7 +30,17 @@ import (
 // It lives here rather than in the command so that the server is not tangled
 // with the tool around it: the deployment runs "chekhov serve" through the
 // Procfile, and a person on a terminal runs the same thing.
-func Serve(address string) error {
+func Serve(address string) (failure error) {
+	// The log first, before anything can be logged around it: every record
+	// to stderr, which is the platform's log, and the recent ones kept in
+	// memory, with the errors offered to the private log repository once
+	// there is a client to write there with (#73). Every package logs
+	// through slog.Default, so this one line covers all of them.
+	stderr := slog.NewTextHandler(os.Stderr, nil)
+	buffer := logbook.NewBuffer()
+	tee := logbook.NewHandler(stderr, buffer)
+	slog.SetDefault(slog.New(tee))
+
 	settings, err := config.Current()
 	if err != nil {
 		return err
@@ -61,6 +74,22 @@ func Serve(address string) error {
 	replies.Rows, replies.Account = github.RegisterRows(settings.RegisterFile()), settings.BotUser()
 
 	server := New(settings, secret, replies, deployment)
+	server.Log = buffer
+	if repository := settings.LogRepository(); repository != "" {
+		server.logSink = logSinkFor(replies, repository, deployment, buffer, slog.New(stderr))
+		tee.Attach(server.logSink)
+		// A start that fails from here on is an error worth reporting too,
+		// and the reports still queued are given a few seconds on the way
+		// out, whichever way that is.
+		defer func() {
+			if failure != nil {
+				slog.Error("chekhov could not start", "error", failure)
+			}
+			draining, cancel := context.WithTimeout(context.Background(), sinkDrain)
+			defer cancel()
+			server.logSink.Close(draining)
+		}()
+	}
 	// The codechecker lists are a second repository, answered through a
 	// client of their own that writes there and nowhere else, in the same
 	// queue as everything above. See internal/bot/lists.go and #49.
@@ -126,7 +155,19 @@ func Serve(address string) error {
 		"environment", deployment.Environment,
 		"announcing", server.Toots != nil, "visibility", settings.Mastodon().Visibility)
 
-	return listen(address, server.Handler())
+	return listen(address, server.Handler(), tee)
+}
+
+// logSinkFor is the sink for the errors, writing to the log repository
+// through a client of its own: it opens issues there and nowhere else, puts
+// on only this deployment's label and `fatal`, waits in the one write queue,
+// and logs to stderr alone - so that a failure to report cannot be reported.
+func logSinkFor(replies *github.Client, repository string, deployment command.Deployment,
+	buffer *logbook.Buffer, stderr *slog.Logger) *fatalSink {
+	client := replies.For(repository, deployment.Signature())
+	client.Opens, client.AddableLabels = true, []string{logLabel(deployment), labelFatal}
+	client.Logger = stderr
+	return newFatalSink(repository, deployment, client, buffer, stderr)
 }
 
 // reloadTeams fills the membership cache before the first command needs it.
@@ -161,19 +202,29 @@ func reloadTeams(server *Server, settings *config.Settings) {
 
 // listen serves until the process is asked to stop, and then lets the commands
 // in flight finish.
-func listen(address string, handler http.Handler) error {
+//
+// What net/http logs - a handler that panicked, which it recovers itself - goes
+// to the log as an Error, so that it reaches the log repository like every
+// other; without ErrorLog it would go to stderr past slog.
+func listen(address string, router http.Handler, handler slog.Handler) error {
 	httpServer := &http.Server{
 		Addr:              address,
-		Handler:           handler,
+		Handler:           router,
 		ReadHeaderTimeout: 10 * time.Second,
+		ErrorLog:          log.New(httpErrors{slog.New(handler)}, "", 0),
 	}
 
 	stopping := make(chan os.Signal, 1)
 	signal.Notify(stopping, os.Interrupt, syscall.SIGTERM)
+	stopped := make(chan struct{})
 	go func() {
+		defer close(stopped)
+		// A Shutdown that panics must still stop the server, or the signal
+		// would be swallowed and the process never end.
+		defer safe.Recover("stopping the server", func(error) { _ = httpServer.Close() })
 		<-stopping
 		slog.Info("chekhov is stopping")
-		shutdown, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		shutdown, cancel := context.WithTimeout(context.Background(), shutdownGrace)
 		defer cancel()
 		_ = httpServer.Shutdown(shutdown)
 	}()
@@ -181,7 +232,31 @@ func listen(address string, handler http.Handler) error {
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+	// ListenAndServe returns as soon as Shutdown begins; the twenty seconds
+	// are Shutdown's, so wait for it.
+	<-stopped
 	return nil
+}
+
+// shutdownGrace is what Shutdown is given of the twenty seconds a redeploy
+// allows: the rest is the log sink's, to drain what is queued (sinkDrain).
+const shutdownGrace = 20*time.Second - sinkDrain
+
+// httpErrors is where net/http's own log goes. A handler that panicked, which
+// net/http recovers itself, is an Error and reaches the log repository; every
+// other line it writes - a client's malformed request, a URL with a semicolon
+// - is anybody's to cause, so it is a Warn, and cannot fill the repository
+// or the hourly budget a real error needs.
+type httpErrors struct{ logger *slog.Logger }
+
+func (h httpErrors) Write(line []byte) (int, error) {
+	message := strings.TrimSpace(string(line))
+	level := slog.LevelWarn
+	if strings.HasPrefix(message, "http: panic serving") {
+		level = slog.LevelError
+	}
+	h.logger.Log(context.Background(), level, message)
+	return len(line), nil
 }
 
 // deploymentFor is the one place a Deployment is assembled, so that no caller

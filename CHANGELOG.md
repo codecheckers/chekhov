@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-11-26
+
+### Added
+
+- Every error the bot logs is reported, on its own and notifying nobody, as an
+  issue labelled `fatal` in the private log repository
+  `codecheckers/chekhov-log`, with its stack trace and the records before it;
+  the same error again is a comment on that issue (#73).
+- `GET /nudges` counts what was reported there as `log_sink` (#73).
+
+### Changed
+
+- With a log repository, a panic's report on the admin issue says only where
+  the details are, without the panic value or the trace (#73).
+- A panic in any goroutine of the deployment, or in an HTTP handler, is
+  reported instead of ending the process or going past the log (#73).
+
 ## [0.52.0] - 2026-11-26
 
 ### Added

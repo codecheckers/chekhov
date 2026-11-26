@@ -1014,7 +1014,7 @@ func SuggestionsReply(s Suggestions) string {
 		reply.WriteString("| Handle | Codechecker | Declares |\n|---|---|---|\n")
 		for _, candidate := range s.Candidates {
 			fmt.Fprintf(&reply, "| `@%s` | %s | %s |\n", candidate.Handle,
-				oneLine(withoutMentions(candidate.Name)), oneLine(candidate.Why))
+				oneLine(WithoutMentions(candidate.Name)), oneLine(candidate.Why))
 		}
 		if s.Undistinguished {
 			reply.WriteString("\nAll matches share the same terms. " +
@@ -1046,13 +1046,13 @@ func SuggestionsReply(s Suggestions) string {
 	return reply.String()
 }
 
-// withoutMentions writes an at sign so that it cannot notify anybody.
+// WithoutMentions writes an at sign so that it cannot notify anybody.
 //
 // A name comes out of a list people fill in about themselves, and a name with
 // an @ in it would mention whoever owns that handle from a reply whose whole
 // promise is that asking me notifies nobody. The entity renders as an @ and
 // links to nothing.
-func withoutMentions(text string) string { return strings.ReplaceAll(text, "@", "&#64;") }
+func WithoutMentions(text string) string { return strings.ReplaceAll(text, "@", "&#64;") }
 
 // describeShortlist says whether the reply is the whole answer or a slice of
 // it. Five out of forty is a different answer from five out of five, and an

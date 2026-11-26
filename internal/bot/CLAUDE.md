@@ -85,6 +85,16 @@ usage - which the platform reads as a crash loop.
   `SetRowPullRequestDraft` reads the pull request by number from the lists
   repository first and takes the id from it, so never pass it an id from
   anywhere else.
+- **The log goes through `internal/logbook`** (#73). `Serve` installs its tee
+  as the default `slog` handler before anything else: stderr, a buffer of the
+  last 2000 records, and every record at Error offered to `fatalSink`
+  (`logsink.go`), which reports it in the private log repository. The sink
+  never blocks the goroutine that logged, asks GitHub that the repository is
+  private before its first write, and logs its own trouble to stderr at Warn
+  only - so an Error is for something going wrong, and **must never be logged
+  by the reporting itself**. **Every goroutine recovers**: start one with
+  `safe.Go`, or defer `safe.Recover` or a `recover…` helper first;
+  `TestEveryGoroutineRecovers` fails otherwise.
 - `chekhov comment` renders its answer through the same `bot.Preview` the
   listener uses, so what you read on the command line is what would be posted.
 

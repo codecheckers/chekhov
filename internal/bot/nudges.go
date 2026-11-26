@@ -113,10 +113,16 @@ func (h *sweeps) state(development bool, switched map[string]int) map[string]any
 
 // nudgeState answers GET /nudges.
 func (s *Server) nudgeState(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, s.sweeps.state(s.Deployment.Development(), map[string]int{
+	state := s.sweeps.state(s.Deployment.Development(), map[string]int{
 		"quiet":             int(s.Settings.QuietAfter() / day),
 		"needs_codechecker": int(s.Settings.QueueAfter() / day),
-	}))
+	})
+	// Counts only, as everything here: whether errors are reaching the log
+	// repository is the question, and what they were is for that repository.
+	if s.logSink != nil {
+		state["log_sink"] = s.logSink.Counts()
+	}
+	writeJSON(w, state)
 }
 
 // sweepNightly runs the sweep until the process is asked to stop.
@@ -125,6 +131,15 @@ func (s *Server) nudgeState(w http.ResponseWriter, _ *http.Request) {
 // register, and counting it here would let a manual run hide a ticker that
 // has stopped - which is the one thing the history exists to show.
 func (s *Server) sweepNightly(ctx context.Context) {
+	// sweepOnce guards each sweep; this guards the timer around them, and
+	// starts it again: a panic here must cost one night, not every night
+	// until the next deploy.
+	defer func() {
+		if r := recover(); r != nil {
+			s.reportRecovered(r, "The timer of the nightly sweep panicked; it starts again.")
+			go s.sweepNightly(ctx)
+		}
+	}()
 	timer := time.NewTimer(firstSweep)
 	defer timer.Stop()
 	for {

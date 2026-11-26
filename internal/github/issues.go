@@ -82,6 +82,13 @@ func (c *Client) LabelledIssues(ctx context.Context, repository, label string) (
 	return c.issues(ctx, repository, "all", "&labels="+url.QueryEscape(label))
 }
 
+// OpenLabelledIssues returns the open issues of the configured repository
+// that carry a label: in the log repository, the fatal ones still waiting
+// for somebody (#73).
+func (c *Client) OpenLabelledIssues(ctx context.Context, repository, label string) ([]Issue, error) {
+	return c.issues(ctx, repository, "open", "&labels="+url.QueryEscape(label))
+}
+
 // ClosedIssuesSince returns the closed issues of the configured repository
 // that changed since a time, pull requests left out. The register pull
 // request closes a check, and an archive reminder (#27) is due after that:

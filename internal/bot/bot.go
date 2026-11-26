@@ -24,9 +24,11 @@ import (
 	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/followup"
 	"github.com/codecheckers/chekhov/internal/github"
+	"github.com/codecheckers/chekhov/internal/logbook"
 	"github.com/codecheckers/chekhov/internal/mastodon"
 	"github.com/codecheckers/chekhov/internal/people"
 	"github.com/codecheckers/chekhov/internal/rules"
+	"github.com/codecheckers/chekhov/internal/safe"
 )
 
 // commandTimeout bounds one command. GitHub gives a webhook 10 seconds to be
@@ -112,6 +114,12 @@ type Server struct {
 	// them. Nil means nobody does: a deployment that cannot read the teams
 	// refuses the editor commands rather than opening them to everyone.
 	Teams *people.Teams
+
+	// Log is what the bot has logged recently, and logSink where an error is
+	// reported: the private log repository (#73). Both nil when the
+	// deployment has none, and then the log is the platform's alone.
+	Log     *logbook.Buffer
+	logSink *fatalSink
 
 	// Checks is the per-check roles, kept in each issue's own bot-owned
 	// comment. Nil means the bot cannot read or record them, and says so
@@ -248,6 +256,9 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 // caught by act, and the next still runs. At most command.MostCommands, and
 // the rest are named in a reply posted before the first is run.
 func (s *Server) actEach(event mention, commands []command.Command) {
+	// act guards each command; this guards what comes before them, which runs
+	// on the goroutine dispatch started and would otherwise end the process.
+	defer s.recoverBackground(fmt.Sprintf("Reading a comment on %s panicked before any command was run.", event.check()))
 	// A share link first, once for the whole comment: whoever asks, it is
 	// deleted, and it is usable until the comment is gone - so not after the
 	// questions of who may ask, nor after commands that take minutes, and also
@@ -430,11 +441,14 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 // from work done for somebody, and apologises to them; recoverBackground
 // catches one from work done on a timer, which has nobody to apologise to;
 // aside catches one from a goroutine a command started, which recoverCommand
-// cannot see. All three hand what they caught to reportRecovered, which is the
-// whole of what is done with a panic. survive below is the one exception, and
-// deliberately so: it guards the apology and the report themselves, where
-// reporting again would be the second panic costing what the first did not.
-// See codecheckers/chekhov#38 and #50.
+// cannot see. All three hand what they caught to reportRecovered, which logs
+// it - and so reports it in the log repository - and posts it on the admin
+// issue. survive below is the one exception, and deliberately so: it guards
+// the apology and the report themselves, where reporting again would be the
+// second panic costing what the first did not; it is safe.Recover, which only
+// logs. Goroutines outside this package - in internal/check and
+// internal/announce - have no Server, and recover through safe.Go, which logs
+// too. See codecheckers/chekhov#38, #50 and #73.
 
 // reportRecovered logs a panic with its trace and reports it on the admin
 // issue. It takes the stack itself: a deferred function runs on top of the
@@ -477,7 +491,7 @@ func (s *Server) aside(wg *sync.WaitGroup, what string, failed *error, f func() 
 			if r := recover(); r != nil {
 				// The caller's own sentence says what it could not do, so
 				// this says only that it panicked.
-				*failed = errors.New("it panicked; the trace has been logged")
+				*failed = safe.ErrPanicked
 				s.reportRecovered(r, "A command panicked "+what+".")
 			}
 		}()
@@ -487,11 +501,7 @@ func (s *Server) aside(wg *sync.WaitGroup, what string, failed *error, f func() 
 
 // survive runs f, and logs a panic from it rather than passing it on.
 func (s *Server) survive(what string, f func()) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.Logger.Error("panicked "+what, "panic", r)
-		}
-	}()
+	defer safe.Recover(what, nil)
 	f()
 }
 
@@ -524,12 +534,22 @@ func (s *Server) reportPanic(headline string, r any, trace string) {
 	// is where production keeps it. The panic value is the finding either
 	// way: it is what a command was given, which is on the issue already.
 	details, note := value, "\nThe stack trace is in the deployment's log.\n"
-	if s.Deployment.Development() {
+	switch {
+	// With a private log repository, the details go there and nowhere else:
+	// the panic value is what a command was given, but the register is public
+	// and the log repository is where somebody who may see it looks (#73).
+	// Not once the sink has found it public: then nothing goes there, and the
+	// admin issue says what it always did.
+	case s.logSink != nil && !s.logSink.Counts().Refused:
+		details, note = "", command.PanicLoggedNote(s.Settings.LogRepository())
+	case s.Deployment.Development():
 		details, note = value+"\n\n"+trace, ""
 	}
-	details = strings.TrimRight(details, "\r\n")
-	indent := strings.NewReplacer("\r\n", "\n    ", "\r", "\n    ", "\n", "\n    ")
-	body := headline + "\n\n    " + indent.Replace(details) + "\n" + note
+	body := headline + "\n\n" + note
+	if details = strings.TrimRight(details, "\r\n"); details != "" {
+		indent := strings.NewReplacer("\r\n", "\n    ", "\r", "\n    ", "\n", "\n    ")
+		body = headline + "\n\n    " + indent.Replace(details) + "\n" + note
+	}
 	if _, err := s.post(ctx, admin, said(body)); err != nil {
 		s.Logger.Error("the panic could not be reported on the admin issue",
 			"issue", admin.Issue, "error", err)

@@ -78,3 +78,23 @@ func Limited(err error) bool {
 func Unauthorised(err error) bool {
 	return httpretry.IsStatus(err, http.StatusUnauthorized)
 }
+
+// Private reports whether the configured repository is private, as GitHub
+// says it to the account. The private log repository is written to only once
+// this has said yes: what goes there - stack traces, what a service answered,
+// who asked - must never reach a repository anybody can read (#73).
+func (c *Client) Private(ctx context.Context) (bool, error) {
+	var repository struct {
+		Private    *bool  `json:"private"`
+		Visibility string `json:"visibility"`
+	}
+	if err := c.read(ctx, c.BaseURL+"/repos/"+c.Repository, &repository); err != nil {
+		return false, err
+	}
+	if repository.Private == nil {
+		return false, errors.New("GitHub did not say whether " + c.Repository + " is private")
+	}
+	// Both, because either alone is one field a change of the API could
+	// turn: an internal repository is visible to the whole enterprise.
+	return *repository.Private && repository.Visibility == "private", nil
+}

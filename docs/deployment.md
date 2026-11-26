@@ -568,32 +568,56 @@ keeps panicking shows up as well as one that has stopped. The third is a
 command's own, so the person who asked is told that step failed. See
 [chekhov#50](https://github.com/codecheckers/chekhov/issues/50).
 
-### The private log repository (planned)
+### The private log repository
 
-*Planned, not implemented yet ([#73](https://github.com/codecheckers/chekhov/issues/73)).* The log above is the platform's and only the
-runway account reads it. The bot will also write to
-[`codecheckers/chekhov-log`](https://github.com/codecheckers/chekhov-log), a
-**private** repository of the organisation, so that an editor can see what it
-did without access to the platform and without anything reaching the public
-register:
+[`codecheckers/chekhov-log`](https://github.com/codecheckers/chekhov-log) is a
+**private** repository of the organisation, named by `log.repository` in every
+settings file, so that somebody without access to the platform can see what
+went wrong without anything reaching the public register (#73).
 
-- `@chekhovbot log` on a check, by an editor, writes the bot's recent records
-  about that issue to a standing issue there, "register#N (production)", and
-  assigns it to the editor who asked. The reply on the check is a link to it
-  and nothing else. Every reply carries a short reference, and
-  `@chekhovbot log <reference>` gives that one delivery's records.
-- Every record at `Error` - a panic, an answer that could not be posted - opens
-  an issue there on its own, labelled `fatal`, with the full stack trace in
-  production too, because the repository is not public. The same error again
-  is a comment on the open issue, not a new one. Nobody is assigned or
-  mentioned: **watch the repository (*Watch → All activity*) to hear of them.**
+- **Every record at `Error`** - a panic anywhere in the process, an answer that
+  could not be posted, a staged reply left unfinished, a handler net/http
+  recovered - opens an issue there on its own, labelled `fatal` and the
+  deployment's label, with the full stack trace in production too, and the
+  records logged in the fifteen minutes before it about the same issue. The
+  same error again (same words, same place) is a comment on the open issue,
+  not a new one; at most ten new issues and thirty writes an hour. Nobody is
+  assigned or mentioned: **watch the repository (*Watch → All activity*) to
+  hear of them.** Close an issue once its cause is fixed, and a recurrence
+  opens a fresh one.
+- **Nothing is written there until GitHub says it is private**, asked before
+  the first write; a repository that is not private is written nothing for the
+  life of the process, logged as a warning, and `/nudges` shows
+  `log_sink.refused`. `config.validate` refuses a settings file that names the
+  register or the lists, of this deployment or production's, as the log.
+- **Logging never waits on GitHub.** An error goes to a queue of 64 and one
+  worker writes it through the deployment's one write queue; a full queue
+  drops it, counted. A stopping process gives the queue five seconds.
+  `/nudges` reports `log_sink` as counts - `queued`, `posted`, `dropped`,
+  `limited`, `failed`.
+- **Redacted, wherever it is going.** Every value goes through
+  `logbook.Redact` - GitHub tokens, Authorization headers, `token=`-like pairs,
+  URL queries, credentials in a URL, long key-like strings - and an attribute
+  whose key names a secret is shown as `[hidden]`. Everything is posted as an
+  indented code block, where a handle notifies nobody.
 - Both deployments write to the one repository. An issue carries `production`
   or `development`, taken from `CHEKHOV_ENV` (`live-test` counts as
-  `development`), and a deployment reads, writes and answers only the issues
-  that carry its own label.
-- Records are kept in memory, the last ones since the process started, so a
-  deploy empties the buffer as it does `/nudges`. A Go runtime fatal or a kill
-  from the memory limit cannot report itself; those stay in the runway log.
+  `development`), and a deployment comments only on the issues that carry its
+  own label.
+- With a log repository, the **admin issue** gets only the headline of a panic
+  and a pointer, never the panic value or the trace.
+- Records are kept in memory, the last 2000 since the process started, so a
+  deploy empties them as it does `/nudges`. A Go runtime fatal or a kill from
+  the memory limit cannot report itself; those stay in the runway log.
+- Every goroutine of the deployment recovers - through `internal/safe`, or a
+  recover of its own - and `TestEveryGoroutineRecovers` fails on one that does
+  not.
+
+*Planned ([#73](https://github.com/codecheckers/chekhov/issues/73)):*
+`@chekhovbot log` on a check, by an editor, writes the bot's recent records
+about that issue to a standing issue there, "register#N (production)", and
+assigns it to the editor who asked. The reply on the check is a link to it and
+nothing else.
 
 The token needs the repository selected as well, see
 [`github-token.md`](github-token.md).
@@ -633,8 +657,11 @@ runway app deploy source -y
 ```
 
 From a checkout that is open in GitKraken, deploy from the clone of its own
-instead - see "`object not found`" above. A redeploy replaces the process. Commands in flight are given twenty seconds to
-finish.
+instead - see "`object not found`" above. A redeploy replaces the process. The HTTP server is given fifteen seconds to
+stop and the log sink the last five to send the error reports still queued
+(#73). A command runs on its own goroutine after its delivery was answered,
+so Shutdown does not wait for it: one still running when the process ends is
+cut off.
 
 ## When it falls over
 

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/codecheckers/chekhov/config"
+	"github.com/codecheckers/chekhov/internal/safe"
 )
 
 // Which of the links around a check no longer answer.
@@ -79,6 +80,9 @@ const (
 	skippedHost
 	outOfTime
 	offline
+	// panicked is a probe that panicked: a bug here, reported in the log,
+	// and no answer about the link.
+	panicked
 )
 
 // notAsked marks a link as not asked, and says why in the link's own words.
@@ -91,6 +95,8 @@ func (link *Link) notAsked(why unasked, host string) {
 		link.Says = "not asked: the time ran out"
 	case offline:
 		link.Says = "not asked: the external services are not enabled"
+	case panicked:
+		link.Says = "not checked: asking it went wrong, and that has been logged"
 	}
 }
 
@@ -615,9 +621,8 @@ func (l *Links) Probe(ctx context.Context, services *Services) {
 		if hosts[host] == nil {
 			hosts[host] = make(chan struct{}, linksPerHost)
 		}
-		wg.Add(1)
-		go func(link *Link, perHost chan struct{}) {
-			defer wg.Done()
+		perHost := hosts[host]
+		safe.Go(&wg, "checking a link", func() {
 			// The host's place first: a goroutine waiting for a busy host
 			// must not hold one of the places every other host needs.
 			if !acquire(ctx, perHost) {
@@ -631,7 +636,7 @@ func (l *Links) Probe(ctx context.Context, services *Services) {
 			}
 			defer func() { <-all }()
 			services.probe(ctx, link)
-		}(link, hosts[host])
+		}, func(err error) { link.notAsked(panicked, "") })
 	}
 	wg.Wait()
 }

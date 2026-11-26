@@ -17,6 +17,7 @@ import (
 	"github.com/codecheckers/chekhov/config"
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/mastodon"
+	"github.com/codecheckers/chekhov/internal/safe"
 )
 
 // A Person is an author or a codechecker as the certificate names them.
@@ -43,7 +44,14 @@ func Load(services *check.Services, settings *config.Settings, id string) (Certi
 	// Buffered, so that an unpublished certificate is answered at once and
 	// the reads finish on their own.
 	read := make(chan []check.Table, 1)
-	go func() { read <- services.CSVs(sources...) }()
+	safe.Go(nil, "reading the register's lists", func() { read <- services.CSVs(sources...) },
+		func(err error) {
+			failed := make([]check.Table, len(sources))
+			for i := range failed {
+				failed[i].Err = err
+			}
+			read <- failed
+		})
 
 	page := settings.CertificateURL(id)
 	published, err := services.PublishedAt(page)

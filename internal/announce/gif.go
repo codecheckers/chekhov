@@ -13,6 +13,7 @@ import (
 	"golang.org/x/image/draw"
 
 	"github.com/codecheckers/chekhov/internal/check"
+	"github.com/codecheckers/chekhov/internal/safe"
 )
 
 // The attachment: the certificate's first pages as an animated GIF.
@@ -104,9 +105,7 @@ func fetchPages(services *check.Services, certificate Certificate) ([]*image.RGB
 	var wg sync.WaitGroup
 	var scaling sync.Mutex
 	for i := range results {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		safe.Go(&wg, "fetching a page of the certificate", func() {
 			raw, err := services.FetchFile(fmt.Sprintf("%scert_%d.png", certificate.Page, i+1))
 			switch {
 			case check.IsNotFound(err):
@@ -131,7 +130,7 @@ func fetchPages(services *check.Services, certificate Certificate) ([]*image.RGB
 				return
 			}
 			results[i].page = scale(page, width)
-		}()
+		}, func(err error) { results[i].err = err })
 	}
 	wg.Wait()
 

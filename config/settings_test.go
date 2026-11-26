@@ -628,3 +628,37 @@ func TestShareLinkReplies(t *testing.T) {
 		t.Errorf("a negative limit was accepted: %v", err)
 	}
 }
+
+// Every shipped file names the one private log repository, and none may name
+// a repository people read as the log: the register, the lists, or
+// production's either (#73).
+func TestTheLogIsARepositoryOfItsOwn(t *testing.T) {
+	for _, environment := range []string{"development", "live-test", "production"} {
+		settings, err := Load(environment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := settings.LogRepository(); got != "codecheckers/chekhov-log" {
+			t.Errorf("%s: the log repository is %q, want codecheckers/chekhov-log", environment, got)
+		}
+	}
+
+	settings, err := Load("development")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, public := range []string{settings.TargetRepository(), settings.ListsRepository(),
+		"codecheckers/register", " Codecheckers/Codecheckers.git"} {
+		named := *settings
+		named.Chekhov.Log.Repository = public
+		if err := validate("settings-development.yml", &named); err == nil || !strings.Contains(err.Error(), "log repository") {
+			t.Errorf("the log naming %q: error %v, want it refused", public, err)
+		}
+	}
+
+	off := *settings
+	off.Chekhov.Log = Log{}
+	if err := validate("settings-development.yml", &off); err != nil {
+		t.Errorf("no log repository must be allowed, it switches the log off: %v", err)
+	}
+}

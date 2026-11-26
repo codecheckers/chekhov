@@ -37,14 +37,14 @@ its role. Anybody else is told once per issue.
 | `@chekhovbot thanks` | Friendly acknowledgement: a quote from the namesake | MVP | #5 |
 | `@chekhovbot goodbye` | Closing pleasantry when a check ends; points at `check finish` | low | #6 |
 
-**The bot's log** (planned): editors read it in the private repository
+**The bot's log** (errors implemented in 0.53.0, `log` planned): editors read it in the private repository
 `codecheckers/chekhov-log`, never on the register; errors are reported there
 on their own. See `docs/deployment.md`, "The private log repository".
 
 | Command | Effect | Prio | Issue |
 |---|---|---|---|
 | `@chekhovbot log [<reference>\|sweep]` | Write the bot's recent records about this check, one reply, or the nightly sweep to the private log repository, assigned to the editor who asked; reply with the link only (editors) | high | #73 |
-| *(no command)* | Open a `fatal` issue in the private log repository for every `Error` record, assigned to nobody | high | #73 |
+| *(no command)* | Open a `fatal` issue in the private log repository for every `Error` record, assigned to nobody (implemented) | high | #73 |
 
 ## B. People, roles and assignment
 

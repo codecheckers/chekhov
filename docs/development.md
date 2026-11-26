@@ -55,8 +55,7 @@ output is impossible to confuse with a real CODECHECK.
    [`codecheckers/chekhov-log`](https://github.com/codecheckers/chekhov-log) is
    shared with production: a development deployment writes there too, only to
    issues labelled `development`, and leaves those labelled `production`
-   alone. The token has to select it as well as the testing register. Planned;
-   see "The private log repository" in [`deployment.md`](deployment.md).
+   alone. The token has to select it as well as the testing register; see "The private log repository" in [`deployment.md`](deployment.md).
 
 ## Webhook on the testing register
 

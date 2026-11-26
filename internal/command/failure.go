@@ -46,3 +46,14 @@ func (f Failure) Why() string {
 			"Ask me again; if it fails twice, it needs somebody who can read the log."
 	}
 }
+
+// PanicLoggedNote is what the admin issue says of a panic once the deployment
+// has a private log repository: that the details are reported there. Nothing
+// more, because the register is public and the details - the panic value, the
+// trace - are not (#73). "Reported", not "are": the report is written after
+// this, and may be held back by the hourly limit or fail, so the note says
+// where else to look.
+func PanicLoggedNote(repository string) string {
+	return "The details are reported in the private log repository `" + repository +
+		"`, as an issue labelled `fatal`; if there is none, they are in the deployment's log.\n"
+}

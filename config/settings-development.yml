@@ -149,6 +149,15 @@ chekhov:
       - codecheckers
       - institutional-codecheckers
 
+  # The private log repository (codecheckers/chekhov#73): every record the
+  # bot logs at Error is reported there on its own, and `log` (planned, #73)
+  # is to write a check's records there - never on the register. Shared by production and
+  # development, which keep apart by the labels `production` and
+  # `development`. Written to only once GitHub says it is private; empty
+  # switches it off.
+  log:
+    repository: codecheckers/chekhov-log
+
   # The codechecker lists, where people register as codecheckers: a second
   # repository the bot answers on, to a registration issue and nothing else
   # (codecheckers/chekhov#49). Only the production file may name

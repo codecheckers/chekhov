@@ -195,7 +195,7 @@ func withQuote(sentence, introduction, note string) string {
 // written rather than as an @. A reason is a sentence far more often than it
 // is code, and telling the two apart would mean parsing markdown here.
 func quoted(note string) string {
-	note = withoutMentions(note)
+	note = WithoutMentions(note)
 	lines := strings.Split(strings.TrimSpace(note), "\n")
 	for i, line := range lines {
 		lines[i] = strings.TrimRight("> "+line, " ")

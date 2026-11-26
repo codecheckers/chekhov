@@ -47,6 +47,7 @@ type Settings struct {
 		Metadata Metadata `yaml:"metadata"`
 		Refusals Refusals `yaml:"refusals"`
 		Lists    Lists    `yaml:"lists"`
+		Log      Log      `yaml:"log"`
 		Links    Links    `yaml:"links"`
 		Mastodon Mastodon `yaml:"mastodon"`
 		Nudges   Nudges   `yaml:"nudges"`
@@ -290,6 +291,20 @@ type Lists struct {
 	Reviewers []string `yaml:"reviewers"`
 }
 
+// Log is the private repository the bot's log goes to (codecheckers/chekhov#73):
+// every record at Error, on its own, and - planned, #73 - a check's records
+// when an editor runs `log`. One repository for every deployment, kept apart by a label each, so
+// unlike the register and the lists it is not refused outside production.
+// Empty switches it off; the bot writes there only once GitHub says it is
+// private.
+type Log struct {
+	// Repository is owner/repo.
+	Repository string `yaml:"repository"`
+}
+
+// LogRepository is the private log repository, owner/repo, or empty for none.
+func (s *Settings) LogRepository() string { return strings.TrimSpace(s.Chekhov.Log.Repository) }
+
 // Who reviews the pull request `include` opens; see Lists.Reviewers.
 const (
 	ReviewByAsker   = "asker"
@@ -487,6 +502,17 @@ func validate(name string, s *Settings) error {
 					return fmt.Errorf("%s: lists.reviewers is %q - one of asker, owners or editors, "+
 						"or GitHub handles, not both", name, s.Chekhov.Lists.Reviewers)
 				}
+			}
+		}
+	}
+	// The log is never a repository people read: not the register, not the
+	// lists, of this deployment or of production. Its being private is asked
+	// of GitHub at startup, since a file cannot know it.
+	if log := s.LogRepository(); log != "" {
+		for _, public := range []string{s.TargetRepository(), s.ListsRepository(), productionRegister, productionLists} {
+			if public != "" && sameRepository(log, public) {
+				return fmt.Errorf("%s names %s as the log repository; the log goes to a private repository of its own",
+					name, log)
 			}
 		}
 	}

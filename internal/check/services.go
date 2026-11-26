@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/codecheckers/chekhov/config"
+	"github.com/codecheckers/chekhov/internal/safe"
 )
 
 // Services is the outside world: the APIs and files a check needs when it
@@ -592,12 +593,10 @@ func (s *Services) CSVs(urls ...string) []Table {
 	tables := make([]Table, len(urls))
 	var wg sync.WaitGroup
 	for i, url := range urls {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		safe.Go(&wg, "reading "+url, func() {
 			rows, err := s.CSV(url)
 			tables[i] = Table{Rows: rows, Err: err}
-		}()
+		}, func(err error) { tables[i] = Table{Err: err} })
 	}
 	wg.Wait()
 	return tables
