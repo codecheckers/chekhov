@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-11-26
+
+### Added
+
+- The deployment serves a web page at `/help` listing the commands and who may
+  run each, apart for the register and for the codechecker lists, styled as the
+  CODECHECK website is.
+
+### Fixed
+
+- `include open` asked on the register is pointed to any issue of the codechecker
+  lists, not only to a registration issue.
+
 ## [0.46.0] - 2026-11-25
 
 ### Added

@@ -482,6 +482,10 @@ for a production one at a glance.
 reports only status, version, bot, register and environment, and its comments
 carry no footer naming the build.
 
+`/help` lists the commands as a web page, for anybody who wants to look one up
+without commenting on an issue. Its stylesheets and logo are loaded from
+`codecheck.org.uk`.
+
 ```sh
 curl https://<app>.pqapp.dev/nudges
 ```

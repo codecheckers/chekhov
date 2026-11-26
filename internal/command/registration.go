@@ -130,8 +130,9 @@ func ListsCommandReply(asked Name, lists string) string {
 		return fmt.Sprintf("`%s %s` is for a registration as a codechecker, and this deployment "+
 			"does not work on the codechecker lists.\n", Bot, asked)
 	}
-	return fmt.Sprintf("`%s %s` is for a registration issue on %s, where people register as "+
-		"codecheckers.\n", Bot, asked, Code(lists))
+	definition, _ := Lookup(string(asked))
+	return fmt.Sprintf("`%s %s` is for %s on %s, where people register as "+
+		"codecheckers.\n", Bot, asked, definition.Where(), Code(lists))
 }
 
 // The replies to `include`, on the registration issue (#49). The registrant

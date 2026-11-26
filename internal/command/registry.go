@@ -39,7 +39,8 @@ const (
 type Definition struct {
 	Name    Name
 	Aliases []string
-	// Summary is one line, shown in the listing.
+	// Summary is one line, shown in the listing, as Markdown, and on the help
+	// page, which renders backtick spans and no other markup.
 	Summary string
 	// Usage is how the command is written, without the mention.
 	Usage string
@@ -67,6 +68,10 @@ type Definition struct {
 	// no check, so each listing shows only its own, and a command asked in
 	// the wrong place is told where it belongs.
 	Lists bool
+	// AnyListsIssue says a command of the lists is answered on any issue
+	// there: it opens a registration rather than answering one. The others
+	// need an issue labelled as a registration.
+	AnyListsIssue bool
 	// NamesInFull says the command's last argument is a name written out -
 	// a venue, "J. Stat. Softw." - whose full stop is its own rather than
 	// the sentence's, so Parse leaves it on. See arguments in command.go.
@@ -188,12 +193,13 @@ var registry = []Definition{
 		Lists:   true,
 	},
 	{
-		Name:    IncludeOpen,
-		Summary: "Open a registration for somebody, asking for their row",
-		Usage:   "include open @handle",
-		Group:   GroupPeople,
-		Roles:   Roles{RoleEditor},
-		Lists:   true,
+		Name:          IncludeOpen,
+		Summary:       "Open a registration for somebody, asking for their row",
+		Usage:         "include open @handle",
+		Group:         GroupPeople,
+		Roles:         Roles{RoleEditor},
+		Lists:         true,
+		AnyListsIssue: true,
 	},
 	{
 		Name:    Include,
@@ -400,6 +406,15 @@ func (d Definition) Who() string {
 		who = append(who, may.Description())
 	}
 	return list(who, "or")
+}
+
+// Where says which issues of the lists a command of the lists is answered in,
+// as the help page and the pointer from the register both say it.
+func (d Definition) Where() string {
+	if d.AnyListsIssue {
+		return "any issue"
+	}
+	return "a registration issue"
 }
 
 // Refusal is the reply to somebody the command is not for, on the register
@@ -644,6 +659,30 @@ func editDistance(a, b string) int {
 		previous, current = current, previous
 	}
 	return previous[len(b)]
+}
+
+// A section is the commands of one group, under its heading.
+type section struct {
+	Title    string
+	Commands []Definition
+}
+
+// byGroup arranges commands as every listing of them does: by group, in the
+// order of groups, leaving out a group with none.
+func byGroup(definitions []Definition) []section {
+	var sections []section
+	for _, group := range groups() {
+		inGroup := section{Title: group}
+		for _, definition := range definitions {
+			if definition.Group == group {
+				inGroup.Commands = append(inGroup.Commands, definition)
+			}
+		}
+		if len(inGroup.Commands) > 0 {
+			sections = append(sections, inGroup)
+		}
+	}
+	return sections
 }
 
 // groups returns the group names in the order the listing shows them: the

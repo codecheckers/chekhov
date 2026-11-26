@@ -64,9 +64,7 @@ func (s *Server) answerOnLists(ctx context.Context, event mention, parsed comman
 	switch {
 	case !found || !definition.Lists:
 		return said(command.OnListsReply(s.Settings.ListsRepository(), s.Settings.TargetRepository()))
-	// `include open` is asked on any issue of the lists: it opens a
-	// registration rather than answering one.
-	case parsed.Name != command.IncludeOpen && !s.isRegistration(event):
+	case !definition.AnyListsIssue && !s.isRegistration(event):
 		return said(command.NotARegistrationReply(s.Settings.RegistrationLabel()))
 	// Only the standing roles, as the lists have no check and so no per-check
 	// role; and only for a command not for anybody, so that the answer to

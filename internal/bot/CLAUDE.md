@@ -3,7 +3,8 @@
 ## The bot
 
 `bot.Serve` is the whole deployment: `POST /dispatch` for GitHub's deliveries,
-`GET /healthz` and `GET /nudges` for everything else. No state, no database. The container runs
+`GET /help` (the commands as a page, generated from
+the registry), `GET /healthz` and `GET /nudges` for everything else. No state, no database. The container runs
 it through the `Procfile` (`web: chekhov serve`), because a buildpack otherwise
 runs the built binary with **no arguments**, and the tool answers that with its
 usage - which the platform reads as a crash loop.

@@ -163,10 +163,23 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /dispatch", s.dispatch)
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /nudges", s.nudgeState)
+	mux.HandleFunc("GET /help", s.help)
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://github.com/codecheckers/chekhov", http.StatusFound)
 	})
 	return mux
+}
+
+// help serves the commands as a web page.
+func (s *Server) help(w http.ResponseWriter, _ *http.Request) {
+	page, err := command.HelpPage(s.Deployment)
+	if err != nil {
+		s.Logger.Error("the help page could not be rendered", "error", err)
+		http.Error(w, "the help page could not be rendered", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(page)
 }
 
 // dispatch receives a webhook delivery.

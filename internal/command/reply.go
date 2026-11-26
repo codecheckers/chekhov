@@ -30,8 +30,13 @@ type Deployment struct {
 	Revision      string
 	RevisionDirty bool
 	Register      string
-	Bot           string
-	Environment   string
+	// Lists is the codechecker lists' repository, empty where the deployment
+	// does not work on them, and RegistrationLabel what marks an issue there
+	// as a registration. For the help page.
+	Lists             string
+	RegistrationLabel string
+	Bot               string
+	Environment       string
 }
 
 // Development reports whether this deployment may talk about itself.
@@ -83,19 +88,9 @@ func Listing(roles Roles) string {
 	out.WriteString("**Commands I understand**\n")
 
 	visible := Visible(roles)
-	for _, group := range groups() {
-		inGroup := make([]Definition, 0, len(visible))
-		for _, definition := range visible {
-			if definition.Group == group {
-				inGroup = append(inGroup, definition)
-			}
-		}
-		if len(inGroup) == 0 {
-			continue
-		}
-
-		fmt.Fprintf(&out, "\n**%s**\n\n| Command | What it does |\n|---|---|\n", group)
-		for _, definition := range inGroup {
+	for _, group := range byGroup(visible) {
+		fmt.Fprintf(&out, "\n**%s**\n\n| Command | What it does |\n|---|---|\n", group.Title)
+		for _, definition := range group.Commands {
 			fmt.Fprintf(&out, "| `%s %s` | %s |\n",
 				Bot, escapePipes(definition.Usage), escapePipes(definition.Summary))
 		}

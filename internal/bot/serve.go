@@ -65,6 +65,8 @@ func Serve(address string) error {
 	// client of their own that writes there and nowhere else, in the same
 	// queue as everything above. See internal/bot/lists.go and #49.
 	if lists := settings.ListsRepository(); lists != "" {
+		// Only to sign the replies there: in this copy Register is the
+		// lists, so it is not one to render the help page from.
 		onLists := deployment
 		onLists.Register = lists
 		listsClient := replies.For(lists, onLists.Signature())
@@ -192,8 +194,11 @@ func deploymentFor(settings *config.Settings) command.Deployment {
 		Revision:      revision,
 		RevisionDirty: dirty,
 		Register:      settings.TargetRepository(),
-		Bot:           settings.BotUser(),
-		Environment:   config.Environment(),
+		Lists:         settings.ListsRepository(),
+
+		RegistrationLabel: settings.RegistrationLabel(),
+		Bot:               settings.BotUser(),
+		Environment:       config.Environment(),
 	}
 }
 

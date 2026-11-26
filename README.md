@@ -99,27 +99,59 @@ only; the production register is not configured anywhere. See
 [`docs/deployment.md`](docs/deployment.md).
 
 ```bash
-go run ./cmd/chekhov serve                          # the bot: /dispatch, /healthz, /nudges
-echo '@chekhovbot commands' | go run ./cmd/chekhov comment -   # the same answer, offline
-echo '@chekhovbot announce 1970-001' | go run ./cmd/chekhov comment --as nuest --online -  # an editor's preview
-go run ./cmd/chekhov include check https://github.com/codecheckers/codecheckers/issues/98  # a registration, as `include check` answers it
-go run ./cmd/chekhov include check --online codecheckers.csv   # every row of a list
-go run ./cmd/chekhov include check --online 'Name,@handle,0000-…,see ORCID page,…'  # one row
+# the bot: /dispatch, /help, /healthz, /nudges
+go run ./cmd/chekhov serve
+
+# the same answer, offline
+echo '@chekhovbot commands' | go run ./cmd/chekhov comment -
+
+# an editor's preview
+echo '@chekhovbot announce 1970-001' | go run ./cmd/chekhov comment --as nuest --online -
+
+# a registration, as `include check` answers it
+go run ./cmd/chekhov include check https://github.com/codecheckers/codecheckers/issues/98
+
+# every row of a list
+go run ./cmd/chekhov include check --online codecheckers.csv
+
+# one row
+go run ./cmd/chekhov include check --online 'Name,@handle,0000-…,see ORCID page,…'
 ```
 
 ```bash
 go build ./...
-go run ./cmd/chekhov check path/to/codecheck.yml   # the report, non-zero on failure
-go run ./cmd/chekhov check --online path/to/codecheck.yml     # also asks OpenAlex, ORCID, Zenodo
-go run ./cmd/chekhov check github::codecheckers/Piccolo-2020  # read it from the repository
-go run ./cmd/chekhov check codecheckers/Piccolo-2020          # the same, platform inferred
-go run ./cmd/chekhov check 2020-001                 # the certificate, looked up in the register
-go run ./cmd/chekhov check bundle github::codecheckers/demo   # one part of the catalogue
-go run ./cmd/chekhov check repository codecheckers/demo       # what the repository is, not a verdict
-go run ./cmd/chekhov check links codecheckers/Piccolo-2020     # which links no longer answer, advice only
-go run ./cmd/chekhov check --markdown path/to/codecheck.yml   # the reply the bot posts
-go run ./cmd/chekhov rules                          # the rules, and which are checked
-go run ./cmd/chekhov rules --check                  # are they the register's current ones?
+# the report, non-zero on failure
+go run ./cmd/chekhov check path/to/codecheck.yml
+
+# also asks OpenAlex, ORCID, Zenodo
+go run ./cmd/chekhov check --online path/to/codecheck.yml
+
+# read it from the repository
+go run ./cmd/chekhov check github::codecheckers/Piccolo-2020
+
+# the same, platform inferred
+go run ./cmd/chekhov check codecheckers/Piccolo-2020
+
+# the certificate, looked up in the register
+go run ./cmd/chekhov check 2020-001
+
+# one part of the catalogue
+go run ./cmd/chekhov check bundle github::codecheckers/demo
+
+# what the repository is, not a verdict
+go run ./cmd/chekhov check repository codecheckers/demo
+
+# which links no longer answer, advice only
+go run ./cmd/chekhov check links codecheckers/Piccolo-2020
+
+# the reply the bot posts
+go run ./cmd/chekhov check --markdown path/to/codecheck.yml
+
+# the rules, and which are checked
+go run ./cmd/chekhov rules
+
+# are they the register's current ones?
+go run ./cmd/chekhov rules --check
 ```
 
 ## The version
