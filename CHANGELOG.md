@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (#70).
 - Where a command needed no role, the help page and the lists reply now say it
   is for "anyone I take commands from" rather than "anyone" (#70).
+- A handle that is no person's account is refused without speaking of teams,
+  which not every command asking has to do with (#70).
 
 ## [0.49.1] - 2026-11-26
 

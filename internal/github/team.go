@@ -83,7 +83,7 @@ var ErrNotPermitted = errors.New("this bot's token may not manage team membershi
 // Its words are the consequence rather than the category, because a wrapped
 // sentinel is printed after the sentence that wrapped it: "not a user
 // account" only said the sentence again.
-var ErrNotAUser = errors.New("only a person's account can be in a team")
+var ErrNotAUser = errors.New("I can only do this for a person's account")
 
 // handleShape is what a GitHub login may look like: letters, digits and
 // single hyphens, at most 39 characters.

@@ -77,6 +77,12 @@ func TestWhatAllowlistRefuses(t *testing.T) {
 			t.Errorf("%s: the reply does not say %q:\n%s", body, want, path.last())
 		}
 	}
+	// Why GitHub's lookup says no is said to whoever asked, whichever command
+	// asked, so it must not speak of what only one of them does.
+	asking{by: "nuest", body: "@chekhovbot allowlist add a-made-up-nobody"}.send(t, server)
+	if strings.Contains(path.last(), "team") {
+		t.Errorf("a refused allowlist entry talks about teams:\n%s", path.last())
+	}
 	reading, err := server.Checks.Read(context.Background(), server.Settings.TargetRepository(), 1)
 	if err != nil || len(reading.Record.Allowlist) != 0 {
 		t.Errorf("something was added: %v, %v", reading.Record.Allowlist, err)
