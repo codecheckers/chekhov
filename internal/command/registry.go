@@ -124,10 +124,11 @@ var registry = []Definition{
 	{
 		Name:    TeamsRefresh,
 		Aliases: []string{"refresh teams", "refresh"},
-		Summary: "Read the organisation's teams again, after a membership change",
-		Usage:   "teams refresh",
-		Group:   GroupBasics,
-		Roles:   Roles{RoleEditor},
+		Summary: "Read the organisation's teams again, after a membership change, to ensure access " +
+			"to bot commands for example; currently, the list is refreshed every 24 hours",
+		Usage: "teams refresh",
+		Group: GroupBasics,
+		Roles: Roles{RoleEditor},
 	},
 	{
 		Name:          Assign,
@@ -409,7 +410,7 @@ func (d Definition) Who() string {
 }
 
 // Where says which issues of the lists a command of the lists is answered in,
-// as the help page and the pointer from the register both say it.
+// as the help page and the replies naming such a command say it.
 func (d Definition) Where() string {
 	if d.AnyListsIssue {
 		return "any issue"

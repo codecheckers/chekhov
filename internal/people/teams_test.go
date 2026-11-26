@@ -3,10 +3,14 @@ package people
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/codecheckers/chekhov/internal/command"
 )
 
 // reader is the organisation, as a test knows it.
@@ -272,5 +276,15 @@ func TestARefreshSaysWhatItReplaced(t *testing.T) {
 	second := teams.Refresh(context.Background(), "editors")[0]
 	if !second.Previous.Equal(when) {
 		t.Errorf("the refresh says it replaced the copy from %v, want %v", second.Previous, when)
+	}
+}
+
+// `teams refresh` says how long a list is held, in the listing and on the help
+// page, and has to say what the code does.
+func TestTeamsRefreshStatesTheTTL(t *testing.T) {
+	definition, found := command.Lookup(string(command.TeamsRefresh))
+	want := fmt.Sprintf("refreshed every %d hours", int(DefaultTTL.Hours()))
+	if !found || !strings.Contains(definition.Summary, want) {
+		t.Errorf("the summary does not say %q: %q", want, definition.Summary)
 	}
 }

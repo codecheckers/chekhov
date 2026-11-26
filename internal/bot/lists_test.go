@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/codecheckers/chekhov/internal/check"
+	"github.com/codecheckers/chekhov/internal/command"
 	"github.com/codecheckers/chekhov/internal/testserver"
 )
 
@@ -186,7 +187,7 @@ func TestEachRepositoryAnswersItsOwnCommands(t *testing.T) {
 
 	eventType, payload := registrationEvent(testLists, registrationRow, "@chekhovbot check", madeUpRegistrar, "registration")
 	deliverEvent(t, server, eventType, payload)
-	if reply := lists.last(); !strings.Contains(reply, "I answer `@chekhovbot include check`") {
+	if reply := lists.last(); !strings.Contains(reply, "the following commands are supported") {
 		t.Errorf("a register command on the lists:\n%s", reply)
 	}
 
@@ -206,6 +207,20 @@ func TestEachRepositoryAnswersItsOwnCommands(t *testing.T) {
 	}
 }
 
+// The reply to a command the lists do not have names the ones they do, from
+// the registry: where each is answered and who may run it.
+func TestTheReplyOnTheListsNamesTheirCommands(t *testing.T) {
+	reply := command.OnListsReply(testLists, "codecheckers/testing-dev-register")
+	want := "On `" + testLists + "` the following commands are supported:\n\n" +
+		"- `@chekhovbot include check`, in a registration issue, for anyone\n" +
+		"- `@chekhovbot include open @handle`, in any issue, for editors\n" +
+		"- `@chekhovbot include`, in a registration issue, for editors\n\n" +
+		"All other commands are for the checks on `codecheckers/testing-dev-register`.\n"
+	if reply != want {
+		t.Errorf("got:\n%s\nwant:\n%s", reply, want)
+	}
+}
+
 // `help` and `commands` on the lists point at the help page, which has the
 // commands of the lists; any other command of the register does not.
 func TestAskingForTheCommandsOnTheListsLinksTheHelpPage(t *testing.T) {
@@ -217,7 +232,7 @@ func TestAskingForTheCommandsOnTheListsLinksTheHelpPage(t *testing.T) {
 		eventType, payload := registrationEvent(testLists, registrationRow, "@chekhovbot "+word, madeUpRegistrar, "registration")
 		deliverEvent(t, server, eventType, payload)
 		reply := lists.last()
-		if !strings.Contains(reply, "I answer `@chekhovbot include check`") || strings.Contains(reply, "[help page]("+url+")") != linked {
+		if !strings.Contains(reply, "the following commands are supported") || strings.Contains(reply, "[help page]("+url+")") != linked {
 			t.Errorf("%s on the lists, link wanted %v:\n%s", word, linked, reply)
 		}
 	}

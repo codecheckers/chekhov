@@ -117,11 +117,19 @@ func NotARegistrationReply(label string) string {
 }
 
 // OnListsReply answers a command of the register asked on the lists: there
-// the bot answers a registration and nothing else.
+// the bot answers a registration and nothing else. What it does answer is
+// listed from the registry, with where and who for.
 func OnListsReply(lists, register string) string {
-	return fmt.Sprintf("On %s I answer `%s %s`, in a registration issue, and `%s %s` and `%s %s` for an editor. "+
-		"Everything else I do is for the checks on %s.\n", Code(lists), Bot, IncludeCheck, Bot, Include, Bot, IncludeOpen,
-		Code(register))
+	var out strings.Builder
+	fmt.Fprintf(&out, "On %s the following commands are supported:\n\n", Code(lists))
+	for _, definition := range registry {
+		if definition.Lists && !definition.Hidden {
+			fmt.Fprintf(&out, "- `%s %s`, in %s, for %s\n", Bot, definition.Usage, definition.Where(), definition.Who())
+		}
+	}
+	// A blank line, or GitHub makes the sentence part of the last item.
+	fmt.Fprintf(&out, "\nAll other commands are for the checks on %s.\n", Code(register))
+	return out.String()
 }
 
 // ListsCommandReply answers a command of the lists asked on the register.

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.1] - 2026-11-26
+
+### Changed
+
+- The description of `teams refresh` says why to run it, and that the teams are
+  otherwise refreshed every 24 hours.
+- A command not supported on the codechecker lists is answered with a list of
+  those that are, with where each works and who may run it.
+
 ## [0.49.0] - 2026-11-26
 
 ### Added

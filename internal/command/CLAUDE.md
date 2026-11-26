@@ -27,7 +27,10 @@ than a `switch`.
   The settings file names *teams*, never people, so membership is maintained in
   one place. The cache is
   the transient copy; `Teams.Refresh` rebuilds it from the persistent one, at
-  startup and whenever an editor runs `teams refresh`.
+  startup and whenever an editor runs `teams refresh`, which is for after a
+  membership change, so that somebody just added can use their bot commands
+  without waiting. Otherwise a list is read again when it is next needed once
+  it is 24 hours old (`people.DefaultTTL`).
 - Per-check roles, and the certificate identifier, live in a **comment the bot
   posted** - the record of the check, marked `chekhov:record` (`chekhov:roles`
   before #20, still read) - found by its marker on
