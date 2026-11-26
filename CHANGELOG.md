@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-11-26
+
+### Added
+
+- `allowlist` says who an editor has let ask the bot on a check, and editors
+  use `allowlist add @user` and `allowlist remove @user`. The list is part of
+  the signed record of the check and gives no role (#70).
+
+### Changed
+
+- The bot no longer takes commands from every GitHub account: only from members
+  of the organisation and, on an issue, from whoever opened it or is assigned
+  to it (not on a pull request), the people on the check's record or its
+  allowlist, and on the lists the person a registration is for. Anybody else is
+  told so once on an issue. A comment with a Zenodo share link is still deleted
+  (#70).
+- Where a command needed no role, the help page and the lists reply now say it
+  is for "anyone I take commands from" rather than "anyone" (#70).
+
 ## [0.49.1] - 2026-11-26
 
 ### Changed

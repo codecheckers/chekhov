@@ -12,6 +12,10 @@ func fixture(name string) string {
 	return filepath.Join("..", "..", "testdata", name, "codecheck.yml")
 }
 
+// offline keeps a developer's own token out of a `comment` test: with one the
+// preview asks GitHub who may task the bot.
+func offline(t *testing.T) { t.Setenv("CHEKHOV_GH_ACCESS_TOKEN", "") }
+
 // The check command has to fail loudly enough for CI: a valid file is a zero
 // exit, an invalid one is not.
 func TestCheckExitsOnAFailedRule(t *testing.T) {
@@ -45,6 +49,7 @@ func TestCheckAgainstAnOlderSpecification(t *testing.T) {
 }
 
 func TestCommentRepliesToTheCheckCommand(t *testing.T) {
+	offline(t)
 	var out bytes.Buffer
 	comment := t.TempDir() + "/comment.md"
 	writeFile(t, comment, "@chekhovbot check "+fixture("valid-2.0")+"\n")
@@ -58,6 +63,7 @@ func TestCommentRepliesToTheCheckCommand(t *testing.T) {
 }
 
 func TestCommentIgnoresWhatIsNotAddressedToTheBot(t *testing.T) {
+	offline(t)
 	var out bytes.Buffer
 	comment := t.TempDir() + "/comment.md"
 	writeFile(t, comment, "looks good to me\n")
@@ -129,6 +135,7 @@ func TestCheckOnePartOfTheCatalogue(t *testing.T) {
 
 // A comment can name a part too.
 func TestCommentChecksOnePart(t *testing.T) {
+	offline(t)
 	var out bytes.Buffer
 	comment := t.TempDir() + "/comment.md"
 	writeFile(t, comment, "@chekhovbot check bundle "+fixture("valid-2.0")+"\n")
@@ -144,6 +151,7 @@ func TestCommentChecksOnePart(t *testing.T) {
 // `metadata references` is two words, in either order, on the command line
 // and in a comment alike (chekhov#11).
 func TestCheckMetadataReferences(t *testing.T) {
+	offline(t)
 	for _, words := range [][]string{{"metadata", "references"}, {"references", "metadata"}} {
 		var out bytes.Buffer
 		args := append(append([]string{"check"}, words...), fixture("valid-2.0"))

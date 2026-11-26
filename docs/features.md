@@ -22,6 +22,12 @@ same rule; a form written verb first is at most an alias.
 Issues opened in `codecheckers/chekhov`; `version` and `thanks` promoted to MVP
 for completeness of the conversational set.
 
+**Who may task the bot** (implemented): members of the organisation; on an
+issue also whoever opened it or is assigned to it (not on a pull request); on a
+check the people on its record and its allowlist; on the codechecker lists the
+person a registration is for. Decided once per comment, before any command and
+its role. Anybody else is told once per issue.
+
 | Command | Effect | Prio | Issue |
 |---|---|---|---|
 | `@chekhovbot commands` / `help` | List available commands, filtered by the caller's role | MVP | #1 |
@@ -38,6 +44,7 @@ for completeness of the conversational set.
 | `@chekhovbot assign @user as codechecker` | Set the codechecker, assign the issue, record it, take `needs codechecker` off | MVP |
 | `@chekhovbot remove @user as codechecker` | Unassign and clear the recorded codechecker | MVP |
 | `@chekhovbot assign @user as editor` | Set the editor handling this check | high |
+| `@chekhovbot allowlist` / `allowlist add\|remove @user` | Show, and let editors change, who else may task the bot on this check; kept in the signed record, no role | implemented |
 | `@chekhovbot codecheckers` | Link the lists of registered codecheckers, rather than copy them | high |
 | `@chekhovbot codecheckers suggest` | Propose candidates by declared expertise vs. the repository, the DOI, or a pasted abstract | high |
 | `@chekhovbot assign @user as codechecker` | Ask the owners to invite a non-member, and put a member in the right team | done |

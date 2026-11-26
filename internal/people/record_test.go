@@ -2,11 +2,13 @@ package people
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/codecheckers/chekhov/internal/command"
 )
@@ -39,6 +41,43 @@ func TestARecordSurvivesItsComment(t *testing.T) {
 	if read.Roles.Certificate != record.Certificate || read.Roles.Repository != record.Repository ||
 		read.Roles.Type != record.Type || read.Roles.Venue != record.Venue {
 		t.Errorf("the register row did not survive: read back %+v", read.Roles)
+	}
+}
+
+// writtenBefore is a record comment as 0.49.1 wrote it, before a record could
+// carry an allowlist, signed with a key used by this test alone. The bot
+// checks a record by writing its comment again, so a change to what is written
+// for a record that has nothing new would make every record already on an
+// issue read as edited.
+const writtenBefore = `<!-- chekhov:record {"v":1,"check":"codecheckers/testing#1","key":"cBOhpcdwjtLCWEfnfqiY0BO6nsMqcP7rnpEn3C+ma2s=","roles":{"handling_editor":"nuest","assigned_codechecker":"a-codechecker","authors":["a-made-up-author"],"certificate":"2026-072","repository":"github::codecheckers/demo","type":"community","venue":"codecheck NL"}} -->
+<!-- chekhov:sig LDdMgIIOXG6eC42gKva7U/Hgch5PZZLHAsdGerBTzmr8O3V7wIPmFeInLdn2pCukHNOkksiXjaxEAMqE8KQ3Ag== -->
+
+**Roles on this check**
+
+| Role | Who |
+|---|---|
+| handling editor | ` + "`@nuest`" + ` |
+| assigned codechecker | ` + "`@a-codechecker`" + ` |
+| author | ` + "`@a-made-up-author`" + ` |
+
+**Certificate**: ` + "`2026-072`" + `
+
+**Register row**: repository ` + "`github::codecheckers/demo`" + `, type ` + "`community`" + `, venue ` + "`codecheck NL`" + `
+
+I read the record at the top, not this table. It is signed.
+`
+
+func TestARecordWrittenBeforeStillVerifies(t *testing.T) {
+	signing, err := NewSigner(base64.StdEncoding.EncodeToString([]byte("a fixed seed for one test only!!")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &Checks{Comments: &comments{comments: []Comment{{ID: 7, Author: "chekhovbot", Body: writtenBefore}}},
+		Bot: "chekhovbot", Signer: signing}
+
+	reading, err := store.Read(context.Background(), "codecheckers/testing", 1)
+	if err != nil || reading.Tampered != nil || reading.Unsigned {
+		t.Fatalf("an existing record no longer verifies: %v, %v, unsigned %v", err, reading.Tampered, reading.Unsigned)
 	}
 }
 
@@ -397,5 +436,73 @@ func TestTwoAssignmentsAtOnceDoNotLoseOne(t *testing.T) {
 	}
 	if len(issue.comments) != 1 {
 		t.Errorf("%d roles comments were posted, want one", len(issue.comments))
+	}
+}
+
+// The allowlist is part of the record: it survives its comment, is covered by
+// the check of it, is written only when somebody is on it, and gives no role.
+func TestTheAllowlistIsPartOfTheRecord(t *testing.T) {
+	record, err := Record{}.Allow("@A-Made-Up-Coauthor")
+	if err != nil || !record.Allows("a-made-up-coauthor") {
+		t.Fatalf("not allowed: %+v, %v", record, err)
+	}
+	if _, err := record.Allow("a-made-up-coauthor"); !errors.Is(err, ErrUnchanged) {
+		t.Errorf("allowed twice: %v", err)
+	}
+	if roles := record.RolesOf("a-made-up-coauthor"); len(roles) != 0 {
+		t.Errorf("the allowlist gave roles: %v", roles)
+	}
+	if _, _, err := record.Grant(command.RoleAuthor, "a-made-up-coauthor"); err != nil {
+		t.Errorf("the allowlist stood in the way of a role: %v", err)
+	}
+
+	more, _ := record.Allow("a-made-up-other-person")
+	holders := more.Holders()
+	holders.Allowlist[0] = "changed"
+	if len(record.Allowlist) != 1 || !more.Allows("a-made-up-coauthor") {
+		t.Errorf("the lists share their storage: %v, %v", record.Allowlist, more.Allowlist)
+	}
+	fewer, err := more.Disallow("a-made-up-coauthor")
+	if err != nil || fewer.Allows("a-made-up-coauthor") || !more.Allows("a-made-up-coauthor") {
+		t.Errorf("taking one off: %v, %v, %v", err, fewer.Allowlist, more.Allowlist)
+	}
+
+	body := comment(t, signer(t), "codecheckers/testing", 1, record)
+	if !strings.Contains(body, "**Also may ask me here**: `@a-made-up-coauthor`") {
+		t.Errorf("the comment does not say who:\n%s", body)
+	}
+	if empty := comment(t, signer(t), "codecheckers/testing", 1, Record{}); strings.Contains(empty, "may ask") ||
+		strings.Contains(empty, "allowlist") {
+		t.Errorf("a record without a list says something about one:\n%s", empty)
+	}
+
+	read := func(body string) (*comments, Reading) {
+		issue := &comments{comments: []Comment{{ID: 1, Author: "chekhovbot", Body: body}}}
+		reading, err := checks(t, issue).Read(context.Background(), "codecheckers/testing", 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return issue, reading
+	}
+	if _, reading := read(body); reading.Tampered != nil {
+		t.Fatalf("the record as written reads as edited: %v", reading.Tampered)
+	}
+	// Adopting keeps the list the block holds, and shows it to the editor.
+	for name, edit := range map[string]struct{ from, to, kept string }{
+		"the line": {"**Also may ask me here**: `@a-made-up-coauthor`",
+			"**Also may ask me here**: `@a-made-up-stranger`", "a-made-up-coauthor"},
+		"the block": {`"allowlist":["a-made-up-coauthor"]`, `"allowlist":["a-made-up-stranger"]`, "a-made-up-stranger"},
+	} {
+		issue, reading := read(strings.Replace(body, edit.from, edit.to, 1))
+		if reading.Tampered == nil {
+			t.Errorf("editing %s went unnoticed", name)
+		}
+		if _, err := checks(t, issue).Accept(context.Background(), "codecheckers/testing", 1,
+			"nuest", time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		if want := "**Also may ask me here**: `@" + edit.kept + "`"; !strings.Contains(issue.edited[1], want) {
+			t.Errorf("adopting after editing %s does not say %q:\n%s", name, want, issue.edited[1])
+		}
 	}
 }

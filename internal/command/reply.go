@@ -621,6 +621,8 @@ type Holders struct {
 	Repository string
 	Type       string
 	Venue      string
+	// Allowlist are the people an editor let task the bot on this check.
+	Allowlist []string
 }
 
 // Teams are the teams the standing roles come from, for a reply that says
@@ -707,6 +709,7 @@ func adoptionNote(by, at string) string {
 func TamperedNote(why string) string {
 	return fmt.Sprintf("\n⚠ **The record of this check was edited after I wrote it**: %s. "+
 		"I will not change it - the roles or the certificate identifier - "+
+		"nor take its word for who may ask me, "+
 		"until an editor runs `%s record accept`.\n",
 		why, Bot)
 }
@@ -723,7 +726,18 @@ func RolesTable(holders Holders) string {
 	fmt.Fprintf(&table, "| %s | %s |\n", RoleAuthor, mentions(holders.Authors))
 	table.WriteString(CertificateLine(holders.Certificate))
 	table.WriteString(RowLine(holders))
+	table.WriteString(AllowlistLine(holders.Allowlist))
 	return table.String()
+}
+
+// AllowlistLine is who an editor let task the bot on this check, empty when
+// nobody - and it must be: the bot checks a record by writing its comment
+// again, so a line every record gained would read as every record edited.
+func AllowlistLine(handles []string) string {
+	if len(handles) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n**Also may ask me here**: %s\n", mentions(handles))
 }
 
 // RolesReply says who holds which role on this check, and where each role

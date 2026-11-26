@@ -13,7 +13,7 @@
     "id": 900142,
     "body": "thanks, I will ask @chekhovbot later",
     "user": {
-      "login": "acodechecker"
+      "login": "a-codechecker"
     },
     "html_url": "https://github.com/codecheckers/testing-dev-register/issues/42#issuecomment-900142"
   },
@@ -26,6 +26,6 @@
     "private": false
   },
   "sender": {
-    "login": "acodechecker"
+    "login": "a-codechecker"
   }
 }

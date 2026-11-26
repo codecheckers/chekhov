@@ -120,6 +120,12 @@ const (
 	// on the lists and, for somebody outside the organisation, asks the
 	// owners to invite them (#68).
 	Invite Name = "invite"
+	// Allowlist says who an editor has let task the bot on this check, and
+	// AllowlistAdd and AllowlistRemove put somebody on that list and take them
+	// off; see access.go.
+	Allowlist       Name = "allowlist"
+	AllowlistAdd    Name = "allowlist add"
+	AllowlistRemove Name = "allowlist remove"
 	// Unknown is a mention of the bot with something it does not understand.
 	Unknown Name = "unknown"
 )

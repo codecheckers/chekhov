@@ -87,6 +87,12 @@ code { color: inherit; overflow-wrap: break-word; }
 <p><a href="https://github.com/codecheckers/chekhov">The CODECHECK register bot</a>. Write a command on the <strong>first line</strong>
 of a comment. More may follow, each on a line of its own beginning with
 <code>{{.Mention}}</code>, up to {{.Most}} in one comment.</p>
+<p><strong>Who may ask me:</strong> members of the CODECHECK organisation on
+GitHub and, on an issue, whoever opened it or is assigned to it (this does not
+count on a pull request). On the register also the people on the record of the
+check, and those an editor has added with <code>{{.Mention}} allowlist add</code>.
+On the codechecker lists also the person a registration is for. I run nothing
+for anybody else. The tables say which role a command needs on top of that.</p>
 <p>Each command works in <strong>one place only</strong>:</p>
 <nav class="places">{{range .Places}}
 <a class="{{.ID}}" href="#{{.ID}}"><strong>{{.Title}}</strong>issues of {{.Repository}}</a>{{end}}

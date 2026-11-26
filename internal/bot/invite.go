@@ -129,7 +129,9 @@ func (s *Server) invite(ctx context.Context, event mention, parsed command.Comma
 // open`, `remind`, each of which notifies whom it names - is left out: the one
 // asking, the issue's first post when it is that comment, and any earlier one,
 // or a command refused for a mistyped handle would let itself through when
-// posted again. Any other command's mention counts, as any comment's: an
+// posted again. So is one in an `allowlist` command, which lets somebody ask
+// the bot and says nothing about their having taken part. The registry says
+// which these are. Any other command's mention counts, as any comment's: an
 // `assign` naming somebody brings them in, which it means to.
 //
 // An error is a thread that could not be read, which is not the same as
@@ -177,15 +179,18 @@ func (s *Server) inThread(ctx context.Context, event mention, login string, onLi
 }
 
 // mentionedOutsideAsking is whether a post mentions somebody so that GitHub
-// notified them, other than by asking one of the commands inThread decides
-// for, whose mention is the asking rather than anybody's taking part.
+// notified them, other than in a command the registry marks AsksAbout, whose
+// mention is the asking rather than anybody's taking part.
 func mentionedOutsideAsking(body, login string) bool {
 	if !command.Mentions(body, login) {
 		return false
 	}
 	parsed, addressed := command.Parse(body)
-	return !addressed || (parsed.Name != command.Invite && parsed.Name != command.IncludeOpen &&
-		parsed.Name != command.Remind)
+	if !addressed {
+		return true
+	}
+	definition, _ := command.Lookup(string(parsed.Name))
+	return !definition.AsksAbout
 }
 
 // newestAsk is the newest ask to the owners for somebody on this check,

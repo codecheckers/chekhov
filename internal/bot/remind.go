@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/codecheckers/chekhov/internal/command"
@@ -69,20 +70,24 @@ func (s *Server) mayRemindOthers(ctx context.Context, event mention, roles comma
 		command.RemindOthers.Permits(s.checkRoles(ctx, event, roles))
 }
 
+// openedOrAssigned says somebody opened the issue or is assigned to it. The
+// handle is as command.Handle writes it.
+func openedOrAssigned(opener string, assignees []string, handle string) bool {
+	return command.Handle(opener) == handle ||
+		slices.ContainsFunc(assignees, func(assignee string) bool {
+			return command.Handle(assignee) == handle
+		})
+}
+
 // holdsOnTheCheck is the part of inThread that is not a comment: opened the
 // issue, is assigned to it, or holds a role in its record.
 func (s *Server) holdsOnTheCheck(ctx context.Context, event mention, issue github.Issue, handle string) bool {
-	if command.Handle(issue.Author) == handle {
+	if openedOrAssigned(issue.Author, issue.Assignees, handle) {
 		return true
 	}
-	for _, assignee := range issue.Assignees {
-		if command.Handle(assignee) == handle {
-			return true
-		}
-	}
 	if s.Checks != nil {
-		reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
-		if err == nil && reading.Tampered == nil && len(reading.Record.RolesOf(handle)) > 0 {
+		record, err := s.trustedRecord(ctx, event)
+		if err == nil && len(record.RolesOf(handle)) > 0 {
 			return true
 		}
 	}

@@ -23,7 +23,9 @@ import (
 type Role string
 
 const (
-	// RoleAnyone is everybody, including people not in the organisation.
+	// RoleAnyone is whoever the bot takes commands from, in the organisation
+	// or not: no role is needed on top. Not everybody on GitHub - who may task
+	// the bot at all is decided before any role is (internal/bot/gate.go).
 	RoleAnyone Role = "anyone"
 	// RoleEditor is a CODECHECK editor, who may run the commands that change
 	// the register.
@@ -83,6 +85,9 @@ var conflicts = []struct {
 // Description is the role in words, for a refusal that has to say what the
 // asker would have to be.
 func (r Role) Description() string {
+	if r == RoleAnyone {
+		return "anyone I take commands from"
+	}
 	for _, known := range grantable {
 		if known.Role == r {
 			return known.Description

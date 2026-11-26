@@ -98,7 +98,7 @@ func ReminderNote(comment string, inIssue bool) (string, error) {
 }
 
 // RemindOthers is who may set a reminder for somebody else. The registry's
-// entry is for anybody, because anybody may remind themselves, and the
+// entry is for anyone, because anyone may remind themselves, and the
 // registry has no way to say "and these roles for somebody else"; this is
 // that second answer, as a Definition, so that the check and the refusal
 // come from one list of roles. A second command with a `me` form would be
@@ -108,7 +108,7 @@ var RemindOthers = Definition{Name: Remind, Roles: Roles{RoleEditor, RoleAssigne
 // RemindOthersRefused is the answer to somebody setting a reminder for
 // somebody else who may not.
 func RemindOthersRefused() string {
-	return fmt.Sprintf("A reminder for somebody else is for %s. `%s remind me in …` is for anybody.\n",
+	return fmt.Sprintf("A reminder for somebody else is for %s. `%s remind me in …` sets one for yourself.\n",
 		RemindOthers.Who(), Bot)
 }
 

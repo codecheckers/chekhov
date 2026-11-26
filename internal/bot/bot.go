@@ -118,6 +118,10 @@ type Server struct {
 	// rather than pretending a check has none.
 	Checks *people.Checks
 
+	// turningAway holds who is being told they may not ask, from the look
+	// whether they were told to the telling; see turnAway.
+	turningAway sync.Map
+
 	// LocalPaths allows a command to name a file on this machine. It is off
 	// for a deployment on purpose: a path in a comment is written by anyone on
 	// the internet, and the bot's disk is none of their business. The command
@@ -244,6 +248,14 @@ func (s *Server) dispatch(w http.ResponseWriter, r *http.Request) {
 // caught by act, and the next still runs. At most command.MostCommands, and
 // the rest are named in a reply posted before the first is run.
 func (s *Server) actEach(event mention, commands []command.Command) {
+	// Once for the comment, before anything it asks is looked at: one answer
+	// to somebody turned away, however many commands they gave.
+	if !s.admit(event, commands) {
+		if s.done != nil {
+			s.done <- struct{}{}
+		}
+		return
+	}
 	commands, notRun := command.Capped(commands)
 	if notRun != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
@@ -532,6 +544,9 @@ type answered struct {
 // said is an answer with nothing outstanding, which is almost all of them.
 func said(body string) answered { return answered{body: body} }
 
+// It decides which roles a command needs and no more: that the author may task
+// the bot at all is the gate's, asked once per comment by whoever calls this -
+// actEach and Preview. A new way in has to ask it too; see gate.go.
 func (s *Server) answer(ctx context.Context, event mention, parsed command.Command) answered {
 	// The lists have commands of their own and no check: nothing below
 	// applies there. See lists.go.
@@ -653,6 +668,12 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(s.suggestCodecheckers(ctx, event, parsed, services))
 	case command.RecordAccept:
 		return said(s.accept(ctx, event, parsed))
+	case command.Allowlist:
+		return said(s.listAllowed(ctx, event, parsed))
+	case command.AllowlistAdd:
+		return said(s.allow(ctx, event, parsed))
+	case command.AllowlistRemove:
+		return said(s.disallow(ctx, event, parsed))
 	case command.Certificate:
 		return said(s.certificate(ctx, event, parsed))
 	case command.CertificateNext:
@@ -774,25 +795,34 @@ func (s *Server) checkRoles(ctx context.Context, event mention, roles command.Ro
 	if event.Issue <= 0 || s.Checks == nil {
 		return roles
 	}
-	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
-	if err != nil || reading.Tampered != nil {
-		// A record somebody edited grants nothing: the roles it names may be
-		// theirs rather than an editor's. The command that needs it says so.
+	record, err := s.trustedRecord(ctx, event)
+	if err != nil {
+		// The command that needs the record says so.
 		s.Logger.Warn("the roles of this check could not be trusted",
-			"repository", event.Repository, "issue", event.Issue,
-			"error", errors.Join(err, reading.Tampered))
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return roles
 	}
-	for _, role := range reading.Record.RolesOf(event.Author) {
+	for _, role := range record.RolesOf(event.Author) {
 		roles = roles.With(role)
 	}
 	return roles
 }
 
+// trustedRecord is the record of a check as far as it may decide anything:
+// one that cannot be read, or that somebody edited, grants nothing, since what
+// it names may be theirs rather than an editor's.
+func (s *Server) trustedRecord(ctx context.Context, event mention) (people.Record, error) {
+	reading, err := s.checks(event).Read(ctx, event.Repository, event.Issue)
+	if err := errors.Join(err, reading.Tampered); err != nil {
+		return people.Record{}, err
+	}
+	return reading.Record, nil
+}
+
 // assign gives somebody a role on this check, and records it in the issue.
 func (s *Server) assign(ctx context.Context, event mention, parsed command.Command) answered {
 	handle, role, team, err := command.ParseAssignment(parsed.Args)
-	if reply, ok := s.roleCommand(event, err); !ok {
+	if reply, ok := s.recordCommand(event, "the roles of a check", err); !ok {
 		return said(reply)
 	}
 	// An editor may name the team themselves, in either direction; the bot
@@ -880,7 +910,7 @@ func (s *Server) assign(ctx context.Context, event mention, parsed command.Comma
 // remove takes a role away again.
 func (s *Server) remove(ctx context.Context, event mention, parsed command.Command) string {
 	handle, role, _, err := command.ParseAssignment(parsed.Args)
-	if reply, ok := s.roleCommand(event, err); !ok {
+	if reply, ok := s.recordCommand(event, "the roles of a check", err); !ok {
 		return reply
 	}
 
@@ -891,31 +921,40 @@ func (s *Server) remove(ctx context.Context, event mention, parsed command.Comma
 		}
 		return updated, nil
 	})
+	return recordChanged(err, "the removal", func(changed bool) string {
+		onTheIssue := ""
+		if changed && role == command.RoleAssignedCodechecker {
+			unassigned := ""
+			if why := s.unassign(ctx, event, handle); why != "" {
+				unassigned = command.UnassignFailed(handle, why)
+			}
+			// Nobody is doing it now, so it is back in the queue.
+			onTheIssue = paragraphs(unassigned, s.queueLabel(ctx, event, ""))
+		}
+		return command.RemovedReply(role, handle, changed, onTheIssue, event.Author, time.Now())
+	})
+}
+
+// recordChanged is the answer to a change of the record that takes something
+// away or adds to a list: reply says what happened, or that there was nothing
+// to do.
+func recordChanged(err error, what string, reply func(changed bool) string) string {
 	switch {
 	case errors.Is(err, people.ErrUnchanged):
-		return command.RemovedReply(role, handle, false, "", event.Author, time.Now())
+		return reply(false)
 	case errors.Is(err, people.ErrTampered):
 		return tamperedReply(err)
 	case err != nil:
-		return recordFailure("the removal", err)
+		return recordFailure(what, err)
 	}
-
-	onTheIssue := ""
-	if role == command.RoleAssignedCodechecker {
-		unassigned := ""
-		if why := s.unassign(ctx, event, handle); why != "" {
-			unassigned = command.UnassignFailed(handle, why)
-		}
-		// Nobody is doing it now, so it is back in the queue.
-		onTheIssue = paragraphs(unassigned, s.queueLabel(ctx, event, ""))
-	}
-	return command.RemovedReply(role, handle, true, onTheIssue, event.Author, time.Now())
+	return reply(true)
 }
 
-// roleCommand is the two things every role command needs before it starts:
-// somewhere to keep the roles, and arguments that made sense.
-func (s *Server) roleCommand(event mention, err error) (string, bool) {
-	if reply, ok := s.noCheck(event, "the roles of a check"); !ok {
+// recordCommand is the two things every command that changes the record needs
+// before it starts: somewhere to keep what it changes, which what names, and
+// arguments that made sense.
+func (s *Server) recordCommand(event mention, what string, err error) (string, bool) {
+	if reply, ok := s.noCheck(event, what); !ok {
 		return reply, false
 	}
 	if err != nil {
@@ -1689,7 +1728,16 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 		// The register's issues too, so that `certificate next` answers as it
 		// would on an issue - and through a path that can do nothing else, so
 		// that no command writes to GitHub from a preview.
-		server.Replies = readOnly{client}
+		server.Replies = memberAware{readOnly{client}, client}
+		// The gate, where it can be asked. A preview has no issue, so only
+		// the organisation lets anybody in; without a token there is nothing
+		// to ask, and gating would only turn everybody away.
+		ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+		defer cancel()
+		asked := mention{Author: author}
+		if may, refused := server.mayTask(ctx, asked); !may {
+			return command.TurnedAway(refused), true
+		}
 	}
 	// Each command's own lines travel with its mention: a command may be
 	// followed by prose - an abstract, an availability statement - and the
@@ -1715,6 +1763,13 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 // Reserving, Assigner or Organisation, and says so. Comment refuses, because
 // a preview posts nothing.
 type readOnly struct{ Claims }
+
+// memberAware is a read-only path that can also ask whether somebody is in
+// the organisation, which the gate needs.
+type memberAware struct {
+	readOnly
+	MemberReader
+}
 
 func (readOnly) Comment(context.Context, string, int, string) (int64, error) {
 	return 0, errors.New("a preview posts nothing")

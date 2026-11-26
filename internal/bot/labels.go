@@ -124,7 +124,9 @@ func (s *Server) justSaid(ctx context.Context, event mention, note string, writi
 		comment := comments[i]
 		if !strings.EqualFold(comment.Author, bot) ||
 			(writing != nil && comment.ID == writing.comment) ||
-			strings.Contains(comment.Body, command.LabelNoteSaid) {
+			strings.Contains(comment.Body, command.LabelNoteSaid) ||
+			// Turning somebody away says nothing about the check.
+			command.IsTurnedAway(comment.Body) {
 			continue
 		}
 		// Defused, as everything the bot posts is: what is on the issue is

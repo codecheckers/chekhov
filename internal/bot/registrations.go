@@ -234,7 +234,7 @@ func latestRowAnswered(comments []github.Comment, subject, bot string) (string, 
 		switch {
 		case comment.Body == row && strings.EqualFold(comment.Author, subject):
 			after = true
-		case after && strings.EqualFold(comment.Author, bot):
+		case after && strings.EqualFold(comment.Author, bot) && !command.IsTurnedAway(comment.Body):
 			return row, true
 		}
 	}

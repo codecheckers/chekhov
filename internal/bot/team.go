@@ -26,7 +26,7 @@ import (
 // There is no method here that removes anybody, and none that sets a role: see
 // internal/github/team.go.
 type Organisation interface {
-	InOrganisation(ctx context.Context, organisation, handle string) (bool, error)
+	MemberReader
 	Owners(ctx context.Context, organisation string) ([]string, error)
 	TeamMembership(ctx context.Context, organisation, team, handle string) (github.Place, error)
 	AddToTeam(ctx context.Context, organisation, team, handle string) (github.Place, error)
@@ -41,6 +41,13 @@ type Organisation interface {
 // message that sends an editor to audit a token that is perfectly fine.
 var _ Organisation = (*github.Client)(nil)
 
+// MemberReader is the one question about the organisation that writes nothing,
+// so that the command line preview can ask it without being handed the writes
+// of Organisation.
+type MemberReader interface {
+	InOrganisation(ctx context.Context, organisation, handle string) (bool, error)
+}
+
 // Membership is what the organisation says about somebody: whether they are in
 // it, and whether the question could be answered at all.
 //
@@ -52,7 +59,7 @@ var _ Organisation = (*github.Client)(nil)
 // guess there would be the one thing this bot must not do.
 func (s *Server) membership(ctx context.Context, handle string) (inside, known bool) {
 	organisation := s.Settings.TeamOrganisation()
-	reader, ok := s.Replies.(Organisation)
+	reader, ok := s.Replies.(MemberReader)
 	if !ok || organisation == "" {
 		return false, false
 	}

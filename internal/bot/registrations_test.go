@@ -105,7 +105,7 @@ func TestARegistrationTheBotOpenedReadsTheRegistrantsComment(t *testing.T) {
 		{ID: 1, Author: "chekhovbot", Body: record + "This registration is for"},
 		{ID: 2, Author: "a-made-up-other-person", Body: row},
 	}
-	commentOnLists(t, server, "@chekhovbot include check", "a-made-up-other-person", true)
+	commentOnLists(t, server, "@chekhovbot include check", "nuest", true)
 	says(t, lists.last(), "I found no row", "comment here with `@chekhovbot include check` on its first line")
 
 	lists.thread = append(lists.thread, github.Comment{ID: 3, Author: madeUpRegistrar, Body: row})

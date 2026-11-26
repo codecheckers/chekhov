@@ -32,6 +32,12 @@ type event struct {
 		Labels []struct {
 			Name string `json:"name"`
 		} `json:"labels"`
+		Assignees []struct {
+			Login string `json:"login"`
+		} `json:"assignees"`
+		// PullRequest is present when the "issue" is a pull request:
+		// issue_comment is delivered for those too.
+		PullRequest *struct{} `json:"pull_request"`
 	} `json:"issue"`
 	Comment struct {
 		ID   int64  `json:"id"`
@@ -62,6 +68,10 @@ type mention struct {
 	IssueAuthor string
 	IssueBody   string
 	Labels      []string
+	// Assignees and PullRequest are as the event said them, for the gate:
+	// who may task the bot here (gate.go).
+	Assignees   []string
+	PullRequest bool
 
 	// read is the issue this mention is on, read once for the whole command,
 	// with whatever the command has since done to its labels applied.
@@ -99,6 +109,10 @@ func parseEvent(eventType string, payload []byte) (mention, bool, error) {
 	for _, label := range parsed.Issue.Labels {
 		labels = append(labels, label.Name)
 	}
+	assignees := make([]string, 0, len(parsed.Issue.Assignees))
+	for _, assignee := range parsed.Issue.Assignees {
+		assignees = append(assignees, assignee.Login)
+	}
 	switch {
 	case eventType == "issues" && parsed.Action == "opened":
 		return mention{
@@ -109,6 +123,7 @@ func parseEvent(eventType string, payload []byte) (mention, bool, error) {
 			IssueAuthor: parsed.Issue.User.Login,
 			IssueBody:   parsed.Issue.Body,
 			Labels:      labels,
+			Assignees:   assignees,
 		}, true, nil
 	case eventType == "issue_comment" && parsed.Action == "created":
 		return mention{
@@ -120,6 +135,8 @@ func parseEvent(eventType string, payload []byte) (mention, bool, error) {
 			IssueAuthor: parsed.Issue.User.Login,
 			IssueBody:   parsed.Issue.Body,
 			Labels:      labels,
+			Assignees:   assignees,
+			PullRequest: parsed.Issue.PullRequest != nil,
 		}, true, nil
 	default:
 		return mention{}, false, nil

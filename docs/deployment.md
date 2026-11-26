@@ -486,7 +486,17 @@ carry no footer naming the build.
 without commenting on an issue; the `commands` reply links to it, at the
 `public_url` of the settings file. A development or live-test app other than
 `chekhov-dev` sets `CHEKHOV_PUBLIC_URL`, or its replies link to that one's page. Its stylesheets and logo are loaded from
-`codecheck.org.uk`.
+`codecheck.org.uk`. It also says who may ask the bot at all.
+
+When first deploying 0.50.0, look through the open checks for people who ask
+the bot and are no longer answered - an author outside the organisation who
+neither opened the issue nor is assigned to it - and `allowlist add` them. Look
+for automation commenting commands too: a person's account it posts as can be
+added the same way, but a GitHub App or Actions account (`…[bot]`) cannot be
+added or given a role, and is answered only on an issue it opened or is
+assigned to. Rolling back, a record with an
+allowlist reads as edited to the older build; see
+[`record-key.md`](record-key.md).
 
 ```sh
 curl https://<app>.pqapp.dev/nudges
@@ -613,7 +623,13 @@ finish.
    register for everything else. Look for `the bot's account cannot write to
    the register` near the start of the log, which the startup check writes
    when the role is too low. See [`github-token.md`](github-token.md).
-5. Redeliver the event from GitHub once the cause is fixed. The bot is not
+5. Members or editors told "I have not run that" means the bot cannot see that
+   they are members: the same token causes as in 4, or an unapproved token (see
+   [`github-token.md`](github-token.md)). A refusal beginning "I have not run
+   that yet", and `unread=true` in the log, mean something could not be read:
+   the membership, the record, or whom a registration is for. The same refusal
+   is not posted twice on one issue, so look at the log for later attempts.
+6. Redeliver the event from GitHub once the cause is fixed. The bot is not
    idempotent — a redelivery posts another comment — which is fine for a
    listing and worth thinking about for anything that changes the register.
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -83,6 +84,41 @@ type Record struct {
 	Repository string `json:"repository,omitempty"`
 	Type       string `json:"type,omitempty"`
 	Venue      string `json:"venue,omitempty"`
+	// Allowlist are the people an editor let task the bot on this check, with
+	// `allowlist add`. Not a role: it gives no command, conflicts with nothing
+	// and puts nobody on the check. Omitted when empty, and then not rendered
+	// either, so that a record without one reads as it always did.
+	Allowlist []string `json:"allowlist,omitempty"`
+}
+
+// Allows says whether an editor let somebody task the bot on this check.
+func (r Record) Allows(handle string) bool {
+	return slices.Contains(r.Allowlist, normalize(handle))
+}
+
+// Allow adds somebody to the allowlist, and returns the record with them.
+func (r Record) Allow(handle string) (Record, error) {
+	handle = normalize(handle)
+	if handle == "" {
+		return r, fmt.Errorf("no handle to put on the allowlist")
+	}
+	if r.Allows(handle) {
+		return r, ErrUnchanged
+	}
+	r.Allowlist = append(slices.Clone(r.Allowlist), handle)
+	slices.Sort(r.Allowlist)
+	return r, nil
+}
+
+// Disallow takes somebody off the allowlist, and returns the record without
+// them.
+func (r Record) Disallow(handle string) (Record, error) {
+	handle = normalize(handle)
+	if !r.Allows(handle) {
+		return r, ErrUnchanged
+	}
+	r.Allowlist = slices.DeleteFunc(slices.Clone(r.Allowlist), func(listed string) bool { return listed == handle })
+	return r, nil
 }
 
 // RolesOf is what one person is on this check.
@@ -120,6 +156,7 @@ func (r Record) Holders() command.Holders {
 		Repository:          r.Repository,
 		Type:                r.Type,
 		Venue:               r.Venue,
+		Allowlist:           slices.Clone(r.Allowlist),
 	}
 }
 
@@ -216,6 +253,9 @@ func (r Record) normalized() Record {
 	r.AssignedCodechecker = normalize(r.AssignedCodechecker)
 	for i, author := range r.Authors {
 		r.Authors[i] = normalize(author)
+	}
+	for i, listed := range r.Allowlist {
+		r.Allowlist[i] = normalize(listed)
 	}
 	return r
 }

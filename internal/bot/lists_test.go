@@ -212,7 +212,7 @@ func TestEachRepositoryAnswersItsOwnCommands(t *testing.T) {
 func TestTheReplyOnTheListsNamesTheirCommands(t *testing.T) {
 	reply := command.OnListsReply(testLists, "codecheckers/testing-dev-register")
 	want := "On `" + testLists + "` the following commands are supported:\n\n" +
-		"- `@chekhovbot include check`, in a registration issue, for anyone\n" +
+		"- `@chekhovbot include check`, in a registration issue, for anyone I take commands from\n" +
 		"- `@chekhovbot include open @handle`, in any issue, for editors\n" +
 		"- `@chekhovbot include`, in a registration issue, for editors\n\n" +
 		"All other commands are for the checks on `codecheckers/testing-dev-register`.\n"

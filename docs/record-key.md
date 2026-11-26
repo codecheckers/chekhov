@@ -8,6 +8,11 @@ lives there too, as `"certificate":"YYYY-NNN"` inside `roles`, and a
 `**Certificate**` line under the table (codecheckers/chekhov#20) - which is why
 it is the *record of the check*, marked `chekhov:record`.
 
+So does the allowlist: whom an editor let task the bot on this check with
+`allowlist add`, as `"allowlist":["…"]` inside `roles` and an
+`**Also may ask me here**` line under the table. It is no role. See
+"The allowlist" below.
+
 A record written while it held only roles is marked `chekhov:roles`. The bot
 still reads one, and it verifies as written, because the signature covers the
 marker as it stands; the next change the bot makes writes it with
@@ -131,6 +136,22 @@ it just read. An edited table is therefore an edited record, even when the
 signed line is untouched; otherwise a false set of roles could be displayed
 under a genuine signature indefinitely.
 
+## The allowlist
+
+The field and its line are written **only when somebody is on the list**. The
+bot checks a record by writing its comment again, so anything added to every
+record would make every record already on an issue read as edited.
+`TestARecordWrittenBeforeStillVerifies` holds that.
+
+The record version stays 1. An older build ignores the field and does not write
+the line, so a record **with** a list reads to it as edited - visibly, rather
+than the list being lost without a word. `record accept` on that build drops
+the list, which only takes access away. This matters only when rolling back.
+
+A record that does not verify lets nobody in, through its roles or its list.
+`record accept` keeps the list as it stands and shows it in the reply: read who
+is on it before adopting an edit.
+
 ## When a record does not verify
 
 The bot says what it knows and no more: **the record of this check was edited after I
@@ -193,7 +214,8 @@ real register.
 ## What this does not cover
 
 **Deletion.** Anyone with write access can delete the roles comment; the bot
-then sees a check with no roles and starts a fresh record, signature and all.
+then sees a check with no roles and no allowlist, and starts a fresh record,
+signature and all.
 The defence there is the audit trail — every change also posted as its own
 comment, appended and never edited — which is the remaining piece of
 codecheckers/chekhov#18.

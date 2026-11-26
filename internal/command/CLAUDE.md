@@ -12,12 +12,17 @@ than a `switch`.
   refused.
 - A definition's **name may be a phrase** - `check start`, `check finish` -
   and the parser matches two words before one. A subcommand is its own entry
-  with its own role, which is the whole point: `check` is for anybody and
+  with its own role, which is the whole point: `check` needs no role and
   `check finish` is for editors, and the registry is where that is decided. A
-  second word naming no entry is an argument, as it always was. `Definition.Or`
-  names the other roles that may run a command, for the few where one role is
-  not the whole answer, and `Who` words the refusal so it and the listing
-  cannot disagree.
+  second word naming no entry is an argument, as it always was.
+  `Definition.Roles` holds more than one where one role is not the whole
+  answer, and `Who` words the refusal so it and the listing cannot disagree.
+- **Roles are the second question.** Whether somebody may task the bot at all
+  is decided first, once per comment (`internal/bot/gate.go`, wording in
+  `access.go`), so `RoleAnyone` is anyone past that, not any GitHub account.
+  The record's allowlist is part of that first question and is deliberately not
+  a `Role`: it grants no command, conflicts with nothing and puts nobody on the
+  check.
 - A person holds a *set* of roles, `command.Roles`, not one: the same person
   can be an editor and the codechecker assigned to a check. Standing roles
   (`editor`, `codechecker`) come from the organisation's GitHub teams, read

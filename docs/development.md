@@ -72,6 +72,11 @@ are its free text (`command.Split`). A line in a code fence, or indented as
 code, is never a command. At most `command.MostCommands` (five) are run from
 one comment, and a reply names the rest. A comment that does not begin with a command has none.
 
+Not every account's commands are run: who may task the bot is decided once per
+comment, in `internal/bot/gate.go`, before any command is looked at, and the
+roles in the command registry come on top. See
+[`README.md`](../README.md#who-may-ask-the-bot).
+
 ## Engine
 
 A fresh implementation in **Go**, decided in
@@ -109,6 +114,10 @@ through the same code path:
 ```sh
 echo '@chekhovbot commands' | go run ./cmd/chekhov comment -
 ```
+
+Without a token the preview answers anybody. With `CHEKHOV_GH_ACCESS_TOKEN` set
+it decides who may ask as a deployment does, and since a preview has no issue,
+only the organisation lets `--as` (default: `$USER`) in.
 
 A registration is checked the same way with `chekhov include check`, from an
 issue URL, a CSV file of rows (every row, the header skipped, none compared

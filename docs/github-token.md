@@ -56,7 +56,7 @@ Organisation permissions:
 
 | Permission | Level | Needed for |
 |---|---|---|
-| Members | Read and write | Read: the `editors` and `codecheckers` teams, which is where the standing roles come from, and whether somebody is in the organisation at all. Write: putting a codechecker in the team a check implies |
+| Members | Read and write | Read: the `editors` and `codecheckers` teams, which is where the standing roles come from, and whether somebody is in the organisation at all - which also decides who may task the bot. Write: putting a codechecker in the team a check implies |
 
 *Members* is organisation-wide rather than repository-scoped, and it is
 the one permission here that reaches beyond the single repository. It is the
@@ -69,6 +69,18 @@ for why this does not warrant a second credential.
 has no members, the editor-only commands refuse, and the listing does not offer
 them. The startup log says so at boot - `a team could not be read at startup` -
 so the cause is visible before an editor is told they are not one.
+
+Who may task the bot at all fails closed the same way: with no teams and no
+answer about membership, only those an issue itself lets in are answered (its
+opener, assignees, record and allowlist, and on the lists whom a registration
+is for).
+
+A member in neither team whose membership is private is let in only if the
+token can see private members. A token that sees only what is public (below)
+would probably answer "not a member" rather than fail. **This has not been
+tried.** Before relying on a new token, check that
+`GET /orgs/codecheckers/members/<such a member>` answers 204 with it, without
+printing the token.
 
 ### Members: write, and what stops it being more than the teams
 

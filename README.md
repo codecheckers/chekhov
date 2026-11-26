@@ -25,6 +25,36 @@ in order.
 @chekhovbot remind me in 2 weeks
 ```
 
+## Who may ask the bot
+
+Not every GitHub account. `@chekhovbot` takes commands from:
+
+- members of the [`codecheckers`](https://github.com/codecheckers)
+  organisation, on any issue it works on;
+- whoever opened an issue or is assigned to it, on that issue, member or not -
+  but not on a pull request, which anybody can open;
+- on a check, its handling editor, assigned codechecker and authors as its
+  record has them, and whoever an editor added with
+  `@chekhovbot allowlist add @user`;
+- on the codechecker lists, the person a registration is for, also when the
+  bot opened the registration.
+
+This comes before the roles: a command that needs no role is for anybody in
+this list, and the others need their role on top. Somebody else who asks is
+told so once on an issue, without being notified, and is only logged after
+that (a refusal the bot had to make without being able to look everything up
+says so, and does not count as that once); a comment holding a Zenodo share
+link is deleted all the same, and that is said each time. The
+allowlist belongs to one check, lets somebody ask and gives them no role;
+`@chekhovbot allowlist` shows it and `allowlist remove @user` takes somebody
+off. It is kept, signed, in the record comment on the issue
+([`docs/record-key.md`](docs/record-key.md)), like everything else the bot
+knows about a check. The codechecker lists have no allowlist.
+
+Anybody who may open an issue becomes its opener and may ask on it. The rule
+keeps strangers out of other people's checks; it is no defence against abuse
+in general. Reminders and nudges already recorded are sent whoever asked.
+
 Tracking issue: <https://github.com/codecheckers/register/issues/209>
 
 ## The name
@@ -103,7 +133,8 @@ only; the production register is not configured anywhere. See
 # the bot: /dispatch, /help, /healthz, /nudges
 go run ./cmd/chekhov serve
 
-# the same answer, offline
+# the same answer, offline; with CHEKHOV_GH_ACCESS_TOKEN set it also asks
+# whether --as (default: $USER) is in the organisation, and refuses if not
 echo '@chekhovbot commands' | go run ./cmd/chekhov comment -
 
 # an editor's preview

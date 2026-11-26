@@ -45,6 +45,18 @@ usage - which the platform reads as a crash loop.
 - Three guards, in this order: the repository is the configured target, the
   author is not the bot itself, the event is an opened issue or a created
   comment. Everything else is a 204 with a log line, never an error.
+- **Then who may ask** (`gate.go`), once per comment, in `actEach` and
+  `Preview`: cheapest first - the event's opener and assignees (not on a pull
+  request), the cached teams, one request about the organisation, then the
+  issue's comments for the record, its allowlist, or whom a registration on the
+  lists is for. It fails closed. `answer` asks only about roles, so **a new way
+  of running a command has to ask the gate too.** A refusal is posted once per
+  account and issue, and one that could not read everything once more besides
+  (`command.TurnedAwayOpening` is how either is known again, so do not reword
+  the starts), never notifies, and is no answer to anything else:
+  `latestRowAnswered` and `justSaid` skip it. A command whose mention of somebody
+  is not their taking part is marked `AsksAbout` in the registry. A share link in a refused comment
+  is still deleted. The sweeps do not ask the gate.
 - **A deployment does not read its own disk.** `Server.LocalPaths` is off, so a
   path in a comment is not a target; only a `github::owner/repo` spec is. The
   command line preview turns it on, because there the path is the user's own.

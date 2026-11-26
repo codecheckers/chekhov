@@ -47,7 +47,8 @@ type Definition struct {
 	Group string
 	// Roles are who may run the command: any one of them is enough. Usually
 	// one; `check start` is the codechecker's own command and an editor's
-	// alike.
+	// alike. Asked only of somebody the bot takes commands from at all, which
+	// is decided before any command is (internal/bot/gate.go).
 	Roles Roles
 	// Hidden keeps a working command out of the listing. hello is hidden
 	// because it is a smoke test rather than something a codechecker needs,
@@ -72,6 +73,10 @@ type Definition struct {
 	// there: it opens a registration rather than answering one. The others
 	// need an issue labelled as a registration.
 	AnyListsIssue bool
+	// AsksAbout says a mention in this command is the asking - to notify the
+	// person it names, or to let them ask the bot - and so not their having
+	// taken part in the issue; see mentionedOutsideAsking in internal/bot.
+	AsksAbout bool
 	// NamesInFull says the command's last argument is a name written out -
 	// a venue, "J. Stat. Softw." - whose full stop is its own rather than
 	// the sentence's, so Parse leaves it on. See arguments in command.go.
@@ -139,11 +144,12 @@ var registry = []Definition{
 		AboutTheCheck: true,
 	},
 	{
-		Name:    Invite,
-		Summary: "Open a registration on the codechecker list for somebody, and ask the owners to invite them if they are not in the organisation yet",
-		Usage:   "invite @user",
-		Group:   GroupPeople,
-		Roles:   Roles{RoleEditor},
+		Name:      Invite,
+		AsksAbout: true,
+		Summary:   "Open a registration on the codechecker list for somebody, and ask the owners to invite them if they are not in the organisation yet",
+		Usage:     "invite @user",
+		Group:     GroupPeople,
+		Roles:     Roles{RoleEditor},
 	},
 	{
 		Name:          Remove,
@@ -168,6 +174,30 @@ var registry = []Definition{
 		Usage:   "record accept",
 		Group:   GroupPeople,
 		Roles:   Roles{RoleEditor},
+	},
+	{
+		Name:      Allowlist,
+		AsksAbout: true,
+		Summary:   "Say who an editor has added to those who may ask me on this check",
+		Usage:     "allowlist",
+		Group:     GroupPeople,
+		Roles:     Roles{RoleAnyone},
+	},
+	{
+		Name:      AllowlistAdd,
+		AsksAbout: true,
+		Summary:   "Let somebody ask me on this check who otherwise could not; it gives them no role",
+		Usage:     "allowlist add @user",
+		Group:     GroupPeople,
+		Roles:     Roles{RoleEditor},
+	},
+	{
+		Name:      AllowlistRemove,
+		AsksAbout: true,
+		Summary:   "Take somebody off this check's allowlist",
+		Usage:     "allowlist remove @user",
+		Group:     GroupPeople,
+		Roles:     Roles{RoleEditor},
 	},
 	{
 		Name:    ListCodecheckers,
@@ -195,6 +225,7 @@ var registry = []Definition{
 	},
 	{
 		Name:          IncludeOpen,
+		AsksAbout:     true,
 		Summary:       "Open a registration for somebody, asking for their row",
 		Usage:         "include open @handle",
 		Group:         GroupPeople,
@@ -239,11 +270,12 @@ var registry = []Definition{
 		Roles:   Roles{RoleAnyone},
 	},
 	{
-		Name:    Remind,
-		Summary: "Remind yourself, or somebody on this check, in some days or weeks; a reason can follow on the next lines",
-		Usage:   "remind me|@user in <n> days|weeks",
-		Group:   GroupWorkflow,
-		// Anybody may remind themselves; who may remind somebody else is
+		Name:      Remind,
+		AsksAbout: true,
+		Summary:   "Remind yourself, or somebody on this check, in some days or weeks; a reason can follow on the next lines",
+		Usage:     "remind me|@user in <n> days|weeks",
+		Group:     GroupWorkflow,
+		// Anyone may remind themselves; who may remind somebody else is
 		// decided in the command, because it depends on whom it names.
 		Roles: Roles{RoleAnyone},
 	},
