@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
+	"unicode"
 
 	"github.com/codecheckers/chekhov/internal/check"
 	"github.com/codecheckers/chekhov/internal/command"
@@ -21,7 +23,7 @@ func (s *Server) checkZenodo(ctx context.Context, event mention, parsed command.
 	services *check.Services) answered {
 	// First, before the audit takes its time: for as long as the comment is
 	// there, anyone who can read the issue can use the link. Whatever is
-	// wrong with the rest of the command, the link goes.
+	// wrong with the rest of the command, a link that may open something goes.
 	link := s.deleteShareLink(ctx, event, parsed)
 	refuse := func(refusal string) answered { return said(refusal + command.ShareLinkNote(link)) }
 
@@ -95,15 +97,75 @@ var _ Deleting = (*github.Client)(nil)
 // the argument, a second one, or the lines below the command.
 var shareLink = regexp.MustCompile(`(?i)zenodo\.org/\S*[?&]token=`)
 
-// deleteShareLink deletes the comment that carried a share link, if it did.
-// Deleting, not editing: GitHub keeps a comment's earlier versions readable by
-// everybody who can read it. Why a deletion failed goes to the log, not to
-// the issue.
+// shareLinkCheck bounds the asking whether a link points at anything, since
+// the comment stays up until it is answered; mostLinksChecked bounds how many
+// of one comment are asked about.
+const (
+	shareLinkCheck   = 3 * time.Second
+	mostLinksChecked = 3
+)
+
+// pointsAtNothing says every share link in a comment is surely one to no
+// record, so that there is nothing to protect. Anything it cannot be sure of -
+// a link it cannot read, more than it asks about, a token outside a link it
+// read, Zenodo not answering, services off - is false.
+func (s *Server) pointsAtNothing(ctx context.Context, text string) bool {
+	services := s.Services.Fresh()
+	if !services.Enabled() {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(ctx, shareLinkCheck)
+	defer cancel()
+
+	targets := map[check.ZenodoTarget]bool{}
+	// What a link is set off by in a comment, Markdown's own marks included.
+	for _, word := range strings.FieldsFunc(text, func(r rune) bool {
+		return unicode.IsSpace(r) || strings.ContainsRune("<>()[]\"'`", r)
+	}) {
+		lower := strings.ToLower(word)
+		if !strings.Contains(lower, "token=") {
+			continue
+		}
+		if strings.Count(lower, "zenodo.org/") != 1 {
+			return false
+		}
+		// As command.arguments does, so that the link in the comment and the
+		// same link as a command's last argument are one.
+		word = strings.TrimRight(word, ".,;:!?")
+		if !strings.Contains(word, "://") {
+			word = "https://" + word
+		}
+		target, err := check.ParseZenodoTarget(word)
+		if err != nil || target.Token == "" {
+			return false
+		}
+		targets[target] = true
+	}
+	if len(targets) == 0 || len(targets) > mostLinksChecked {
+		return false
+	}
+	for target := range targets {
+		if !services.NoZenodoRecord(ctx, target) {
+			return false
+		}
+	}
+	return true
+}
+
+// deleteShareLink deletes the comment that carried a share link, if it did,
+// unless every link in it surely points at nothing. Deleting, not editing:
+// GitHub keeps a comment's earlier versions readable by everybody who can read
+// it. Why a deletion failed goes to the log, not to the issue.
 func (s *Server) deleteShareLink(ctx context.Context, event mention, parsed command.Command) command.ShareLink {
-	if !shareLink.MatchString(event.CommentBody + " " + event.Body + " " + strings.Join(parsed.Args, " ")) {
+	text := event.CommentBody + " " + event.Body + " " + strings.Join(parsed.Args, " ")
+	if !shareLink.MatchString(text) {
 		return command.ShareLink{}
 	}
-	link := command.ShareLink{Held: true, InDescription: event.Comment == 0}
+	inDescription := event.Comment == 0
+	if s.pointsAtNothing(ctx, text) {
+		return command.ShareLink{NoRecord: true, InDescription: inDescription}
+	}
+	link := command.ShareLink{Held: true, InDescription: inDescription}
 	deleter, canDelete := s.Replies.(Deleting)
 	if link.InDescription || !canDelete {
 		return link

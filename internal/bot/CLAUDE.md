@@ -2,6 +2,8 @@
 
 ## The bot
 
+<!-- Source: own rule; who may ask (#70) and share link deletion added 2026-11-26. -->
+
 `bot.Serve` is the whole deployment: `POST /dispatch` for GitHub's deliveries,
 `GET /help` (the commands as a page, generated from
 the registry), `GET /healthz` and `GET /nudges` for everything else. No state, no database. The container runs
@@ -56,7 +58,15 @@ usage - which the platform reads as a crash loop.
   the starts), never notifies, and is no answer to anything else:
   `latestRowAnswered` and `justSaid` skip it. A command whose mention of somebody
   is not their taking part is marked `AsksAbout` in the registry. A share link in a refused comment
-  is still deleted. The sweeps do not ask the gate.
+  is still deleted, and explained at most `refusals.share_link_replies` times
+  per account and issue, counted from the bot's own comments. **A link that
+  could not be deleted is still up**: its warning is counted apart, and no
+  setting or unreadable listing silences the first. The sweeps do not ask the
+  gate.
+- **`deleteShareLink` leaves only a comment whose links surely point at
+  nothing** (`pointsAtNothing`): **every doubt deletes**, because a real link
+  left up costs more than a fake one removed. Zenodo ignores the token on a
+  published record, so no request can show a link genuine.
 - **A deployment does not read its own disk.** `Server.LocalPaths` is off, so a
   path in a comment is not a target; only a `github::owner/repo` spec is. The
   command line preview turns it on, because there the path is the user's own.

@@ -25,8 +25,9 @@ const (
 // comment when asked.
 type heard struct {
 	*organisation
-	listErr error
-	deleted []int64
+	listErr   error
+	deleteErr error
+	deleted   []int64
 }
 
 func (h *heard) Comments(_ context.Context, _ string, issue int) ([]github.Comment, error) {
@@ -42,6 +43,9 @@ func (h *heard) Comments(_ context.Context, _ string, issue int) ([]github.Comme
 }
 
 func (h *heard) DeleteComment(_ context.Context, _ string, comment int64) error {
+	if h.deleteErr != nil {
+		return h.deleteErr
+	}
 	h.deleted = append(h.deleted, comment)
 	return nil
 }

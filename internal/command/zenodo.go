@@ -125,24 +125,52 @@ func AuditReply(a Audit) string {
 // A ShareLink is what became of a comment that held a Zenodo share link,
 // which anyone who can read the issue can use for as long as it is there.
 type ShareLink struct {
-	// Held says the command held one; the rest says nothing otherwise.
+	// Held says the command held a link that had to be protected; Deleted says
+	// something only then, and InDescription then or with NoRecord.
 	Held bool
 	// Deleted says the bot deleted the comment, and InDescription that the
 	// link is in the issue's description, which it cannot delete.
 	Deleted, InDescription bool
+	// NoRecord says the comment held a link, and Zenodo has nothing of the
+	// number it names, so it was left alone. Held is false then.
+	NoRecord bool
 }
+
+// revoke ends every note on a link that was held, and is how a reply that
+// carried one is known again, see ExplainsShareLink, which the limit on such
+// replies counts by: reword it and those already posted stop counting.
+const revoke = "GitHub had already sent it to everybody watching this issue, so delete the link under " +
+	"Share on the record once you are done with it.\n"
+
+// ExplainsShareLink says a reply of the bot's told somebody what became of a
+// share link.
+func ExplainsShareLink(body string) bool { return strings.Contains(body, strings.TrimSpace(revoke)) }
+
+// deleted opens the note on a link whose comment was deleted, and is how such
+// a reply is told from a warning that the link is still up. Counted by, as
+// revoke is.
+const deleted = "✔ I deleted the comment that asked"
+
+// ExplainsDeletion says a reply told somebody their comment was deleted.
+func ExplainsDeletion(body string) bool { return strings.Contains(body, deleted) }
 
 // ShareLinkNote says what became of the share link, and that neither deleting
 // nor editing calls back what GitHub has already sent to whoever watches the
 // issue: only deleting the link on Zenodo does.
 func ShareLinkNote(l ShareLink) string {
-	const revoke = "GitHub had already sent it to everybody watching this issue, so delete the link under " +
-		"Share on the record once you are done with it.\n"
 	switch {
+	case l.NoRecord:
+		left, remove := "the comment", "delete the comment"
+		if l.InDescription {
+			left, remove = "the issue's description", "edit it out of the description, which keeps its earlier version"
+		}
+		return fmt.Sprintf("\nZenodo has no record or draft with the number in that link, so I have left %s as it is. "+
+			"If the link is real and the number mistyped, %s, and delete the link under Share on the record.\n",
+			left, remove)
 	case !l.Held:
 		return ""
 	case l.Deleted:
-		return "\n✔ I deleted the comment that asked, because anyone who can read this issue could have used " +
+		return "\n" + deleted + ", because anyone who can read this issue could have used " +
 			"the share link in it. " + revoke
 	case l.InDescription:
 		return "\n⚠ The share link is in the issue's description, where anyone who can read this issue can use it. " +

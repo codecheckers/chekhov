@@ -45,6 +45,7 @@ type Settings struct {
 			AdminIssue IssueNumber `yaml:"admin_issue"`
 		} `yaml:"env"`
 		Metadata Metadata `yaml:"metadata"`
+		Refusals Refusals `yaml:"refusals"`
 		Lists    Lists    `yaml:"lists"`
 		Links    Links    `yaml:"links"`
 		Mastodon Mastodon `yaml:"mastodon"`
@@ -115,6 +116,28 @@ type Settings struct {
 			} `yaml:"managed"`
 		} `yaml:"labels"`
 	} `yaml:"chekhov"`
+}
+
+// Refusals bounds what the bot posts at the asking of somebody it takes no
+// commands from. That is one refusal per person and issue, except where the bot
+// deletes a comment holding a share link, which it explains.
+type Refusals struct {
+	// ShareLinkReplies is how many such deletions are explained to one person
+	// on one issue; later comments are deleted without a reply. A pointer
+	// because 0, never explain, is not the same as not saying.
+	ShareLinkReplies *int `yaml:"share_link_replies"`
+}
+
+// DefaultShareLinkReplies is the limit when the settings name none.
+const DefaultShareLinkReplies = 3
+
+// ShareLinkReplies is how many deletions of a share link the bot explains to
+// somebody it takes no commands from, on one issue.
+func (s *Settings) ShareLinkReplies() int {
+	if limit := s.Chekhov.Refusals.ShareLinkReplies; limit != nil {
+		return *limit
+	}
+	return DefaultShareLinkReplies
 }
 
 // Nudges are the nightly sweep's own comments about a check that has stalled,
@@ -466,6 +489,10 @@ func validate(name string, s *Settings) error {
 				}
 			}
 		}
+	}
+	if s.ShareLinkReplies() < 0 {
+		return fmt.Errorf("%s: refusals.share_link_replies is %d; it is a count, 0 for no replies",
+			name, s.ShareLinkReplies())
 	}
 	nudges := s.Chekhov.Nudges
 	if nudges.QuietDays < 0 || nudges.NeedsCodecheckerDays < 0 || nudges.MostPerSweep < 0 {

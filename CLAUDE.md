@@ -2,6 +2,8 @@
 
 ## Overview
 
+<!-- Source: own rule; who may task the bot added 2026-11-26 (#70). -->
+
 Chekhov is the CODECHECK register bot, a fresh implementation in Go. It is
 controlled by mentions in the checks issue: the command goes on the **first
 line** of a comment, following the convention of the Open Journals bots, and

@@ -43,6 +43,12 @@ chekhov:
     # faster pool. A project address, never a person's.
     mailto: ${CHEKHOV_METADATA_MAILTO:-chekhov@cdchck.science}
 
+  refusals:
+    # Somebody the bot takes no commands from is told so once on an issue. A
+    # comment of theirs holding a Zenodo share link is deleted every time, and
+    # explained at most this many times per issue; 0 explains none of them.
+    share_link_replies: ${CHEKHOV_SHARE_LINK_REPLIES:-3}
+
   links:
     # Sites `check links` does not ask, because they refuse an automated
     # request - or answer it with a login page - whatever the link is, so the

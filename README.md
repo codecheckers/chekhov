@@ -44,7 +44,11 @@ this list, and the others need their role on top. Somebody else who asks is
 told so once on an issue, without being notified, and is only logged after
 that (a refusal the bot had to make without being able to look everything up
 says so, and does not count as that once); a comment holding a Zenodo share
-link is deleted all the same, and that is said each time. The
+link is deleted all the same, and explained up to three times per person and
+issue (`refusals.share_link_replies`), after which it gets no further reply.
+A link the bot could **not** delete is warned of apart from that: as many times
+again, and at least once.
+A link to a record Zenodo does not have is left alone, see below. The
 allowlist belongs to one check, lets somebody ask and gives them no role;
 `@chekhovbot allowlist` shows it and `allowlist remove @user` takes somebody
 off. It is kept, signed, in the record comment on the issue
@@ -86,7 +90,12 @@ as the editor. `@chekhovbot check zenodo` audits the certificate's Zenodo
 record against the CODECHECK community's curation policy and the
 `codecheck.yml`, and reads a draft through a share link, so that the record can
 be fixed before it is published; it deletes the comment that held the link,
-which anyone who can read the issue could otherwise use. `@chekhovbot check start`, `@chekhovbot status` and
+which anyone who can read the issue could otherwise use. First it asks Zenodo,
+with up to two `HEAD` requests a link, whether there is anything there: only
+when there are at most three links in the comment, each naming a number with
+neither a record nor a draft, is the comment left. That does not show that a link is genuine - Zenodo answers
+for a published record whatever token comes with it - so in every other case,
+and when Zenodo does not answer, the comment is deleted. `@chekhovbot check start`, `@chekhovbot status` and
 `@chekhovbot check finish` say where a check stands and move the register's labels with it, running the
 checks that already exist rather than repeating them: because those take time,
 the reply is posted at once and rewritten in place as each answers. `check start`

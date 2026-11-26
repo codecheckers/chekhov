@@ -606,3 +606,25 @@ func TestTheListsReviewersAreOneModeOrHandles(t *testing.T) {
 		t.Errorf("the shipped default is %q %q, want the asker", mode, named)
 	}
 }
+
+// The limit on explaining deleted share links is a count: three unless said,
+// none at 0, and nothing below.
+func TestShareLinkReplies(t *testing.T) {
+	for written, want := range map[string]int{"": DefaultShareLinkReplies, "0": 0, "7": 7} {
+		t.Setenv("CHEKHOV_SHARE_LINK_REPLIES", written)
+		settings, err := Load("development")
+		if err != nil {
+			t.Fatalf("%q: %v", written, err)
+		}
+		if got := settings.ShareLinkReplies(); got != want {
+			t.Errorf("%q: %d, want %d", written, got, want)
+		}
+	}
+	if got := (&Settings{}).ShareLinkReplies(); got != DefaultShareLinkReplies {
+		t.Errorf("settings that say nothing: %d", got)
+	}
+	t.Setenv("CHEKHOV_SHARE_LINK_REPLIES", "-1")
+	if _, err := Load("development"); err == nil || !strings.Contains(err.Error(), "share_link_replies") {
+		t.Errorf("a negative limit was accepted: %v", err)
+	}
+}

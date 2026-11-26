@@ -9,7 +9,9 @@ offline fixtures can only imitate: make a draft on the
 [Zenodo sandbox](https://sandbox.zenodo.org), share it, audit it the way the
 bot would, and delete it (`internal/check/sandbox_test.go`). The draft chooses
 the sandbox's own [CODECHECK community](https://sandbox.zenodo.org/communities/codecheck)
-without being submitted to it, so nobody is asked to review a test.
+without being submitted to it, so nobody is asked to review a test. It also
+holds that a real share link is never taken for one that points at nothing,
+which would leave it on the issue.
 
 ## Creating it
 

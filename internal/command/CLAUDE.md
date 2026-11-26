@@ -2,6 +2,8 @@
 
 ## Commands live in the registry
 
+<!-- Source: own rule; roles after the question who may ask, 2026-11-26 (#70). -->
+
 `internal/command/registry.go` holds one entry per command: name, aliases,
 summary, usage, group, role, hidden. The parser resolves against it and the
 help listing is generated from it, so a command cannot be added and then

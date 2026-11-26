@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"slices"
@@ -251,21 +252,53 @@ func (r invenioRecord) asRecord() zenodoRecord {
 	return record
 }
 
-// readZenodo reads the record a target names: with a share link the draft
-// first, because a share link is mostly how a draft is shown, and the
-// published record otherwise.
-func (s *Services) readZenodo(ctx context.Context, target ZenodoTarget) (invenioRecord, error) {
+// zenodoRecordURLs are where InvenioRDM serves what a target names: the
+// published record and its draft, and the query a share link's token goes in.
+func (s *Services) zenodoRecordURLs(target ZenodoTarget) (published, draft, query string) {
 	api := s.Zenodo
 	if target.Sandbox {
 		api = s.ZenodoSandbox
 	}
-	query := ""
 	if target.Token != "" {
 		query = "?token=" + url.QueryEscape(target.Token)
 	}
+	published = fmt.Sprintf("%s/records/%s", api, target.ID)
+	return published, published + "/draft", query
+}
+
+// NoZenodoRecord reports that a share link points at nothing: Zenodo says
+// there is neither a record nor a draft of that number, so there is nothing
+// its token could open. It is two HEAD requests and reads nothing.
+//
+// That is all anonymous requests can tell. Zenodo answers for a published
+// record whatever token comes with it - tried with a made-up one, 2026-11 -
+// and a link that grants editing it looks no different. So any other answer,
+// and no answer, is false: a caller that skips a link must be sure of it.
+//
+// The status is all that leaves here: an error would quote the token.
+func (s *Services) NoZenodoRecord(ctx context.Context, target ZenodoTarget) bool {
+	if !s.Enabled() || target.ID == "" || target.Token == "" {
+		return false
+	}
+	published, draft, query := s.zenodoRecordURLs(target)
 	header := map[string]string{"Accept": invenioMediaType}
-	published := fmt.Sprintf("%s/records/%s", api, target.ID)
-	draft := published + "/draft"
+	// The draft first: a share link is mostly to one, and then one request
+	// settles that there is something.
+	for _, at := range []string{draft, published} {
+		status, _, err := s.requestContext(ctx, http.MethodHead, at+query, header)
+		if err != nil || (status != http.StatusNotFound && status != http.StatusGone) {
+			return false
+		}
+	}
+	return true
+}
+
+// readZenodo reads the record a target names: with a share link the draft
+// first, because a share link is mostly how a draft is shown, and the
+// published record otherwise.
+func (s *Services) readZenodo(ctx context.Context, target ZenodoTarget) (invenioRecord, error) {
+	header := map[string]string{"Accept": invenioMediaType}
+	published, draft, query := s.zenodoRecordURLs(target)
 	order := []string{published}
 	if target.Preview || target.Token != "" {
 		order = []string{draft, published}

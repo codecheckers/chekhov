@@ -3,12 +3,11 @@ package bot
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/codecheckers/chekhov/internal/command"
-	"github.com/codecheckers/chekhov/internal/github"
 	"github.com/codecheckers/chekhov/internal/people"
 )
 
@@ -110,7 +109,14 @@ func (s *Server) partOfTheIssue(ctx context.Context, event mention, handle strin
 // that once: two at most.
 //
 // A comment asking `check zenodo` with a share link is deleted all the same,
-// and that is said every time, since the person has to revoke the link.
+// and every one of them, unless its link surely points at nothing. The person
+// has to revoke a link, so a deletion is explained even to somebody told
+// already - as often as refusals.share_link_replies says on one issue, and
+// then no more, or the deletions would be a way to make the bot post for ever.
+//
+// A deletion that failed leaves the link up, so its warning is counted apart
+// from those: given at least once whatever the setting says, and even where
+// the comments cannot be listed to count them.
 func (s *Server) turnAway(ctx context.Context, event mention, commands []command.Command, refused command.Refused) {
 	s.Logger.Info("no commands are taken from this account", "repository", event.Repository,
 		"issue", event.Issue, "author", event.Author, "unread", refused.Unread, "record_edited", refused.Edited)
@@ -124,43 +130,114 @@ func (s *Server) turnAway(ctx context.Context, event mention, commands []command
 		link = s.deleteShareLink(ctx, event, commands[i])
 	}
 
-	if !link.Held {
-		// Claimed from looking to telling, so that two comments at once are
-		// told once. A claim rather than a lock: the post waits in the queue
-		// every write shares, and nobody else's refusal waits with it.
-		claim := event.check() + " " + strconv.Quote(command.Handle(event.Author))
+	// explain is whether this reply tells of the link; link stays what became
+	// of it.
+	explain := link.Held
+	leftUp := link.Held && !link.Deleted
+	limit := s.Settings.ShareLinkReplies()
+	if leftUp {
+		limit = max(limit, 1)
+	}
+	for {
+		// Claimed from looking to telling, so that of two comments arriving at
+		// once only one gets past the look; the other is not answered. A claim
+		// rather than a lock: the post waits in the queue every write shares,
+		// and nobody else's refusal waits with it. Explanations have a claim
+		// of their own, so that a plain refusal on its way does not keep a
+		// deletion from being explained.
+		kind := refusalPlain
+		switch {
+		case explain && leftUp:
+			kind = refusalLeftUp
+		case explain:
+			kind = refusalDeleted
+		}
+		claim := refusalClaim(event, kind)
 		if _, telling := s.turningAway.LoadOrStore(claim, struct{}{}); telling {
 			return
 		}
 		defer s.turningAway.Delete(claim)
-		if s.toldAlready(ctx, event, refused.Unread) {
+
+		told, readable := s.refusalsTo(ctx, event)
+		if !readable {
+			if explain && leftUp {
+				break
+			}
 			return
 		}
+		if explain && explained(told, link.Deleted) >= limit {
+			// Spent: what is left is the one refusal anybody gets, claimed
+			// and looked for as that one.
+			explain = false
+			continue
+		}
+		if !explain && toldAlready(told, event.Author, refused.Unread) {
+			return
+		}
+		break
 	}
-	if _, err := s.post(ctx, event, said(command.TurnedAway(refused)+command.ShareLinkNote(link))); err != nil {
+	note := ""
+	if explain {
+		note = command.ShareLinkNote(link)
+	}
+	if _, err := s.post(ctx, event, said(command.TurnedAway(refused)+note)); err != nil {
 		s.Logger.Error("the refusal could not be posted", "issue", event.Issue, "error", err)
 	}
 }
 
-// toldAlready says the bot has told this person on this issue already, which a
-// refusal that could not look counts as only for another such one. Comments
-// that cannot be listed count as told: staying silent costs somebody an
-// explanation, and the other way round lets a stranger draw a post each time.
-// A reply path that cannot list at all - a test's recorder - has told nobody.
-func (s *Server) toldAlready(ctx context.Context, event mention, unread bool) bool {
+// The kinds of refusal that are claimed apart: see turnAway.
+const (
+	refusalPlain   = "plain"
+	refusalDeleted = "deleted"
+	refusalLeftUp  = "left up"
+)
+
+func refusalClaim(event mention, kind string) string {
+	return fmt.Sprintf("%s %q %s", event.check(), command.Handle(event.Author), kind)
+}
+
+// refusalsTo are the refusals the bot has posted to this person on this issue.
+// Comments that cannot be listed are not readable, and then nothing is posted:
+// staying silent costs somebody an explanation, and the other way round lets a
+// stranger draw a post each time. A reply path that cannot list at all - a
+// test's recorder - has told nobody.
+func (s *Server) refusalsTo(ctx context.Context, event mention) (told []string, readable bool) {
 	reader, ok := s.posterFor(event.Repository).(Reader)
 	if !ok {
-		return false
+		return nil, true
 	}
 	written, err := reader.Comments(ctx, event.Repository, event.Issue)
 	if err != nil {
-		s.Logger.Warn("whether this account was told already could not be read",
+		s.Logger.Warn("what this account was told already could not be read",
 			"issue", event.Issue, "error", err)
-		return true
+		return nil, false
 	}
-	return slices.ContainsFunc(written, func(comment github.Comment) bool {
-		return strings.EqualFold(comment.Author, s.Settings.BotUser()) &&
+	for _, comment := range written {
+		if strings.EqualFold(comment.Author, s.Settings.BotUser()) &&
 			(strings.HasPrefix(comment.Body, command.TurnedAwayOpening(event.Author, false)) ||
-				unread && strings.HasPrefix(comment.Body, command.TurnedAwayOpening(event.Author, true)))
+				strings.HasPrefix(comment.Body, command.TurnedAwayOpening(event.Author, true))) {
+			told = append(told, comment.Body)
+		}
+	}
+	return told, true
+}
+
+// toldAlready says one of these refusals is the one this one would repeat. A
+// refusal that could not look counts only for another such one.
+func toldAlready(told []string, handle string, unread bool) bool {
+	return slices.ContainsFunc(told, func(body string) bool {
+		return unread || strings.HasPrefix(body, command.TurnedAwayOpening(handle, false))
 	})
+}
+
+// explained is how many of these refusals told of a share link whose comment
+// was deleted, or of one that was left up.
+func explained(told []string, deleted bool) int {
+	count := 0
+	for _, body := range told {
+		if command.ExplainsShareLink(body) && command.ExplainsDeletion(body) == deleted {
+			count++
+		}
+	}
+	return count
 }

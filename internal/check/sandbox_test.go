@@ -162,6 +162,11 @@ func TestIntegrationSandboxDraftByShareLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A real share link must never be taken for one that points at nothing:
+	// the bot would leave it on the issue.
+	if services.NoZenodoRecord(context.Background(), target) {
+		t.Error("a real share link of a draft was taken to point at nothing")
+	}
 	audit := AuditZenodo(context.Background(), target, Context{}, services)
 	if audit.Problem != "" {
 		t.Fatalf("Problem = %q", audit.Problem)

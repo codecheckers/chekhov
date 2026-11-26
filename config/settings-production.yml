@@ -39,6 +39,12 @@ chekhov:
     source: ${CHEKHOV_METADATA_SOURCE:-openalex}
     mailto: ${CHEKHOV_METADATA_MAILTO:-chekhov@cdchck.science}
 
+  refusals:
+    # Somebody the bot takes no commands from is told so once on an issue. A
+    # comment of theirs holding a Zenodo share link is deleted every time, and
+    # explained at most this many times per issue; 0 explains none of them.
+    share_link_replies: ${CHEKHOV_SHARE_LINK_REPLIES:-3}
+
   links:
     # The sites `check links` does not ask, as in settings-development.yml.
     skip_hosts:

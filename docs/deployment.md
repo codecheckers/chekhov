@@ -61,6 +61,8 @@ runway app config set -a chekhov-dev GOMEMLIMIT=96MiB             # the free pla
 runway app config set -a chekhov-dev CHEKHOV_RECORD_KEY=...       # `chekhov record-key`, see record-key.md
 runway app config set -a chekhov-dev CHEKHOV_ADMIN_ISSUE=...      # optional, see "Watching it" below
 # CHEKHOV_NUDGE_* only to switch the nudges on, see "Nudges" below
+# CHEKHOV_SHARE_LINK_REPLIES only to change how often a deleted share link is explained
+# to somebody the bot takes no commands from: 3 unless set, 0 for never
 # CHEKHOV_MASTODON_ACCOUNT / CHEKHOV_MASTODON_INSTANCE only to post elsewhere than @codecheck@fediscience.org;
 # the production file writes them out and does not read either
 runway app deploy source -y
