@@ -231,7 +231,7 @@ func (s *Server) registrationAssignee(ctx context.Context, from mention, registr
 func (s *Server) recordRegistrant(ctx context.Context, opened mention, login string) string {
 	record := s.followUp(opened, followup.Record{Kind: followup.KindRegistration, Subject: strings.ToLower(login)})
 	if _, err := s.post(ctx, opened, answered{body: command.RegistrationFor(login), follow: record}); err != nil {
-		s.Logger.Warn("could not record whom a registration is for", "issue", opened.Issue, "error", err)
+		s.Logger.Warn("could not record whom a registration is for", "repository", opened.Repository, "issue", opened.Issue, "error", err)
 		return command.Item(command.NotDone("record whom it is for, so its row cannot be read yet; asking "+
 			"again mends it", whyNot(err)))
 	}

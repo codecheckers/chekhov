@@ -158,7 +158,8 @@ func Serve(address string) (failure error) {
 	return listen(address, server.Handler(), tee)
 }
 
-// logSinkFor is the sink for the errors, writing to the log repository
+// logSinkFor is the sink for the errors, whose client `log` writes with too,
+// writing to the log repository
 // through a client of its own: it opens issues there and nowhere else, puts
 // on only this deployment's label and `fatal`, waits in the one write queue,
 // and logs to stderr alone - so that a failure to report cannot be reported.

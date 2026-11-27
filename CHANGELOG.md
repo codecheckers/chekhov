@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-11-27
+
+### Added
+
+- `@chekhovbot log`, for editors: what the bot logged about the check since it
+  last started goes to the check's issue in the private log repository,
+  assigned to whoever asked; the reply on the check is the link alone (#73).
+- `@chekhovbot log sweep`: the same for what is about no check - the nightly
+  sweep, the start, the teams (#73).
+
 ## [0.55.0] - 2026-11-27
 
 ### Changed

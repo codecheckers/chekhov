@@ -541,7 +541,7 @@ func (s *Server) labelFailure(err error, event mention, label string, add bool) 
 		// reason is said plainly and not logged as a problem.
 		return "the settings do not list it under `labels.managed`"
 	default:
-		s.Logger.Warn("a label could not be changed", "issue", event.Issue,
+		s.Logger.Warn("a label could not be changed", "repository", event.Repository, "issue", event.Issue,
 			"label", label, "add", add, "error", err)
 		return whyNot(err)
 	}
@@ -600,7 +600,7 @@ func (s *Server) labelsOf(ctx context.Context, event mention) (github.Issue, boo
 	issue, err := s.issue(ctx, event)
 	if err != nil {
 		s.Logger.Warn("a check's labels could not be read before moving them",
-			"issue", event.Issue, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return github.Issue{}, false
 	}
 	return issue, true

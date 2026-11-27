@@ -628,11 +628,26 @@ went wrong without anything reaching the public register (#73).
   recover of its own - and `TestEveryGoroutineRecovers` fails on one that does
   not.
 
-*Planned ([#73](https://github.com/codecheckers/chekhov/issues/73)):*
-`@chekhovbot log` on a check, by an editor, writes the bot's recent records
-about that issue to a standing issue there, "register#N (production)", and
-assigns it to the editor who asked. The reply on the check is a link to it and
-nothing else.
+**`@chekhovbot log`** on a check, by an editor, writes the newest of what the
+bot keeps about that issue - up to 500 records, as many as fit in one
+comment, stack traces included - as a comment on the check's standing issue
+there, "`codecheckers/register#N (production)`", opened the first time, and
+assigns it to the editor who asked: the assignment is how they hear of it.
+GitHub keeps an earlier asker subscribed to the issue, so they hear of later
+comments on it too. **`@chekhovbot log sweep`** does the same for what is
+about no check of the register - the nightly sweep, the start, the teams, and
+the codechecker lists, where `log` is not answered - in "Not about a check
+(production)". The bot keeps its last 2000 records, so on a busy day they do
+not reach back to its start, and the reply says from when they do. The reply
+on the check is the link and nothing else; the privacy of the repository is
+asked of GitHub before every write, and nothing is written when it is not
+private or there is nothing to write. Every log line that names an issue
+names its repository beside it (`TestEveryIssueInTheLogNamesItsRepository`),
+so a lists issue's records never reach a register issue of the same number.
+Somebody GitHub will not assign, for want of access, is told so and to ask
+the owners. The bot remembers a standing issue once it has found it, until
+the next deploy: close one, and the next deploy's first `log` opens a fresh
+one.
 
 The token needs the repository selected as well, see
 [`github-token.md`](github-token.md).

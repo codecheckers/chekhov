@@ -140,7 +140,7 @@ func (s *Server) teamFor(ctx context.Context, event mention, chosen string) stri
 	issue, err := s.issue(ctx, event)
 	if err != nil {
 		s.Logger.Warn("could not read a check's labels, so the ordinary team was used",
-			"issue", event.Issue, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return ordinary
 	}
 	// What the register puts on a check an institution's arrangement covers.

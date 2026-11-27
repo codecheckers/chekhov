@@ -145,7 +145,7 @@ func (s *Server) proposeRow(ctx context.Context, event mention, row command.Row,
 		return command.BranchNotOurs(pull.Branch)
 	case err != nil:
 		// The API's own words, URLs and all, are for the log, not the thread.
-		s.Logger.Warn("the register pull request could not be opened", "issue", event.Issue, "error", err)
+		s.Logger.Warn("the register pull request could not be opened", "repository", event.Repository, "issue", event.Issue, "error", err)
 		return command.PullRequestFailed(failure(err))
 	}
 	return command.PullRequestOpened(pull.Number, pull.Updated, pull.Unchanged, event.Author, time.Now())

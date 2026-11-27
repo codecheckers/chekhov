@@ -166,7 +166,7 @@ func (s *Server) issueAsHints(ctx context.Context, event mention) []suggest.Hint
 	issue, err := s.issue(ctx, event)
 	if err != nil {
 		s.Logger.Warn("the checks issue could not be read for a suggestion",
-			"issue", event.Issue, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return nil
 	}
 	return []suggest.Hint{{Kind: "text", Value: issue.Title + "\n" + issue.Body,

@@ -138,7 +138,7 @@ func (p *progress) run(ctx context.Context) answered {
 				command.StagedReply(p.heading, done, nil) + command.Abandoned())); err == nil {
 				if err := to.write(ctx, body); err != nil {
 					p.server.Logger.Error("a staged reply was left unfinished on the check",
-						"issue", p.event.Issue, "comment", to.comment, "error", err)
+						"repository", p.event.Repository, "issue", p.event.Issue, "comment", to.comment, "error", err)
 				}
 			}
 		}
@@ -165,7 +165,7 @@ func (p *progress) run(ctx context.Context) answered {
 			// written at the end, which is what would have happened without
 			// any of this.
 			p.server.Logger.Warn("a staged reply could not be written, so the answer waits for the end",
-				"issue", p.event.Issue, "comment", to.comment, "error", err)
+				"repository", p.event.Repository, "issue", p.event.Issue, "comment", to.comment, "error", err)
 		}
 	}
 	return answered{body: command.StagedReply(p.heading, done, nil), to: to}

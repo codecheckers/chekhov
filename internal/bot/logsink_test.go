@@ -18,8 +18,12 @@ import (
 	"github.com/codecheckers/chekhov/internal/logbook"
 )
 
-// logRepository is the made-up log repository of these tests.
-const logRepository = "codecheckers/made-up-log"
+// testRegister is the register of the development settings these tests load,
+// which every log line about one of its issues names.
+const testRegister = "codecheckers/testing-dev-register"
+
+// madeUpLogRepository is the made-up log repository of these tests.
+const madeUpLogRepository = "codecheckers/made-up-log"
 
 // fakeLog is the log repository: what was opened, commented, and whether
 // GitHub says it is private.
@@ -32,12 +36,15 @@ type fakeLog struct {
 	bodies   map[int][]string
 	labels   map[int][]string
 	comments int
+	// assigned is who was assigned, by issue; refuseAssign assigns nobody.
+	assigned     map[int][]string
+	refuseAssign bool
 	// hold, when set, keeps every write waiting until it is closed.
 	hold chan struct{}
 }
 
 func newFakeLog() *fakeLog {
-	return &fakeLog{private: true, bodies: map[int][]string{}, labels: map[int][]string{}}
+	return &fakeLog{private: true, bodies: map[int][]string{}, labels: map[int][]string{}, assigned: map[int][]string{}}
 }
 
 func (f *fakeLog) Private(context.Context) (bool, error) {
@@ -53,6 +60,7 @@ func (f *fakeLog) OpenLabelledIssues(_ context.Context, repository, label string
 	var found []github.Issue
 	for _, issue := range f.issues {
 		if command.HasLabel(issue.Labels, label) && !issue.Closed {
+			issue.Assignees = f.assigned[issue.Number]
 			found = append(found, issue)
 		}
 	}
@@ -95,7 +103,7 @@ func logged(t *testing.T, writer logWriter, environment string) (*slog.Logger, *
 	buffer := logbook.NewBuffer()
 	tee := logbook.NewHandler(slog.NewTextHandler(io.Discard, nil), buffer)
 	deployment := command.Deployment{Version: "9.9.9", Environment: environment, Register: "codecheckers/made-up-register"}
-	sink := newFatalSink(logRepository, deployment, writer, buffer, slog.New(slog.DiscardHandler))
+	sink := newFatalSink(madeUpLogRepository, deployment, writer, buffer, slog.New(slog.DiscardHandler))
 	tee.Attach(sink)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -119,10 +127,10 @@ func TestAnErrorOpensOneIssueAndRepeatsComment(t *testing.T) {
 	log := newFakeLog()
 	logger, sink, _ := logged(t, log, "development")
 
-	logger.Info("answered", "issue", 12, "author", "made-up-editor")
-	logger.Info("answered", "issue", 99)
+	logger.Info("answered", "repository", testRegister, "issue", 12, "author", "made-up-editor")
+	logger.Info("answered", "repository", testRegister, "issue", 99)
 	for range 3 {
-		logger.Error("the answer could not be posted", "issue", 12, "error", "502 Bad Gateway")
+		logger.Error("the answer could not be posted", "repository", testRegister, "issue", 12, "error", "502 Bad Gateway")
 	}
 	logger.Error("the help page could not be rendered", "error", "template")
 	drain(t, sink)
@@ -343,7 +351,7 @@ func TestAPanickingHandlerReachesTheSink(t *testing.T) {
 	buffer := logbook.NewBuffer()
 	tee := logbook.NewHandler(slog.NewTextHandler(io.Discard, nil), buffer)
 	deployment := command.Deployment{Version: "9.9.9", Environment: "development"}
-	sink := newFatalSink(logRepository, deployment, log, buffer, slog.New(slog.DiscardHandler))
+	sink := newFatalSink(madeUpLogRepository, deployment, log, buffer, slog.New(slog.DiscardHandler))
 	tee.Attach(sink)
 
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
@@ -398,8 +406,8 @@ func TestATooLongReportIsCutToFit(t *testing.T) {
 	log := newFakeLog()
 	logger, sink, _ := logged(t, log, "development")
 	page := strings.Repeat("<p>a proxy's page</p>\n", 6000)
-	logger.Info("before", "issue", 4, "body", page)
-	logger.Error("the answer could not be posted", "issue", 4, "error", page)
+	logger.Info("before", "repository", testRegister, "issue", 4, "body", page)
+	logger.Error("the answer could not be posted", "repository", testRegister, "issue", 4, "error", page)
 	drain(t, sink)
 	bodies := log.bodies[1]
 	if len(bodies) != 1 || len(bodies[0]) > github.MaxCommentLength-1000 {
@@ -520,8 +528,8 @@ func TestAPanicsReportQuotesItsIssue(t *testing.T) {
 	log := newFakeLog()
 	logger, sink, _ := logged(t, log, "development")
 	server.Logger, server.logSink = logger, sink
-	logger.Info("answered", "command", "hello", "issue", 260)
-	logger.Info("answered", "command", "hello", "issue", 999)
+	logger.Info("answered", "command", "hello", "repository", testRegister, "issue", 260)
+	logger.Info("answered", "command", "hello", "repository", testRegister, "issue", 999)
 	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 260, Author: "nuest"}, "boom")
 	drain(t, sink)
 	body := log.bodies[1][0]
@@ -568,11 +576,144 @@ func TestTheAdminIssueFallsBackWhenTheReportIsDropped(t *testing.T) {
 	started := time.Now()
 	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "a-made-up-value")
 	admin := replies.on(99)
-	if !strings.Contains(admin, "deployment's log") || strings.Contains(admin, "#") && strings.Contains(admin, logRepository+"#") ||
+	if !strings.Contains(admin, "deployment's log") || strings.Contains(admin, "#") && strings.Contains(admin, madeUpLogRepository+"#") ||
 		strings.Contains(admin, "a-made-up-value") {
 		t.Errorf("the admin issue says %q", admin)
 	}
 	if took := time.Since(started); took > 5*time.Second {
 		t.Errorf("the dropped report was waited for: %s", took)
+	}
+}
+
+// Assign assigns whoever is asked for, and nobody with refuseAssign, as
+// GitHub does for somebody without access.
+func (f *fakeLog) Assign(_ context.Context, repository string, issue int, handle string) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.refuseAssign {
+		f.assigned[issue] = append(f.assigned[issue], handle)
+	}
+	return f.assigned[issue], nil
+}
+
+// logServer is a test server whose log goes to a buffer and the fake log
+// repository, as Serve wires it.
+func logServer(t *testing.T) (*Server, *fakeLog) {
+	t.Helper()
+	server, _ := testServer(t)
+	log := newFakeLog()
+	logger, sink, buffer := logged(t, log, "development")
+	server.Logger, server.logSink, server.Log = logger, sink, buffer
+	return server, log
+}
+
+// `log` puts what the bot logged about this check - and nothing else - in the
+// check's standing issue in the log repository, assigned to whoever asked; the
+// reply here is the link and no record. A second `log` is a comment on the
+// same issue.
+func TestLogWritesTheChecksRecordsThereAndOnlyTheLinkHere(t *testing.T) {
+	server, log := logServer(t)
+	logger := server.Logger
+	register := server.Settings.TargetRepository()
+	logger.Info("answered", "command", "hello", "repository", testRegister, "issue", 260, "author", "made-up-editor")
+	logger.Info("answered", "command", "hello", "repository", testRegister, "issue", 999)
+	logger.Info("a registration", "repository", server.Settings.ListsRepository(), "issue", 260)
+	logger.Info("team loaded", "team", "editors")
+	event := mention{Repository: register, Issue: 260, Author: "nuest"}
+
+	reply := server.answer(context.Background(), event, command.Command{Name: command.Log}).body
+	issues := log.opened()
+	if len(issues) != 1 || issues[0].Title != register+"#260 (development)" ||
+		strings.Join(issues[0].Labels, ",") != "development" {
+		t.Fatalf("opened %+v, want the check's standing issue", issues)
+	}
+	// The issue's own description first, then the comment.
+	body := log.bodies[1][1]
+	if !strings.Contains(body, "made-up-editor") || strings.Contains(body, "issue=999") ||
+		strings.Contains(body, "a registration") || strings.Contains(body, "team loaded") {
+		t.Errorf("the comment should hold issue 260's records of the register and no other:\n%s", body)
+	}
+	if !strings.Contains(reply, madeUpLogRepository+"#1") || !strings.Contains(reply, "assigned to you") {
+		t.Errorf("the reply is %q", reply)
+	}
+	for _, absent := range []string{"made-up-editor", "answered", "hello"} {
+		if strings.Contains(reply, absent) {
+			t.Errorf("the reply on the register quotes a record: %q", reply)
+		}
+	}
+	if got := log.assigned[1]; len(got) != 1 || got[0] != "nuest" {
+		t.Errorf("assigned %v, want whoever asked", got)
+	}
+
+	server.answer(context.Background(), event, command.Command{Name: command.Log})
+	if len(log.assigned[1]) != 1 {
+		t.Errorf("a second `log` assigned again: %v", log.assigned[1])
+	}
+	if len(log.opened()) != 1 || len(log.bodies[1]) != 3 {
+		t.Errorf("a second `log` should comment on the same issue: %d issues, %d posts", len(log.opened()), len(log.bodies[1]))
+	}
+}
+
+// `log` is the editors': anybody else is refused, and nothing is written.
+func TestLogIsForEditors(t *testing.T) {
+	server, log := logServer(t)
+	logger := server.Logger
+	logger.Info("answered", "repository", testRegister, "issue", 260)
+	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 260,
+		Author: "a-codechecker"}, command.Command{Name: command.Log}).body
+	if !strings.Contains(reply, "for editors") || len(log.opened()) != 0 {
+		t.Errorf("a codechecker got %q and %d issues", reply, len(log.opened()))
+	}
+}
+
+// Nothing is written to a log repository GitHub does not call private, nor
+// when there is nothing to write; the reply says so and quotes nothing.
+func TestLogWritesNothingPublicOrEmpty(t *testing.T) {
+	server, log := logServer(t)
+	logger := server.Logger
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 260, Author: "nuest"}
+	if reply := server.answer(context.Background(), event, command.Command{Name: command.Log}).body; !strings.Contains(reply, "kept nothing about this") {
+		t.Errorf("with nothing logged: %q", reply)
+	}
+	logger.Info("answered", "repository", testRegister, "issue", 260, "author", "made-up-editor")
+	log.private = false
+	reply := server.answer(context.Background(), event, command.Command{Name: command.Log}).body
+	if !strings.Contains(reply, "not private") || strings.Contains(reply, "made-up-editor") || len(log.opened()) != 0 {
+		t.Errorf("a public repository got %d issues, and the reply %q", len(log.opened()), reply)
+	}
+}
+
+// `log sweep` is what the bot logged about no check of the register - about
+// no issue, or about one of the lists, where `log` is not answered - in a
+// standing issue of its own.
+func TestLogSweepIsWhatIsAboutNoCheck(t *testing.T) {
+	server, log := logServer(t)
+	logger := server.Logger
+	logger.Info("the nightly sweep ran", "issues", 3)
+	logger.Info("answered", "repository", testRegister, "issue", 260)
+	logger.Info("a registration", "repository", server.Settings.ListsRepository(), "issue", 12)
+	server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 260,
+		Author: "nuest"}, command.Command{Name: command.LogSweep})
+	issues := log.opened()
+	if len(issues) != 1 || issues[0].Title != "Not about a check (development)" {
+		t.Fatalf("opened %+v", issues)
+	}
+	if body := log.bodies[1][1]; !strings.Contains(body, "nightly sweep") || !strings.Contains(body, "a registration") ||
+		strings.Contains(body, "issue=260") {
+		t.Errorf("the sweep's comment:\n%s", body)
+	}
+}
+
+// Somebody GitHub would not assign is told how to get access, and the
+// records are written all the same.
+func TestLogSaysWhenTheIssueCouldNotBeAssigned(t *testing.T) {
+	server, log := logServer(t)
+	logger := server.Logger
+	log.refuseAssign = true
+	logger.Info("answered", "repository", testRegister, "issue", 260)
+	reply := server.answer(context.Background(), mention{Repository: server.Settings.TargetRepository(), Issue: 260,
+		Author: "nuest"}, command.Command{Name: command.Log}).body
+	if !strings.Contains(reply, "would not assign the issue there to you") || !strings.Contains(reply, "owners") || len(log.bodies[1]) != 2 {
+		t.Errorf("reply %q, %d posts", reply, len(log.bodies[1]))
 	}
 }

@@ -85,7 +85,7 @@ func (s *Server) partOfTheIssue(ctx context.Context, event mention, handle strin
 		}
 		registrant, _, _, err := s.registrantOf(ctx, event)
 		if err != nil {
-			s.Logger.Warn("whom this registration is for could not be read", "issue", event.Issue, "error", err)
+			s.Logger.Warn("whom this registration is for could not be read", "repository", event.Repository, "issue", event.Issue, "error", err)
 			return false, err
 		}
 		return command.Handle(registrant) == handle, nil
@@ -119,7 +119,7 @@ func (s *Server) partOfTheIssue(ctx context.Context, event mention, handle strin
 // the comments cannot be listed to count them.
 func (s *Server) turnAway(ctx context.Context, event mention, refused command.Refused) {
 	s.Logger.Info("no commands are taken from this account", "repository", event.Repository,
-		"issue", event.Issue, "author", event.Author, "unread", refused.Unread, "record_edited", refused.Edited)
+		"repository", event.Repository, "issue", event.Issue, "author", event.Author, "unread", refused.Unread, "record_edited", refused.Edited)
 
 	var link command.ShareLink
 	if event.linkDealt != nil {
@@ -177,7 +177,7 @@ func (s *Server) turnAway(ctx context.Context, event mention, refused command.Re
 		note = command.ShareLinkNote(link)
 	}
 	if _, err := s.post(ctx, event, said(command.TurnedAway(refused)+note)); err != nil {
-		s.Logger.Error("the refusal could not be posted", "issue", event.Issue, "error", err)
+		s.Logger.Error("the refusal could not be posted", "repository", event.Repository, "issue", event.Issue, "error", err)
 	}
 }
 
@@ -207,7 +207,7 @@ func (s *Server) refusalsTo(ctx context.Context, event mention) (told []string, 
 	written, err := reader.Comments(ctx, event.Repository, event.Issue)
 	if err != nil {
 		s.Logger.Warn("what this account was told already could not be read",
-			"issue", event.Issue, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return nil, false
 	}
 	for _, comment := range written {

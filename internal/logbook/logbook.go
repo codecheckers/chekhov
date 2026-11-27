@@ -67,6 +67,17 @@ func (r Record) Issue() int {
 	return number
 }
 
+// About says a record is about one issue of one repository: both the issue
+// and the repository it names - the lists number their issues too, so an
+// issue alone says nothing. Every log line that names an issue names its
+// repository beside it (TestEveryIssueInTheLogNamesItsRepository). Both the
+// reports of an error and `log` ask this, so that they agree on what is about
+// a check.
+func (r Record) About(repository string, issue int) bool {
+	named, _ := r.Value("repository")
+	return r.Issue() == issue && named == repository
+}
+
 // A Sink is told of every record at Error and above. Offer must return at
 // once whatever the sink does with it: it is called on the goroutine that
 // logged, which may be the one answering somebody.
@@ -91,6 +102,18 @@ func (b *Buffer) add(record Record) {
 	b.records[b.next] = record
 	b.next = (b.next + 1) % len(b.records)
 	b.held = min(b.held+1, len(b.records))
+}
+
+// Oldest is the time of the oldest record kept, or start when the buffer has
+// not yet had to forget any: what it holds reaches back that far, and no
+// further.
+func (b *Buffer) Oldest(start time.Time) time.Time {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.held < len(b.records) {
+		return start
+	}
+	return b.records[b.next].Time
 }
 
 // Select returns the records since a time that keep accepts, oldest first, at

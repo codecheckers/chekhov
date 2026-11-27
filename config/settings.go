@@ -292,8 +292,8 @@ type Lists struct {
 }
 
 // Log is the private repository the bot's log goes to (codecheckers/chekhov#73):
-// every record at Error, on its own, and - planned, #73 - a check's records
-// when an editor runs `log`. One repository for every deployment, kept apart by a label each, so
+// every record at Error, on its own, and a check's records when an editor
+// runs `log`. One repository for every deployment, kept apart by a label each, so
 // unlike the register and the lists it is not refused outside production.
 // Empty switches it off; the bot writes there only once GitHub says it is
 // private.

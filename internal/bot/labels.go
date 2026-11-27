@@ -69,7 +69,7 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 	issue, err := s.issue(ctx, event)
 	if err != nil {
 		s.Logger.Warn("could not read a check's labels, so nothing was said about them",
-			"issue", event.Issue, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return ""
 	}
 	state := s.labelState(issue)
@@ -83,7 +83,7 @@ func (s *Server) labelNote(ctx context.Context, event mention, services *check.S
 			// it names may be theirs rather than an editor's, and a warning
 			// built on them would be a warning about whatever they typed.
 			s.Logger.Warn("the roles of this check could not be trusted, so nothing was said about the labels",
-				"issue", event.Issue, "error", errors.Join(err, reading.Tampered))
+				"repository", event.Repository, "issue", event.Issue, "error", errors.Join(err, reading.Tampered))
 		default:
 			state.AssignedCodechecker = reading.Record.Holders().AssignedCodechecker
 			state.RolesRead = true

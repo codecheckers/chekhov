@@ -156,6 +156,11 @@ and eighth are the sweep's on the lists: `command.ReadyToInclude` tells the
 editors - `EditorsToTell`, as the queue nudge - about a complete registration
 nobody has included, once; and `command.PullRequestWaiting` reminds the
 owners, as `OutsideReply` asks them, of the row's pull request open a week.
+The private log repository (#73) notifies in two ways, neither a mention:
+`log` assigns its issue there to the editor who ran it - the command's author,
+so in a test whoever posted it, and GitHub keeps them subscribed to that
+check's issue for later `log`s - and the `fatal` issues the bot opens on its
+own assign and mention nobody, so editors watch the repository instead.
 `command.notifying` is the only function that writes a
 handle so that it notifies, and it is named to be hard to confuse with
 `command.mentions`, which writes one in backticks so that it does not.

@@ -121,6 +121,22 @@ var registry = []Definition{
 		Hidden:  true,
 	},
 	{
+		Name: Log,
+		Summary: "Put what the bot logged about this check in the private log repository, " +
+			"assigned to you; the reply here is the link alone",
+		Usage: "log",
+		Group: GroupBasics,
+		Roles: Roles{RoleEditor},
+	},
+	{
+		Name: LogSweep,
+		Summary: "Put what the bot logged about no check - the nightly sweep, its start, the teams - " +
+			"in the private log repository, assigned to you",
+		Usage: "log sweep",
+		Group: GroupBasics,
+		Roles: Roles{RoleEditor},
+	},
+	{
 		// Hidden and the editors': it is a test of the error reports, not
 		// something a codechecker needs, and the panic it causes reaches the
 		// admin issue and the private log repository.

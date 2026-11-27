@@ -132,8 +132,8 @@ chekhov:
       - institutional-codecheckers
 
   # The private log repository (codecheckers/chekhov#73): every record the
-  # bot logs at Error is reported there on its own, and `log` (planned, #73)
-  # is to write a check's records there - never on the register. Shared by production and
+  # bot logs at Error is reported there on its own, and `log` writes a
+  # check's records there - never on the register. Shared by production and
   # development, which keep apart by the labels `production` and
   # `development`. Written to only once GitHub says it is private; empty
   # switches it off.

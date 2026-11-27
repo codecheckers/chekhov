@@ -40,7 +40,7 @@ func (s *Server) links(ctx context.Context, event mention, configuration check.C
 		}
 		if err != nil {
 			// Not worth giving up over: the answer is written at the end.
-			s.Logger.Warn("the links notice could not be posted", "issue", event.Issue, "error", err)
+			s.Logger.Warn("the links notice could not be posted", "repository", event.Repository, "issue", event.Issue, "error", err)
 		}
 	}
 

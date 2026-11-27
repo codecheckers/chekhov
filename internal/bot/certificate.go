@@ -214,7 +214,7 @@ func (s *Server) putOnIssue(ctx context.Context, writer Reserving, event mention
 	this github.Issue, set *command.CertificateReserved) {
 	if title := check.TitleWithCertificate(this.Title, set.ID); title != this.Title {
 		if err := writer.SetTitle(ctx, event.Repository, event.Issue, title); err != nil {
-			s.Logger.Warn("the identifier could not be put in the title", "issue", event.Issue, "error", err)
+			s.Logger.Warn("the identifier could not be put in the title", "repository", event.Repository, "issue", event.Issue, "error", err)
 			set.TitleWhy = whyNot(err)
 		} else {
 			set.Title = title

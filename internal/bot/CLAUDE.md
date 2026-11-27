@@ -94,7 +94,12 @@ usage - which the platform reads as a crash loop.
   only - so an Error is for something going wrong, and **must never be logged
   by the reporting itself**. **Every goroutine recovers**: start one with
   `safe.Go`, or defer `safe.Recover` or a `recover…` helper first;
-  `TestEveryGoroutineRecovers` fails otherwise.
+  `TestEveryGoroutineRecovers` fails otherwise. `log` (`logcommand.go`)
+  writes the buffer's records about a check there, through the sink's client,
+  asking GitHub that the repository is private before every write; the reply
+  on the register is the link and never a record. **A log line that names an
+  issue names its repository too** - the lists number their issues as well -
+  and `TestEveryIssueInTheLogNamesItsRepository` fails otherwise.
 - `chekhov comment` renders its answer through the same `bot.Preview` the
   listener uses, so what you read on the command line is what would be posted.
 

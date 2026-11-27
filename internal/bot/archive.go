@@ -60,7 +60,7 @@ func (s *Server) archiveFollowUp(event mention, target string, reading people.Re
 		return command.ArchiveWarning(archive), nil
 	case err != nil:
 		s.Logger.Warn("whether a copy is archived could not be read",
-			"issue", event.Issue, "repository", archive.Repository, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "archive", archive.Repository, "error", err)
 		return "", nil
 	case archived:
 		return "", nil

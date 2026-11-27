@@ -212,7 +212,7 @@ func (s *Server) deleteShareLink(ctx context.Context, event mention, parsed comm
 		return link
 	}
 	if err := deleter.DeleteComment(ctx, event.Repository, event.Comment); err != nil {
-		s.Logger.Warn("the comment with a share link could not be deleted", "issue", event.Issue,
+		s.Logger.Warn("the comment with a share link could not be deleted", "repository", event.Repository, "issue", event.Issue,
 			"comment", event.Comment, "error", err)
 		return link
 	}

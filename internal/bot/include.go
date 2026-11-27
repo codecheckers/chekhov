@@ -94,7 +94,7 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 	case err != nil:
 		// Not knowing whether an editor's pull request is there is not a
 		// reason to open a second one beside it.
-		s.Logger.Warn("could not read the open pull requests of the lists", "issue", event.Issue, "error", err)
+		s.Logger.Warn("could not read the open pull requests of the lists", "repository", event.Repository, "issue", event.Issue, "error", err)
 		return command.Item(command.NotDone("tell whether a pull request already adds the row, so I have opened none",
 			whyNot(err)))
 	case open.Number != 0 && open.By != "":
@@ -112,7 +112,7 @@ func (s *Server) proposeListing(ctx context.Context, event mention, row registra
 	case errors.Is(err, github.ErrBranchNotOurs):
 		return command.ListBranchNotOurs(pull.Branch)
 	case err != nil:
-		s.Logger.Warn("the list pull request could not be opened", "issue", event.Issue, "error", err)
+		s.Logger.Warn("the list pull request could not be opened", "repository", event.Repository, "issue", event.Issue, "error", err)
 		return command.ListPullRequestFailed(failure(err))
 	}
 	opened := command.ListPullRequestOpened(file, pull.Number, pull.Updated, pull.Unchanged)
@@ -384,7 +384,7 @@ func (s *Server) welcome(ctx context.Context, event mention, record followup.Rec
 	if closer, ok := s.Lists.(Closer); !ok {
 		why = "this deployment cannot"
 	} else if err := closer.CloseIssue(ctx, event.Repository, event.Issue); err != nil {
-		s.Logger.Warn("could not close a registration", "issue", event.Issue, "error", err)
+		s.Logger.Warn("could not close a registration", "repository", event.Repository, "issue", event.Issue, "error", err)
 		why = whyNot(err)
 	}
 	closing := ""

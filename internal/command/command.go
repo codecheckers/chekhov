@@ -26,6 +26,11 @@ const (
 	// Goodbye signs off when a check ends. It is manners only: `check finish`
 	// is what moves the check on.
 	Goodbye Name = "goodbye"
+	// Log writes what the bot logged about this check to the private log
+	// repository, and LogSweep what it logged about no check - the nightly
+	// sweep, the start, the teams - never on the register (#73).
+	Log      Name = "log"
+	LogSweep Name = "log sweep"
 	// Panic panics on purpose, so that an editor can see the error reports
 	// work end to end - the apology, the admin issue, the private log
 	// repository - without waiting for a real error (#73).

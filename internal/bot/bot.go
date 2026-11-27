@@ -120,6 +120,10 @@ type Server struct {
 	// deployment has none, and then the log is the platform's alone.
 	Log     *logbook.Buffer
 	logSink *fatalSink
+	// logWriting is held by `log` from finding a standing issue to writing
+	// on it, and logIssues is what it found, by title; see logcommand.go.
+	logWriting sync.Mutex
+	logIssues  map[string]github.Issue
 
 	// Checks is the per-check roles, kept in each issue's own bot-owned
 	// comment. Nil means the bot cannot read or record them, and says so
@@ -284,7 +288,7 @@ func (s *Server) actEach(event mention, commands []command.Command) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 		if _, err := s.post(ctx, event, said(notRun)); err != nil {
-			s.Logger.Error("the note on commands not run could not be posted", "issue", event.Issue, "error", err)
+			s.Logger.Error("the note on commands not run could not be posted", "repository", event.Repository, "issue", event.Issue, "error", err)
 		}
 		cancel()
 	}
@@ -337,13 +341,13 @@ func (s *Server) act(event mention, parsed command.Command) {
 	id, err := s.post(ctx, event, result)
 	if err != nil {
 		s.Logger.Error("the answer could not be posted", "command", parsed.Name,
-			"issue", event.Issue, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "error", err)
 		return
 	}
 	if id == 0 {
 		return
 	}
-	s.Logger.Info("answered", "command", parsed.Name, "issue", event.Issue,
+	s.Logger.Info("answered", "command", parsed.Name, "repository", event.Repository, "issue", event.Issue,
 		"author", event.Author, "comment", id, "took", time.Since(started))
 }
 
@@ -479,7 +483,7 @@ func (s *Server) reportRecovered(r any, headline string, issue int) {
 	report := fmt.Sprintf("%016x", rand.Uint64())
 	attrs := []any{"what", headline, "panic", r, "stack", trace, reportKey, report}
 	if issue > 0 {
-		attrs = append(attrs, "issue", issue)
+		attrs = append(attrs, "repository", s.Settings.TargetRepository(), "issue", issue)
 	}
 	s.Logger.Error("panicked", attrs...)
 	// The admin issue on a goroutine of its own: it waits for the report in
@@ -595,7 +599,7 @@ func (s *Server) reportPanic(headline string, r any, trace, report string) {
 	}
 	if _, err := s.post(ctx, admin, said(body)); err != nil {
 		s.Logger.Error("the panic could not be reported on the admin issue",
-			"issue", admin.Issue, "error", err)
+			"repository", admin.Repository, "issue", admin.Issue, "error", err)
 	}
 }
 
@@ -706,6 +710,10 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(command.GoodbyeReply())
 	case command.Version:
 		return said(s.version())
+	case command.Log:
+		return said(s.writeLog(ctx, event, false))
+	case command.LogSweep:
+		return said(s.writeLog(ctx, event, true))
 	case command.Panic:
 		// The value is the bot's own words, never the comment's: what it
 		// shows on the admin issue and in the log repository is known.
@@ -1179,7 +1187,7 @@ func (s *Server) assignee(ctx context.Context, event mention, handle, replaced s
 // are not one afterwards: GitHub's refusal, or its taking the request and
 // leaving them out - which a reply that only looked for an error missed on
 // codecheckers/register#238. Empty when they are assigned.
-func (s *Server) assignOn(ctx context.Context, assigner Assigner, repository string, issue int, handle string) string {
+func (s *Server) assignOn(ctx context.Context, assigner assigning, repository string, issue int, handle string) string {
 	assigned, err := assigner.Assign(ctx, repository, issue, handle)
 	if err != nil {
 		s.Logger.Warn("could not assign an issue", "repository", repository, "issue", issue,
@@ -1192,6 +1200,12 @@ func (s *Server) assignOn(ctx context.Context, assigner Assigner, repository str
 	return ""
 }
 
+// assigning is the half of Assigner assignOn needs: the log repository's
+// client assigns and never unassigns.
+type assigning interface {
+	Assign(ctx context.Context, repository string, issue int, handle string) ([]string, error)
+}
+
 // unassign takes somebody off the issue's assignees, and says why not when it
 // could not.
 func (s *Server) unassign(ctx context.Context, event mention, handle string) string {
@@ -1201,7 +1215,7 @@ func (s *Server) unassign(ctx context.Context, event mention, handle string) str
 	}
 	if err := assigner.Unassign(ctx, event.Repository, event.Issue, handle); err != nil {
 		s.Logger.Warn("the codechecker could not be unassigned",
-			"issue", event.Issue, "handle", handle, "error", err)
+			"repository", event.Repository, "issue", event.Issue, "handle", handle, "error", err)
 		return whyNot(err)
 	}
 	return ""

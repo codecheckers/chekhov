@@ -83,6 +83,8 @@ type logWriter interface {
 	OpenLabelledIssues(ctx context.Context, repository, label string) ([]github.Issue, error)
 	CreateIssue(ctx context.Context, repository, title, body string, labels []string) (int, error)
 	Comment(ctx context.Context, repository string, issue int, body string) (int64, error)
+	// Assign is `log`'s, which writes through the sink's client.
+	Assign(ctx context.Context, repository string, issue int, handle string) ([]string, error)
 }
 
 // fatalSink reports Error records in the log repository.
@@ -393,7 +395,7 @@ func (s *fatalSink) loadOpen(ctx context.Context) error {
 	for _, issue := range issues {
 		// One deployment's, never both: a label put on by hand must not have
 		// production write into development's issue or the other way round.
-		if !command.HasLabel(issue.Labels, s.label) || command.HasLabel(issue.Labels, otherLabel(s.label)) {
+		if !ours(issue, s.label) {
 			continue
 		}
 		if open, close := strings.LastIndex(issue.Title, "["), strings.LastIndex(issue.Title, "]"); open >= 0 && close == len(issue.Title)-1 {
@@ -402,6 +404,14 @@ func (s *fatalSink) loadOpen(ctx context.Context) error {
 	}
 	s.loaded = true
 	return nil
+}
+
+// ours says an issue of the log repository is this deployment's: it carries
+// this label and not the other deployment's. One deployment's, never both: a
+// label put on by hand must not have production write into development's
+// issue or the other way round.
+func ours(issue github.Issue, label string) bool {
+	return command.HasLabel(issue.Labels, label) && !command.HasLabel(issue.Labels, otherLabel(label))
 }
 
 // otherLabel is the label of the other deployment.
@@ -470,9 +480,10 @@ func (s *fatalSink) before(record logbook.Record) []logbook.Record {
 		return nil
 	}
 	issue := record.Issue()
+	repository, _ := record.Value("repository")
 	from := record.Time.Add(-contextWindow)
 	return s.buffer.Select(from, func(r logbook.Record) bool {
-		return r.Time.Before(record.Time) && (issue == 0 || r.Issue() == issue)
+		return r.Time.Before(record.Time) && (issue == 0 || r.About(repository, issue))
 	}, contextRecords)
 }
 

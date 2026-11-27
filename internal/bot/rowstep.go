@@ -61,7 +61,7 @@ func (s *Server) keepRowInStep(ctx context.Context, event mention, report regist
 	}
 	pull, err := drafts.OwnRowPullRequest(ctx, event.Repository, login)
 	if err != nil {
-		s.Logger.Warn("could not read the open pull requests of the lists", "issue", event.Issue, "error", err)
+		s.Logger.Warn("could not read the open pull requests of the lists", "repository", event.Repository, "issue", event.Issue, "error", err)
 		return rowStep{}
 	}
 	if pull.Number == 0 {
@@ -139,7 +139,7 @@ func (s *Server) updateRow(ctx context.Context, event mention, row registration.
 	case errors.Is(err, github.ErrRowExists):
 		return false, "", true
 	case err != nil:
-		s.Logger.Warn("could not bring the list pull request up to date", "issue", event.Issue, "error", err)
+		s.Logger.Warn("could not bring the list pull request up to date", "repository", event.Repository, "issue", event.Issue, "error", err)
 		return false, command.NotDone(fmt.Sprintf("bring #%d, the pull request adding your row, up to date",
 			pull.Number), whyNot(err)), true
 	}
@@ -191,7 +191,7 @@ func (s *Server) followRowPullRequest(ctx context.Context, event mention, record
 	}
 	report, inComment, unread, err := s.recheckRegistration(ctx, event)
 	if err != nil {
-		s.Logger.Warn("could not read a registration", "issue", event.Issue, "error", err)
+		s.Logger.Warn("could not read a registration", "repository", event.Repository, "issue", event.Issue, "error", err)
 		return answered{}, false
 	}
 	if unread != "" || !strings.EqualFold(report.Row.Login(), record.Subject) {
