@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-11-27
+
+### Added
+
+- `@chekhovbot panic`, hidden and for editors: panics on purpose, to test that
+  the apology, the admin issue and the private log repository all hear of it
+  (#73).
+
 ## [0.53.0] - 2026-11-26
 
 ### Added

@@ -669,3 +669,16 @@ func TestTheRegisterDoesNotSuggestTheListsCommands(t *testing.T) {
 		t.Errorf("a typo after `include` is answered with %q", name)
 	}
 }
+
+// A typo is never answered with a hidden command its asker may not run:
+// `panic` is the editors', and absent rather than shown and refused (#73).
+func TestAHiddenEditorsCommandIsNeverSuggested(t *testing.T) {
+	for _, typo := range []string{"panik", "panc", "pnic"} {
+		if got, found := Suggest(typo); found && got == Panic {
+			t.Errorf("%q is answered with %q", typo, got)
+		}
+	}
+	if got, found := Suggest("helo"); !found || got != Hello {
+		t.Errorf("a hidden command for anyone is still suggested: %q %v", got, found)
+	}
+}

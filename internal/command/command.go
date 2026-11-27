@@ -26,6 +26,10 @@ const (
 	// Goodbye signs off when a check ends. It is manners only: `check finish`
 	// is what moves the check on.
 	Goodbye Name = "goodbye"
+	// Panic panics on purpose, so that an editor can see the error reports
+	// work end to end - the apology, the admin issue, the private log
+	// repository - without waiting for a real error (#73).
+	Panic Name = "panic"
 	// Version reports which build is answering, and which register it works
 	// on.
 	Version Name = "version"

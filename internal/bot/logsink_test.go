@@ -462,3 +462,52 @@ func TestARefusedSinkLeavesTheAdminIssueAsItWas(t *testing.T) {
 		t.Errorf("the admin issue points at a repository that took nothing:\n%s", report)
 	}
 }
+
+// `panic` is an editor's test of the error reports: an editor's panics, and
+// is heard of on the issue, on the admin issue - as a pointer only - and in
+// the log repository; anybody else is refused, and nothing panics.
+func TestPanicIsAnEditorsTestOfTheReports(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := testServer(t)
+	log := newFakeLog()
+	logger, sink, _ := logged(t, log, "development")
+	server.Logger, server.logSink = logger, sink
+	event := mention{Repository: server.Settings.TargetRepository(), Issue: 260}
+
+	event.Author = "a-codechecker"
+	if reply := server.answer(context.Background(), event, command.Command{Name: command.Panic}).body; !strings.Contains(reply, "for editors") {
+		t.Errorf("a codechecker was not refused: %s", reply)
+	}
+
+	event.Author = "nuest"
+	server.act(event, command.Command{Name: command.Panic})
+	<-server.done
+	drain(t, sink)
+
+	if len(replies.comments) != 2 {
+		t.Fatalf("%d comments, want the admin issue's and the apology", len(replies.comments))
+	}
+	admin, apology := replies.comments[0], replies.comments[1]
+	if admin.Issue != 99 || !strings.Contains(admin.Body, server.Settings.LogRepository()) || strings.Contains(admin.Body, "a panic asked for") {
+		t.Errorf("the admin issue should get the pointer and not the value: #%d %q", admin.Issue, admin.Body)
+	}
+	if apology.Issue != 260 || apology.Body != command.PanicApology(command.Panic) {
+		t.Errorf("the apology on #%d is %q", apology.Issue, apology.Body)
+	}
+	issues := log.opened()
+	if len(issues) != 1 || !command.HasLabel(issues[0].Labels, "fatal") {
+		t.Fatalf("opened %+v, want one fatal issue", issues)
+	}
+	if body := log.bodies[issues[0].Number][0]; !strings.Contains(body, "a panic asked for by an editor on codecheckers/testing-dev-register#260") {
+		t.Errorf("the report does not carry the bot's own value:\n%s", body)
+	}
+}
+
+// A preview of `panic` is the apology, not the end of the command line.
+func TestAPreviewOfPanicIsTheApology(t *testing.T) {
+	server, _ := testServer(t)
+	event := mention{Repository: server.Settings.TargetRepository(), Author: "nuest", Body: "@chekhovbot panic"}
+	if got := previewOne(server, event, command.Command{Name: command.Panic}); got != command.PanicApology(command.Panic) {
+		t.Errorf("the preview answered %q", got)
+	}
+}

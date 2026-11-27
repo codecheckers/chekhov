@@ -1,5 +1,7 @@
 package command
 
+import "fmt"
+
 // Failure is why GitHub did not take a write, as a reply words it.
 //
 // What a person can do about it is the whole point, and it differs: a rate
@@ -45,6 +47,12 @@ func (f Failure) Why() string {
 		return "GitHub failed the request, and what it said is in my log. " +
 			"Ask me again; if it fails twice, it needs somebody who can read the log."
 	}
+}
+
+// PanicApology is what the person who asked is told when their command
+// panicked: that it went wrong and was logged, and nothing of what went wrong.
+func PanicApology(name Name) string {
+	return fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", name)
 }
 
 // PanicLoggedNote is what the admin issue says of a panic once the deployment

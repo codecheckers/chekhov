@@ -44,6 +44,7 @@ on their own. See `docs/deployment.md`, "The private log repository".
 | Command | Effect | Prio | Issue |
 |---|---|---|---|
 | `@chekhovbot log [<reference>\|sweep]` | Write the bot's recent records about this check, one reply, or the nightly sweep to the private log repository, assigned to the editor who asked; reply with the link only (editors) | high | #73 |
+| `@chekhovbot panic` | Panic on purpose, to test the error reports end to end; hidden (editors) | low | #73 |
 | *(no command)* | Open a `fatal` issue in the private log repository for every `Error` record, assigned to nobody (implemented) | high | #73 |
 
 ## B. People, roles and assignment

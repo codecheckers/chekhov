@@ -53,7 +53,8 @@ type Definition struct {
 	// Hidden keeps a working command out of the listing. hello is hidden
 	// because it is a smoke test rather than something a codechecker needs,
 	// and thanks and goodbye because a listing is for what to do next, not for
-	// manners.
+	// manners. panic is hidden and the editors': a test of the error reports
+	// (#73), never suggested for a typo either.
 	Hidden bool
 	// AboutTheCheck says this command's subject is the state of the check
 	// rather than something the check happens to be on - so a label that no
@@ -117,6 +118,17 @@ var registry = []Definition{
 		Usage:   "goodbye",
 		Group:   GroupBasics,
 		Roles:   Roles{RoleAnyone},
+		Hidden:  true,
+	},
+	{
+		// Hidden and the editors': it is a test of the error reports, not
+		// something a codechecker needs, and the panic it causes reaches the
+		// admin issue and the private log repository.
+		Name:    Panic,
+		Summary: "Panic on purpose, to test that errors are reported in the private log repository",
+		Usage:   "panic",
+		Group:   GroupBasics,
+		Roles:   Roles{RoleEditor},
 		Hidden:  true,
 	},
 	{
@@ -658,12 +670,21 @@ func candidates() []string {
 	words := make([]string, 0, len(index))
 	for _, definition := range registry {
 		// A phrase can never be a near miss for one typed word, and
-		// SuggestSub is what answers for those.
+		// SuggestSub is what answers for those. A hidden command that is
+		// not for anyone is never offered, nor its aliases: suggesting it
+		// would show it to somebody it is then refused to, and a command
+		// somebody may not run is absent, not shown and refused.
+		if !offered(definition) {
+			continue
+		}
 		if !strings.Contains(string(definition.Name), " ") {
 			words = append(words, string(definition.Name))
 		}
 	}
 	for _, definition := range registry {
+		if !offered(definition) {
+			continue
+		}
 		for _, alias := range definition.Aliases {
 			if !strings.Contains(alias, " ") {
 				words = append(words, alias)
@@ -671,6 +692,12 @@ func candidates() []string {
 		}
 	}
 	return words
+}
+
+// offered says a command may be suggested for a typo, by its name or an
+// alias: not a hidden one that is not for anyone.
+func offered(definition Definition) bool {
+	return !definition.Hidden || slices.Contains(definition.Roles, RoleAnyone)
 }
 
 // editDistance is the Levenshtein distance between two words.

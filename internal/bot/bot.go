@@ -433,7 +433,7 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 		ctx, cancel := context.WithTimeout(context.Background(), reportTimeout)
 		defer cancel()
 		_, _ = s.posterFor(event.Repository).Comment(ctx, event.Repository, event.Issue,
-			fmt.Sprintf("Something went wrong answering `%s`. It has been logged.\n", parsed.Name))
+			command.PanicApology(parsed.Name))
 	})
 }
 
@@ -663,6 +663,10 @@ func (s *Server) run(ctx context.Context, event mention, parsed command.Command,
 		return said(command.GoodbyeReply())
 	case command.Version:
 		return said(s.version())
+	case command.Panic:
+		// The value is the bot's own words, never the comment's: what it
+		// shows on the admin issue and in the log repository is known.
+		panic(fmt.Sprintf("a panic asked for by an editor on %s, to test the error reports (#73)", event.check()))
 	case command.Check:
 		return s.check(ctx, event, parsed, services)
 	case command.CheckReady:
@@ -1791,12 +1795,19 @@ func Preview(settings *config.Settings, services *check.Services, author, body s
 		replies = append(replies, notRun)
 	}
 	for _, parsed := range commands {
-		ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(parsed))
-		replies = append(replies, server.answer(ctx,
-			mention{Author: author, Body: parsed.Body, CommentBody: body}, parsed).body)
-		cancel()
+		replies = append(replies, previewOne(server, mention{Author: author, Body: parsed.Body, CommentBody: body}, parsed))
 	}
 	return strings.Join(replies, "\n\n---\n\n"), true
+}
+
+// previewOne is one command's answer, as a preview shows it: a command that
+// panics - `panic` does, on purpose - is answered with the apology the
+// deployment would post, and logged, rather than ending the command line.
+func previewOne(server *Server, event mention, parsed command.Command) (reply string) {
+	defer safe.Recover("previewing `"+string(parsed.Name)+"`", func(error) { reply = command.PanicApology(parsed.Name) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutFor(parsed))
+	defer cancel()
+	return server.answer(ctx, event, parsed).body
 }
 
 // readOnly is the reply path of a preview: the reads it embeds and nothing

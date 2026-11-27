@@ -609,6 +609,11 @@ went wrong without anything reaching the public register (#73).
 - Records are kept in memory, the last 2000 since the process started, so a
   deploy empties them as it does `/nudges`. A Go runtime fatal or a kill from
   the memory limit cannot report itself; those stay in the runway log.
+- **To see it work**, an editor posts `@chekhovbot panic` on an issue of the
+  register: an apology there, the pointer on the admin issue when
+  `CHEKHOV_ADMIN_ISSUE` names one, and a `fatal`
+  issue in the log repository with the trace. The command is hidden and the
+  editors'; its panic value is the bot's own words, never the comment's.
 - Every goroutine of the deployment recovers - through `internal/safe`, or a
   recover of its own - and `TestEveryGoroutineRecovers` fails on one that does
   not.
