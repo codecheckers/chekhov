@@ -56,6 +56,26 @@ func (r *recorder) last() string {
 	return r.comments[len(r.comments)-1].Body
 }
 
+// on is the first comment posted on an issue, empty when there is none: the
+// tests of a panic look for the admin issue's and the apology by where they
+// went, not by which was written first.
+func (r *recorder) on(issue int) string {
+	body, _ := r.onIn(issue)
+	return body
+}
+
+// onIn is on, with the repository the comment went to.
+func (r *recorder) onIn(issue int) (body, repository string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, comment := range r.comments {
+		if comment.Issue == issue {
+			return comment.Body, comment.Repository
+		}
+	}
+	return "", ""
+}
+
 func (r *recorder) count() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -398,8 +418,12 @@ func TestVersionIsAnswered(t *testing.T) {
 
 // panicIn runs a command that panics with value, the way act does.
 func panicIn(server *Server, event mention, value any) {
-	defer server.recoverCommand(event, command.Command{Name: command.Hello})
-	panic(value)
+	func() {
+		defer server.recoverCommand(event, command.Command{Name: command.Hello})
+		panic(value)
+	}()
+	// The admin issue is written on a goroutine of its own.
+	server.reporting.Wait()
 }
 
 // A panic in one command must cost that command's answer, not the process:
@@ -433,13 +457,14 @@ func TestAPanicIsReportedOnTheAdminIssue(t *testing.T) {
 	if replies.count() != 2 {
 		t.Fatalf("%d replies, want the report and the apology", replies.count())
 	}
-	report, apology := replies.comments[0], replies.comments[1]
-	if apology.Issue != 7 || !strings.Contains(apology.Body, "went wrong") {
-		t.Errorf("reply on #%d = %q, want the apology on the issue asked on", apology.Issue, apology.Body)
+	if apology := replies.on(7); !strings.Contains(apology, "went wrong") {
+		t.Errorf("reply on #7 = %q, want the apology on the issue asked on", apology)
 	}
-	if report.Repository != server.Settings.TargetRepository() || report.Issue != 99 {
-		t.Errorf("report went to %s#%d, want the admin issue", report.Repository, report.Issue)
+	body, repository := replies.onIn(99)
+	if repository != server.Settings.TargetRepository() || body == "" {
+		t.Errorf("no report on %s#99, want the admin issue", server.Settings.TargetRepository())
 	}
+	report := struct{ Body string }{body}
 	for _, want := range []string{string(command.Hello), event.check(), "`@a-codechecker`", "recoverCommand", "boom"} {
 		if !strings.Contains(report.Body, want) {
 			t.Errorf("the report does not carry %q:\n%s", want, report.Body)
@@ -483,7 +508,7 @@ func TestTheTraceIsDevelopmentsAlone(t *testing.T) {
 	server.Deployment.Environment = "production"
 	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "boom")
 
-	report := replies.comments[0].Body
+	report := replies.on(99)
 	if strings.Contains(report, "recoverCommand") || strings.Contains(report, ".go:") {
 		t.Errorf("production published the trace:\n%s", report)
 	}
@@ -503,7 +528,7 @@ func TestALongPanicValueDoesNotCostTheTrace(t *testing.T) {
 	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"},
 		strings.Repeat("ä", github.MaxCommentLength))
 
-	report := replies.comments[0].Body
+	report := replies.on(99)
 	if len(report) > github.MaxCommentLength/2 || !strings.Contains(report, "(cut)") ||
 		!strings.Contains(report, "recoverCommand") {
 		t.Errorf("%d bytes; want the value cut and the trace kept", len(report))

@@ -61,7 +61,15 @@ func PanicApology(name Name) string {
 // trace - are not (#73). "Reported", not "are": the report is written after
 // this, and may be held back by the hourly limit or fail, so the note says
 // where else to look.
-func PanicLoggedNote(repository string) string {
+//
+// With the issue the report went to, the note links it - written out, so that
+// GitHub links it for whoever may open it; a number alone tells nobody else
+// anything. Without one, 0, it names the repository and says where else to
+// look.
+func PanicLoggedNote(repository string, issue int) string {
+	if issue > 0 {
+		return fmt.Sprintf("The details are in the private log repository: %s#%d.\n", repository, issue)
+	}
 	return "The details are reported in the private log repository `" + repository +
 		"`, as an issue labelled `fatal`; if there is none, they are in the deployment's log.\n"
 }

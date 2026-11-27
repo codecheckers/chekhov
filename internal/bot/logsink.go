@@ -100,6 +100,10 @@ type fatalSink struct {
 	queue  chan logbook.Record
 	closed bool
 	counts sinkCounts
+	// settled is where each awaited report went, by report id, and changed
+	// is closed and replaced whenever it moves: see IssueFor.
+	settled map[string]settled
+	changed chan struct{}
 
 	done chan struct{}
 
@@ -136,6 +140,8 @@ func newFatalSink(repository string, deployment command.Deployment, writer logWr
 		logger:     logger,
 		now:        time.Now,
 		queue:      make(chan logbook.Record, sinkQueue),
+		settled:    map[string]settled{},
+		changed:    make(chan struct{}),
 		done:       make(chan struct{}),
 		known:      map[string]int{},
 		seen:       map[string]int{},
@@ -150,6 +156,7 @@ func (s *fatalSink) Offer(record logbook.Record) {
 	defer s.mu.Unlock()
 	if s.closed {
 		s.counts.Dropped++
+		s.dropped(record)
 		return
 	}
 	select {
@@ -157,6 +164,16 @@ func (s *fatalSink) Offer(record logbook.Record) {
 		s.counts.Queued++
 	default:
 		s.counts.Dropped++
+		s.dropped(record)
+	}
+}
+
+// dropped is for Offer, which drops a record when the sink is closed or full,
+// and holds s.mu: whoever waits to link the record's report is told at once
+// that there is none, rather than waiting out the deadline.
+func (s *fatalSink) dropped(record logbook.Record) {
+	if report, ok := record.Value(reportKey); ok {
+		s.settleLocked(report, 0)
 	}
 }
 
@@ -212,31 +229,98 @@ func (s *fatalSink) reportGuarded(record logbook.Record) {
 			s.logger.Warn("the report of an error panicked", "panic", fmt.Sprint(r))
 		}
 	}()
+	// Settled whatever happens, a panic in the report too: somebody may be
+	// waiting to link to the issue (IssueFor), and must not wait for nothing.
+	issue := 0
+	if report, ok := record.Value(reportKey); ok {
+		defer func() { s.settle(report, issue) }()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), sinkTimeout)
 	defer cancel()
-	if err := s.report(ctx, record); err != nil {
+	var err error
+	if issue, err = s.report(ctx, record); err != nil {
 		s.count(func(c *sinkCounts) { c.Failed++ })
 		s.logger.Warn("an error could not be reported in the log repository",
 			"repository", s.repository, "error", err)
 	}
 }
 
+// reportKey is the attribute a record carries when somebody will wait for
+// where its report went: a recovered panic, whose note on the admin issue
+// links it. Unique per record, so that two panics at once are not confused.
+const reportKey = "report"
+
+// settled is where one awaited report went: the issue, 0 for none, and when.
+type settled struct {
+	issue int
+	at    time.Time
+}
+
+// settle records where an awaited report went, and wakes whoever waits.
+func (s *fatalSink) settle(report string, issue int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.settleLocked(report, issue)
+}
+
+// settleLocked is settle with s.mu held. What nobody collected within
+// linkWait is forgotten, so that the map holds the reports of the last
+// minute and no more.
+func (s *fatalSink) settleLocked(report string, issue int) {
+	now := s.now()
+	for id, done := range s.settled {
+		if now.Sub(done.at) > linkWait {
+			delete(s.settled, id)
+		}
+	}
+	s.settled[report] = settled{issue: issue, at: now}
+	close(s.changed)
+	s.changed = make(chan struct{})
+}
+
+// IssueFor waits until the report of the record with this report id has been
+// written, and says the issue it went to - 0 when it went nowhere: dropped,
+// held back by a limit, refused, or failed. It gives up when ctx ends. This is
+// how the admin issue links the report rather than only naming the
+// repository: the report is written after the admin issue is.
+func (s *fatalSink) IssueFor(ctx context.Context, report string) int {
+	for {
+		s.mu.Lock()
+		done, ok := s.settled[report]
+		if ok {
+			delete(s.settled, report)
+		}
+		changed := s.changed
+		s.mu.Unlock()
+		if ok {
+			return done.issue
+		}
+		select {
+		case <-changed:
+		case <-ctx.Done():
+			return 0
+		}
+	}
+}
+
 // report writes one record: a comment on its open issue, or a new issue. The
 // limits are asked before anything is read or rendered, so that a storm of
 // errors costs a count each and not a report each.
-func (s *fatalSink) report(ctx context.Context, record logbook.Record) error {
+//
+// It says the issue the report went to, 0 when it went nowhere.
+func (s *fatalSink) report(ctx context.Context, record logbook.Record) (int, error) {
 	if !s.mayWrite(ctx) {
 		s.count(func(c *sinkCounts) { c.Dropped++ })
-		return nil
+		return 0, nil
 	}
 	now := s.now()
 	s.posts, s.opened = within(s.posts, now), within(s.opened, now)
 	if len(s.posts) >= sinkPostsPerHour {
 		s.count(func(c *sinkCounts) { c.Limited++ })
-		return nil
+		return 0, nil
 	}
 	if err := s.loadOpen(ctx); err != nil {
-		return err
+		return 0, err
 	}
 
 	print := fingerprint(record)
@@ -250,25 +334,25 @@ func (s *fatalSink) report(ctx context.Context, record logbook.Record) error {
 		if _, err := s.writer.Comment(ctx, s.repository, issue, command.Defuse(header+s.body(record))); err != nil {
 			// The issue may have been closed or moved: read them afresh next time.
 			s.loaded = false
-			return err
+			return 0, err
 		}
 		s.count(func(c *sinkCounts) { c.Posted++ })
-		return nil
+		return issue, nil
 	}
 
 	if len(s.opened) >= sinkNewPerHour {
 		s.count(func(c *sinkCounts) { c.Limited++ })
-		return nil
+		return 0, nil
 	}
 	s.posts, s.opened = append(s.posts, now), append(s.opened, now)
 	number, err := s.writer.CreateIssue(ctx, s.repository, title(record, print), command.Defuse(s.body(record)),
 		[]string{s.label, labelFatal})
 	if err != nil {
-		return err
+		return 0, err
 	}
 	s.known[print] = number
 	s.count(func(c *sinkCounts) { c.Posted++ })
-	return nil
+	return number, nil
 }
 
 // mayWrite asks GitHub, once, whether the repository is private. A failure to

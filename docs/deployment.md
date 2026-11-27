@@ -605,7 +605,17 @@ went wrong without anything reaching the public register (#73).
   `development`), and a deployment comments only on the issues that carry its
   own label.
 - With a log repository, the **admin issue** gets only the headline of a panic
-  and a pointer, never the panic value or the trace.
+  and a link to its issue there, `codecheckers/chekhov-log#N` - the bot waits
+  up to thirty seconds for the report to be written - never the panic value
+  or the trace. A report held back by a limit, dropped or refused leaves the
+  note naming the repository and the deployment's log instead.
+- **Which issue a repeat goes to** is decided by a fingerprint at the end of
+  the title, `[272a7b13]`: the record's message and the function it came
+  from - for a panic, the first function under the runtime's `panic` frame
+  that is not the runtime's - without the line, so that a deploy that moves
+  a line keeps the issue. Not the issue or who asked, or every check would
+  get an issue of its own for one bug: two commands that panic in the same
+  function share an issue, whose title keeps the first one's words.
 - Records are kept in memory, the last 2000 since the process started, so a
   deploy empties them as it does `/nudges`. A Go runtime fatal or a kill from
   the memory limit cannot report itself; those stay in the runway log.

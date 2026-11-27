@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-11-27
+
+### Changed
+
+- A panic's note on the admin issue links its issue in the private log
+  repository, once the report is written, rather than only naming the
+  repository (#73).
+- A command's panic is reported with the records logged about its issue
+  before it (#73).
+
 ## [0.54.0] - 2026-11-27
 
 ### Added

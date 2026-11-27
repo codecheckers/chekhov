@@ -155,6 +155,10 @@ type Server struct {
 
 	// done is closed when a background command finishes, for the tests.
 	done chan struct{}
+
+	// reporting counts the reports of a panic still being posted on the
+	// admin issue, for the tests.
+	reporting sync.WaitGroup
 }
 
 // New builds a server from the settings and a reply path.
@@ -421,12 +425,20 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 		return
 	}
 
-	// The report first, and each with its own guard and its own deadline, so
-	// that a slow or failing apology costs neither the report nor its time.
-	// On the admin issue itself the report is the answer, trace and all.
+	// The report first - logged at once, posted on the admin issue on a
+	// goroutine of its own - and then the apology, with its own guard and
+	// deadline, so that neither costs the other. The issue goes on the record
+	// only on the register: the log repository quotes the records about it,
+	// and the lists number their issues too. On the admin issue itself the
+	// report is the answer, trace and all.
+	onRegister := event.Repository == s.Settings.TargetRepository()
+	issue := 0
+	if onRegister {
+		issue = event.Issue
+	}
 	s.reportRecovered(r, fmt.Sprintf("`%s %s` panicked on %s, asked by `@%s`.",
-		command.Bot, parsed.Name, event.check(), event.Author))
-	if event.Issue == s.Settings.AdminIssue() {
+		command.Bot, parsed.Name, event.check(), event.Author), issue)
+	if onRegister && event.Issue == s.Settings.AdminIssue() {
 		return
 	}
 	s.survive("apologising for the panic", func() {
@@ -456,12 +468,35 @@ func (s *Server) recoverCommand(event mention, parsed command.Command) {
 // passed it. This is the last frame there is, so nothing in it may panic in
 // turn - reporting the first panic would cost the process the second one was
 // meant to save.
-func (s *Server) reportRecovered(r any, headline string) {
+//
+// issue is the issue of the command that panicked, 0 for none: the report in
+// the log repository quotes what was logged about that issue before the
+// panic. The record carries a report id too, which is how the admin issue
+// learns which issue in the log repository the report went to.
+func (s *Server) reportRecovered(r any, headline string, issue int) {
 	defer func() { recover() }()
 	trace := string(debug.Stack())
-	s.Logger.Error("panicked", "what", headline, "panic", r, "stack", trace)
-	s.reportPanic(headline, r, trace)
+	report := fmt.Sprintf("%016x", rand.Uint64())
+	attrs := []any{"what", headline, "panic", r, "stack", trace, reportKey, report}
+	if issue > 0 {
+		attrs = append(attrs, "issue", issue)
+	}
+	s.Logger.Error("panicked", attrs...)
+	// The admin issue on a goroutine of its own: it waits for the report in
+	// the log repository to link it, and whatever panicked - a command's
+	// answer, a step of it, the sweep's timer - must not wait for that.
+	s.reporting.Add(1)
+	go func() {
+		defer s.reporting.Done()
+		defer safe.Recover("reporting a panic on the admin issue", nil)
+		s.reportPanic(headline, r, trace, report)
+	}()
 }
+
+// linkWait is how long the admin issue waits for the report in the log
+// repository, to link it: the report waits its turn in the write queue,
+// three seconds apart, behind whatever else is being written.
+const linkWait = 30 * time.Second
 
 // recoverBackground is deferred by a goroutine that runs on a timer rather
 // than for somebody - the nightly sweep, the team load at startup. There is no
@@ -471,7 +506,7 @@ func (s *Server) reportRecovered(r any, headline string) {
 // deferred.
 func (s *Server) recoverBackground(headline string) {
 	if r := recover(); r != nil {
-		s.reportRecovered(r, headline)
+		s.reportRecovered(r, headline, 0)
 	}
 }
 
@@ -492,7 +527,7 @@ func (s *Server) aside(wg *sync.WaitGroup, what string, failed *error, f func() 
 				// The caller's own sentence says what it could not do, so
 				// this says only that it panicked.
 				*failed = safe.ErrPanicked
-				s.reportRecovered(r, "A command panicked "+what+".")
+				s.reportRecovered(r, "A command panicked "+what+".", 0)
 			}
 		}()
 		*failed = f()
@@ -513,7 +548,7 @@ const maxPanicValue = 4000
 // reportPanic posts a panic and its trace on the admin issue, if there is one,
 // which is how somebody hears of it without watching the logs. See
 // docs/deployment.md -> Watching it, and codecheckers/chekhov#38.
-func (s *Server) reportPanic(headline string, r any, trace string) {
+func (s *Server) reportPanic(headline string, r any, trace, report string) {
 	admin := mention{Repository: s.Settings.TargetRepository(), Issue: s.Settings.AdminIssue()}
 	if admin.Issue == 0 {
 		return
@@ -534,16 +569,24 @@ func (s *Server) reportPanic(headline string, r any, trace string) {
 	// is where production keeps it. The panic value is the finding either
 	// way: it is what a command was given, which is on the issue already.
 	details, note := value, "\nThe stack trace is in the deployment's log.\n"
-	switch {
+	if s.Deployment.Development() {
+		details, note = value+"\n\n"+trace, ""
+	}
 	// With a private log repository, the details go there and nowhere else:
 	// the panic value is what a command was given, but the register is public
 	// and the log repository is where somebody who may see it looks (#73).
-	// Not once the sink has found it public: then nothing goes there, and the
-	// admin issue says what it always did.
-	case s.logSink != nil && !s.logSink.Counts().Refused:
-		details, note = "", command.PanicLoggedNote(s.Settings.LogRepository())
-	case s.Deployment.Development():
-		details, note = value+"\n\n"+trace, ""
+	// The note links the issue the report went to, and says where else to
+	// look when it went nowhere. Not once the sink has found the repository
+	// public, which it may find out while this waits - asked again after the
+	// wait: then nothing went there, and the admin issue says what it always
+	// did.
+	if s.logSink != nil && !s.logSink.Counts().Refused {
+		waiting, stop := context.WithTimeout(ctx, linkWait)
+		issue := s.logSink.IssueFor(waiting, report)
+		stop()
+		if !s.logSink.Counts().Refused {
+			details, note = "", command.PanicLoggedNote(s.Settings.LogRepository(), issue)
+		}
 	}
 	body := headline + "\n\n" + note
 	if details = strings.TrimRight(details, "\r\n"); details != "" {

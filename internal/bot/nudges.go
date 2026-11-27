@@ -136,7 +136,7 @@ func (s *Server) sweepNightly(ctx context.Context) {
 	// until the next deploy.
 	defer func() {
 		if r := recover(); r != nil {
-			s.reportRecovered(r, "The timer of the nightly sweep panicked; it starts again.")
+			s.reportRecovered(r, "The timer of the nightly sweep panicked; it starts again.", 0)
 			go s.sweepNightly(ctx)
 		}
 	}()

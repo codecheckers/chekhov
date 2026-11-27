@@ -280,6 +280,7 @@ func TestAPanicIsReportedWithItsStack(t *testing.T) {
 		defer server.recoverBackground("A made-up panic.")
 		panic("made up")
 	}()
+	server.reporting.Wait()
 	drain(t, sink)
 
 	issues := log.opened()
@@ -318,17 +319,17 @@ func TestWithALogRepositoryTheAdminIssueSaysOnlyWhere(t *testing.T) {
 	panicIn(server, event, "the-made-up-panic-value")
 	drain(t, sink)
 
-	report := replies.comments[0]
-	if report.Issue != 99 {
-		t.Fatalf("first comment on #%d, want the admin issue", report.Issue)
+	report := replies.on(99)
+	if report == "" {
+		t.Fatal("nothing on the admin issue")
 	}
 	for _, absent := range []string{"the-made-up-panic-value", "goroutine", ".go:"} {
-		if strings.Contains(report.Body, absent) {
-			t.Errorf("the public admin issue says %q:\n%s", absent, report.Body)
+		if strings.Contains(report, absent) {
+			t.Errorf("the public admin issue says %q:\n%s", absent, report)
 		}
 	}
-	if !strings.Contains(report.Body, server.Settings.LogRepository()) {
-		t.Errorf("the admin issue does not say where the details are:\n%s", report.Body)
+	if !strings.Contains(report, server.Settings.LogRepository()) {
+		t.Errorf("the admin issue does not say where the details are:\n%s", report)
 	}
 	if bodies := log.bodies[1]; len(bodies) != 1 || !strings.Contains(bodies[0], "the-made-up-panic-value") {
 		t.Errorf("the log repository did not get the panic: %v", log.bodies)
@@ -457,7 +458,7 @@ func TestARefusedSinkLeavesTheAdminIssueAsItWas(t *testing.T) {
 	}
 
 	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "a-value")
-	report := replies.comments[0].Body
+	report := replies.on(99)
 	if strings.Contains(report, server.Settings.LogRepository()) || !strings.Contains(report, "deployment's log") {
 		t.Errorf("the admin issue points at a repository that took nothing:\n%s", report)
 	}
@@ -482,17 +483,17 @@ func TestPanicIsAnEditorsTestOfTheReports(t *testing.T) {
 	event.Author = "nuest"
 	server.act(event, command.Command{Name: command.Panic})
 	<-server.done
+	server.reporting.Wait()
 	drain(t, sink)
 
 	if len(replies.comments) != 2 {
 		t.Fatalf("%d comments, want the admin issue's and the apology", len(replies.comments))
 	}
-	admin, apology := replies.comments[0], replies.comments[1]
-	if admin.Issue != 99 || !strings.Contains(admin.Body, server.Settings.LogRepository()) || strings.Contains(admin.Body, "a panic asked for") {
-		t.Errorf("the admin issue should get the pointer and not the value: #%d %q", admin.Issue, admin.Body)
+	if admin := replies.on(99); !strings.Contains(admin, server.Settings.LogRepository()+"#1.") || strings.Contains(admin, "a panic asked for") {
+		t.Errorf("the admin issue should get the link and not the value: %q", admin)
 	}
-	if apology.Issue != 260 || apology.Body != command.PanicApology(command.Panic) {
-		t.Errorf("the apology on #%d is %q", apology.Issue, apology.Body)
+	if apology := replies.on(260); apology != command.PanicApology(command.Panic) {
+		t.Errorf("the apology on #260 is %q", apology)
 	}
 	issues := log.opened()
 	if len(issues) != 1 || !command.HasLabel(issues[0].Labels, "fatal") {
@@ -509,5 +510,69 @@ func TestAPreviewOfPanicIsTheApology(t *testing.T) {
 	event := mention{Repository: server.Settings.TargetRepository(), Author: "nuest", Body: "@chekhovbot panic"}
 	if got := previewOne(server, event, command.Command{Name: command.Panic}); got != command.PanicApology(command.Panic) {
 		t.Errorf("the preview answered %q", got)
+	}
+}
+
+// A panic's report quotes what was logged about its own issue before it,
+// because the record names the issue.
+func TestAPanicsReportQuotesItsIssue(t *testing.T) {
+	server, _ := testServer(t)
+	log := newFakeLog()
+	logger, sink, _ := logged(t, log, "development")
+	server.Logger, server.logSink = logger, sink
+	logger.Info("answered", "command", "hello", "issue", 260)
+	logger.Info("answered", "command", "hello", "issue", 999)
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 260, Author: "nuest"}, "boom")
+	drain(t, sink)
+	body := log.bodies[1][0]
+	if !strings.Contains(body, "about issue 260") || strings.Contains(body, "issue=999") {
+		t.Errorf("the report should quote issue 260's records and no other's:\n%s", body)
+	}
+}
+
+// A report that goes nowhere - dropped from a full queue - is said at once,
+// and the admin issue falls back to naming the repository.
+func TestADroppedReportIsNotWaitedFor(t *testing.T) {
+	log := newFakeLog()
+	log.hold = make(chan struct{})
+	defer close(log.hold)
+	logger, sink, _ := logged(t, log, "development")
+	for i := range sinkQueue + 2 {
+		logger.Error("filler", "n", i)
+	}
+	logger.Error("panicked", reportKey, "a-made-up-report")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	started := time.Now()
+	if issue := sink.IssueFor(ctx, "a-made-up-report"); issue != 0 || time.Since(started) > time.Second {
+		t.Errorf("IssueFor said %d after %s, want 0 at once", issue, time.Since(started))
+	}
+}
+
+// A panic whose report went nowhere - dropped from a full queue - leaves the
+// admin issue naming the repository and the deployment's log, no link, and
+// no panic value either.
+func TestTheAdminIssueFallsBackWhenTheReportIsDropped(t *testing.T) {
+	t.Setenv("CHEKHOV_ADMIN_ISSUE", "99")
+	server, replies := testServer(t)
+	log := newFakeLog()
+	log.hold = make(chan struct{})
+	defer close(log.hold)
+	logger, sink, _ := logged(t, log, "development")
+	server.Logger, server.logSink = logger, sink
+	for i := range sinkQueue + 2 {
+		logger.Error("filler", "n", i)
+	}
+
+	started := time.Now()
+	panicIn(server, mention{Repository: server.Settings.TargetRepository(), Issue: 7, Author: "a-codechecker"}, "a-made-up-value")
+	admin := replies.on(99)
+	if !strings.Contains(admin, "deployment's log") || strings.Contains(admin, "#") && strings.Contains(admin, logRepository+"#") ||
+		strings.Contains(admin, "a-made-up-value") {
+		t.Errorf("the admin issue says %q", admin)
+	}
+	if took := time.Since(started); took > 5*time.Second {
+		t.Errorf("the dropped report was waited for: %s", took)
 	}
 }

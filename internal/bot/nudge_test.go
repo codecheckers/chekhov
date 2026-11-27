@@ -512,6 +512,8 @@ func TestASweepThatPanicsCostsThatSweepAndNotTheProcess(t *testing.T) {
 	replies.issuesPanic = "boom"
 
 	server.sweepOnce(context.Background())
+	// The admin issue is written on a goroutine of its own.
+	server.reporting.Wait()
 
 	// Recorded like any other walk, so that the endpoint shows a sweep that
 	// keeps panicking as well as one that has stopped.
@@ -559,6 +561,7 @@ func TestABackgroundPanicIsReportedRatherThanEndingTheProcess(t *testing.T) {
 		defer server.recoverBackground("The team load at startup panicked.")
 		panic("boom")
 	}()
+	server.reporting.Wait()
 
 	if replies.count() != 1 {
 		t.Fatalf("%d comments, want the report on the admin issue", replies.count())
