@@ -58,7 +58,9 @@ func (s *Server) writeLog(ctx context.Context, event mention, sweep bool) string
 		register := s.Settings.TargetRepository()
 		keep = func(r logbook.Record) bool { return r.Issue() == 0 || !r.About(register, r.Issue()) }
 	} else {
-		title, about = fmt.Sprintf("%s (%s)", event.check(), label), "about "+event.check()
+		// In backticks, as in the header: a reference written out would put
+		// a cross-reference from the log repository on the check's timeline.
+		title, about = fmt.Sprintf("%s (%s)", event.check(), label), "about `"+event.check()+"`"
 		keep = func(r logbook.Record) bool { return r.About(event.Repository, event.Issue) }
 	}
 	// The buffer keeps the newest records, Kept of them: on a busy day it

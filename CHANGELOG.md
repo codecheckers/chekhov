@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.56.1] - 2026-11-27
+
+### Fixed
+
+- A `log` comment no longer adds a cross-reference from the log repository to
+  the check's timeline (#73).
+
 ## [0.56.0] - 2026-11-27
 
 ### Added

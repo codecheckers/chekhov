@@ -627,8 +627,13 @@ func TestLogWritesTheChecksRecordsThereAndOnlyTheLinkHere(t *testing.T) {
 		strings.Join(issues[0].Labels, ",") != "development" {
 		t.Fatalf("opened %+v, want the check's standing issue", issues)
 	}
-	// The issue's own description first, then the comment.
+	// The issue's own description first, then the comment, which names the
+	// check only in backticks: a reference written out would show on its
+	// timeline.
 	body := log.bodies[1][1]
+	if strings.Contains(strings.ReplaceAll(body, "`"+register+"#260`", ""), register+"#260") {
+		t.Errorf("the comment names the check outside backticks:\n%s", body)
+	}
 	if !strings.Contains(body, "made-up-editor") || strings.Contains(body, "issue=999") ||
 		strings.Contains(body, "a registration") || strings.Contains(body, "team loaded") {
 		t.Errorf("the comment should hold issue 260's records of the register and no other:\n%s", body)
